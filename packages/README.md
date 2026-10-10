@@ -8,8 +8,8 @@ Lightlix 가 직접 만드는 Debian 패키지의 소스를 둔다. 각 디렉�
 | 패키지 | 상태 | 내용 |
 |---|---|---|
 | `lightlix-base` | 있음 (Phase 0) | `/usr/lib/os-release` 와 `/etc/dpkg/origins/lightlix` 를 제공한다. |
-| `lightlix-nvidia` | 예정 (Phase 1) | NVIDIA 드라이버 설치 |
-| `lightlix-llm` | 예정 (Phase 1) | CUDA 와 llama.cpp, 추론 서버 |
+| `lightlix-nvidia` | 있음 (Phase 1) | 고정된 NVIDIA 오픈 모듈·드라이버·CUDA 런타임 의존성, apt 정책, 서버 모드, 부팅 진단 |
+| `lightlix-llm` | 예정 (Phase 2) | llama.cpp 소스 빌드와 추론 서버 |
 | `lightlix-desktop` | 예정 | GUI 구성 요소 |
 | `lightlix-branding` | 예정 | 배경, 로고 등 브랜딩 자산 |
 
@@ -21,6 +21,8 @@ Lightlix 가 직접 만드는 Debian 패키지의 소스를 둔다. 각 디렉�
 - `debian/changelog` 의 버전은 `lightlix.conf` 의 `LIGHTLIX_VERSION` 과 같아야 한다. 다르면 `scripts/build-debs.sh` 가 실패한다.
 
 ## 빌드 방법
+
+`lightlix-nvidia`의 드라이버 의존성과 apt 정책도 `lightlix.conf`에서 생성한다. `scripts/prepare-nvidia.sh`는 체크섬이 고정된 `cuda-keyring`과 브랜치 핀 패키지를 `build/config/archives/`에 준비한다. live-build는 이를 드라이버 설치 전에 넣는다. 저장소 항목과 키의 소유자는 `cuda-keyring`이며 별도 `.list`나 키를 중복 생성하지 않는다.
 
 Debian 13 (trixie) 호스트에서 다음 패키지가 필요하다: `dpkg-dev`, `debhelper`, `build-essential`. `build-essential` 은 `dpkg-buildpackage` 가 암묵적 빌드 의존성으로 확인하므로 없으면 빌드가 실패한다.
 

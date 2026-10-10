@@ -1,6 +1,7 @@
-# Lightlix Phase 0 최소 구성: 콘솔 로그인과 유선 네트워크, zram. GPU, GUI, 설치기, 오디오, 펌웨어는 넣지 않는다.
+# Lightlix Phase 1 헤드리스 구성. 드라이버 의존성은 lightlix-nvidia 에서 한 번에 설치한다.
 # user-setup: live-config 가 라이브 사용자(user)를 만들 때 필요하다. Recommends 라서 직접 적는다.
 lightlix-base
+lightlix-nvidia
 ca-certificates
 locales
 sudo

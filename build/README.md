@@ -13,7 +13,7 @@ build/
 │   └── clean                           lb clean 의 auto 스크립트 (noauto 로 위임)
 └── config/
     ├── package-lists/
-    │   └── lightlix.list.chroot        chroot 에 설치할 패키지 목록 (Phase 0 최소 구성)
+    │   └── lightlix.list.chroot        Phase 1 헤드리스 구성과 lightlix-nvidia
     ├── includes.chroot/                chroot 에 그대로 복사할 파일
     │   ├── etc/systemd/network/20-lightlix-wired.network   유선 인터페이스 DHCP 설정
     │   ├── etc/systemd/system/multi-user.target.wants/systemd-networkd.service   networkd 활성화 링크
@@ -32,10 +32,15 @@ build/
 - 라이브 부팅 파라미터에 `console=tty0 console=ttyS0,115200` 과 `hostname=lightlix` 를 넣는다.
 - ISO 볼륨, 애플리케이션, 퍼블리셔 이름은 `Lightlix`, 이미지 이름은 `lightlix-<버전>` 이다.
 
-`config/hooks/normal/` 의 훅은 두 개다.
+`config/hooks/normal/` 의 훅은 세 개다.
 
 - `9100-lightlix-os-release.hook.chroot`: live-build 가 Debian 내용으로 만들어 둔 `/etc/os-release` 를 Lightlix 내용으로 다시 만든다.
 - `9500-lightlix-grub-timeout.hook.binary`: GRUB 메뉴에 5초 타임아웃을 넣는다. live-build 의 템플릿에는 타임아웃이 없어 메뉴에서 무한 대기한다.
+- `9900-lightlix-nvidia.hook.chroot`: 이미지의 6.12 커널을 찾아 `dkms autoinstall -k`로 빌드한다. 모듈 파일·버전·MIT/GPL 라이선스, 금지 패키지 부재를 검사하고 initramfs를 갱신한다. 드라이버와 커널을 hold하고 계약서 전문을 복사한 뒤 DKMS 서명 키를 제거한다.
+
+`scripts/prepare-nvidia.sh`가 `config/archives/`에 생성하는 `.deb`와 핀은 git에서 제외한다. NVIDIA 저장소는 `cuda-keyring`으로만 추가한다. 빌드 시작 시 `ca-certificates`를 debootstrap에 포함해 초기 HTTPS 저장소 접근에도 인증서 검증을 적용한다. `20-lightlix-dkms.conf.chroot`는 최초 패키지 설치 중 DKMS 병렬 작업 수를 2로 제한하며 최종 이미지의 apt 설정에는 남기지 않는다.
+
+`make test-nvidia-image-docker`는 완성된 squashfs에서 패키지·모듈·계약서 전문과 키 제거를 다시 확인한다. `make test-qemu-docker`는 NVIDIA GPU가 없는 환경에서 로그인 프롬프트와 CPU 폴백 안내를 확인한다. 이 검사는 NVIDIA 실기 동작의 증거가 아니다.
 
 ## 옵션 검증 근거
 

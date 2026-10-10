@@ -24,6 +24,7 @@ RUN apt-get update \
       gpgv \
       mount \
       ca-certificates \
+      curl \
       xz-utils \
       dpkg-dev \
       debhelper \

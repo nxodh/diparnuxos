@@ -1,3 +1,9 @@
+lightlix-base (0.1.0) trixie; urgency=medium
+
+  * Phase 1 이미지 버전을 반영한다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Sun, 11 Oct 2026 00:00:00 +0900
+
 lightlix-base (0.0.1) trixie; urgency=medium
 
   * 초기 버전. Lightlix os-release 와 dpkg vendor origin 을 추가한다.

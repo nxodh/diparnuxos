@@ -219,7 +219,9 @@
 
 ---
 
-## D9. Secure Boot 처리 (신규, `must_change`, 제안 — 사용자 확정 아님)
+## D9. Secure Boot 처리 (`must_change`)
+
+2026-10-11 인수인계 지시에 따라 빌드 키 제거와 부팅 시 텍스트 안내를 Phase 1에서 구현한다. 현재 라이브 ISO는 Secure Boot 끄기를 전제로 하며, 기기별 MOK 등록은 후속 단계에서 제공한다. 아래는 원래 조사 근거다. 실제 검증 결과는 [verification-phase-1.md](verification-phase-1.md)에 기록한다.
 
 - **원래 결정**: 없음. 최초 사양에 Secure Boot 방침이 없다.
 - **검증자 제안**:
@@ -244,7 +246,7 @@
 | CUDA 런타임과 드라이버를 ISO에 포함 | 사용자 확정 |
 | llama.cpp 웹 UI 없음 | 사용자 확정 |
 | 프로젝트 라이선스 | 미정. LICENSE 파일 없음 |
-| Secure Boot 방침 (D9) | 제안만 있음. 미확정 |
+| Secure Boot 방침 (D9) | Phase 1 빌드 키 제거와 텍스트 안내 구현. 현재 라이브 사용은 Secure Boot 끄기 전제 |
 | 모델 라이선스 표시 방침 | 미확정. [licenses.md](licenses.md) 참고 |
 | labwc 0.8.3 explicit sync 문제 대응 (D6) | 실기 시험 후 결정 |
 | 그리터 프로그램 선택 (D6) | Phase 3에서 결정 |
