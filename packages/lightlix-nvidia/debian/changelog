@@ -1,0 +1,5 @@
+lightlix-nvidia (0.1.0) trixie; urgency=medium
+
+  * NVIDIA 오픈 모듈 정책, 서버 모드 설정, 부팅 진단을 추가한다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Sun, 11 Oct 2026 00:00:00 +0900

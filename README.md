@@ -1,7 +1,7 @@
 # Lightlix
 
-- 확인 날짜: 2026-10-10
-- 상태: 초안. Phase 0 진행 중. **실 하드웨어에서 검증하지 않았다.**
+- 확인 날짜: 2026-10-11
+- 상태: Phase 1 구현 및 빌드 검증 중. **NVIDIA 실 하드웨어에서 검증하지 않았다.**
 - 저장소: https://github.com/nxodh/lightlixos
 
 Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최소로 줄이면서 로컬 LLM 추론 서버를 돌리는 것이 목표다. amd64 아키텍처와 UEFI 부팅만 지원한다는 것이 계획이다. 대상 GPU는 NVIDIA RTX 30, 40, 50 계열이다.
@@ -12,14 +12,21 @@ Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최
 
 ## 현재 상태
 
-지금은 **Phase 0**이다. Phase 0 ISO에는 다음만 들어간다.
+현재 구현 범위는 **Phase 1 헤드리스 ISO**다. ISO에는 다음이 들어간다.
 
 - 최소 Debian 13 시스템
 - Lightlix 정체성(`os-release`)과 호스트 이름 `lightlix`
 - 직렬 콘솔 로그인 프롬프트 `lightlix login:`
 - 라이브 계정 `user`(비밀번호 `live`, sudo 가능). Debian live-config 의 기본값이며 SSH 서버는 들어 있지 않다.
+- NVIDIA 공식 저장소, 지정 버전의 오픈 커널 모듈과 사용자 공간 드라이버
+- CUDA 런타임(`cudart`, `cublas`). CUDA 컴파일러와 툴킷은 포함하지 않는다.
+- 부팅 시 GPU 진단과 원인별 CPU 폴백 안내, 서버 모드의 절전 비활성화
 
-다음은 아직 없다. NVIDIA 드라이버, CUDA, llama.cpp, GUI, 설치기, `lightlixd` 데몬. 이 기능들은 Phase 1 이후에 구현한다.
+llama.cpp, `lightlixd`, CLI, GUI, 설치기는 후속 단계에서 구현한다. 지금의 CPU 폴백 안내는 진단 결과이며, 추론 서버를 실행한다는 뜻은 아니다.
+
+라이브 ISO에서 NVIDIA 모듈을 사용하려면 **Secure Boot를 끈다.** 빌드 중 생성한 DKMS 키는 배포하지 않는다. 기기별 MOK 등록은 아직 구현하지 않았다. 부팅 시 상태를 표시하며, 자세한 원인은 `sudo journalctl -k`로 확인한다.
+
+GPU 진단은 `sudo lightlix-gpu-check`로 다시 실행한다. 결과는 `/run/lightlix/gpu-status`에 기록된다. 라이선스 전문은 이미지의 `/usr/share/lightlix/licenses/`에서 읽을 수 있다.
 
 이 저장소의 결과는 실 하드웨어에서 검증하지 않았다. 빌드와 부팅 테스트도 Phase 0에서 CI와 QEMU로만 확인하는 것이 목표다. 실기 결과가 생기기 전까지 특정 GPU에서의 동작을 주장하지 않는다. 상태 표는 [docs/support-matrix.md](docs/support-matrix.md)에 있다.
 
@@ -48,7 +55,10 @@ RTX 50은 오픈 커널 모듈만 지원한다. Secure Boot가 켜진 상태에�
 | `make iso-native` | Debian 13 호스트에서 root로 직접 ISO를 빌드한다. |
 | `make deb` | `packages/` 아래 패키지를 `.deb`으로 빌드한다. |
 | `make lint` | 셸 스크립트를 정적 검사한다. |
-| `make test-qemu` | `tests/qemu/boot-smoke.sh`로 ISO가 부팅하는지 확인한다. 직렬 콘솔의 `lightlix login:` 프롬프트를 기준으로 성공을 판정한다. |
+| `make test-gpu-check` | GPU 없이 진단 분기를 테스트한다. 실기 검증은 아니다. |
+| `make test-nvidia-image-docker` | 완성된 ISO의 오픈 모듈, 드라이버 구성, 라이선스, 서명 키 제거를 확인한다. |
+| `make test-qemu` | QEMU/OVMF로 로그인 프롬프트와 GPU 없는 CPU 폴백 안내를 확인한다. |
+| `make test-qemu-docker` | 동일한 부팅 확인을 Debian 컨테이너에서 한다. |
 | `make clean` | 빌드 산출물을 지운다. |
 
 산출물은 `out/lightlix-<version>-amd64.iso`와 같은 이름에 `.sha256`을 붙인 체크섬 파일이다. `out/`은 git에 넣지 않는다.
@@ -75,17 +85,17 @@ out/             빌드 산출물(git 제외)
 
 ---
 
-## 개발 단계 (초안)
+## 개발 단계
 
-아래 단계 구분은 이 문서 작성 시점의 계획이다. 확정 로드맵이 따로 있으면 그 기준으로 고친다.
+각 단계의 빌드와 테스트를 확인한 뒤 다음 단계의 승인을 받는다.
 
 | Phase | 내용 | 상태 |
 |---|---|---|
-| 0 | 저장소 뼈대, 빌드 스크립트, CI(ISO 빌드), 문서 초안, 최소 Debian 13 ISO와 `os-release` | 진행 중 |
-| 1 | NVIDIA 드라이버(오픈 모듈), CUDA 런타임, llama.cpp 빌드와 `llama-server` 실행. Secure Boot의 빌드 쪽 처리(DKMS 키 제거, 모듈 서명) | 계획 |
-| 2 | `lightlixd` 데몬과 CLI | 계획 |
+| 0 | 저장소 뼈대, 최소 Debian 13 ISO, CI, 문서 초안 | 완료. main의 CI 빌드와 QEMU 부팅 통과 |
+| 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 검증 중 |
+| 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 계획 |
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 계획 |
-| 4 | Calamares 설치기(Lightlix 전용 설정) | 계획 |
+| 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |
 | 5 | 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
 
 ---
@@ -95,7 +105,8 @@ out/             빌드 산출물(git 제외)
 | 문서 | 내용 |
 |---|---|
 | [docs/decisions.md](docs/decisions.md) | 기술 결정 기록. 원래 결정, 2026-10-10 변경, 근거와 출처 |
-| [docs/drivers.md](docs/drivers.md) | NVIDIA 드라이버 설치 계획(Phase 1 예정) |
+| [docs/drivers.md](docs/drivers.md) | NVIDIA 드라이버 구성과 Phase 1 검증 |
+| [docs/verification-phase-1.md](docs/verification-phase-1.md) | 이번 단계에서 실제로 확인한 내용과 남은 한계 |
 | [docs/licenses.md](docs/licenses.md) | NVIDIA 드라이버 라이선스, CUDA EULA, 상표, 프로젝트 라이선스(미정) |
 | [docs/secure-boot.md](docs/secure-boot.md) | Secure Boot와 커널 모듈 서명 설계(Phase 1, 3 예정) |
 | [docs/memory.md](docs/memory.md) | 메모리 목표, 측정 방법 초안, 실측값(미측정) |

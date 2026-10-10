@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/packages $(ROOT)/tests -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb lint test-qemu test-qemu-docker clean
+.PHONY: iso iso-native deb lint test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker clean
 
 # Docker 안에서 ISO 를 빌드한다.
 iso:
@@ -35,7 +35,15 @@ lint:
 		for f in $(SHELL_SCRIPTS); do bash -n "$$f" || exit 1; done; \
 	fi
 
-# ISO 가 부팅해서 lightlix login: 프롬프트를 내는지 QEMU 로 확인한다.
+# GPU 진단 분기를 명령 스텁으로 확인한다.
+test-gpu-check:
+	bash "$(ROOT)/tests/nvidia/gpu-check.sh"
+
+# 완성된 ISO 안의 패키지, 모듈, 라이선스, 서명 키 제거를 확인한다.
+test-nvidia-image-docker:
+	bash "$(ROOT)/scripts/test-nvidia-image-in-docker.sh" "$(ISO)"
+
+# ISO 의 로그인 프롬프트와 GPU 없는 CPU 폴백 안내를 QEMU 로 확인한다.
 test-qemu:
 	bash "$(ROOT)/tests/qemu/boot-smoke.sh" "$(ISO)"
 

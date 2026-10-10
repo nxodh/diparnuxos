@@ -52,6 +52,8 @@ mkdir -p "${tree}"
 
 export LIGHTLIX_CONF="${tree}/lightlix.conf"
 
+"${tree}/scripts/prepare-nvidia.sh"
+
 "${tree}/scripts/build-debs.sh"
 
 cd "${tree}/build"
@@ -65,16 +67,9 @@ shopt -u nullglob
 [ "${#isos[@]}" -eq 1 ] || die "ISO 파일이 하나여야 하는데 ${#isos[@]} 개를 찾았다."
 
 iso_name="lightlix-${LIGHTLIX_VERSION}-amd64.iso"
-mkdir -p "${LIGHTLIX_OUT}"
-cp -f "${isos[0]}" "${LIGHTLIX_OUT}/${iso_name}"
-(
-    cd "${LIGHTLIX_OUT}"
-    sha256sum "${iso_name}" > "${iso_name}.sha256"
-    sha256sum -c "${iso_name}.sha256"
-)
 
 # 검증 1: ISO 파일 크기
-[ -s "${LIGHTLIX_OUT}/${iso_name}" ] || die "ISO 파일 크기가 0 이다: ${LIGHTLIX_OUT}/${iso_name}"
+[ -s "${isos[0]}" ] || die "ISO 파일 크기가 0 이다: ${isos[0]}"
 
 # 검증 2: chroot 의 os-release 정체성.
 # /etc/os-release 가 우선이므로 두 파일을 모두 본다 (live-build 가 /etc 쪽을 일반 파일로 바꿔 두기 때문이다).
@@ -92,6 +87,20 @@ if ! awk 'BEGIN { RS = ""; found = 0 }
     END { exit (found ? 0 : 1) }' "${status}"; then
     die "lightlix-base 가 설치되지 않았다 (${status})."
 fi
+
+# 바이너리 단계의 임시 패키지 설치 뒤에도 빌드 서명 키가 다시 생기지 않았는지 확인한다.
+for key in mok.key mok.pub; do
+    [ ! -e "${tree}/build/chroot/var/lib/dkms/${key}" ] || die "DKMS 서명 키가 이미지에 남았다: ${key}"
+done
+[ -f "${tree}/build/chroot/usr/sbin/lightlix-gpu-check" ] || die 'GPU 진단 스크립트가 없다.'
+
+mkdir -p "${LIGHTLIX_OUT}"
+cp -f "${isos[0]}" "${LIGHTLIX_OUT}/${iso_name}"
+(
+    cd "${LIGHTLIX_OUT}"
+    sha256sum "${iso_name}" > "${iso_name}.sha256"
+    sha256sum -c "${iso_name}.sha256"
+)
 
 echo "build-iso: 완료: ${LIGHTLIX_OUT}/${iso_name}"
 echo "build-iso: 체크섬: ${LIGHTLIX_OUT}/${iso_name}.sha256"

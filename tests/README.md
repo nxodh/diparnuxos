@@ -1,9 +1,11 @@
 # 테스트
 
-Lightlix 의 테스트는 세 종류다. 각각 목적과 실행 위치가 다르다.
+Lightlix 의 테스트는 진단 분기, 완성된 ISO 검사, QEMU 부팅, 실기 체크리스트로 나뉜다.
 
 | 경로 | 목적 | 실행 위치 |
 |---|---|---|
+| `tests/nvidia/gpu-check.sh` | GPU 없이 진단 분기 확인 (명령 스텁) | macOS 또는 Linux |
+| `tests/nvidia/image.sh` | 완성된 ISO의 드라이버·모듈·키·라이선스 확인 | Debian 컨테이너 |
 | `tests/qemu/boot-smoke.sh` | ISO 가 UEFI 로 부팅되어 로그인 프롬프트까지 올라오는지 확인 | Linux (KVM 있으면 KVM, 없으면 TCG) |
 | `tests/hw/run.sh` | 실 기기에서 확인할 체크리스트 중 현재 단계에서 확인 가능한 항목 실행 | 실 기기의 Lightlix 시스템 |
 | `tests/hw/RESULT_TEMPLATE.md` | 실 기기 측정 결과를 옮겨 적는 양식 | 문서 |
@@ -14,7 +16,7 @@ Lightlix 의 테스트는 세 종류다. 각각 목적과 실행 위치가 다�
 
 ### 목적
 
-빌드된 ISO 가 QEMU 와 OVMF(UEFI 펌웨어)에서 부팅되고, 직렬 콘솔에 `lightlix login:` 이 나오는지 확인한다.
+빌드된 ISO 가 QEMU 와 OVMF(UEFI 펌웨어)에서 부팅되고, 직렬 콘솔에 `lightlix login:` 과 `Lightlix GPU [no_gpu]:` 안내가 나오는지 확인한다.
 이 프롬프트는 호스트 이름 `lightlix` 와 커널 명령줄의 `console=ttyS0,115200` 설정에 의존한다.
 
 ### 실행
@@ -39,7 +41,7 @@ OVMF 후보 경로는 Debian 13(`ovmf` 패키지)과 Ubuntu 24.04(`ovmf` 패키�
 
 ### 판정
 
-- 성공: 제한 시간 안에 `lightlix login:` 이 로그에 나타나면 종료 코드 0.
+- 성공: 제한 시간 안에 로그인 프롬프트와 GPU 없는 CPU 폴백 안내가 모두 나타나면 종료 코드 0.
 - 실패: 프롬프트가 나오지 않고 제한 시간이 지나거나, 프롬프트 전에 QEMU 가 끝나면 로그 끝 80줄을 출력하고 종료 코드 1.
 - 사용 오류(ISO 없음, 펌웨어나 QEMU 없음, 잘못된 인자)는 종료 코드 2.
 
@@ -71,7 +73,7 @@ tests/hw/run.sh
 
 `mokutil --sb-state` 가 인식할 수 없는 출력을 내면 secure-boot 항목은 SKIP 이다. `nvidia-smi` 가 있는데 compute_cap 쿼리가 실패하면 compute-cap 항목은 원인 메시지와 함께 FAIL 이다. 권한 요구 여부는 실 기기에서 아직 확인하지 않았다.
 
-### Phase 0 에서 실제로 수행하는 것
+### Phase 1 에서 수행하는 것
 
 | 항목 | 판정 |
 |---|---|
@@ -79,11 +81,11 @@ tests/hw/run.sh
 | 커널 버전 | PASS (기록용) |
 | UEFI 부팅 (`/sys/firmware/efi` 존재) | PASS 또는 FAIL |
 | Secure Boot 상태 (`mokutil --sb-state`, mokutil 이 있을 때) | PASS(기록용) 또는 SKIP |
-| `/proc/driver/nvidia/version` 존재 | PASS, 또는 드라이버가 없으면 SKIP |
-| `nvidia-smi` 존재 | PASS, 또는 없으면 SKIP |
+| `/proc/driver/nvidia/version` 존재와 Open Kernel Module | PASS 또는 FAIL |
+| `nvidia-smi` 조회 성공 | PASS 또는 FAIL |
 | compute_cap (`nvidia-smi` 가 있을 때) | PASS 또는 FAIL |
 
-나머지(오픈 커널 모듈, 모델 로드, GPU 오프로드, 토큰/초)는 `SKIP` 으로 출력한다. Phase 0 에는 드라이버와 LLM 스택이 없기 때문이다.
+모델 로드, GPU 오프로드, 토큰/초는 Phase 2에서 구현하므로 SKIP이다. GPU 없는 QEMU에서는 이 실기 체크리스트를 통과할 수 없다.
 
 ### 출력과 종료 코드
 
@@ -95,16 +97,19 @@ tests/hw/run.sh
 
 `tests/hw/RESULT_TEMPLATE.md` 를 복사해 기기 정보와 항목별 결과, 토큰/초를 적는다. 측정하지 않은 항목은 비워 둔다.
 
-## 3. Phase 0 에서 자동으로 검증되는 것과 아닌 것
+## 3. Phase 1 자동 검증 범위
 
 ### 자동 검증됨 (CI 와 로컬 실행)
 
 - 셸 스크립트 린트 (`make lint`)
+- GPU 진단의 10개 시나리오 (`make test-gpu-check`, 실기 검증 아님)
 - ISO 빌드 성공 여부 (`make iso`, CI 의 `iso` 잡)
 - ISO 의 UEFI 부팅과 직렬 콘솔 로그인 프롬프트 (`make test-qemu`, KVM 이 없으면 TCG)
 - 아티팩트 업로드 (ISO 와 `.sha256`)
+- 완성된 ISO의 고정 패키지·모듈 파일·계약서 전문과 서명 키 제거 (`make test-nvidia-image-docker`)
+- GPU 없는 QEMU에서 CPU 폴백 안내 (추론 엔진 실행은 아직 구현하지 않음)
 
-### 자동 검증되지 않음 (Phase 0 범위 밖 또는 실 하드웨어 필요)
+### 자동 검증되지 않음 (후속 단계 또는 실 하드웨어 필요)
 
 - 실제 NVIDIA GPU 에서의 드라이버 로드, `nvidia-smi`, compute_cap 값
 - 오픈 커널 모듈, CUDA, llama.cpp, 모델 로드, GPU 오프로드, 토큰/초

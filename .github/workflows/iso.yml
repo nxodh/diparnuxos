@@ -14,7 +14,7 @@ name: iso
 
 on:
   push:
-    branches: [main]
+    branches: [main, phase-1]
   pull_request:
   workflow_dispatch:
 
@@ -38,6 +38,9 @@ jobs:
 
       - name: Lint shell scripts
         run: make lint
+
+      - name: Test GPU diagnostics without hardware
+        run: make test-gpu-check
 
   iso:
     name: iso build and boot test
@@ -64,6 +67,9 @@ jobs:
 
       - name: Build ISO
         run: make iso
+
+      - name: Check NVIDIA modules and image policy
+        run: make test-nvidia-image-docker
 
       - name: Boot test (UEFI, serial login prompt)
         run: make test-qemu-docker

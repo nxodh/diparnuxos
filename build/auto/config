@@ -45,6 +45,7 @@ lb config noauto \
     --binary-image iso-hybrid \
     --bootloaders grub-efi \
     --debian-installer none \
+    --debootstrap-options "--include=ca-certificates" \
     --backports false \
     --security true \
     --updates true \

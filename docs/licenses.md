@@ -42,7 +42,7 @@ Lightlix ISO에는 세 종류의 제3자 소프트웨어가 들어간다. NVIDIA
 
 - 드라이버를 ISO에 포함하는 것은 사용자 확정 U4다([decisions.md](decisions.md)의 D8).
 - 근거는 1.1의 (i), (ii) 조건이다. 바이너리를 수정하지 않고 라이선스 원문을 함께 제공하면 배포가 허용된다는 것이 이 결정의 전제다.
-- 이미지에 들어가는 경우 라이선스 전문을 두 곳에 제공한다. 설치 화면에서 볼 수 있어야 하고, 이미지 안의 파일로도 있어야 한다. 구체적인 위치는 Phase 1에서 정한다.
+- Phase 1은 원본 패키지의 `copyright`와 `/usr/share/lightlix/licenses/`에 전문을 보존한다. 콘솔 로그인 안내(`/etc/issue`)에 경로를 표시한다. 설치 화면은 Phase 4에서 구현한다.
 - 바이너리를 `.run`에서 풀거나 수정하지 않는다. 저장소 `.deb`을 그대로 쓴다.
 
 ### 1.5 남은 해석 위험
@@ -98,7 +98,7 @@ Lightlix ISO에는 세 종류의 제3자 소프트웨어가 들어간다. NVIDIA
 
 ## 4. llama.cpp
 
-- 라이선스 종류와 원문: 이번 조사에서 확인하지 않았다. Phase 1에서 v0.6.0 태그의 `LICENSE` 파일을 확인한 뒤 이 절을 채운다.
+- 라이선스 종류와 원문: 이번 조사에서 확인하지 않았다. llama.cpp를 빌드하는 Phase 2에서 고정 태그의 `LICENSE` 파일을 확인한 뒤 이 절을 채운다.
 - 웹 UI 자산: 사용자 확정 U6에 따라 내장 UI 없이 빌드한다. 기본 설정에서 내려받는 `dist.tar.gz`가 ISO에 들어가지 않도록 끈다([decisions.md](decisions.md)의 D4-2).
 - 근거: https://github.com/ggml-org/llama.cpp/releases (v0.6.0 정식 릴리스)
 

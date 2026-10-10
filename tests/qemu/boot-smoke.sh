@@ -5,7 +5,7 @@
 #
 # 동작
 #   QEMU + OVMF(UEFI 펌웨어) 로 ISO 를 부팅하고 직렬 콘솔 출력을 로그 파일로 받는다.
-#   제한 시간 안에 "lightlix login:" 이 나오면 성공(0).
+#   제한 시간 안에 "lightlix login:" 과 GPU 없는 CPU 폴백 안내가 나오면 성공(0).
 #   그렇지 않으면 로그 끝부분을 출력하고 실패(1).
 #   사용법이 잘못되었거나 ISO/펌웨어/QEMU 를 찾지 못하면 2 로 끝난다.
 #
@@ -32,6 +32,7 @@
 set -euo pipefail
 
 readonly PROMPT='lightlix login:'
+readonly GPU_WARNING='Lightlix GPU [no_gpu]:'
 readonly QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 readonly MEMORY='2G'
 readonly OVMF_CODE_CANDIDATES=(
@@ -164,15 +165,15 @@ QEMU_PID=$!
 start=$SECONDS
 while :; do
   # 프롬프트를 먼저 확인한다. QEMU 가 프롬프트를 쓰고 바로 끝나는 경우도 성공으로 본다.
-  if grep -q -F "$PROMPT" "$LOG" 2>/dev/null; then
-    echo "PASS: found '$PROMPT' after $((SECONDS - start))s"
+  if grep -q -F "$PROMPT" "$LOG" 2>/dev/null && grep -q -F "$GPU_WARNING" "$LOG" 2>/dev/null; then
+    echo "PASS: found '$PROMPT' and GPU 없는 CPU 폴백 안내 after $((SECONDS - start))s"
     exit 0
   fi
   if ! kill -0 "$QEMU_PID" 2>/dev/null; then
     fail "QEMU exited before the login prompt appeared (after $((SECONDS - start))s)"
   fi
   if (( SECONDS - start >= BOOT_TIMEOUT )); then
-    fail "no '$PROMPT' within ${BOOT_TIMEOUT}s (accel=$ACCEL_NAME)"
+    fail "no '$PROMPT' or '$GPU_WARNING' within ${BOOT_TIMEOUT}s (accel=$ACCEL_NAME)"
   fi
   sleep 2
 done

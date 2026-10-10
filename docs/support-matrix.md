@@ -1,6 +1,6 @@
 # 지원 매트릭스
 
-- 확인 날짜: 2026-10-10
+- 확인 날짜: 2026-10-11
 - 상태: 초안. 모든 행은 **미검증**이다.
 
 > 실 하드웨어에서 검증하기 전에는 어떤 GPU에서도 동작을 주장하지 않는다. 이 문서의 행은 대상 범위와 확인 근거를 적는 자리이며, 검증 결과가 아니다. 상태가 바뀌려면 실기 테스트 기록(날짜, 이미지 버전, 드라이버 버전, 결과)이 있어야 한다.
@@ -20,6 +20,8 @@
 - Turing(sm_75)보다 오래된 아키텍처와 RTX 20 계열은 대상 범위에 넣지 않는다.
 - CUDA 13에서 Maxwell, Pascal, Volta 지원이 제거되었다. nvcc 기본 아키텍처는 sm_75다(nvcc 문서, 조사 기록).
 
+RTX 3060 Laptop GPU도 대상에 포함한다. NVIDIA 595.91.07의 [공식 지원 목록](https://download.nvidia.com/XFree86/Linux-x86_64/595.91.07/README/supportedchips.html)에 해당 제품이 있으며, GPU 진단은 `Laptop GPU` 접미사가 있는 이름도 허용한다. 명령 스텁으로 이 이름의 판별을 확인했으며, 노트북 실기는 미검증이다. 하이브리드 그래픽/Optimus 구성은 제조사별로 다르므로 내장 GPU와 NVIDIA GPU의 인식, CUDA 실행, 화면 출력, 전원 관리를 따로 확인해야 한다.
+
 근거:
 - https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html (CUDA GPU 표와 허용 아키텍처 목록: `sm_86`, `sm_89`, `sm_120`)
 - https://download.nvidia.com/XFree86/Linux-x86_64/595.91.07/README/kernel_open.html ("Blackwell and later are only supported by the open kernel modules")
@@ -32,6 +34,7 @@
 | 대상 | 드라이버 | 부팅 | 화면(labwc) | CUDA 추론 (`llama-server`) | 상태 |
 |---|---|---|---|---|---|
 | RTX 30 (8.6) | 595.91.07 | 미검증 | 미검증 | 미검증 | 미검증 |
+| RTX 3060 Laptop GPU (8.6) | 595.91.07 | 미검증 | 미검증 | 미검증 | 미검증 |
 | RTX 40 (8.9) | 595.91.07 | 미검증 | 미검증 | 미검증 | 미검증 |
 | RTX 50 (12.0) | 595.91.07 | 미검증 | 미검증 | 미검증 | 미검증 |
 | CPU 폴백 | 없음 | 미검증 | 미검증 | 미검증 | 미검증 |

@@ -1,9 +1,20 @@
 # NVIDIA 드라이버 계획
 
-- 확인 날짜: 2026-10-10
-- 상태: 초안
+- 확인 날짜: 2026-10-11
+- 상태: Phase 1 구현. NVIDIA 실 하드웨어는 미검증
 
-> **Phase 1에서 구현 예정.** 이 문서는 계획이다. 지금 저장소의 어떤 스크립트도 이 설정을 적용하지 않는다. 아래 패키지 이름, 버전, 설정 내용은 2026-10-10에 1차 출처를 직접 조회한 결과이며, 실제 ISO에서 설치와 동작을 확인하지는 않았다.
+> `lightlix-nvidia`와 live-build 훅으로 구현했다. 1~14절은 사전 조사 당시의 근거와 후속 실기 항목을 보존한다. 이번 결과는 [verification-phase-1.md](verification-phase-1.md)에 적는다. 빌드와 QEMU 성공은 NVIDIA 실기 동작을 뜻하지 않는다.
+
+## Phase 1 구현
+
+- 저장소는 `cuda-keyring` 패키지로만 추가한다. live-build의 `config/archives/*.deb` 경로에서 키와 브랜치 핀을 드라이버보다 먼저 설치한다. `.list`와 키를 중복 생성하지 않는다.
+- `00-lightlix-nvidia.pref`로 독점 모듈을 차단하고 Debian의 DKMS를 선택한다. 실제 Origin이 `Debian`임을 `apt-cache policy`로 확인했다.
+- `lightlix-nvidia`의 고정 의존성으로 세 드라이버와 CUDA 런타임을 한 번에 설치한다. 지정된 버전이 사라지면 다른 버전으로 넘어가지 않고 실패한다.
+- 이미지의 각 6.12 커널에 DKMS를 빌드하고 모듈 파일·버전·`Dual MIT/GPL` 라이선스를 검사한다. initramfs 갱신 후 서명 키를 제거한다.
+- 서버 모드는 `multi-user.target`이다. sleep, suspend, hibernate, hybrid-sleep, suspend-then-hibernate를 마스크한다. `nvidia-persistenced`는 GPU 진단 뒤 실행한다.
+- `lightlix-gpu-check`는 GPU 없음, Secure Boot 상태에서 모듈 로드 실패, 일반 모듈 로드 실패, 독점 모듈, 버전 불일치, 미지원 GPU를 구분한다. 결과는 `/run/lightlix/gpu-status`에 기록한다.
+- 커널과 드라이버는 hold한다. 안전한 동시 갱신과 롤백 도구는 Phase 4에서 구현한다. 수동으로 hold를 풀면 이 정책이 유지되지 않는다.
+- 원본 계약서 전문은 `/usr/share/lightlix/licenses/`에 보존한다. 드라이버 패키지의 바이너리는 변경하지 않는다.
 
 Lightlix는 RTX 30, 40, 50에서 NVIDIA 오픈 커널 모듈을 쓴다. 드라이버는 ISO에 포함하며, 바이너리는 수정하지 않는다(사용자 확정). 결정 근거는 [decisions.md](decisions.md)의 D3, D7, D8에 있다.
 
@@ -31,7 +42,7 @@ Lightlix는 RTX 30, 40, 50에서 NVIDIA 오픈 커널 모듈을 쓴다. 드라�
 - 키 패키지: `cuda-keyring` 1.1-1(Architecture: all). 설치하면 `/usr/share/keyrings/cuda-archive-keyring.gpg`와 `/etc/apt/sources.list.d/cuda-debian13-x86_64.list`가 생긴다.
 - 저장소 `Packages.gz`는 2246개 항목이다. Release 날짜는 2026-10-09다.
 
-Phase 1에서 정할 것: `cuda-keyring` 패키지로 넣을지, `live-build`의 `config/archives`에 `.list`와 키 파일을 직접 넣을지 둘 중 하나만 쓴다. 두 방식은 같은 `.list` 파일 이름을 만들 수 있어 충돌한다. `config/archives`를 쓸 때 `.chroot` 접미사가 붙은 파일은 빌드가 끝나면 지워지므로, 최종 이미지에 남길 것은 접미사 없는 파일이나 `.binary` 파일로 둔다.
+2026-10-11 결정: `cuda-keyring` 패키지를 사용한다. 저장소 항목과 키를 직접 생성하는 방식은 병행하지 않는다.
 
 근거:
 - https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb (내부 `cuda-debian13-x86_64.list` 확인)

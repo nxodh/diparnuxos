@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+# 모든 고정 버전은 lightlix.conf 에서 읽는다.
+LIGHTLIX_CONF ?= $(CURDIR)/../../lightlix.conf
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	sh debian/gen-control.sh "$(LIGHTLIX_CONF)"
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	sh debian/gen-config.sh "$(LIGHTLIX_CONF)" "$(CURDIR)/debian/lightlix-nvidia"
+	install -D -m 755 src/gpu-check.sh debian/lightlix-nvidia/usr/sbin/lightlix-gpu-check
+	install -D -m 644 src/lightlix-gpu-check.service debian/lightlix-nvidia/usr/lib/systemd/system/lightlix-gpu-check.service
+
+override_dh_installinit:
+	# initramfs 재생성은 DKMS 검증 후 live-build 훅에서 한다.

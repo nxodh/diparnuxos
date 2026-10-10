@@ -1,9 +1,9 @@
 # Secure Boot와 커널 모듈 서명
 
-- 확인 날짜: 2026-10-10
-- 상태: 초안
+- 확인 날짜: 2026-10-11
+- 상태: Phase 1 빌드 키 제거와 텍스트 안내 구현. 기기별 MOK 등록은 미구현
 
-> **구현은 Phase 1과 Phase 3에서 한다.** Phase 1은 빌드 쪽(키 제거, 모듈 서명)을, Phase 3은 기기별 MOK 등록 흐름과 사용자 안내를 맡을 예정이다. 이 문서는 현재 설계와 조사 결과다. 지금 저장소의 어떤 스크립트도 이 흐름을 구현하지 않는다.
+> Phase 1은 `9900-lightlix-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `lightlix-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 텍스트로 안내한다. 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
 
 Lightlix는 UEFI 전용이다. Secure Boot가 켜진 기기에서 부팅하는 경우를 고려해야 한다. 이 문서는 커널 설정, 서명 키, 기기별 등록 흐름, 대안, 라이브 세션 안내를 정리한다. 방침 중 일부는 사용자가 아직 확정하지 않았다(아래 7절).
 
@@ -97,7 +97,7 @@ MOK(Machine Owner Key)는 기기 소유자가 UEFI에 등록하는 키다. 등�
   - BIOS/UEFI에서 Secure Boot를 끄는 방법.
   - 시리얼 콘솔 또는 텍스트 콘솔로 상태를 확인할 수 있다는 사실.
 
-조사 근거: 검증 기록 check 28(드라이버 없이 RTX 50 화면 없음)과 check 29(Secure Boot에서 서명 강제). 안내 화면의 구현은 Phase 3이다.
+조사 근거: 검증 기록 check 28(드라이버 없이 RTX 50 화면 없음)과 check 29(Secure Boot에서 서명 강제). 텍스트 안내는 Phase 1에서 구현했다. GUI 안내 화면은 Phase 3이다.
 
 직렬 콘솔은 `console=ttyS0,115200`으로 열린다. 이 설정의 세부는 빌드 스크립트와 `tests/qemu` 쪽 문서에서 다룬다.
 
@@ -117,7 +117,7 @@ Phase 1 및 Phase 3 수용 기준:
 
 ## 7. 열린 결정
 
-- v1을 "Secure Boot 끄기 요구"로 갈지, 기기별 MOK 흐름을 v1에 넣을지 사용자 확정이 필요하다([decisions.md](decisions.md)의 D9).
+- 현재 라이브 ISO는 Secure Boot를 끄는 흐름을 사용한다. 기기별 MOK 등록을 제공하는 후속 단계의 방침은 해당 단계에서 정한다.
 - DKMS 키 제거 후 재생성 방지 방법은 Phase 1에서 확인한다(2절).
 - `mokutil` 옵션과 등록 화면 동작 확인(3절).
 - 기기 제조사별 UEFI 차이(3절).

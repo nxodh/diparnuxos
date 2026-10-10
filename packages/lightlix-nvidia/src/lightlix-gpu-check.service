@@ -1,0 +1,23 @@
+# GPU 가 없어도 부팅을 계속하고 진단 결과를 콘솔에 출력한다.
+[Unit]
+Description=Lightlix NVIDIA 드라이버와 GPU 진단
+After=systemd-udev-trigger.service
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/lightlix-gpu-check
+SuccessExitStatus=1
+RemainAfterExit=yes
+RuntimeDirectory=lightlix
+RuntimeDirectoryMode=0755
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=90
+ProtectHome=yes
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

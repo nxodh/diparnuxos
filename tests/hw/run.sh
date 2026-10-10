@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Lightlix 실 하드웨어 체크리스트 실행기 (Phase 0 골격).
+# Lightlix 실 하드웨어 체크리스트 실행기 (Phase 1).
 #
 # 사용법: tests/hw/run.sh
 #   대상 기기에서 Lightlix 로 부팅한 뒤 실행한다. 결과는 RESULT_TEMPLATE.md 에 옮겨 적는다.
 #
-# Phase 0 에는 NVIDIA 드라이버와 LLM 스택이 없으므로 실제로 확인 가능한 항목만 수행한다.
+# Phase 1 의 드라이버 항목을 검증한다. LLM 및 GUI 항목은 후속 단계에서 확인한다.
 #   - os-release 의 ID=lightlix
 #   - 커널 버전 (기록용)
 #   - UEFI 부팅 여부
@@ -87,24 +87,30 @@ check_secure_boot() {
 check_nvidia_driver_file() {
   if [[ -r "$NVIDIA_VERSION_FILE" ]]; then
     emit PASS nvidia-driver-file "$(head -n 1 "$NVIDIA_VERSION_FILE")"
+    if grep -q 'Open Kernel Module' "$NVIDIA_VERSION_FILE"; then
+      emit PASS open-kernel-module 'Open Kernel Module'
+    else
+      emit FAIL open-kernel-module '오픈 모듈이 아니다'
+    fi
   else
-    emit SKIP nvidia-driver-file "no NVIDIA driver loaded (Phase 1 이후 구현)"
+    emit FAIL nvidia-driver-file 'NVIDIA 드라이버가 로드되지 않았다'
+    emit FAIL open-kernel-module '모듈 버전 파일이 없다'
   fi
 }
 
 check_nvidia_smi_and_compute_cap() {
   if ! command -v nvidia-smi >/dev/null 2>&1; then
-    emit SKIP nvidia-smi "not installed (Phase 1 이후 구현)"
-    emit SKIP compute-cap "nvidia-smi not installed (Phase 1 이후 구현)"
+    emit FAIL nvidia-smi 'nvidia-smi 가 없다'
+    emit FAIL compute-cap 'nvidia-smi 가 없다'
     return 0
   fi
-  emit PASS nvidia-smi "$(command -v nvidia-smi)"
-
   local caps line cc bad=0 count=0 summary=''
   if ! caps="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits 2>&1)"; then
+    emit FAIL nvidia-smi 'GPU 조회 실패'
     emit FAIL compute-cap "nvidia-smi query failed: $(printf '%s' "$caps" | head -n 1)"
     return 0
   fi
+  emit PASS nvidia-smi 'GPU 조회 성공'
   while IFS= read -r line; do
     cc="${line//[[:space:]]/}"
     [[ -n "$cc" ]] || continue
@@ -134,11 +140,10 @@ check_kernel
 check_uefi
 check_secure_boot
 check_nvidia_driver_file
-skip_later open-kernel-module "Phase 1 에서 구현"
 check_nvidia_smi_and_compute_cap
-skip_later model-load "Phase 1 이후(LLM 스택) 에서 구현"
-skip_later gpu-offload "Phase 1 이후(LLM 스택) 에서 구현"
-skip_later tokens-per-sec "Phase 1 이후(LLM 스택) 에서 구현"
+skip_later model-load 'Phase 2 에서 구현'
+skip_later gpu-offload 'Phase 2 에서 구현'
+skip_later tokens-per-sec 'Phase 2 에서 구현'
 
 if (( FAIL_COUNT > 0 )); then
   echo "RESULT: FAIL ($FAIL_COUNT check(s) failed)"
