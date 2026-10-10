@@ -102,7 +102,7 @@ tests/hw/run.sh
 ### 자동 검증됨 (CI 와 로컬 실행)
 
 - 셸 스크립트 린트 (`make lint`)
-- GPU 진단의 10개 시나리오 (`make test-gpu-check`, 실기 검증 아님)
+- GPU 진단의 11개 시나리오 (`make test-gpu-check`, RTX 3060 Laptop GPU 이름 포함, 실기 검증 아님)
 - ISO 빌드 성공 여부 (`make iso`, CI 의 `iso` 잡)
 - ISO 의 UEFI 부팅과 직렬 콘솔 로그인 프롬프트 (`make test-qemu`, KVM 이 없으면 TCG)
 - 아티팩트 업로드 (ISO 와 `.sha256`)

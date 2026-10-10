@@ -62,3 +62,13 @@ RTX 3060 Laptop GPU도 대상에 포함한다. NVIDIA 595.91.07의 [공식 지�
 - RTX 30과 40에서 오픈 커널 모듈의 지원 범위를 supportedchips 표에서 다시 확인한다. 이번 조사는 두 계열이 목록에 있다는 사실만 확인했다.
 - 각 행의 실기 테스트 계획(장비, 담당, 날짜)을 정한다.
 - CPU 폴백에서 llama.cpp의 CPU 변형이 실제로 고르게 선택되는지 확인한다.
+
+## 5. MSI Stealth 15M 실기 확인 계획
+
+사용자가 RTX 3060 노트북으로 MSI Stealth 15M을 제시했다. 정확한 하위 모델과 실제 장치 ID는 아직 확인하지 못했다. MSI 사양에서 [A11UEK](https://kr.msi.com/Laptop/Stealth-15M-A11UX/Specification)와 [B12UE](https://www.msi.com/Laptop/Stealth-15M-B12UX/Specification)는 모두 RTX 3060 Laptop GPU와 VRAM 6GB를 사용한다. GPU 자체는 위 대상 범위에 들어간다. 이 확인은 Lightlix 실기 부팅 성공을 뜻하지 않는다.
+
+- Phase 1: Secure Boot를 끈 UEFI 부팅, 오픈 모듈 로드, `nvidia-smi`의 이름·버전·8.6 조회, `/run/lightlix/gpu-status`를 확인한다.
+- 현재 ISO에는 Wi-Fi 펌웨어와 접속 설정 도구를 명시적으로 넣지 않았다. GPU 드라이버 대상 여부와 노트북의 네트워크 사용 가능 여부를 따로 기록한다.
+- Phase 2: CUDA 실행과 모델 GPU 오프로드를 확인한다. VRAM 6GB는 모델과 KV 캐시가 함께 사용하는 한도이므로 모델 크기만으로 실행 가능성을 판단하지 않는다.
+- Phase 3: 내장 GPU의 내부 화면 출력과 NVIDIA GPU의 추론을 함께 검증한다. USB-C/HDMI 출력은 포트별 배선을 확인한다.
+- 서버 모드에서는 절전 관련 target을 마스크한다. 배터리 사용과 덮개 닫기 동작은 아직 튜닝하거나 검증하지 않았다.

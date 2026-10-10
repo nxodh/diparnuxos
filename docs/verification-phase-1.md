@@ -44,6 +44,8 @@ Debian main과 security의 Origin은 `Debian`, NVIDIA 저장소는 `NVIDIA`였�
 | QEMU/OVMF 로그인 및 GPU 없는 CPU 폴백 안내 | 대기 |
 | phase-1 브랜치의 GitHub Actions | 대기 |
 
+1차 CI 실행 [38068362474](https://github.com/nxodh/lightlixos/actions/runs/38068362474)는 전체 ISO 빌드와 이미지 커널의 오픈 모듈·버전·라이선스 검증, DKMS 키 제거에 성공했다. 이후 ISO 검사에서 `VERSION_ID="0.1.0"`의 따옴표를 허용하지 않은 테스트 코드가 실패했다. 검사 코드를 고쳤으며 최종 ISO 검사와 QEMU 부팅은 재실행으로 확인한다.
+
 ## 남은 검증과 위험
 
 - RTX 30/40/50의 모듈 로드, 실제 `nvidia-smi`와 `compute_cap`, CUDA 실행, DRM 장치 생성은 실기 미검증이다. `tests/hw/run.sh`와 결과 양식으로 기록한다.

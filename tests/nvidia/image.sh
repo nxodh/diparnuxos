@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 완성된 ISO 의 squashfs 를 읽어 드라이버 구성과 키 제거가 실제 산출물에 반영됐는지 확인한다.
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "FAIL: 이미지 검사 $LINENO 행: $BASH_COMMAND" >&2' ERR
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=/dev/null
 . "$ROOT/lightlix.conf"
@@ -15,7 +16,7 @@ unsquashfs -ll "$WORK/rootfs.squashfs" > "$WORK/files"
 unsquashfs -cat "$WORK/rootfs.squashfs" var/lib/dpkg/status > "$WORK/status"
 unsquashfs -cat "$WORK/rootfs.squashfs" etc/os-release > "$WORK/os-release"
 grep -qx "ID=$LIGHTLIX_ID" "$WORK/os-release"
-grep -qx "VERSION_ID=$LIGHTLIX_VERSION" "$WORK/os-release"
+grep -Fqx -e "VERSION_ID=$LIGHTLIX_VERSION" -e "VERSION_ID=\"$LIGHTLIX_VERSION\"" "$WORK/os-release"
 
 check_package() {
     local pkg="$1" version="$2"

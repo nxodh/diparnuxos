@@ -130,7 +130,7 @@ check_nvidia_smi_and_compute_cap() {
   fi
 }
 
-# Phase 0 범위 밖 항목. SKIP 사유는 "Phase N 에서 구현" 형태로 적는다.
+# Phase 1 범위 밖 항목. SKIP 사유는 "Phase N 에서 구현" 형태로 적는다.
 skip_later() {
   emit SKIP "$1" "$2"
 }

@@ -28,7 +28,7 @@ llama.cpp, `lightlixd`, CLI, GUI, 설치기는 후속 단계에서 구현한다.
 
 GPU 진단은 `sudo lightlix-gpu-check`로 다시 실행한다. 결과는 `/run/lightlix/gpu-status`에 기록된다. 라이선스 전문은 이미지의 `/usr/share/lightlix/licenses/`에서 읽을 수 있다.
 
-이 저장소의 결과는 실 하드웨어에서 검증하지 않았다. 빌드와 부팅 테스트도 Phase 0에서 CI와 QEMU로만 확인하는 것이 목표다. 실기 결과가 생기기 전까지 특정 GPU에서의 동작을 주장하지 않는다. 상태 표는 [docs/support-matrix.md](docs/support-matrix.md)에 있다.
+NVIDIA 실 하드웨어에서 검증하지 않았다. ISO 빌드와 GPU 없는 QEMU 부팅 결과는 [검증 기록](docs/verification-phase-1.md)에 적는다. 실기 결과가 생기기 전까지 특정 GPU에서의 동작을 주장하지 않는다. 노트북을 포함한 대상과 상태는 [docs/support-matrix.md](docs/support-matrix.md)에 있다.
 
 ---
 

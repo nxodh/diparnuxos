@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Debian 13 환경에서 root 로 Lightlix ISO 를 빌드한다.
-# 순서: 저장소를 작업 디렉터리로 복사 -> .deb 빌드 -> lb clean -> lb config -> lb build -> out/ 복사 -> 검증.
+# 순서: 작업 디렉터리로 복사 -> NVIDIA 저장소 준비 -> .deb 빌드 -> lb clean/config/build -> 검증 -> out/ 복사.
 # 저장소 안에서 lb build 를 돌리지 않는다. macOS Docker 의 바인드 마운트 위에서는 chroot 가 깨지기 때문이다.
 set -euo pipefail
 
