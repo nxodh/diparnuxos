@@ -1,0 +1,66 @@
+#!/bin/sh
+# Lightlix live-build 설정 스크립트 (lb config 의 auto 관례).
+# lightlix.conf 값을 읽어 lb config noauto 를 호출한다. lb config 는 build/ 디렉터리에서 ./auto/config 로 실행한다.
+set -eu
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+LIGHTLIX_CONF="${LIGHTLIX_CONF:-${ROOT}/lightlix.conf}"
+
+if [ ! -r "${LIGHTLIX_CONF}" ]; then
+    echo "auto/config: lightlix.conf 를 읽을 수 없다: ${LIGHTLIX_CONF}" >&2
+    exit 1
+fi
+
+# shellcheck source=/dev/null
+. "${LIGHTLIX_CONF}"
+
+INCLUDES_APT_DIR="config/includes.chroot/etc/apt/apt.conf.d"
+SNAPSHOT_APT_CONF="${INCLUDES_APT_DIR}/90lightlix-snapshot"
+
+if [ -n "${DEBIAN_SNAPSHOT}" ]; then
+    if ! echo "${DEBIAN_SNAPSHOT}" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$'; then
+        echo "auto/config: DEBIAN_SNAPSHOT 형식이 YYYYMMDDTHHMMSSZ 가 아니다: ${DEBIAN_SNAPSHOT}" >&2
+        exit 1
+    fi
+    mirror="${DEBIAN_SNAPSHOT_URL}/debian/${DEBIAN_SNAPSHOT}/"
+    security_mirror="${DEBIAN_SNAPSHOT_URL}/debian-security/${DEBIAN_SNAPSHOT}/"
+    apt_options="--yes -o Acquire::Retries=5 -o Acquire::Check-Valid-Until=false"
+
+    # 설치된 시스템의 apt 도 snapshot 의 만료된 Release 를 거부하지 않도록 한다.
+    mkdir -p "${INCLUDES_APT_DIR}"
+    cat > "${SNAPSHOT_APT_CONF}" <<'EOF'
+Acquire::Check-Valid-Until "false";
+EOF
+else
+    mirror="${DEBIAN_MIRROR}/"
+    security_mirror="${DEBIAN_SECURITY_MIRROR}/"
+    apt_options="--yes -o Acquire::Retries=5"
+    rm -f "${SNAPSHOT_APT_CONF}"
+fi
+
+lb config noauto \
+    --distribution "${DEBIAN_SUITE}" \
+    --architecture amd64 \
+    --archive-areas "${DEBIAN_AREAS}" \
+    --binary-image iso-hybrid \
+    --bootloaders grub-efi \
+    --debian-installer none \
+    --backports false \
+    --security true \
+    --updates true \
+    --apt-recommends false \
+    --firmware-chroot false \
+    --firmware-binary false \
+    --apt-options "${apt_options}" \
+    --linux-packages "linux-image linux-headers" \
+    --mirror-bootstrap "${mirror}" \
+    --mirror-chroot "${mirror}" \
+    --mirror-binary "${mirror}" \
+    --mirror-chroot-security "${security_mirror}" \
+    --mirror-binary-security "${security_mirror}" \
+    --bootappend-live "boot=live components console=tty0 console=ttyS0,115200 hostname=${LIGHTLIX_ID}" \
+    --iso-volume "${LIGHTLIX_NAME}" \
+    --iso-application "${LIGHTLIX_NAME}" \
+    --iso-publisher "${LIGHTLIX_NAME}" \
+    --image-name "${LIGHTLIX_ID}-${LIGHTLIX_VERSION}" \
+    ${1+"$@"}

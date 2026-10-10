@@ -1,0 +1,6 @@
+#!/bin/sh
+# live-build 의 GRUB 템플릿에는 timeout 이 없어 메뉴에서 키 입력을 무한 대기한다.
+# 5초 뒤 기본 항목으로 부팅하게 한다. 바이너리 훅은 binary/ 를 현재 디렉터리로 실행된다.
+set -e
+
+printf '\nset timeout=5\n' >> boot/grub/config.cfg

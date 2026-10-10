@@ -1,0 +1,23 @@
+# 최종 산출물 (ISO와 .sha256). scripts/build-iso.sh 가 여기로 복사한다.
+out/
+
+# live-build 작업 디렉터리와 캐시
+build/.build/
+build/chroot/
+build/binary/
+build/cache/
+
+# scripts/build-debs.sh 가 packages/ 에서 만든 .deb
+build/config/packages.chroot/*.deb
+
+# 빌드 결과물과 로그
+build/*.iso
+build/*.log
+
+# 편집기와 OS 임시 파일
+*.swp
+*.swo
+*~
+.DS_Store
+.idea/
+.vscode/

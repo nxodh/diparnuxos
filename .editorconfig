@@ -1,0 +1,30 @@
+# 모든 파일 공통: UTF-8, LF, 마지막 줄 개행
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown은 줄 끝 공백으로 줄바꿈을 만들 수 있으므로 공백을 지우지 않는다
+[*.md]
+trim_trailing_whitespace = false
+
+# 셸 스크립트: 공백 4칸
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+
+# YAML(GitHub Actions 등): 공백 2칸
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Makefile: 레시피 들여쓰기는 반드시 탭
+[{Makefile,makefile,*.mk}]
+indent_style = tab
+
+# Go 소스(daemon/): gofmt 규칙에 맞춰 탭
+[*.go]
+indent_style = tab

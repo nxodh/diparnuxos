@@ -1,0 +1,19 @@
+#!/bin/sh
+# base-files 가 소유한 /usr/lib/os-release 를 dpkg-divert 로 비켜 둔다.
+set -e
+
+OS_RELEASE=/usr/lib/os-release
+DIVERTED=/usr/lib/os-release.debian
+
+case "$1" in
+    install|upgrade)
+        # 같은 패키지가 이미 divert 해 두었으면 다시 추가하지 않는다.
+        if ! dpkg-divert --list "$OS_RELEASE" | grep -q 'by lightlix-base$'; then
+            dpkg-divert --package lightlix-base --add --rename --divert "$DIVERTED" "$OS_RELEASE"
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

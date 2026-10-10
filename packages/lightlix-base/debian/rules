@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+# lightlix-base 패키지 규칙. 정체성 파일 값은 lightlix.conf 에서 생성한다.
+# LIGHTLIX_CONF 가 환경 변수로 주어지면 그 경로를 쓰고, 없으면 저장소 루트의 lightlix.conf 를 쓴다.
+
+LIGHTLIX_CONF ?= $(CURDIR)/../../lightlix.conf
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# 빌드할 대상이 없다. 파일은 install 단계에서 생성한다.
+
+override_dh_auto_install:
+	sh debian/gen-identity.sh "$(LIGHTLIX_CONF)" "$(CURDIR)/debian/lightlix-base"

@@ -1,0 +1,10 @@
+#!/bin/sh
+# live-build 는 debootstrap 직후 /etc/os-release 를 Debian 내용의 일반 파일로 바꿔 둔다.
+# lightlix-base 는 /usr/lib/os-release 만 제공하므로, 그 내용으로 /etc/os-release 를 다시 만든다.
+# live-build 가 붙인 IMAGE_ID, BUILD_ID 는 유지한다.
+set -e
+
+extra="$(grep -E '^(IMAGE_ID|BUILD_ID)=' /etc/os-release || true)"
+rm -f /etc/os-release
+cp /usr/lib/os-release /etc/os-release
+[ -z "$extra" ] || printf '%s\n' "$extra" >> /etc/os-release

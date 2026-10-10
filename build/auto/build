@@ -1,0 +1,5 @@
+#!/bin/sh
+# lb build 의 auto 스크립트. 인자를 그대로 넘겨 noauto 로 실행한다.
+set -e
+
+lb build noauto "${@}"
