@@ -1,7 +1,7 @@
 # Lightlix
 
 - 확인 날짜: 2026-10-11
-- 상태: Phase 1 구현 및 빌드 검증 중. **NVIDIA 실 하드웨어에서 검증하지 않았다.**
+- 상태: Phase 1 구현과 CI 자동 검증 완료. **NVIDIA 실 하드웨어에서 검증하지 않았다.**
 - 저장소: https://github.com/nxodh/lightlixos
 
 Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최소로 줄이면서 로컬 LLM 추론 서버를 돌리는 것이 목표다. amd64 아키텍처와 UEFI 부팅만 지원한다는 것이 계획이다. 대상 GPU는 NVIDIA RTX 30, 40, 50 계열이다.
@@ -92,7 +92,7 @@ out/             빌드 산출물(git 제외)
 | Phase | 내용 | 상태 |
 |---|---|---|
 | 0 | 저장소 뼈대, 최소 Debian 13 ISO, CI, 문서 초안 | 완료. main의 CI 빌드와 QEMU 부팅 통과 |
-| 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 검증 중 |
+| 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 CI 검증 완료. NVIDIA 실기 검증 대기 |
 | 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 계획 |
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 계획 |
 | 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |

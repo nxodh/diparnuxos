@@ -118,6 +118,6 @@ Phase 1 및 Phase 3 수용 기준:
 ## 7. 열린 결정
 
 - 현재 라이브 ISO는 Secure Boot를 끄는 흐름을 사용한다. 기기별 MOK 등록을 제공하는 후속 단계의 방침은 해당 단계에서 정한다.
-- DKMS 키 제거 후 재생성 방지 방법은 Phase 1에서 확인한다(2절).
+- Phase 1 CI에서 최종 ISO의 DKMS 키 부재를 확인했다([검증 기록](verification-phase-1.md)). 기기별 등록과 Secure Boot 상태의 실기 모듈 로드는 미검증이다.
 - `mokutil` 옵션과 등록 화면 동작 확인(3절).
 - 기기 제조사별 UEFI 차이(3절).
