@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Debian 13 환경에서 root 로 Lightlix ISO 를 빌드한다.
-# 순서: 작업 디렉터리로 복사 -> NVIDIA 저장소 준비 -> .deb 빌드 -> lb clean/config/build -> 검증 -> ESP 파티션 추가 -> out/ 복사.
+# 순서: 작업 디렉터리로 복사 -> NVIDIA 저장소 준비 -> .deb 빌드 -> lightlix-llm .deb 복사 -> lb clean/config/build -> 검증 -> ESP 파티션 추가 -> out/ 복사.
 # 저장소 안에서 lb build 를 돌리지 않는다. macOS Docker 의 바인드 마운트 위에서는 chroot 가 깨지기 때문이다.
 set -euo pipefail
 
@@ -26,6 +26,12 @@ host_version="$(. /etc/os-release && echo "${VERSION_ID:-}")"
 [ -r "${ROOT}/lightlix.conf" ] || die "lightlix.conf 를 읽을 수 없다: ${ROOT}/lightlix.conf"
 # shellcheck source=/dev/null
 . "${ROOT}/lightlix.conf"
+
+# lightlix-llm 은 make llama 가 만든 .deb 를 쓴다. 기본 위치는 build-in-docker.sh 가 마운트하는 /llama 이다.
+# Debian 호스트에서 iso-native 로 빌드할 때는 LIGHTLIX_LLAMA_DIR=<저장소>/out/llama 를 준다.
+LLAMA_DIR="${LIGHTLIX_LLAMA_DIR:-/llama}"
+LLAMA_DEB="${LLAMA_DIR}/lightlix-llm_${LIGHTLIX_VERSION}_amd64.deb"
+[ -r "${LLAMA_DEB}" ] || die "lightlix-llm .deb not found: ${LLAMA_DEB}. Run 'make llama' first (or set LIGHTLIX_LLAMA_DIR)."
 
 if [ "${host_id}" != "debian" ] || [ "${host_version}" != "${DEBIAN_VERSION}" ]; then
     die "Debian ${DEBIAN_VERSION} 호스트에서만 빌드한다 (현재 ID=${host_id} VERSION_ID=${host_version})."
@@ -55,6 +61,9 @@ export LIGHTLIX_CONF="${tree}/lightlix.conf"
 "${tree}/scripts/prepare-nvidia.sh"
 
 "${tree}/scripts/build-debs.sh"
+
+# lightlix-llm .deb 를 로컬 저장소(build/config/packages.chroot)에 넣는다. 이 디렉터리는 live-build 가 읽는다.
+cp -f "${LLAMA_DEB}" "${tree}/build/config/packages.chroot/"
 
 cd "${tree}/build"
 lb clean
@@ -93,6 +102,11 @@ for key in mok.key mok.pub; do
     [ ! -e "${tree}/build/chroot/var/lib/dkms/${key}" ] || die "DKMS 서명 키가 이미지에 남았다: ${key}"
 done
 [ -f "${tree}/build/chroot/usr/sbin/lightlix-gpu-check" ] || die 'GPU 진단 스크립트가 없다.'
+
+# 검증 4: lightlix-llm 의 llama-server 와 CUDA 백엔드 모듈이 chroot 에 있다.
+llama_in_chroot="${tree}/build/chroot${LLAMA_INSTALL_DIR}"
+[ -x "${llama_in_chroot}/llama-server" ] || die "llama-server is missing from the chroot: ${llama_in_chroot}/llama-server"
+[ -f "${llama_in_chroot}/libggml-cuda.so" ] || die "libggml-cuda.so is missing from the chroot: ${llama_in_chroot}/libggml-cuda.so"
 
 # lb 가 만든 ISO 에 EFI System Partition 을 GPT 파티션으로 덧붙인다 (BIOS 부트로더는 쓰지 않는다).
 # 결과 파일은 add-esp-partition.sh 가 자체 검증을 마친 뒤에만 남는다.

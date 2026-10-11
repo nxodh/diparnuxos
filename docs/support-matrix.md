@@ -62,6 +62,12 @@ RTX 3060 Laptop GPU도 대상에 포함한다. NVIDIA 595.91.07의 [공식 지�
 - RTX 30과 40에서 오픈 커널 모듈의 지원 범위를 supportedchips 표에서 다시 확인한다. 이번 조사는 두 계열이 목록에 있다는 사실만 확인했다.
 - 각 행의 실기 테스트 계획(장비, 담당, 날짜)을 정한다.
 - CPU 폴백에서 llama.cpp의 CPU 변형이 실제로 고르게 선택되는지 확인한다.
+- llama.cpp v0.6.0의 제3자 보고 (조사 기록 A6, 2026-10-11). 아래 항목은 모두 제3자 사용자가 쓴 이슈다. 이 빌드(v0.6.0 커밋 `d812350`)에서 재현하지 않았다. 대상 GPU가 RTX 50인 실기에서 확인할 검증 항목으로 둔다.
+  - [#28581](https://github.com/ggml-org/llama.cpp/issues/28581) (열림): RTX 5060 Ti(sm_120), CUDA 13.2 `nvcc V13.2.78`에서 IQ3_S 양자화가 쓰레기 출력을 낸다. 이 패키지의 nvcc는 13.2.86이므로 같은 증상인지 모른다. 관련 닫힌 이슈 #21255는 NVIDIA 쪽 답이 "컴파일러 변경"이라는 내용뿐이다.
+  - [#26901](https://github.com/ggml-org/llama.cpp/issues/26901) (닫힘, stale, 해결 아님): Blackwell dGPU(RTX 5080/5070 Ti)가 iGPU로 분류되어 다중 GPU 분할이 깨진다. v0.6.0 소스 `ggml-cuda.cu:5205`에 `prop.integrated ? IGPU : GPU` 코드가 그대로 있다.
+  - [#25060](https://github.com/ggml-org/llama.cpp/issues/25060) (열림): RTX 5090, CUDA 13.3, 드라이버 580.17에서 SOFT_MAX 실패. `sharedMemPerBlockOptin` 값이 이상하게 읽힌다는 보고다. 보고자의 CUDA와 드라이버가 이 패키지(CUDA 13.2, 드라이버 595)와 다르다.
+  - [#27330](https://github.com/ggml-org/llama.cpp/issues/27330) (열림): RTX 5090 Laptop(sm_120)에서 CUDA graph로 GPU 채널이 멈춘다. 보고자의 우회는 `GGML_CUDA_DISABLE_GRAPHS=1`이다. v0.6.0의 `ggml-cuda.cu` getenv 목록에서 이 변수를 찾지 못했다(다른 파일에 있는지는 미확인).
+  - [#28328](https://github.com/ggml-org/llama.cpp/issues/28328) (열림): CPU 변형 점수가 OS의 XSAVE 지원을 확인하지 않아, 그런 환경에서 SIGILL이 날 수 있다. 이슈 본문 기준이며 직접 재현하지 않았다.
 
 ## 5. MSI Stealth 15M 실기 확인 계획
 

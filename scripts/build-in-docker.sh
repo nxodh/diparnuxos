@@ -23,7 +23,7 @@ if ! docker info >/dev/null 2>&1; then
     die "docker 데몬에 연결할 수 없다. Docker 가 실행 중인지 확인하라."
 fi
 
-mkdir -p "${ROOT}/out"
+mkdir -p "${ROOT}/out" "${ROOT}/out/llama"
 
 docker build \
     --platform "${PLATFORM}" \
@@ -33,10 +33,12 @@ docker build \
     "${ROOT}/build"
 
 # --privileged: live-build 가 chroot 안에서 mount 와 debootstrap 을 쓰기 때문이다.
+# out/llama 는 make llama 가 만든 lightlix-llm .deb 를 담으며, 컨테이너에서는 읽기 전용이다.
 docker run --rm --privileged \
     --platform "${PLATFORM}" \
     -v "${ROOT}:/src:ro" \
     -v "${ROOT}/out:/out" \
+    -v "${ROOT}/out/llama:/llama:ro" \
     -e LIGHTLIX_OUT=/out \
     -e LIGHTLIX_WORKDIR=/var/tmp/lightlix-build \
     "${IMAGE_TAG}" \

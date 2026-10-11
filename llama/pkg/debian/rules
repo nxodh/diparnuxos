@@ -1,0 +1,42 @@
+#!/usr/bin/make -f
+# lightlix-llm 패키지 규칙. 파일은 llama/build.sh 가 staging/ 에 이미 모아 두었다.
+# 여기서는 그대로 옮기고, 의존성과 배포 파일 처리만 맞춘다.
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# 빌드 시스템이 없다. llama.cpp 빌드는 llama/build.sh 가 맡는다.
+
+override_dh_auto_build:
+	# 빌드할 대상이 없다.
+
+override_dh_auto_test:
+	# 테스트는 저장소의 tests/llama/package.sh 가 맡는다.
+
+override_dh_auto_install:
+	install -d debian/lightlix-llm
+	cp -a staging/. debian/lightlix-llm/
+
+# libggml-cuda.so 는 CUDA 런타임(libcudart.so.13, libcublas.so.13)에 링크된다.
+# 이 라이브러리에는 dpkg 의 shlibs 정보가 없어 자동 의존성 계산이 실패하므로 제외한다.
+# CUDA 의존성은 control 의 lightlix-nvidia 가 맡는다. CPU 빌드에는 이 이름의 파일이 없어 영향이 없다.
+override_dh_shlibdeps:
+	dh_shlibdeps -X libggml-cuda.so
+
+# 디버그 심볼 패키지(-dbgsym)는 만들지 않는다. 바이너리는 strip 한다.
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
+
+# 공유 라이브러리는 /usr/lib/lightlix/llama 에 있는 비공개 라이브러리다. ld 검색 경로가 아니므로
+# shlibs 파일과 ldconfig 트리거를 만들지 않는다. 이렇게 하지 않으면 다른 패키지가 이 라이브러리를 시스템 제공으로 볼 수 있다.
+override_dh_makeshlibs:
+	# dh_makeshlibs 를 실행하지 않는다.
+
+# 빌드 때 디버그 정보를 지우므로 dwz 할 것이 없다.
+override_dh_dwz:
+	# 디버그 정보가 없어 dwz 를 건너뛴다.
+
+# 빌드 정보와 라이선스 고지는 사람이 읽는 기록이므로 압축하지 않는다.
+override_dh_compress:
+	dh_compress -X build-info.txt -X vendor-licenses
