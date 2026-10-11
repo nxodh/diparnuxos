@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Debian 컨테이너 안에 QEMU 와 OVMF 를 설치하고 tests/qemu/boot-smoke.sh 를 실행한다.
 # 호스트에 QEMU 가 없거나(macOS), 호스트 배포판의 저장소를 쓰고 싶지 않을 때(CI 러너) 쓴다.
-# 사용법: scripts/test-qemu-in-docker.sh [iso경로]
+# 사용법: [BOOT_MEDIA=cdrom|usb] scripts/test-qemu-in-docker.sh [iso경로]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +35,13 @@ fi
 if [ -n "${BOOT_TIMEOUT:-}" ]; then
     run_args+=(-e "BOOT_TIMEOUT=${BOOT_TIMEOUT}")
 fi
+# 매체 선택(cdrom 또는 usb)을 컨테이너 안의 boot-smoke.sh 로 넘긴다. 기본값은 cdrom 이다.
+boot_media="${BOOT_MEDIA:-cdrom}"
+case "${boot_media}" in
+    cdrom|usb) ;;
+    *) die "BOOT_MEDIA 는 cdrom 또는 usb 여야 한다: ${boot_media}" ;;
+esac
+run_args+=(-e "BOOT_MEDIA=${boot_media}")
 
 docker run "${run_args[@]}" "debian:${DEBIAN_SUITE}" bash -euc '
     export DEBIAN_FRONTEND=noninteractive

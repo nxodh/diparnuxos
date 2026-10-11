@@ -59,7 +59,7 @@ for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp "$CUDA
     [[ -r "$doc" ]] || fail "라이선스 전문이 없다: $pkg"
     cp -L "$doc" "$licenses/$pkg.copyright"
 done
-printf '\nLightlix 라이선스 전문: /usr/share/lightlix/licenses/\n' >> /etc/issue
+printf '\nLightlix license texts: /usr/share/lightlix/licenses/\n' >> /etc/issue
 
 # 이 훅 뒤에는 DKMS 나 커널 패키지를 다시 설치하지 않는다.
 rm -f /var/lib/dkms/mok.key /var/lib/dkms/mok.pub

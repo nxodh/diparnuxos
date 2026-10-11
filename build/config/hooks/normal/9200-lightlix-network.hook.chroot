@@ -1,0 +1,19 @@
+#!/bin/sh
+# 유선과 무선의 IP 설정은 systemd-networkd 가 맡는다(20-lightlix-wired.network, 25-lightlix-wireless.network).
+# live-build 는 debootstrap 의 important 패키지로 ifupdown 과 dhcpcd-base 를 넣는다. 둘 다 DHCP 클라이언트라
+# 같은 NIC 를 systemd-networkd 와 함께 관리하게 된다(리뷰 M3). 그래서 이미지에서 제거한다.
+# 제거해도 되는지는 ISO 0.1.0 의 dpkg 상태에서 확인했다. apt-get -s purge ifupdown dhcpcd-base 는 두 패키지만
+# 지우고, 설치된 다른 패키지는 두 패키지에 Depends 하지 않는다. live-boot 의 9990-netbase.sh 가 부팅 때 쓰는
+# /etc/network/interfaces 는 ifupdown 이 없으면 아무도 읽지 않는다.
+set -e
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get purge --yes ifupdown dhcpcd-base
+
+for pkg in ifupdown dhcpcd-base; do
+    if dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null | grep -qx installed; then
+        echo "lightlix-network: $pkg 이 아직 설치되어 있다" >&2
+        exit 1
+    fi
+done
+echo 'lightlix-network: ifupdown 과 dhcpcd-base 제거 완료'

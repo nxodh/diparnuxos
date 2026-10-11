@@ -14,8 +14,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 # - xz-utils: 압축된 패키지 인덱스를 풀 때 쓴다.
 # - dpkg-dev, debhelper: scripts/build-debs.sh 가 dpkg-buildpackage 로 .deb 를 만들 때 쓴다.
 # - build-essential: dpkg-buildpackage 가 암묵적 빌드 의존성으로 확인한다 (없으면 "unmet build dependencies" 로 실패한다).
-# xorriso, grub-efi-amd64-bin, mtools, dosfstools, squashfs-tools 는 넣지 않는다.
-# live-build 는 기본값(build-with-chroot=true)에서 이 도구들을 chroot 안에 설치해 쓰기 때문이다.
+# - xorriso, mtools, fdisk: scripts/add-esp-partition.sh 가 lb 가 만든 ISO 에 ESP 파티션을 덧붙일 때 빌더 컨테이너에서 쓴다.
+#   xorriso 는 xorriso 명령, mtools 는 mdir/mcopy, fdisk 패키지는 sfdisk 를 제공한다 (dpkg -S 로 확인).
+#   cmp, dd, sha256sum 은 essential 패키지라 기본 이미지에 있다.
+# - grub-efi-amd64-bin, dosfstools, squashfs-tools 는 넣지 않는다. 기본값(build-with-chroot=true)에서 live-build 가
+#   chroot 안에 설치해 ISO 를 만들 때 쓰기 때문이다.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       live-build \
@@ -29,4 +32,7 @@ RUN apt-get update \
       dpkg-dev \
       debhelper \
       build-essential \
+      xorriso \
+      mtools \
+      fdisk \
  && rm -rf /var/lib/apt/lists/*

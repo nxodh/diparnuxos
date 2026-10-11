@@ -20,20 +20,20 @@ Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최
 - 라이브 계정 `user`(비밀번호 `live`, sudo 가능). Debian live-config 의 기본값이며 SSH 서버는 들어 있지 않다.
 - NVIDIA 공식 저장소, 지정 버전의 오픈 커널 모듈과 사용자 공간 드라이버
 - CUDA 런타임(`cudart`, `cublas`). CUDA 컴파일러와 툴킷은 포함하지 않는다.
-- 부팅 시 GPU 진단과 원인별 CPU 폴백 안내, 서버 모드의 절전 비활성화
+- 부팅 시 GPU 진단 결과를 영어 한 줄로 로그인 프롬프트 위에 표시(모니터와 직렬 콘솔 모두), 원인별 CPU 폴백 안내, 서버 모드의 절전 비활성화
 - Intel Wi-Fi 펌웨어(`firmware-iwlwifi`)와 Intel 이더넷 펌웨어(`firmware-intel-misc`), 무선 접속 데몬 iwd. 실기 접속은 미검증이다.
 
 llama.cpp, `lightlixd`, CLI, GUI, 설치기는 후속 단계에서 구현한다. 지금의 CPU 폴백 안내는 진단 결과이며, 추론 서버를 실행한다는 뜻은 아니다.
 
-라이브 ISO에서 NVIDIA 모듈을 사용하려면 **Secure Boot를 끈다.** 빌드 중 생성한 DKMS 키는 배포하지 않는다. 기기별 MOK 등록은 아직 구현하지 않았다. 부팅 시 상태를 표시하며, 자세한 원인은 `sudo journalctl -k`로 확인한다.
+라이브 ISO에서 NVIDIA 모듈을 사용하려면 **Secure Boot를 끈다.** 빌드 중 생성한 DKMS 키는 배포하지 않는다. 기기별 MOK 등록은 아직 구현하지 않았다. 부팅 시 GPU 상태는 영어 한 줄(`Lightlix GPU [<상태>]: ...`)로 로그인 프롬프트 위에 표시된다. 모니터와 직렬 콘솔 모두에 나온다. 한글은 텍스트 콘솔에서 표시되지 않으므로 화면 문구는 영어다. 자세한 원인은 `sudo journalctl -k`로 확인한다. 실기 화면 표시는 아직 확인하지 않았다.
 
 GPU 진단은 `sudo lightlix-gpu-check`로 다시 실행한다. 결과는 `/run/lightlix/gpu-status`에 기록된다. 라이선스 전문은 이미지의 `/usr/share/lightlix/licenses/`에서 읽을 수 있다.
 
 NVIDIA 실 하드웨어에서 검증하지 않았다. ISO 빌드와 GPU 없는 QEMU 부팅 결과는 [검증 기록](docs/verification-phase-1.md)에 적는다. 실기 결과가 생기기 전까지 특정 GPU에서의 동작을 주장하지 않는다. 노트북을 포함한 대상과 상태는 [docs/support-matrix.md](docs/support-matrix.md)에 있다.
 
-### Wi-Fi 접속
+### 네트워크
 
-인증은 iwd가 맡고, IP 설정은 systemd-networkd가 맡는다. 실기에서 Wi-Fi 접속은 아직 확인하지 않았다. 장치 이름은 기기마다 다르므로 `wlan0`으로 가정하지 않고 먼저 확인한다.
+유선과 무선 모두 systemd-networkd가 DHCP를 맡는다. 이미지에서 ifupdown과 dhcpcd-base를 뺐으므로 같은 NIC를 두 DHCP 클라이언트가 관리하지 않는다. 무선의 인증과 연결은 iwd가 맡는다. 실기에서 Wi-Fi 접속은 아직 확인하지 않았다. 장치 이름은 기기마다 다르므로 `wlan0`으로 가정하지 않고 먼저 확인한다.
 
 ```sh
 iwctl device list                     # 무선 장치 이름을 Name 열에서 확인한다
@@ -73,6 +73,7 @@ RTX 50은 오픈 커널 모듈만 지원한다. Secure Boot가 켜진 상태에�
 | `make test-nvidia-image-docker` | 완성된 ISO의 오픈 모듈, 드라이버 구성, 라이선스, 서명 키 제거를 확인한다. |
 | `make test-qemu` | QEMU/OVMF로 로그인 프롬프트와 GPU 없는 CPU 폴백 안내를 확인한다. |
 | `make test-qemu-docker` | 동일한 부팅 확인을 Debian 컨테이너에서 한다. |
+| `make test-qemu-usb-docker` | ISO를 USB 저장 장치로 붙여 같은 부팅 확인을 한다. 광학 드라이브가 없는 실기와 가깝다. |
 | `make clean` | 빌드 산출물을 지운다. |
 
 산출물은 `out/lightlix-<version>-amd64.iso`와 같은 이름에 `.sha256`을 붙인 체크섬 파일이다. `out/`은 git에 넣지 않는다.

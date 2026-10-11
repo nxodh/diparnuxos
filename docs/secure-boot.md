@@ -3,7 +3,7 @@
 - 확인 날짜: 2026-10-11
 - 상태: Phase 1 빌드 키 제거와 텍스트 안내 구현. 기기별 MOK 등록은 미구현
 
-> Phase 1은 `9900-lightlix-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `lightlix-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 텍스트로 안내한다. 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
+> Phase 1은 `9900-lightlix-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `lightlix-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 영어 ASCII 텍스트로 콘솔과 로그인 프롬프트 위에 안내한다(실기 화면은 미검증). 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
 
 Lightlix는 UEFI 전용이다. Secure Boot가 켜진 기기에서 부팅하는 경우를 고려해야 한다. 이 문서는 커널 설정, 서명 키, 기기별 등록 흐름, 대안, 라이브 세션 안내를 정리한다. 방침 중 일부는 사용자가 아직 확정하지 않았다(아래 7절).
 
@@ -45,7 +45,7 @@ DKMS는 서명 키가 없으면 자동으로 만든다.
 
 ### 확인이 필요한 것
 
-- DKMS 설정 파일에서 키 경로를 바꾸는 옵션이 있는지는 이번 조사에서 확인하지 않았다. Phase 1에서 DKMS 문서로 확인한다.
+- DKMS 설정 파일에서 키 경로를 바꾸는 옵션이 있는지는 확인하지 않았다. 현재 방식은 빌드 뒤 두 파일을 지우는 것이다. 최종 ISO의 squashfs와 initrd에 키 파일이 없는지는 `tests/nvidia/image.sh`가 검사한다.
 - DKMS 키 자동 생성 동작의 출처: https://raw.githubusercontent.com/dell/dkms/v3.2.2/README.md ("Private key and certificate are auto generated the first time DKMS is run and placed in /var/lib/dkms").
 
 ---
@@ -92,12 +92,13 @@ MOK(Machine Owner Key)는 기기 소유자가 UEFI에 등록하는 키다. 등�
 - RTX 50은 오픈 커널 모듈만 쓸 수 있다.
 - Secure Boot가 켜진 라이브 세션에서는 NVIDIA 모듈이 서명 검증을 통과하지 못한다.
 - 그러면 RTX 50에서 드라이버가 올라오지 않고 DRM 장치가 생기지 않는다. 6.12 커널에는 simpledrm이 없고 nouveau는 Blackwell을 모른다(decisions.md D8). 그래서 화면이 나오지 않는다.
-- **방침(초안)**: 화면 대신 텍스트 콘솔에 안내를 띄운다. 안내 내용은 다음과 같다.
-  - Secure Boot가 켜져 있어 NVIDIA 드라이버를 올릴 수 없다는 사실.
-  - BIOS/UEFI에서 Secure Boot를 끄는 방법.
-  - 시리얼 콘솔 또는 텍스트 콘솔로 상태를 확인할 수 있다는 사실.
+- **구현(Phase 1)**: 화면 대신 텍스트로 안내한다. `lightlix-gpu-check`가 진단 결과를 영어 ASCII로 쓰고, 같은 내용을 콘솔(`StandardOutput=journal+console`)과 로그인 프롬프트 위(`/run/issue.d/50-lightlix-gpu.issue`)에 낸다. 로그인 뒤에는 `/run/motd.d/50-lightlix-gpu`에도 나온다.
+  - Secure Boot가 켜져 있고 modprobe 오류가 `Key was rejected by service`이면 `secure_boot`(종료 2)이다. 문구는 UEFI 설정에서 Secure Boot를 끄고 다시 부팅하라고 적는다.
+  - 그 밖의 모듈 로드 실패는 `module_unloaded`(종료 2)이다. Secure Boot가 켜져 있었다면 메시지에 그 사실을 덧붙인다.
+  - 판정 조건과 상태 파일 키는 [drivers.md](drivers.md)의 "GPU 진단 계약" 절에 있다.
+- **확인 상태**: 리뷰 시점의 구현(이전 스크립트)은 QEMU/OVMF에서 Secure Boot를 켠 채 ISO가 부팅됐고, `modprobe nvidia`가 `Key was rejected by service`로 거부됐다. 이 확인은 QEMU에서 이뤄졌고 실기 펌웨어에서는 미검증이다. 이번 구현(영어 문구, issue/motd 출력, 판정 조건 변경)은 QEMU에서 아직 확인하지 않았다.
 
-조사 근거: 검증 기록 check 28(드라이버 없이 RTX 50 화면 없음)과 check 29(Secure Boot에서 서명 강제). 텍스트 안내는 Phase 1에서 구현했다. GUI 안내 화면은 Phase 3이다.
+조사 근거: 검증 기록 check 28(드라이버 없이 RTX 50 화면 없음)과 check 29(Secure Boot에서 서명 강제). GUI 안내 화면은 Phase 3이다.
 
 직렬 콘솔은 `console=ttyS0,115200`으로 열린다. 이 설정의 세부는 빌드 스크립트와 `tests/qemu` 쪽 문서에서 다룬다.
 
@@ -109,7 +110,7 @@ Phase 1 및 Phase 3 수용 기준:
 
 1. 이미지에 `/var/lib/dkms/mok.key`, `/var/lib/dkms/mok.pub`이 없다.
 2. Secure Boot가 꺼진 상태에서 NVIDIA 모듈이 로드된다(RTX 30, 40, 50 각각).
-3. Secure Boot가 켜진 상태에서 텍스트 안내가 나온다(RTX 50).
+3. Secure Boot가 켜진 상태에서 영어 안내가 콘솔과 로그인 프롬프트 위에 나온다(RTX 50). 이번 구현은 QEMU/OVMF에서 아직 확인하지 않았고, 실기 화면은 미검증이다.
 4. 기기별 MOK 등록 흐름을 한 번 끝까지 실행해 모듈이 로드된다(Phase 3).
 5. 커널 업데이트 후 DKMS 재빌드와 서명이 된다.
 

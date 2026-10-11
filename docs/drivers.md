@@ -12,9 +12,65 @@
 - `lightlix-nvidia`의 고정 의존성으로 세 드라이버와 CUDA 런타임을 한 번에 설치한다. 지정된 버전이 사라지면 다른 버전으로 넘어가지 않고 실패한다.
 - 이미지의 각 6.12 커널에 DKMS를 빌드하고 모듈 파일·버전·`Dual MIT/GPL` 라이선스를 검사한다. initramfs 갱신 후 서명 키를 제거한다.
 - 서버 모드는 `multi-user.target`이다. sleep, suspend, hibernate, hybrid-sleep, suspend-then-hibernate를 마스크한다. `nvidia-persistenced`는 GPU 진단 뒤 실행한다.
-- `lightlix-gpu-check`는 GPU 없음, Secure Boot 상태에서 모듈 로드 실패, 일반 모듈 로드 실패, 독점 모듈, 버전 불일치, 미지원 GPU를 구분한다. 결과는 `/run/lightlix/gpu-status`에 기록한다.
-- 커널과 드라이버는 hold한다. 안전한 동시 갱신과 롤백 도구는 Phase 4에서 구현한다. 수동으로 hold를 풀면 이 정책이 유지되지 않는다.
+- `lightlix-gpu-check`는 GPU 없음, Secure Boot 상태에서 모듈 로드 실패, 일반 모듈 로드 실패, 독점 모듈, 버전 불일치, 미지원 GPU를 구분한다. 결과는 `/run/lightlix/gpu-status`에 기록한다. 종료 코드와 상태 파일 키는 아래 "GPU 진단 계약" 절이 정한다.
+- 커널과 드라이버는 hold한다. hold된 패키지는 49개(커널 5, NVIDIA 42, CUDA 2)이고, 갱신 명령(`lightlix-update`)이 생기는 Phase 4 전까지 `apt upgrade`로 커널 보안 수정이 적용되지 않는다. 안전한 동시 갱신과 롤백 도구도 Phase 4에서 구현한다. 수동으로 hold를 풀면 이 정책이 유지되지 않는다.
 - 원본 계약서 전문은 `/usr/share/lightlix/licenses/`에 보존한다. 드라이버 패키지의 바이너리는 변경하지 않는다.
+
+## GPU 진단 계약
+
+`lightlix-gpu-check`(`/usr/sbin/lightlix-gpu-check`, 유닛 `lightlix-gpu-check.service`)의 종료 코드와 `/run/lightlix/gpu-status`는 Phase 2 데몬이 읽는 계약이다. 아래 값을 바꾸면 데몬도 같이 바꿔야 한다.
+
+| 종료 코드 | 뜻 | `LIGHTLIX_GPU_STATUS` |
+|---|---|---|
+| 0 | 쓸 수 있는 GPU가 하나 이상 있다 | `ready` |
+| 1 | NVIDIA GPU가 없다. CPU 폴백은 정상이다 | `no_gpu` |
+| 2 | NVIDIA GPU는 있지만 쓸 수 없다 | `module_unloaded`, `secure_boot`, `proprietary_module`, `version_mismatch`, `driver_missing`, `query_failed`, `unsupported_gpu` |
+| 3 | 스크립트 자체의 오류 | `internal_error`, `config_missing` |
+
+유닛은 `SuccessExitStatus=1 2`이므로 종료 1과 2에서는 failed가 되지 않고, 종료 3에서는 failed가 된다.
+
+판정 규칙:
+
+- GPU 하나를 쓸 수 있으려면 compute_cap이 8.6, 8.9, 12.0 중 하나이고 이름이 `GeForce RTX (30|40|50)xx`에 맞아야 한다. compute_cap을 먼저 보고, 그다음 이름을 본다(`REASON`은 `compute_cap`, `name`, `ok` 중 하나).
+- 쓸 수 있는 GPU가 하나라도 있으면 `ready`다. 미지원 GPU는 `SUPPORTED=0`으로 기록하고 화면에 무시한다는 한 줄을 낸다. `ready`일 때만 nvidia-uvm과 nvidia-drm을 올린다.
+- 쓸 수 있는 GPU가 0개면 `unsupported_gpu`(종료 2)다.
+- PCI NVIDIA 디스플레이 장치(class `0x03xx`) 수가 nvidia-smi 행 수보다 많으면 경고 한 줄을 내고, 판정은 위 규칙대로 한다.
+- `secure_boot`는 Secure Boot가 켜져 있고 modprobe 오류문에 `Key was rejected by service`가 있을 때만이다. 그 밖의 모듈 로드 실패는 `module_unloaded`이고, Secure Boot가 켜져 있었다면 메시지에 그 사실을 덧붙인다.
+- nvidia-smi는 오류문을 stdout에 쓴다(Phase 1 검사에서 stderr는 비어 있었다). 스크립트는 표준 출력과 오류 출력을 함께 받는다. `driver/library version mismatch` 또는 `API mismatch`가 있으면 `version_mismatch`, 그 밖의 실패는 `query_failed`다. 오류 내용은 화면에 출력한다.
+- `nvidia.conf`를 읽을 수 없거나 고정 버전이 비어 있으면 버전 검사를 건너뛰지 않고 `config_missing`(종료 3)으로 끝낸다.
+- 예상하지 못한 명령 실패는 `trap ... ERR`로 잡아 `internal_error`(종료 3)로 끝낸다.
+- `timeout`은 `-k 5`를 붙인다. 시간 제한 합계는 최대 약 110초이고, 유닛의 `TimeoutStartSec`은 120초다. 유닛은 로그인 프롬프트보다 먼저 끝나므로 진단이 길어지면 로그인 프롬프트도 그만큼 늦는다.
+
+상태 파일 `/run/lightlix/gpu-status`는 모드 0644이고, 임시 파일에 쓴 뒤 `mv`로 교체한다. 셸에서 source 할 수 있는 `KEY=VALUE` 형식이다. 값에 공백이 있으면 큰따옴표로 감싸고, 값 안의 `"`, `$`, `` ` ``, `\`는 지운다. 어떤 종료 경로에서도 아래 키를 모두 쓴다. 해당 없으면 빈 값이나 0이다.
+
+| 키 | 값 |
+|---|---|
+| `LIGHTLIX_GPU_STATUS` | 위 표의 상태 중 하나 |
+| `LIGHTLIX_GPU_PRESENT` | NVIDIA PCI 디스플레이 장치가 있으면 1, 없으면 0 |
+| `LIGHTLIX_GPU_PCI_COUNT` | NVIDIA PCI 디스플레이 장치 수 |
+| `LIGHTLIX_GPU_COUNT` | nvidia-smi가 보고한 GPU 수(조회 전이면 0) |
+| `LIGHTLIX_GPU_USABLE_COUNT` | 쓸 수 있는 GPU 수. `ready`일 때만 0보다 크다(판정을 통과했더라도 `nvidia-uvm`이나 `nvidia-drm` 로드에 실패하면 0으로 되돌린다) |
+| `LIGHTLIX_GPU_USABLE_INDEXES` | 쓸 수 있는 GPU의 nvidia-smi index, 쉼표 구분 |
+| `LIGHTLIX_SECURE_BOOT` | `enabled`, `disabled`, `unknown`(mokutil이 없거나 해석하지 못함) |
+| `LIGHTLIX_DRIVER_VERSION` | 로드된 모듈의 버전. 모르면 빈 값 |
+| `LIGHTLIX_GPU_MESSAGE` | 화면 메시지의 한 줄 요약(ASCII) |
+| `LIGHTLIX_GPU_<i>_NAME` | GPU 이름. `<i>`는 nvidia-smi index |
+| `LIGHTLIX_GPU_<i>_COMPUTE_CAP` | compute_cap |
+| `LIGHTLIX_GPU_<i>_SUPPORTED` | 1 또는 0 |
+| `LIGHTLIX_GPU_<i>_REASON` | `ok`, `compute_cap`, `name` |
+
+화면과 안내 파일:
+
+- 모든 출력 문구는 ASCII 영어다. 리눅스 텍스트 콘솔에는 한글 글리프가 없다.
+- 첫 줄은 `Lightlix GPU [<state>]: <message>` 형식으로 고정한다. 같은 내용을 `/run/issue.d/50-lightlix-gpu.issue`(로그인 프롬프트 위)와 `/run/motd.d/50-lightlix-gpu`(로그인 뒤)에도 쓴다.
+- 종료 1과 2에서는 `Lightlix: running in CPU fallback mode.` 줄을 덧붙인다.
+- `secure_boot`에서는 UEFI 설정에서 Secure Boot를 끄고 다시 부팅하라는 방법을 적는다.
+- 안내 파일에는 백슬래시가 없어야 한다. agetty가 `\`를 이스케이프로 해석한다.
+- 확인한 경로(trixie, 컨테이너):
+  - agetty(8, util-linux 2.41.5): "agetty checks for the files /run/issue and /run/issue.d"이고 `.issue` 확장자 파일을 버전 순서로 출력한다. `agetty --show-issue`로 `/etc/issue` 뒤에 `/run/issue.d/*.issue` 내용이 나오는 것을 확인했다.
+  - pam_motd(libpam-doc 문서, libpam-modules 1.7.0): 기본 경로에 `/run/motd.d/`가 있다. Debian의 `/etc/pam.d/login`은 `pam_motd.so motd=/run/motd.dynamic`과 `pam_motd.so noupdate` 두 줄을 쓴다. 두 번째 줄은 `motd=`나 `motd_dir=`이 아니므로 `/run/motd.d/`를 막지 않는다. pamtester로 이 두 줄을 그대로 쓴 서비스에서 `/run/motd.d/` 내용이 나오는 것을 확인했다. 로그인 뒤에 나오며 프롬프트 위에는 나오지 않는다. 실기 미검증이다.
+  - systemd.exec(5, systemd 257): `ProtectSystem=full`은 `/usr`, `/boot`, `/efi`를 읽기 전용으로 하고, `full`이면 `/etc`도 읽기 전용으로 한다. `/run`은 바뀌지 않으므로 `/run/issue.d`, `/run/motd.d`, `/run/lightlix`에 쓸 수 있다.
+- 유닛은 `RuntimeDirectory`를 쓰지 않는다. 유닛이 멈출 때 `/run/lightlix`를 지우면 데몬 소켓과 같이 쓸 수 없기 때문이다. 디렉터리는 `/usr/lib/tmpfiles.d/lightlix.conf`(`d /run/lightlix 0755 root root -`)가 부팅 때 만든다. 스크립트의 `mkdir -p`도 그대로 둔다.
 
 Lightlix는 RTX 30, 40, 50에서 NVIDIA 오픈 커널 모듈을 쓴다. 드라이버는 ISO에 포함하며, 바이너리는 수정하지 않는다(사용자 확정). 결정 근거는 [decisions.md](decisions.md)의 D3, D7, D8에 있다.
 
@@ -75,7 +131,7 @@ Lightlix는 RTX 30, 40, 50에서 NVIDIA 오픈 커널 모듈을 쓴다. 드라�
 
 - 설치 기준 구성은 `nvidia-kernel-open-dkms` + `nvidia-driver` + `nvidia-driver-cuda`이다. 검증자가 정정한 내용이다. 헤드리스 전용 조합(`nvidia-driver-cuda` + `nvidia-kernel-open-dkms`)은 쓰지 않는다. 이 조합에는 `libegl-nvidia0`, `libnvidia-egl-gbm1`, `libnvidia-egl-wayland21` 같은 EGL/GBM/Wayland 라이브러리와 절전 유닛이 없어서 labwc가 GPU로 그릴 수 없다.
 - `nvidia-open` 메타패키지는 `nvidia-settings`와 `nvidia-xconfig`를 추가로 끌어오므로 쓰지 않는다. `cuda-drivers`도 쓰지 않는다.
-- `nvidia-driver` 대신 `nvidia-driver-libs`만 쓰면 X 드라이버를 피할 수 있다. 다만 절전 처리(suspend, resume)를 직접 구성해야 한다. 이 대안은 Phase 1에서 판단한다.
+- `nvidia-driver` 대신 `nvidia-driver-libs`만 쓰면 X 드라이버를 피할 수 있다. 다만 절전 처리(suspend, resume)를 직접 구성해야 한다. 이 대안은 채택하지 않았다. 이미지는 `nvidia-driver`를 쓰므로 X 드라이버 패키지도 함께 설치되고, 절전 유닛도 그대로 쓴다.
 - 전부 한 번의 apt 트랜잭션으로 설치한다.
 
 근거:
@@ -128,7 +184,7 @@ Pin-Priority: -1
 
 NVIDIA 저장소의 `dkms`와 `dh-dkms`는 3.4.3-1이고, Debian main은 3.2.2-1~deb13u1이다. NVIDIA 쪽이 버전이 높아서 핀이 없으면 NVIDIA 쪽이 선택된다. `nvidia-kernel-open-dkms`는 `dkms (>= 3.1.8)`만 요구하며, 빌드도 Debian `dh_dkms/3.2.2-1~deb13u1`으로 되어 있어 Debian 쪽 `dkms`로 충분하다.
 
-검증자 제안 (Phase 1에서 확인):
+적용한 핀:
 
 ```
 Package: dkms dh-dkms
@@ -136,7 +192,7 @@ Pin: release o=Debian
 Pin-Priority: 1001
 ```
 
-- `o=Debian`이 Debian main의 Origin 문자열과 맞는지는 검증하지 않았다. NVIDIA 저장소의 Origin은 `NVIDIA`다(Label: `NVIDIA CUDA`). Debian 쪽 Origin 문자열은 Phase 1에서 `apt-cache policy`로 확인한다.
+- `o=Debian`은 Debian 쪽 `dkms`와 맞는다. Phase 1 검사에서 `apt-cache policy`는 Debian `dkms`(`3.2.2-1~deb13u1`)에 우선순위 1001을, NVIDIA 쪽 `dkms`(`3.4.3-1`)에 500을 보였다. NVIDIA 저장소의 Origin은 `NVIDIA`다(Label: `NVIDIA CUDA`).
 
 근거: https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/Packages.gz , https://deb.debian.org/debian/dists/trixie/main/binary-amd64/Packages.xz
 
@@ -230,10 +286,10 @@ Pin-Priority: 1001
 
 ## 14. 열린 문제
 
-- Debian 쪽 dkms 핀의 Origin 문자열 확인 (7절).
-- `dkms`의 커널 지정 명령 옵션 확인 (10절).
-- 절전 처리 방식 결정 (`nvidia-driver` 대 `nvidia-driver-libs`, 4절).
-- `make`와 `dpkg-dev`가 DKMS 빌드 경로에 필요한지 의존 관계 확인 (10절).
-- labwc 0.9 백포트 시 필요한 wlroots 버전 확인 (13절).
+- 해결: Debian 쪽 dkms 핀의 Origin은 `Debian`이다(7절).
+- 미확인: 이미지 훅(`9900-lightlix-nvidia.hook.chroot`)이 쓰는 `dkms autoinstall -k <커널>`의 `-k`는 dkms 3.2.2 man 페이지의 `autoinstall` 항목에서 확인하지 못했다. CI 로그에서는 6.12.111+deb13-amd64 대상 빌드가 성공했다(10절).
+- 결정: 절전 처리는 `nvidia-driver`를 쓴다(4절).
+- 미확인: `make`와 `dpkg-dev`가 DKMS 빌드 경로에 필요한지 의존 관계 확인 (10절).
+- 미확인: labwc 0.9 백포트 시 필요한 wlroots 버전 확인 (13절).
 - 595.104.02가 저장소에 올라오면 595 버전을 갱신한다(1절).
-- 브랜치 고정 핀의 다운그레이드 동작 확인(3절, `apt_preferences(5)`).
+- 미확인: 브랜치 고정 핀의 다운그레이드 동작 확인(3절, `apt_preferences(5)`).

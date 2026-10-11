@@ -227,7 +227,7 @@
 - **검증자 제안**:
   - 이미지 빌드 중 DKMS가 만든 `/var/lib/dkms/mok.key`와 `mok.pub`은 ISO에 남기지 않는다. DKMS는 키가 없으면 자동 생성한다. chroot에서 빌드하면 모든 사용자에게 같은 개인키가 배포되는 셈이므로 반드시 제거한다.
   - 설치된 시스템에서 기기별 키를 새로 만들어 모듈을 다시 서명하고 `mokutil --import`로 등록하는 흐름을 둔다. 또는 v1에서는 "Secure Boot 끄기"를 요구 사항으로 적고, 부팅 시 상태를 감지해 안내한다.
-  - 라이브 세션에서 Secure Boot가 켜져 있으면 NVIDIA 모듈이 올라오지 않는다는 전제로, 화면 대신 텍스트 안내를 띄운다.
+  - 라이브 세션에서 Secure Boot가 켜져 있으면 NVIDIA 모듈이 올라오지 않는다는 전제로 텍스트 안내를 띄운다. 리뷰 B1에 따라 안내는 영어 한 줄로 바꾸고 `/run/issue.d`로 로그인 프롬프트 위에 출력하도록 했다. 실기 화면 표시는 미검증이다.
 - **근거**:
   - Debian 커널 설정 `CONFIG_MODULE_SIG=y`, `CONFIG_SECURITY_LOCKDOWN_LSM=y`, `CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT=y` — https://security.debian.org/debian-security/pool/updates/main/l/linux/linux-headers-6.12.111+deb13-amd64_6.12.111-1_amd64.deb (검증 기록 check 29)
   - DKMS 자동 키 생성 — https://raw.githubusercontent.com/dell/dkms/v3.2.2/README.md
@@ -250,4 +250,4 @@
 | 모델 라이선스 표시 방침 | 미확정. [licenses.md](licenses.md) 참고 |
 | labwc 0.8.3 explicit sync 문제 대응 (D6) | 실기 시험 후 결정 |
 | 그리터 프로그램 선택 (D6) | Phase 3에서 결정 |
-| dkms 핀의 Origin 문자열 (D3-3) | Phase 1에서 확인 |
+| dkms 핀의 Origin 문자열 (D3-3) | 미확인. 리뷰는 apt 핀으로 dkms 후보가 Debian 저장소 3.2.2-1~deb13u1(우선순위 1001)인 것을 확인했다. Origin 문자열 자체는 0.1.2 수정에서 확인하지 않았다 |

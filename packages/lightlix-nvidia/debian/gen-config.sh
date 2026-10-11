@@ -7,8 +7,13 @@ dest="$2"
 mkdir -p "${dest}/etc/apt/preferences.d" "${dest}/etc/modprobe.d" \
     "${dest}/etc/systemd/system" "${dest}/usr/share/lightlix" \
     "${dest}/etc/dkms/framework.conf.d"
-mkdir -p "${dest}/etc/systemd/system/nvidia-persistenced.service.d"
+mkdir -p "${dest}/etc/systemd/system/nvidia-persistenced.service.d" "${dest}/usr/lib/tmpfiles.d"
 driver="${NVIDIA_DRIVER_VERSION}-${NVIDIA_DEB_REVISION}"
+# 진단 유닛과 데몬이 같이 쓰는 런타임 디렉터리다. 유닛의 RuntimeDirectory 는 멈출 때 지우므로 쓰지 않는다.
+cat > "${dest}/usr/lib/tmpfiles.d/lightlix.conf" <<'EOF'
+# 부팅 때 /run/lightlix 를 만든다. 나이 제한이 없어서 자동으로 지우지 않는다.
+d /run/lightlix 0755 root root -
+EOF
 cat > "${dest}/etc/apt/preferences.d/00-lightlix-nvidia.pref" <<EOF
 # 이 파일은 NVIDIA 브랜치 핀보다 먼저 읽혀야 한다.
 Package: nvidia-kernel-dkms nvidia-kernel-source cuda-drivers* nvidia-open

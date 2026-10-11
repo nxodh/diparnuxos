@@ -9,6 +9,9 @@ user-setup
 iproute2
 systemd-resolved
 systemd-zram-generator
+# 시계 동기화. trixie 에 있으며(madison 확인), 설치하면 sysinit.target.wants 링크로 자동 활성화된다.
+# 다음 단계의 HTTPS 모델 내려받기는 시계가 맞아야 인증서 검증이 된다.
+systemd-timesyncd
 # Intel Wi-Fi 펌웨어(iwlwifi). 모든 Intel Wi-Fi 세대의 펌웨어가 들어 있다. 펌웨어 자동 설치가 꺼져 있어 이름으로 넣는다.
 firmware-iwlwifi
 # Intel 이더넷 펌웨어(ice 등). 자동 설치가 꺼져 있어 이름으로 넣는다.

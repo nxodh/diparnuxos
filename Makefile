@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/packages $(ROOT)/tests -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb lint test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker clean
+.PHONY: iso iso-native deb lint test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker clean
 
 # Docker 안에서 ISO 를 빌드한다.
 iso:
@@ -43,13 +43,17 @@ test-gpu-check:
 test-nvidia-image-docker:
 	bash "$(ROOT)/scripts/test-nvidia-image-in-docker.sh" "$(ISO)"
 
-# ISO 의 로그인 프롬프트와 GPU 없는 CPU 폴백 안내를 QEMU 로 확인한다.
+# ISO 의 로그인 프롬프트와 GPU 진단 줄(Lightlix GPU [no_gpu]:)을 QEMU 직렬 콘솔에서 확인한다.
 test-qemu:
 	bash "$(ROOT)/tests/qemu/boot-smoke.sh" "$(ISO)"
 
 # 같은 확인을 Debian 컨테이너 안에서 한다. 호스트에 QEMU 가 없어도 된다.
 test-qemu-docker:
 	bash "$(ROOT)/scripts/test-qemu-in-docker.sh" "$(ISO)"
+
+# ISO 를 USB 저장 장치로 붙여 부팅한다. 광학 드라이브가 없는 실기의 USB 기록 매체와 가깝다.
+test-qemu-usb-docker:
+	BOOT_MEDIA=usb bash "$(ROOT)/scripts/test-qemu-in-docker.sh" "$(ISO)"
 
 # 산출물(out/)과 빌드된 .deb 를 지운다. 작업 디렉터리(/var/tmp/lightlix-build)는 지우지 않는다.
 clean:
