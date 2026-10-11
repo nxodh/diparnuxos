@@ -28,6 +28,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
 	"github.com/nxodh/lightlixos/daemon/internal/gpustatus"
 	"github.com/nxodh/lightlixos/daemon/internal/hf"
+	"github.com/nxodh/lightlixos/daemon/internal/jobs"
 	"github.com/nxodh/lightlixos/daemon/internal/models"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
@@ -242,6 +243,17 @@ func supervisorStatus(code string) int {
 
 // writeErr 는 오류를 HTTP 상태와 JSON 으로 옮긴다. 알 수 없는 오류는 내부 오류로 숨기고 로그에 남긴다.
 func writeErr(w http.ResponseWriter, err error) {
+	var pe *jobs.PullError
+	if errors.As(err, &pe) {
+		status := pullErrorStatus(pe.Code)
+		if status != http.StatusInternalServerError {
+			writeError(w, status, pe.Code, "%s", pe.Message)
+			return
+		}
+		log.Printf("api: internal pull error: %v", err)
+		writeError(w, status, "internal", "internal error; see the daemon log")
+		return
+	}
 	var se *supervisor.Error
 	if errors.As(err, &se) {
 		writeError(w, supervisorStatus(se.Code), se.Code, "%s", se.Message)
@@ -250,6 +262,8 @@ func writeErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, hf.ErrGated):
 		writeError(w, http.StatusForbidden, "gated", "the repository is gated and the token has no access")
+	case errors.Is(err, hf.ErrUnauthorized):
+		writeError(w, http.StatusUnauthorized, "unauthorized", "repository not found, or it is private; check the token and repository name")
 	case errors.Is(err, hf.ErrNotFound), errors.Is(err, fs.ErrNotExist):
 		writeError(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, hf.ErrRateLimited):
@@ -264,6 +278,29 @@ func writeErr(w http.ResponseWriter, err error) {
 		log.Printf("api: internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal", "internal error; see the daemon log")
 	}
+}
+
+// pullErrorStatus 는 작업을 만들기 전에 거부된 요청의 코드를 HTTP 상태로 바꾼다.
+func pullErrorStatus(code string) int {
+	switch code {
+	case jobs.CodeGated:
+		return http.StatusForbidden
+	case jobs.CodeUnauthorized:
+		return http.StatusUnauthorized
+	case jobs.CodeNotFound:
+		return http.StatusNotFound
+	case jobs.CodeRateLimited:
+		return http.StatusTooManyRequests
+	case jobs.CodeInsufficientSpace:
+		return http.StatusInsufficientStorage
+	case jobs.CodeInvalidInput, jobs.CodeAmbiguousFile:
+		return http.StatusBadRequest
+	case jobs.CodeNameConflict:
+		return http.StatusConflict
+	case jobs.CodeNetwork, jobs.CodeChecksumMismatch, jobs.CodeSizeMismatch:
+		return http.StatusBadGateway
+	}
+	return http.StatusInternalServerError
 }
 
 // decodeBody 는 JSON 본문을 읽는다. 크기 상한을 넘거나, 모르는 필드가 있거나, 형식이 틀리면 false 를 돌려주고 응답을 쓴다.
