@@ -619,7 +619,10 @@ func TestConfigSetHFTokenReadsStdinOnly(t *testing.T) {
 	if strings.Contains(res.stdout, token) || strings.Contains(res.stderr, token) {
 		t.Fatalf("token was printed:\n%s\n%s", res.stdout, res.stderr)
 	}
-	wantContains(t, "hf-token", res.stdout, "hf-token saved", "restart the server")
+	wantContains(t, "hf-token", res.stdout, "hf-token saved", "restart the daemon", "sudo systemctl restart lightlixd")
+	if strings.Contains(res.stdout, "lightlix serve stop") {
+		t.Fatal("HF token change must restart the daemon, not only llama-server")
+	}
 	got := f.bodiesOf("PUT /v1/config")
 	if len(got) != 1 || got[0] != `{"hf_token":"`+token+`"}` {
 		t.Fatalf("config body = %v", got)

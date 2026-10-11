@@ -378,7 +378,11 @@ func (c *cli) applyConfig(key string, patch client.ConfigPatch, done string) int
 	}
 	fmt.Fprintln(c.env.stdout, done)
 	if res.RestartRequired {
-		fmt.Fprintln(c.env.stdout, "restart the server for the change to take effect: lightlix serve stop, then lightlix serve start")
+		if key == "hf-token" {
+			fmt.Fprintln(c.env.stdout, "restart the daemon to use the new Hugging Face token: sudo systemctl restart lightlixd")
+		} else {
+			fmt.Fprintln(c.env.stdout, "restart the server for the change to take effect: lightlix serve stop, then lightlix serve start")
+		}
 	}
 	return exitOK
 }

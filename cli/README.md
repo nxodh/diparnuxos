@@ -48,8 +48,12 @@ lightlix config show
 토큰을 입력할 때 주변 사람이 터미널을 보지 않게 한다.
 
 ```sh
-lightlix config set hf-token --stdin
+lightlix config set hf-token
+sudo systemctl restart lightlixd
 ```
+
+다운로드 클라이언트는 데몬이 시작할 때 토큰을 읽으므로 토큰을 바꾸면 데몬을 재시작한다.
+이 재시작은 진행 중인 다운로드를 취소할 수 있다. `serve stop/start`만 실행하면 토큰은 바뀌지 않는다.
 
 ## 출력과 오류
 

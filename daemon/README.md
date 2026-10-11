@@ -14,6 +14,7 @@
 
 `make deb`는 [lightlix-daemon 패키지](../packages/README.md)를 만들며 `lightlixd`를 `/usr/sbin`, CLI `lightlix`를 `/usr/bin`에 설치한다.
 두 바이너리는 `CGO_ENABLED=1`, `-mod=vendor`, `-trimpath`, `-buildvcs=false`로 빌드한다. 모듈을 내려받지 않으며 버전은 `lightlix.conf`에서 `-X main.version`으로 주입한다.
+HF 토큰을 바꾸면 다운로드 클라이언트가 새 값을 읽도록 데몬을 재시작한다. 진행 중인 다운로드는 취소될 수 있다.
 `make test-daemon`은 같은 Go 모듈 전체를 빌드하고 `go vet`, `go test -count=1`을 실행한다. Mac에는 도구를 설치하지 않고 Debian Docker 컨테이너 안에서 실행한다.
 
 계정과 서비스 원본은 [dist/README.md](dist/README.md)에 있다. 모델 디렉터리는 `root:lightlix-llm` 2750이며 데몬의 `UMask=0027`과 함께 새 모델에 읽기 그룹을 상속한다.
