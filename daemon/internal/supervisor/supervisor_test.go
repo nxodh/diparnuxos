@@ -60,6 +60,10 @@ type sysFake struct {
 	newPID        int
 	startGate     chan struct{}
 	onStart       func(pid int) error
+	// ssh.service 용 값이다.
+	sshInstalled bool
+	sshActive    string
+	sshExit      int
 }
 
 func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Result, error) {
@@ -102,6 +106,12 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			}
 			return exit(f.restartExit, "start failed")
 		case "is-active":
+			if len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
+				if f.sshActive == "active" {
+					return out("active\n")
+				}
+				return platform.Result{Stdout: []byte("inactive\n"), ExitCode: 3}, nil
+			}
 			if f.stateErr != nil {
 				return platform.Result{}, f.stateErr
 			}
@@ -136,7 +146,19 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			return exit(0, "")
 		case "isolate":
 			return exit(0, "")
+		case "enable", "disable":
+			if f.sshExit == 0 && len(cmd.Args) > 2 && cmd.Args[2] == "ssh.service" {
+				if cmd.Args[0] == "enable" {
+					f.sshActive = "active"
+				} else {
+					f.sshActive = "inactive"
+				}
+			}
+			return exit(f.sshExit, "ssh unit change failed")
 		case "list-unit-files":
+			if f.sshInstalled && len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
+				return out("ssh.service enabled enabled\n")
+			}
 			if f.greetd && len(cmd.Args) > 1 && cmd.Args[1] == "greetd.service" {
 				return out("greetd.service enabled enabled\n")
 			}
@@ -2033,5 +2055,86 @@ func TestInitializeRejectsEnvironmentFileFromFailedRestart(t *testing.T) {
 	}
 	if f.sys.count("systemctl", "stop") != 1 || f.sys.count("systemctl", "start") != 0 {
 		t.Fatal("unsafe active process was not stopped without default autostart")
+	}
+}
+
+func TestSSHStatusMissingUnit(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	st, err := f.sup.SSHStatus(context.Background())
+	if err != nil {
+		t.Fatalf("SSHStatus: %v", err)
+	}
+	if st.Installed || st.Active {
+		t.Fatalf("status = %+v, want not installed", st)
+	}
+}
+
+func TestSSHStatusInstalledActiveAndInactive(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.sshInstalled = true
+	st, err := f.sup.SSHStatus(context.Background())
+	if err != nil || !st.Installed || st.Active {
+		t.Fatalf("inactive: %+v, %v", st, err)
+	}
+	f.sys.sshActive = "active"
+	st, err = f.sup.SSHStatus(context.Background())
+	if err != nil || !st.Installed || !st.Active {
+		t.Fatalf("active: %+v, %v", st, err)
+	}
+}
+
+func TestSetSSHUnitEnableRequiresInstalledUnit(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	wantCode(t, f.sup.SetSSHUnit(context.Background(), true), CodeSSHNotInstalled)
+	if f.sys.count("systemctl", "enable") != 0 {
+		t.Fatal("enable must not run when the unit is missing")
+	}
+}
+
+func TestSetSSHUnitEnableAndDisable(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.sshInstalled = true
+	if err := f.sup.SetSSHUnit(context.Background(), true); err != nil {
+		t.Fatalf("enable: %v", err)
+	}
+	if f.sys.count("systemctl", "enable") != 1 || f.sys.sshActive != "active" {
+		t.Fatalf("enable calls = %d, active = %q", f.sys.count("systemctl", "enable"), f.sys.sshActive)
+	}
+	if err := f.sup.SetSSHUnit(context.Background(), false); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	if f.sys.count("systemctl", "disable") != 1 || f.sys.sshActive != "inactive" {
+		t.Fatalf("disable calls = %d, active = %q", f.sys.count("systemctl", "disable"), f.sys.sshActive)
+	}
+}
+
+func TestSetSSHUnitDisableRunsEvenWhenNotInstalled(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.sshExit = 1
+	wantCode(t, f.sup.SetSSHUnit(context.Background(), false), CodeSSHChangeFailed)
+	if f.sys.count("systemctl", "disable") != 1 {
+		t.Fatal("disable must be attempted")
+	}
+}
+
+func TestApplyFirewallOpensSSHOnlyWhenEnabled(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	if err := f.sup.ApplyFirewall(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(f.fwPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "tcp dport 22 accept") {
+		t.Fatalf("SSH must be closed by default: %s", data)
+	}
+	f.cfg.SSHEnabled = true
+	if err := f.sup.ApplyFirewall(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(f.fwPath)
+	if !strings.Contains(string(data), "tcp dport 22 accept") {
+		t.Fatalf("SSH port is not open: %s", data)
 	}
 }

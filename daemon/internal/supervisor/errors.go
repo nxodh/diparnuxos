@@ -38,6 +38,8 @@ const (
 	CodeDesktopNotInstalled = "desktop_not_installed"
 	CodeModeChangeFailed    = "mode_change_failed"
 	CodeFirewallFailed      = "firewall_failed"
+	CodeSSHNotInstalled     = "ssh_not_installed"
+	CodeSSHChangeFailed     = "ssh_change_failed"
 	CodeInternal            = "internal"
 )
 

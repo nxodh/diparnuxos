@@ -51,6 +51,8 @@ type Supervisor interface {
 	ApplyFirewall(ctx context.Context) error
 	Mode(ctx context.Context) (string, error)
 	SetMode(ctx context.Context, mode string) error
+	SSHStatus(ctx context.Context) (supervisor.SSHStatus, error)
+	SetSSHUnit(ctx context.Context, enable bool) error
 }
 
 // HFClient 는 검색과 원격 파일 목록에 쓰는 Hugging Face 기능이다. *hf.Client 가 만족한다.
@@ -78,6 +80,8 @@ type Deps struct {
 	Runner platform.Runner
 	// ConfigPath 는 설정 파일 경로다.
 	ConfigPath string
+	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/lightlix/firstboot.json 이다.
+	FirstBootPath string
 	// GPUStatusPath 는 GPU 진단 상태 파일 경로다.
 	GPUStatusPath string
 	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/lightlix-gpu-check.
@@ -117,6 +121,9 @@ func New(d Deps) http.Handler {
 	if d.GPUStatusPath == "" {
 		d.GPUStatusPath = "/run/lightlix/gpu-status"
 	}
+	if d.FirstBootPath == "" {
+		d.FirstBootPath = "/var/lib/lightlix/firstboot.json"
+	}
 	s := &server{d: d, mux: http.NewServeMux()}
 	s.routes()
 	return jsonErrors{next: s.mux}
@@ -153,6 +160,13 @@ func (s *server) routes() {
 
 	s.mux.HandleFunc("GET /v1/mode", s.getMode)
 	s.mux.HandleFunc("POST /v1/mode", s.postMode)
+
+	s.mux.HandleFunc("GET /v1/system/ssh", s.getSSH)
+	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
+	s.mux.HandleFunc("GET /v1/firstboot", s.getFirstBoot)
+	s.mux.HandleFunc("PUT /v1/firstboot", s.putFirstBoot)
+	s.mux.HandleFunc("DELETE /v1/firstboot", s.deleteFirstBoot)
+	s.mux.HandleFunc("GET /v1/recommendations", s.getRecommendations)
 
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
@@ -231,7 +245,7 @@ func supervisorStatus(code string) int {
 	switch code {
 	case supervisor.CodeNoModel:
 		return http.StatusNotFound
-	case supervisor.CodeAPIKeyRequired, supervisor.CodeBusy, supervisor.CodeDesktopNotInstalled:
+	case supervisor.CodeAPIKeyRequired, supervisor.CodeBusy, supervisor.CodeDesktopNotInstalled, supervisor.CodeSSHNotInstalled:
 		return http.StatusConflict
 	case supervisor.CodeInvalidOverrides, supervisor.CodeInvalidLines, supervisor.CodeInvalidMode:
 		return http.StatusBadRequest

@@ -155,6 +155,7 @@ func run(args []string) error {
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
+		FirstBootPath: *stateDir + "/firstboot.json",
 		GPUStatusPath: gpuStatusPath,
 		GPUCheckPath:  gpuCheckBinary,
 		MemInfo:       mem,
