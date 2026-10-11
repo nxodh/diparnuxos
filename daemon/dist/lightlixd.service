@@ -2,14 +2,16 @@
 [Unit]
 Description=Lightlix daemon (lightlixd)
 # 소켓이 먼저 만들어져야 데몬이 넘겨받을 수 있다. Requires 만으로는 시작 순서가 정해지지 않으므로 After 도 적는다.
-Requires=lightlixd.socket
-After=lightlixd.socket lightlix-gpu-check.service network.target
+Requires=lightlixd.socket lightlix-firewall-default.service
+After=lightlixd.socket lightlix-gpu-check.service lightlix-firewall-default.service lightlix-firewall.service network.target
 
 [Service]
 # 데몬은 소켓 활성화만으로 뜨지 않는다. 부팅 때 모델을 자동으로 띄우려면 multi-user.target 에서 시작해야 한다.
 Type=simple
 # 데몬은 root 로 돈다. systemctl 로 llama 유닛을 띄우고, nft 로 방화벽을 바꾸고, 모델 디렉터리에 쓴다.
 ExecStart=/usr/sbin/lightlixd
+# 새 모델 파일은 디렉터리의 그룹을 상속하며 그룹만 읽는다.
+UMask=0027
 # 비정상 종료만 다시 시작한다. 정상 종료(관리자가 멈춤)는 다시 띄우지 않는다.
 Restart=on-failure
 # 데몬과 그 자식(systemctl, nft)이 권한을 올리지 못하게 한다. 둘 다 setuid 바이너리에 기대지 않는다.

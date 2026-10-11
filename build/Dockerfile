@@ -14,6 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # - xz-utils: 압축된 패키지 인덱스를 풀 때 쓴다.
 # - dpkg-dev, debhelper: scripts/build-debs.sh 가 dpkg-buildpackage 로 .deb 를 만들 때 쓴다.
 # - build-essential: dpkg-buildpackage 가 암묵적 빌드 의존성으로 확인한다 (없으면 "unmet build dependencies" 로 실패한다).
+# - golang-go, gcc: vendoring한 go-nvml과 두 Go 실행 파일을 cgo로 빌드한다.
 # - xorriso, mtools, fdisk: scripts/add-esp-partition.sh 가 lb 가 만든 ISO 에 ESP 파티션을 덧붙일 때 빌더 컨테이너에서 쓴다.
 #   xorriso 는 xorriso 명령, mtools 는 mdir/mcopy, fdisk 패키지는 sfdisk 를 제공한다 (dpkg -S 로 확인).
 #   cmp, dd, sha256sum 은 essential 패키지라 기본 이미지에 있다.
@@ -32,6 +33,8 @@ RUN apt-get update \
       dpkg-dev \
       debhelper \
       build-essential \
+      golang-go \
+      gcc \
       xorriso \
       mtools \
       fdisk \

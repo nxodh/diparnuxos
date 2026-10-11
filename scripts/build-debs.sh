@@ -13,13 +13,13 @@ die() {
     exit 1
 }
 
-[ -r "${LIGHTLIX_CONF}" ] || die "lightlix.conf 를 읽을 수 없다: ${LIGHTLIX_CONF}"
+[ -r "${LIGHTLIX_CONF}" ] || die "cannot read lightlix.conf: ${LIGHTLIX_CONF}"
 # shellcheck source=/dev/null
 . "${LIGHTLIX_CONF}"
-[ -n "${LIGHTLIX_VERSION:-}" ] || die "lightlix.conf 에 LIGHTLIX_VERSION 이 없다."
+[ -n "${LIGHTLIX_VERSION:-}" ] || die "LIGHTLIX_VERSION is missing in lightlix.conf"
 
 for cmd in dpkg-buildpackage dpkg-parsechangelog; do
-    command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} 가 없다 (dpkg-dev 패키지를 설치하라)."
+    command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} is missing (dpkg-dev is required)"
 done
 
 mkdir -p "${DEST}"
@@ -34,17 +34,21 @@ for pkgdir in "${ROOT}"/packages/*/; do
     name="$(basename "${pkgdir}")"
     version="$(dpkg-parsechangelog -l "${pkgdir}/debian/changelog" --show-field Version)"
     if [ "${version}" != "${LIGHTLIX_VERSION}" ]; then
-        die "${name}: debian/changelog 버전(${version})이 LIGHTLIX_VERSION(${LIGHTLIX_VERSION})과 다르다."
+        die "${name}: debian/changelog version (${version}) differs from LIGHTLIX_VERSION (${LIGHTLIX_VERSION})"
     fi
 
     src="${WORK}/src-${name}"
     cp -a "${pkgdir}" "${src}"
+    # Go 모듈은 한 곳에서 관리하며 패키지의 임시 사본에만 넣는다.
+    if [ "${name}" = lightlix-daemon ]; then
+        cp -a "${ROOT}/daemon" "${src}/daemon"
+    fi
     (cd "${src}" && dpkg-buildpackage -us -uc -b)
 
     shopt -s nullglob
     debs=("${WORK}"/*.deb)
     shopt -u nullglob
-    [ "${#debs[@]}" -gt 0 ] || die "${name}: .deb 가 만들어지지 않았다."
+    [ "${#debs[@]}" -gt 0 ] || die "${name}: no .deb was built"
 
     for deb in "${debs[@]}"; do
         base="$(basename "${deb}")"
@@ -56,5 +60,5 @@ for pkgdir in "${ROOT}"/packages/*/; do
     built=$((built + 1))
 done
 
-[ "${built}" -gt 0 ] || die "빌드할 패키지가 없다 (packages/*/debian 을 찾지 못했다)."
-echo "build-debs: 패키지 ${built} 개 빌드 완료"
+[ "${built}" -gt 0 ] || die "no packages/*/debian directories found"
+echo "build-debs: built ${built} packages"

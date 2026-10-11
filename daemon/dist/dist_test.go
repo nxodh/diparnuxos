@@ -58,7 +58,7 @@ func TestDefaultRulesetMatchesFirewallPackage(t *testing.T) {
 func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
 	svc := readFile(t, "lightlixd.service")
 	for _, line := range []string{
-		"Requires=lightlixd.socket",
+		"Requires=lightlixd.socket lightlix-firewall-default.service",
 		"ExecStart=/usr/sbin/lightlixd",
 		"Type=simple",
 		"Restart=on-failure",
@@ -72,7 +72,7 @@ func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
 			t.Errorf("lightlixd.service lacks %q", line)
 		}
 	}
-	if !hasLine(svc, "After=lightlixd.socket lightlix-gpu-check.service network.target") {
+	if !hasLine(svc, "After=lightlixd.socket lightlix-gpu-check.service lightlix-firewall-default.service lightlix-firewall.service network.target") {
 		t.Errorf("lightlixd.service lacks the After= line with the socket, the GPU check, and network.target")
 	}
 	if hasLine(svc, "PrivateDevices=yes") {
@@ -101,6 +101,8 @@ func TestLlamaUnitKeepsGPUAccess(t *testing.T) {
 	for _, line := range []string{
 		"User=lightlix-llm",
 		"Group=lightlix-llm",
+		"SupplementaryGroups=video render",
+		"ExecStartPre=/usr/lib/lightlix/check-gpu-permissions",
 		"EnvironmentFile=/run/lightlix/llama-server.env",
 		"ExecStart=/usr/lib/lightlix/llama/llama-server",
 		"Restart=no",
@@ -128,15 +130,25 @@ func TestLlamaUnitKeepsGPUAccess(t *testing.T) {
 	}
 }
 
-// TestFirewallUnitsAreExclusive 는 저장된 규칙과 기본 규칙 유닛이 서로 반대 조건으로만 시작하는지 확인한다.
-func TestFirewallUnitsAreExclusive(t *testing.T) {
+// TestFirewallDefaultsBeforeSaved 는 저장 파일이 깨져도 기본 차단을 먼저 적용하는 의존성을 확인한다.
+func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	saved := readFile(t, "lightlix-firewall.service")
 	def := readFile(t, "lightlix-firewall-default.service")
 	if !hasLine(saved, "ConditionPathExists=/var/lib/lightlix/firewall.nft") {
 		t.Error("saved-rules unit lacks its path condition")
 	}
-	if !hasLine(def, "ConditionPathExists=!/var/lib/lightlix/firewall.nft") {
-		t.Error("default-rules unit lacks the negated path condition")
+	for _, line := range activeLines(def) {
+		if strings.HasPrefix(line, "Condition") {
+			t.Errorf("default firewall must always apply, found %q", line)
+		}
+	}
+	for _, line := range []string{"Requires=lightlix-firewall-default.service", "After=local-fs.target lightlix-firewall-default.service"} {
+		if !hasLine(saved, line) {
+			t.Errorf("saved firewall lacks %q", line)
+		}
+	}
+	if !hasLine(def, "After=local-fs.target nftables.service") {
+		t.Error("default firewall must follow any nftables.service ruleset flush")
 	}
 	if !hasLine(saved, "ExecStart=/usr/sbin/nft -f /var/lib/lightlix/firewall.nft") {
 		t.Error("saved-rules unit applies the wrong file")
@@ -164,9 +176,9 @@ func TestTmpfilesDoesNotRedefineRun(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"d /var/lib/lightlix 0755 root root -",
-		"d /var/lib/lightlix/models 0755 root root -",
-		"d /etc/lightlix 0755 root root -",
+		"d /var/lib/lightlix 0750 root lightlix-llm -",
+		"d /var/lib/lightlix/models 2750 root lightlix-llm -",
+		"d /etc/lightlix 0750 root root -",
 	} {
 		if !hasLine(tf, want) {
 			t.Errorf("tmpfiles lacks %q", want)
