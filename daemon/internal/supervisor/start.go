@@ -83,6 +83,14 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	if res.ExitCode != 0 {
 		return s.fail(ctx, errorf(CodeUnitStartFailed, "systemctl start exited %d: %s", res.ExitCode, excerpt(string(res.Stderr), 512)))
 	}
+	var startedCPUPID uint32
+	if pr.Output.CPUOnly {
+		pid, e := s.captureCPUStartAttempt(ctx, env)
+		if e != nil {
+			return s.fail(ctx, e)
+		}
+		startedCPUPID = pid
+	}
 
 	if e := s.waitHealthy(ctx, job.cfg.Port); e != nil {
 		return s.fail(ctx, e)
@@ -94,6 +102,9 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	}
 	if pid == 0 {
 		return s.fail(ctx, errorf(CodeServerExited, "the unit has no main process after the health check"))
+	}
+	if startedCPUPID != 0 && pid != startedCPUPID {
+		return s.fail(ctx, errorf(CodeUnitCheck, "the unit MainPID changed during CPU-only startup"))
 	}
 
 	var off Offload

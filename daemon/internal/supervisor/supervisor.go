@@ -124,6 +124,12 @@ type startJob struct {
 	apiKeyFile string
 }
 
+// cpuRuntimeEvidence는 시작 또는 채택한 CPU 런타임의 PID와 환경 증거다.
+type cpuRuntimeEvidence struct {
+	pid uint32
+	env map[string]string
+}
+
 // Options는 Supervisor의 의존성과 설정이다. 비워 둔 값은 기본값을 쓴다.
 type Options struct {
 	// Runner 는 systemctl, journalctl, nft, llama-server 를 실행한다. 필수다.
@@ -185,10 +191,11 @@ type Supervisor struct {
 	// mu 는 아래 필드를 보호한다. 시스템 명령을 부를 때는 잡지 않는다.
 	mu          sync.Mutex
 	st          Status
-	cancel      context.CancelFunc // 진행 중인 Start 를 끊는 함수, 없으면 nil
-	done        chan struct{}      // 진행 중이거나 마지막 Start 의 종료 신호
-	runErr      *Error             // 마지막 Start 의 결과 오류
-	priorStatus *Status            // 시작 도중 이전 서버가 남은 경우 복원할, 검증된 서버 정보
+	cancel      context.CancelFunc  // 진행 중인 Start 를 끊는 함수, 없으면 nil
+	done        chan struct{}       // 진행 중이거나 마지막 Start 의 종료 신호
+	runErr      *Error              // 마지막 Start 의 결과 오류
+	priorStatus *Status             // 시작 도중 이전 서버가 남은 경우 복원할, 검증된 서버 정보
+	cpuRuntime  *cpuRuntimeEvidence // 검증된 CPU 프로세스의 런타임 증거
 	// pendingReclaimPIDs 는 systemd 가 MainPID 를 해제했지만 NVML 에서 아직
 	// 보이는 이전 서버 PID다. 취소된 시작 다음 재시도에서도 VRAM 계획 전에 회수한다.
 	pendingReclaimPIDs []uint32

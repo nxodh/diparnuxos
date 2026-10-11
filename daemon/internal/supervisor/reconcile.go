@@ -177,7 +177,16 @@ func (s *Supervisor) adoptActive(ctx context.Context, pid uint32) (Status, error
 			return Status{}, err
 		}
 	}
-	return Status{
+	if state, err := s.unitState(ctx); err != nil || state != "active" {
+		return Status{}, errors.New("unit state changed during runtime adoption")
+	}
+	if currentPID, err := s.mainPID(ctx); err != nil || currentPID != pid {
+		return Status{}, errors.New("unit MainPID changed during runtime adoption")
+	}
+	if !s.processMatchesRuntime(pid, env) {
+		return Status{}, errors.New("unit MainPID runtime changed during adoption")
+	}
+	status := Status{
 		State:      map[bool]State{true: StateRunningCPU, false: StateRunning}[output.CPUOnly],
 		ModelID:    modelID,
 		Host:       settings.Host,
@@ -188,7 +197,13 @@ func (s *Supervisor) adoptActive(ctx context.Context, pid uint32) (Status, error
 		Plan:       &output,
 		Offload:    off,
 		Warnings:   warnings,
-	}, nil
+	}
+	if output.CPUOnly {
+		s.mu.Lock()
+		s.cpuRuntime = &cpuRuntimeEvidence{pid: pid, env: cloneRuntimeEnvironment(env)}
+		s.mu.Unlock()
+	}
+	return status, nil
 }
 
 func sameEnvironment(expected, actual map[string]string) bool {
@@ -408,6 +423,55 @@ func (s *Supervisor) verifyAdoptedOffload(ctx context.Context, out autoconf.Outp
 	return off, nil
 }
 
+func (s *Supervisor) captureCPUStartAttempt(ctx context.Context, expectedEnv map[string]string) (uint32, *Error) {
+	state, err := s.unitState(ctx)
+	if err != nil {
+		return 0, errorf(CodeUnitCheck, "read unit state after CPU-only start: %v", err)
+	}
+	if state != "active" {
+		return 0, errorf(CodeServerExited, "the unit became %s before CPU-only health verification", state)
+	}
+	pid, err := s.mainPID(ctx)
+	if err != nil {
+		return 0, errorf(CodeUnitCheck, "read CPU-only startup MainPID: %v", err)
+	}
+	if pid == 0 {
+		return 0, errorf(CodeServerExited, "the unit has no MainPID before CPU-only health verification")
+	}
+	if !s.processMatchesRuntime(pid, expectedEnv) {
+		return 0, errorf(CodeUnitCheck, "the unit MainPID runtime does not match the CPU-only startup environment")
+	}
+	s.mu.Lock()
+	s.cpuRuntime = &cpuRuntimeEvidence{pid: pid, env: cloneRuntimeEnvironment(expectedEnv)}
+	s.mu.Unlock()
+	return pid, nil
+}
+
+func cloneRuntimeEnvironment(env map[string]string) map[string]string {
+	clone := make(map[string]string, len(env))
+	for key, value := range env {
+		clone[key] = value
+	}
+	return clone
+}
+
+func (s *Supervisor) processMatchesRuntime(pid uint32, expectedEnv map[string]string) bool {
+	exe, rawEnv, err := s.processEvidence(pid)
+	if err != nil || strings.TrimSuffix(filepath.Clean(exe), " (deleted)") != filepath.Clean(s.opts.ServerBinary) {
+		return false
+	}
+	actualEnv, err := parseRuntimeEnvironment(rawEnv)
+	return err == nil && sameEnvironment(expectedEnv, actualEnv)
+}
+
+func (s *Supervisor) clearCPURuntime(pid uint32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cpuRuntime != nil && (pid == 0 || s.cpuRuntime.pid == pid) {
+		s.cpuRuntime = nil
+	}
+}
+
 func (s *Supervisor) stopAndReclaim(ctx context.Context) *Error {
 	state, err := s.unitState(ctx)
 	if err != nil {
@@ -423,6 +487,9 @@ func (s *Supervisor) stopAndReclaim(ctx context.Context) *Error {
 		} else {
 			s.rememberReclaimPID(pid)
 		}
+	}
+	if pid == 0 && (state == "inactive" || state == "failed") {
+		s.clearCPURuntime(0)
 	}
 	if state != "inactive" || pid != 0 {
 		if e := s.stopUnit(context.WithoutCancel(ctx)); e != nil {
@@ -443,6 +510,7 @@ func (s *Supervisor) stopAndReclaim(ctx context.Context) *Error {
 				return errorf(CodeUnitCheck, "wait for stopped unit MainPID: %v", err)
 			}
 			if currentPID == 0 && (state == "inactive" || state == "failed") {
+				s.clearCPURuntime(pid)
 				break
 			}
 			if !s.now().Before(deadline) {
@@ -492,14 +560,12 @@ func (s *Supervisor) stopAndReclaim(ctx context.Context) *Error {
 
 func (s *Supervisor) verifiedCPUOnly(pid uint32) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	verified := func(st Status) bool {
-		return st.PID == int(pid) && !st.UnitUnverifiable && (st.State == StateRunningCPU || st.Plan != nil && st.Plan.CPUOnly)
+	var evidence *cpuRuntimeEvidence
+	if s.cpuRuntime != nil {
+		evidence = &cpuRuntimeEvidence{pid: s.cpuRuntime.pid, env: cloneRuntimeEnvironment(s.cpuRuntime.env)}
 	}
-	if verified(s.st) {
-		return true
-	}
-	return s.priorStatus != nil && verified(*s.priorStatus)
+	s.mu.Unlock()
+	return evidence != nil && evidence.pid == pid && s.processMatchesRuntime(pid, evidence.env)
 }
 
 func containsPID(pids []uint32, pid uint32) bool {
@@ -563,6 +629,7 @@ func (s *Supervisor) recordFailedState(ctx context.Context, err *Error) *Error {
 		s.st.PID = 0
 		s.st.UnitUnverifiable = false
 		s.priorStatus = nil
+		s.cpuRuntime = nil
 	} else {
 		s.st.UnitUnverifiable = true
 		if pidErr == nil && pid > 0 {

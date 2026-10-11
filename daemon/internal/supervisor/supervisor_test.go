@@ -59,6 +59,7 @@ type sysFake struct {
 	gpu           *gpuFake
 	newPID        int
 	startGate     chan struct{}
+	onStart       func(pid int) error
 }
 
 func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Result, error) {
@@ -92,6 +93,11 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 				f.pid = strconv.Itoa(pid)
 				if f.stopCount > 0 && f.gpu != nil {
 					f.gpu.addPID(uint32(pid))
+				}
+				if f.onStart != nil {
+					if err := f.onStart(pid); err != nil {
+						return platform.Result{}, err
+					}
 				}
 			}
 			return exit(f.restartExit, "start failed")
@@ -362,7 +368,42 @@ func newFixture(t *testing.T, snap platform.GPUSnapshot, gpuState string) *fixtu
 		Sleep:         f.clk.sleep,
 		Logger:        log.New(io.Discard, "", 0),
 	})
+	f.sys.onStart = func(pid int) error {
+		return writeStartedProcessEvidence(f.procRoot, f.sup.opts.ServerBinary, f.envPath, pid)
+	}
 	return f
+}
+
+func writeStartedProcessEvidence(procRoot, binary, envPath string, pid int) error {
+	contents, err := os.ReadFile(envPath)
+	if err != nil {
+		return err
+	}
+	var processEnv []byte
+	for _, line := range strings.Split(string(contents), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		decoded, err := strconv.Unquote(value)
+		if err != nil {
+			return fmt.Errorf("decode runtime environment: %w", err)
+		}
+		processEnv = append(processEnv, []byte(key+"="+decoded)...)
+		processEnv = append(processEnv, 0)
+	}
+	procDir := filepath.Join(procRoot, strconv.Itoa(pid))
+	if err := os.MkdirAll(procDir, 0o755); err != nil {
+		return err
+	}
+	exePath := filepath.Join(procDir, "exe")
+	if err := os.Remove(exePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.Symlink(binary, exePath); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(procDir, "environ"), processEnv, 0o600)
 }
 
 // readyGPU는 RTX 4090 한 장이 쓸 수 있는 NVML 스냅샷이다. 메인 PID 가 프로세스 목록에 있다.
@@ -734,6 +775,200 @@ func TestStartHealthTimeout(t *testing.T) {
 	st, err := f.startSync(StartRequest{})
 	wantCode(t, err, CodeHealthTimeout)
 	wantStoppedAfterFailure(t, f, st, CodeHealthTimeout)
+}
+
+func TestCPUOnlyHealthFailureCanRetryWithoutNVML(t *testing.T) {
+	for _, unavailable := range []string{"nil_gpu", "unavailable_snapshot"} {
+		t.Run(unavailable, func(t *testing.T) {
+			f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+			if unavailable == "nil_gpu" {
+				f.sup.opts.GPU = nil
+			}
+			f.health.Store(http.StatusServiceUnavailable)
+
+			failed, err := f.startSync(StartRequest{})
+			wantCode(t, err, CodeHealthTimeout)
+			if failed.State != StateFailed || failed.LastError == nil || failed.LastError.Code != CodeHealthTimeout {
+				t.Fatalf("first CPU start failure = %+v, error = %v", failed, err)
+			}
+			if failed.UnitUnverifiable || failed.PID != 0 {
+				t.Fatalf("confirmed stopped unit was reported uncertain: %+v", failed)
+			}
+			f.sys.mu.Lock()
+			active, pid := f.sys.active, f.sys.pid
+			f.sys.mu.Unlock()
+			if active != "inactive" || pid != "0" {
+				t.Fatalf("first CPU start did not stop safely: state=%s PID=%s", active, pid)
+			}
+			if got := f.sup.reclaimPIDs(); len(got) != 0 {
+				t.Fatalf("verified CPU-only PID was queued for GPU reclamation: %v", got)
+			}
+
+			f.health.Store(http.StatusOK)
+			started, err := f.startSync(StartRequest{})
+			if err != nil {
+				t.Fatalf("healthy CPU retry: %v", err)
+			}
+			if started.State != StateRunningCPU || f.sys.count("systemctl", "start") != 2 {
+				t.Fatalf("healthy retry status/call count = %+v / %d starts", started, f.sys.count("systemctl", "start"))
+			}
+			if err := f.sup.Stop(context.Background()); err != nil {
+				t.Fatalf("Stop after healthy retry: %v", err)
+			}
+			stopped := f.sup.Status()
+			if stopped.State != StateStopped || stopped.PID != 0 || stopped.UnitUnverifiable {
+				t.Fatalf("final Stop status = %+v", stopped)
+			}
+		})
+	}
+}
+
+func TestCPUOnlyHealthFailureRetainsEvidenceAfterFailedStop(t *testing.T) {
+	f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+	f.sup.opts.GPU = nil
+	f.health.Store(http.StatusServiceUnavailable)
+	f.sys.stopExit = 1
+
+	failed, err := f.startSync(StartRequest{})
+	wantCode(t, err, CodeHealthTimeout)
+	if failed.State != StateFailed || !failed.UnitUnverifiable || failed.PID != testPID {
+		t.Fatalf("failed Stop did not retain active unit identity: %+v; error=%v", failed, err)
+	}
+	if got := f.sup.reclaimPIDs(); len(got) != 0 {
+		t.Fatalf("verified CPU-only PID was queued as GPU during failed Stop: %v", got)
+	}
+
+	f.sys.stopExit = 0
+	if err := f.sup.Stop(context.Background()); err != nil {
+		t.Fatalf("retry Stop with retained CPU evidence: %v", err)
+	}
+	stopped := f.sup.Status()
+	if stopped.State != StateStopped || stopped.PID != 0 || stopped.UnitUnverifiable {
+		t.Fatalf("successful Stop did not clear uncertainty: %+v", stopped)
+	}
+}
+
+func TestHealthyCPUFailedStopCanRetryWithoutNVML(t *testing.T) {
+	for _, unavailable := range []string{"nil_gpu", "unavailable_snapshot"} {
+		t.Run(unavailable, func(t *testing.T) {
+			f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+			if unavailable == "nil_gpu" {
+				f.sup.opts.GPU = nil
+			}
+			started, err := f.startSync(StartRequest{})
+			if err != nil || started.State != StateRunningCPU {
+				t.Fatalf("healthy CPU start = %+v, error=%v", started, err)
+			}
+
+			f.sys.stopExit = 1
+			wantCode(t, f.sup.Stop(context.Background()), CodeUnitStopFailed)
+			failed := f.sup.Status()
+			if failed.State != StateFailed || !failed.UnitUnverifiable || failed.PID != testPID {
+				t.Fatalf("failed Stop did not retain active CPU process identity: %+v", failed)
+			}
+			if got := f.sup.reclaimPIDs(); len(got) != 0 {
+				t.Fatalf("verified CPU-only PID was queued during failed Stop: %v", got)
+			}
+
+			f.sys.stopExit = 0
+			if err := f.sup.Stop(context.Background()); err != nil {
+				t.Fatalf("retry Stop with retained CPU evidence: %v", err)
+			}
+			stopped := f.sup.Status()
+			if stopped.State != StateStopped || stopped.PID != 0 || stopped.UnitUnverifiable {
+				t.Fatalf("successful retry Stop status = %+v", stopped)
+			}
+		})
+	}
+}
+
+func TestAdoptedCPUFailedStopCanRetryWithoutNVML(t *testing.T) {
+	for _, unavailable := range []string{"nil_gpu", "unavailable_snapshot"} {
+		t.Run(unavailable, func(t *testing.T) {
+			f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+			if unavailable == "nil_gpu" {
+				f.sup.opts.GPU = nil
+			}
+			out := autoconf.Output{
+				NGL:        "0",
+				Ctx:        4096,
+				CacheTypeK: "f16",
+				CacheTypeV: "f16",
+				Batch:      512,
+				LoadMode:   "mmap",
+				CPUOnly:    true,
+			}
+			writeActiveRuntime(t, f, testPID, "llama.gguf", "127.0.0.1", out, "")
+			f.sys.mu.Lock()
+			f.sys.active = "active"
+			f.sys.pid = strconv.Itoa(testPID)
+			f.sys.mu.Unlock()
+			if err := f.sup.Initialize(context.Background()); err != nil {
+				t.Fatalf("Initialize CPU runtime: %v", err)
+			}
+			adopted := f.sup.Status()
+			if adopted.State != StateRunningCPU || adopted.PID != testPID || adopted.UnitUnverifiable {
+				t.Fatalf("healthy CPU runtime was not adopted: %+v", adopted)
+			}
+
+			f.sys.stopExit = 1
+			wantCode(t, f.sup.Stop(context.Background()), CodeUnitStopFailed)
+			failed := f.sup.Status()
+			if failed.State != StateFailed || !failed.UnitUnverifiable || failed.PID != testPID {
+				t.Fatalf("failed adopted-runtime Stop did not retain unit identity: %+v", failed)
+			}
+			if got := f.sup.reclaimPIDs(); len(got) != 0 {
+				t.Fatalf("adopted CPU-only PID was queued during failed Stop: %v", got)
+			}
+
+			f.sys.stopExit = 0
+			if err := f.sup.Stop(context.Background()); err != nil {
+				t.Fatalf("retry Stop with adopted CPU evidence: %v", err)
+			}
+			stopped := f.sup.Status()
+			if stopped.State != StateStopped || stopped.PID != 0 || stopped.UnitUnverifiable {
+				t.Fatalf("successful adopted-runtime Stop status = %+v", stopped)
+			}
+		})
+	}
+}
+
+func TestCPUOnlyExemptionRequiresMatchingPIDAndRuntime(t *testing.T) {
+	for _, mismatch := range []string{"pid", "environment"} {
+		t.Run(mismatch, func(t *testing.T) {
+			f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+			f.sup.opts.GPU = nil
+			if _, err := f.startSync(StartRequest{}); err != nil {
+				t.Fatalf("Start CPU-only server: %v", err)
+			}
+			expectedPID := uint32(testPID)
+			if mismatch == "pid" {
+				expectedPID = uint32(testPID + 1)
+				f.sys.mu.Lock()
+				f.sys.pid = strconv.Itoa(testPID + 1)
+				f.sys.mu.Unlock()
+			} else {
+				envPath := filepath.Join(f.procRoot, strconv.Itoa(testPID), "environ")
+				raw, err := os.ReadFile(envPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				changed := bytes.Replace(raw, []byte("LLAMA_ARG_N_GPU_LAYERS=0\x00"), []byte("LLAMA_ARG_N_GPU_LAYERS=8\x00"), 1)
+				if bytes.Equal(changed, raw) {
+					t.Fatal("test did not find the CPU-only runtime setting")
+				}
+				if err := os.WriteFile(envPath, changed, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			f.sys.stopExit = 1
+			wantCode(t, f.sup.Stop(context.Background()), CodeUnitStopFailed)
+			if got := f.sup.reclaimPIDs(); !containsPID(got, expectedPID) {
+				t.Fatalf("unmatched runtime PID was not conservatively queued: %v", got)
+			}
+		})
+	}
 }
 
 func TestStartLANWithoutKeyRejected(t *testing.T) {
