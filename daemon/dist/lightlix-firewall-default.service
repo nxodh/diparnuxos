@@ -1,0 +1,19 @@
+# 기본 방화벽 규칙을 적용한다. 설치 경로는 /usr/lib/systemd/system/lightlix-firewall-default.service 다.
+# /var/lib/lightlix/firewall.nft 가 없을 때만 시작한다. 기본 규칙은 모든 입력을 닫고 API 포트와 SSH 도 닫는다.
+[Unit]
+Description=Lightlix nftables rules (default, all inbound closed)
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+Before=shutdown.target
+Conflicts=shutdown.target
+ConditionPathExists=!/var/lib/lightlix/firewall.nft
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /usr/share/lightlix/firewall-default.nft
+
+[Install]
+WantedBy=sysinit.target

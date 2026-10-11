@@ -88,13 +88,28 @@ type Meta struct {
 	HasEmbeddingLength bool
 }
 
-// fileTypeNames maps the general.file_type numbers listed in the project's research notes to their names.
-// Other numbers are reported as unknown(<n>) by FileTypeName.
+// fileTypeNames 는 general.file_type 번호와 이름을 매핑한다. 목록은 공식 사양의 전체 목록이다.
+// 출처: https://github.com/ggml-org/ggml/blob/master/docs/gguf.md (마지막 변경 커밋 6af560d5, 2026-07-09).
+// MOSTLY_Q4_2와 MOSTLY_Q4_3은 사양이 "support removed"로 표시한 번호다. 목록에 없는 번호는 unknown(<n>)이다.
 var fileTypeNames = map[uint32]string{
+	0:  "ALL_F32",
 	1:  "MOSTLY_F16",
 	2:  "MOSTLY_Q4_0",
+	3:  "MOSTLY_Q4_1",
+	4:  "MOSTLY_Q4_1_SOME_F16",
+	5:  "MOSTLY_Q4_2",
+	6:  "MOSTLY_Q4_3",
 	7:  "MOSTLY_Q8_0",
+	8:  "MOSTLY_Q5_0",
+	9:  "MOSTLY_Q5_1",
+	10: "MOSTLY_Q2_K",
+	11: "MOSTLY_Q3_K_S",
+	12: "MOSTLY_Q3_K_M",
+	13: "MOSTLY_Q3_K_L",
+	14: "MOSTLY_Q4_K_S",
 	15: "MOSTLY_Q4_K_M",
+	16: "MOSTLY_Q5_K_S",
+	17: "MOSTLY_Q5_K_M",
 	18: "MOSTLY_Q6_K",
 }
 

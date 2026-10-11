@@ -31,8 +31,12 @@ const (
 var (
 	// ErrGated is returned when the repository or file is gated and the token has no access.
 	ErrGated = errors.New("gated repository")
-	// ErrNotFound is returned for HTTP 404.
+	// ErrNotFound 는 HTTP 404 이거나, 찾을 수 없음을 뜻하는 X-Error-Code 가 붙은 401/403 일 때 돌려준다.
+	// 허브는 없는 저장소에 X-Error-Code 없는 401 을 돌려주므로 그 경우는 ErrUnauthorized 다.
 	ErrNotFound = errors.New("not found")
+	// ErrUnauthorized 는 gated 가 아닌 401/403 일 때 돌려준다. 토큰이 필요하거나 토큰에 권한이 없다는 뜻이다.
+	// *StatusError 도 이 센티넬과 일치한다.
+	ErrUnauthorized = errors.New("unauthorized")
 	// ErrRateLimited is returned for HTTP 429. The returned error is a *RateLimitError.
 	ErrRateLimited = errors.New("rate limited")
 	// ErrChecksumMismatch is returned when the downloaded bytes do not match the expected SHA-256.
@@ -67,6 +71,11 @@ type StatusError struct {
 // Error returns the status as text.
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("unexpected HTTP status %d", e.StatusCode)
+}
+
+// Is 는 상태가 401 이나 403 이고 target 이 ErrUnauthorized 면 true 를 돌려준다.
+func (e *StatusError) Is(target error) bool {
+	return target == ErrUnauthorized && (e.StatusCode == http.StatusUnauthorized || e.StatusCode == http.StatusForbidden)
 }
 
 // RateLimitError reports an HTTP 429 response. errors.Is(err, ErrRateLimited) is true for it.
@@ -579,11 +588,18 @@ func failed(resp *http.Response) error {
 }
 
 // statusError maps an unsuccessful status to a sentinel error or a typed error.
+//
+// 2026-10-11 에 확인한 응답이다. 없는 파일은 404 와 X-Error-Code EntryNotFound, 없는 리비전은 404 와 RevisionNotFound,
+// gated 파일은 401 과 GatedRepo 다. 없는 저장소는 X-Error-Code 가 없는 401 이라 ErrUnauthorized 로 간다.
+// RepoNotFound 는 401/403 에 대해 넣었지만 실제 응답으로 본 적이 없다(미확인).
 func statusError(resp *http.Response) error {
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		if resp.Header.Get("X-Error-Code") == "GatedRepo" {
+		switch resp.Header.Get("X-Error-Code") {
+		case "GatedRepo":
 			return ErrGated
+		case "RepoNotFound", "RevisionNotFound", "EntryNotFound":
+			return ErrNotFound
 		}
 	case http.StatusNotFound:
 		return ErrNotFound

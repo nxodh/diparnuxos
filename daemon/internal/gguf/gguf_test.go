@@ -354,8 +354,9 @@ func TestFileTypeName(t *testing.T) {
 		{"Q8_0", Meta{FileType: 7, HasFileType: true}, "MOSTLY_Q8_0"},
 		{"Q4_K_M", Meta{FileType: 15, HasFileType: true}, "MOSTLY_Q4_K_M"},
 		{"Q6_K", Meta{FileType: 18, HasFileType: true}, "MOSTLY_Q6_K"},
-		{"not in table", Meta{FileType: 3, HasFileType: true}, "unknown(3)"},
-		{"zero is not in table", Meta{FileType: 0, HasFileType: true}, "unknown(0)"},
+		{"ALL_F32 is zero", Meta{FileType: 0, HasFileType: true}, "ALL_F32"},
+		{"Q4_1 is 3", Meta{FileType: 3, HasFileType: true}, "MOSTLY_Q4_1"},
+		{"first number not in the spec list", Meta{FileType: 19, HasFileType: true}, "unknown(19)"},
 		{"large", Meta{FileType: 4000000000, HasFileType: true}, "unknown(4000000000)"},
 	}
 	for _, tt := range tests {
@@ -364,6 +365,25 @@ func TestFileTypeName(t *testing.T) {
 				t.Fatalf("FileTypeName = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestFileTypeNameMatchesSpecTable checks every entry of the general.file_type table in the GGUF specification
+// (https://github.com/ggml-org/ggml/blob/master/docs/gguf.md, revision 6af560d5).
+func TestFileTypeNameMatchesSpecTable(t *testing.T) {
+	spec := []string{
+		"ALL_F32", "MOSTLY_F16", "MOSTLY_Q4_0", "MOSTLY_Q4_1", "MOSTLY_Q4_1_SOME_F16", "MOSTLY_Q4_2", "MOSTLY_Q4_3",
+		"MOSTLY_Q8_0", "MOSTLY_Q5_0", "MOSTLY_Q5_1", "MOSTLY_Q2_K", "MOSTLY_Q3_K_S", "MOSTLY_Q3_K_M", "MOSTLY_Q3_K_L",
+		"MOSTLY_Q4_K_S", "MOSTLY_Q4_K_M", "MOSTLY_Q5_K_S", "MOSTLY_Q5_K_M", "MOSTLY_Q6_K",
+	}
+	if len(fileTypeNames) != len(spec) {
+		t.Fatalf("table has %d entries, spec lists %d", len(fileTypeNames), len(spec))
+	}
+	for i, want := range spec {
+		m := Meta{FileType: uint32(i), HasFileType: true}
+		if got := m.FileTypeName(); got != want {
+			t.Fatalf("general.file_type %d: FileTypeName = %q, want %q", i, got, want)
+		}
 	}
 }
 

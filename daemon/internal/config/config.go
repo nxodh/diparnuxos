@@ -19,7 +19,7 @@ import (
 
 // Config는 관리자가 정하는 데몬 설정이다.
 type Config struct {
-	Port       int       `json:"port"`        // 데몬 HTTP 포트, 기본 8080
+	Port       int       `json:"port"`        // llama-server 의 API 포트, 기본 8080. LAN 공개 시 방화벽이 여는 포트다. 데몬 자신은 유닉스 소켓만 쓴다
 	LANExposed bool      `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
 	Autostart  bool      `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
 	ModelsDir  string    `json:"models_dir"`  // 절대 경로, 기본 /var/lib/lightlix/models

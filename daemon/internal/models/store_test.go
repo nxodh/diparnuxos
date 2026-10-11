@@ -376,3 +376,55 @@ func TestListSortsByName(t *testing.T) {
 		t.Fatalf("order = %q", got)
 	}
 }
+
+// TestRemoveDefaultClearsDefault 는 기본 모델을 지우면 기본 설정도 지워지고, 다른 모델이 기본이 되지 않는지 확인한다.
+func TestRemoveDefaultClearsDefault(t *testing.T) {
+	s := fixture(t)
+	if err := s.SetDefault("good.gguf"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Remove("good.gguf"); err != nil {
+		t.Fatalf("Remove default: %v", err)
+	}
+	if id, err := s.Default(); err != nil || id != "" {
+		t.Fatalf("Default after removing it = %q, %v; want empty", id, err)
+	}
+	if _, err := os.Stat(filepath.Join(s.Dir, defaultFile)); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("default file still exists after removing the default model: %v", err)
+	}
+	models, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range models {
+		if m.Default {
+			t.Fatalf("%s is marked default after the default was removed", m.ID)
+		}
+	}
+}
+
+// TestRemoveNonDefaultKeepsDefault 는 다른 모델을 지워도 기본 설정이 그대로인지 확인한다.
+func TestRemoveNonDefaultKeepsDefault(t *testing.T) {
+	s := fixture(t)
+	if err := s.SetDefault("good.gguf"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Remove("partial.gguf"); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if id, err := s.Default(); err != nil || id != "good.gguf" {
+		t.Fatalf("Default = %q, %v; want good.gguf", id, err)
+	}
+}
+
+// TestRemoveBrokenDefaultFileIsKept 는 어떤 모델도 가리키지 않는 깨진 기본 파일을 Remove 가 지우지 않는지 확인한다.
+func TestRemoveBrokenDefaultFileIsKept(t *testing.T) {
+	s := fixture(t)
+	write(t, s.Dir, defaultFile, []byte("../../etc/passwd\n"))
+	if err := s.Remove("good.gguf"); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(s.Dir, defaultFile)); err != nil {
+		t.Fatalf("broken default file was removed: %v", err)
+	}
+}

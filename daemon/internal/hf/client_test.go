@@ -427,3 +427,63 @@ func TestEscapePath(t *testing.T) {
 		t.Fatalf("escapePath = %q", got)
 	}
 }
+
+// TestMissingRepoAndFileStatuses checks how the status codes observed on the Hub map to sentinel errors.
+// A missing repository answers 401 with no X-Error-Code, so it is ErrUnauthorized and not ErrNotFound.
+func TestMissingRepoAndFileStatuses(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		code         string
+		wantNotFound bool
+		wantUnauth   bool
+		wantGated    bool
+	}{
+		{"401 without code is unauthorized", 401, "", false, true, false},
+		{"403 without code is unauthorized", 403, "", false, true, false},
+		{"401 EntryNotFound is not found", 401, "EntryNotFound", true, false, false},
+		{"401 RevisionNotFound is not found", 401, "RevisionNotFound", true, false, false},
+		{"401 RepoNotFound is not found", 401, "RepoNotFound", true, false, false},
+		{"404 EntryNotFound is not found", 404, "EntryNotFound", true, false, false},
+		{"401 GatedRepo is gated, not unauthorized", 401, "GatedRepo", false, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.code != "" {
+					w.Header().Set("X-Error-Code", tt.code)
+				}
+				w.WriteHeader(tt.status)
+			}))
+			_, err := c.ListFiles(context.Background(), "a/b", "main")
+			if err == nil {
+				t.Fatal("ListFiles: want error")
+			}
+			if got := errors.Is(err, ErrNotFound); got != tt.wantNotFound {
+				t.Fatalf("errors.Is(ErrNotFound) = %v, want %v (%v)", got, tt.wantNotFound, err)
+			}
+			if got := errors.Is(err, ErrUnauthorized); got != tt.wantUnauth {
+				t.Fatalf("errors.Is(ErrUnauthorized) = %v, want %v (%v)", got, tt.wantUnauth, err)
+			}
+			if got := errors.Is(err, ErrGated); got != tt.wantGated {
+				t.Fatalf("errors.Is(ErrGated) = %v, want %v (%v)", got, tt.wantGated, err)
+			}
+		})
+	}
+}
+
+// TestUnauthorizedKeepsStatusError checks that an unauthorized response is still a *StatusError,
+// so that callers that test the status keep working.
+func TestUnauthorizedKeepsStatusError(t *testing.T) {
+	c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	_, err := c.ModelInfo(context.Background(), "a/b")
+	var se *StatusError
+	if !errors.As(err, &se) || se.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("error %v is not a StatusError with 401", err)
+	}
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("error %v does not match ErrUnauthorized", err)
+	}
+}

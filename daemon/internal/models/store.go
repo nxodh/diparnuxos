@@ -171,19 +171,32 @@ func (s Store) WriteSidecar(id string, sc Sidecar) error {
 	return nil
 }
 
-// Remove deletes model id, its sidecar, and its partial download. A missing file is not an error.
-// It does not change the default model, so Default may name a model that no longer exists.
+// Remove 는 모델 id 와 그 사이드카, 내려받기 중인 .part 파일을 지운다. 없는 파일은 오류가 아니다.
+// id 가 기본 모델이었으면 기본 설정도 지운다. 다른 모델을 기본으로 올리지는 않는다.
+// 기본 설정은 모델 파일 삭제가 모두 성공했을 때만 지운다.
 func (s Store) Remove(id string) error {
 	if err := validID(id); err != nil {
 		return err
 	}
+	// 파일을 지우기 전에 기본 모델을 읽는다. 깨진 기본 파일은 id 를 가리키지 않으므로 그대로 둔다.
+	defaultID, defErr := s.Default()
+	wasDefault := defErr == nil && defaultID == id
+
 	var first error
 	for _, p := range []string{s.path(id), s.path(id) + sidecarSuffix, s.path(id) + partSuffix} {
 		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) && first == nil {
 			first = fmt.Errorf("models: remove %s: %w", filepath.Base(p), err)
 		}
 	}
-	return first
+	if first != nil {
+		return first
+	}
+	if wasDefault {
+		if err := os.Remove(s.path(defaultFile)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("models: clear default: %w", err)
+		}
+	}
+	return nil
 }
 
 // SetDefault records id as the default model. The model file must exist.
