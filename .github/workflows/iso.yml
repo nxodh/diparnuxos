@@ -42,6 +42,9 @@ jobs:
       - name: Test GPU diagnostics without hardware
         run: make test-gpu-check
 
+      - name: Test QEMU E2E driver with controlled fixtures
+        run: make test-qemu-e2e-driver
+
       # Debian의 Go와 gcc를 쓰고 저장소는 읽기 전용으로 복사한다. 모듈 내려받기는 막는다.
       - name: Build and test daemon and CLI
         run: |
@@ -83,7 +86,8 @@ jobs:
       # hashFiles 의 '!' 제외 패턴은 docs.github.com 의 expressions 문서 예시(hashFiles('/lib/**/*.rb', '!/lib/foo/*.rb'))로 확인했다.
       # 같은 키의 캐시가 있으면 make llama 는 BUILD_KEY 를 보고 빌드를 건너뛴다.
       - name: Restore llama.cpp build output
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: llama-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/llama
           key: llama-${{ runner.os }}-${{ hashFiles('llama/**', '!llama/README.md', 'lightlix.conf') }}
@@ -93,6 +97,14 @@ jobs:
 
       - name: Check lightlix-llm package without CUDA
         run: make test-llama-docker
+
+      # ISO·부팅 검사가 실패해도 검증된 CUDA 산출물은 다음 실행에서 재사용한다.
+      - name: Save verified llama.cpp package
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/llama
+          key: ${{ steps.llama-cache.outputs.cache-primary-key }}
 
       - name: Build ISO
         run: make iso
@@ -105,6 +117,26 @@ jobs:
 
       - name: Boot test (UEFI, ISO as USB storage)
         run: make test-qemu-usb-docker
+
+      - name: CPU inference E2E (UEFI, live user, Hugging Face NAT)
+        timeout-minutes: 35
+        env:
+          BOOT_TIMEOUT: '900'
+          COMMAND_TIMEOUT: '120'
+          PULL_TIMEOUT: '600'
+          START_TIMEOUT: '300'
+          CHAT_TIMEOUT: '180'
+          E2E_TIMEOUT: '1800'
+        run: make test-qemu-e2e-docker
+
+      - name: Upload QEMU E2E logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lightlix-qemu-e2e-logs
+          path: out/qemu-e2e/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload ISO and checksum
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

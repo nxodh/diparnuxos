@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver
 
 # Docker 안에서 ISO 를 빌드한다. lightlix-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -69,6 +69,18 @@ test-qemu-docker:
 # ISO 를 USB 저장 장치로 붙여 부팅한다. 광학 드라이브가 없는 실기의 USB 기록 매체와 가깝다.
 test-qemu-usb-docker:
 	BOOT_MEDIA=usb bash "$(ROOT)/scripts/test-qemu-in-docker.sh" "$(ISO)"
+
+# 완성된 ISO의 실제 CPU 추론을 직렬 콘솔로 확인한다.
+test-qemu-e2e:
+	bash "$(ROOT)/tests/qemu/cpu-inference.sh" "$(ISO)"
+
+# Debian 컨테이너에서 같은 E2E를 실행한다.
+test-qemu-e2e-docker:
+	bash "$(ROOT)/scripts/test-qemu-e2e-in-docker.sh" "$(ISO)"
+
+# ISO 없이 드라이버의 실패 판정과 정리를 확인한다.
+test-qemu-e2e-driver:
+	python3 -B "$(ROOT)/tests/qemu/test_cpu_inference.py"
 
 # 산출물(out/)과 빌드된 .deb 를 지운다. out/llama 는 빌드가 오래 걸리므로 남긴다(clean-llama 로 지운다).
 # 작업 디렉터리(/var/tmp/lightlix-build)는 지우지 않는다.

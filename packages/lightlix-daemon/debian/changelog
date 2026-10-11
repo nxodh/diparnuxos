@@ -1,4 +1,4 @@
-lightlix-daemon (0.1.2) trixie; urgency=medium
+lightlix-daemon (0.2.0) trixie; urgency=medium
 
   * 데몬, CLI, systemd 유닛과 기본 방화벽을 패키징한다.
 
