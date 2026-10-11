@@ -20,6 +20,8 @@ Path(os.environ["FAKE_ARGV"]).write_text(json.dumps(sys.argv[1:]))
 pidfile.write_text(str(os.getpid()))
 stopped = True
 default = ""
+autostart = True
+daemon_restarts = 0
 
 
 def emit(text):
@@ -33,20 +35,36 @@ def emit(text):
 
 
 def status():
+    pid = 0 if stopped else (99 if mode == "replaced-pid" and daemon_restarts else 42)
+    ctx, batch = (512, 64) if mode == "lost-runtime-plan" and daemon_restarts else (256, 32)
     return {"gpu": {"status": {"state": "no_gpu"}}, "server": {
-        "state": "stopped" if stopped else "running_cpu_fallback", "pid": 0 if stopped else 42,
+        "state": "stopped" if stopped else "running_cpu_fallback", "pid": pid,
         "model_id": model, "host": "127.0.0.1", "lan_exposed": False,
-        "plan": {"cpu_only": True, "ngl": "0"}, "offload": {"offloaded": 0},
+        "plan": {"cpu_only": True, "ngl": "0", "ctx": ctx, "batch": batch},
+        "offload": {"offloaded": 0},
         "warnings": ["No GPU; using CPU"],
     }}
 
 
 def result(command):
-    global stopped, default
+    global autostart, daemon_restarts, stopped, default
     if command.startswith("stty "):
         return "", 0
+    if command.startswith("attempt=0; while [ \"$attempt\" -lt 10 ]; do"):
+        return json.dumps(status()), 0
     if command.startswith("id -u"):
-        return "1000\nuser\nuser lightlix\nx86_64", 0
+        return "1000\nuser\nuser lightlix\nx86_64", 1 if mode == "efi-check-failure" else 0
+    if command.startswith("df -B1 -P /"):
+        return (
+            "Filesystem 1-blocks Used Available Capacity Mounted on\n"
+            "overlay 4294967296 524288000 3770679296 13% /\n"
+            "MemTotal:        4026532 kB\n"
+            "MemFree:         3900000 kB\n"
+            "MemAvailable:    3800000 kB\n"
+            "SwapTotal:             0 kB\n"
+            "SwapFree:              0 kB\n"
+            "overlay overlay rw,relatime\n"
+        ), 0
     if command.startswith("test -S"):
         return ("666 root root" if mode == "bad-permissions" else "660 root lightlix"), 0
     if command.startswith("pid=$(systemctl show lightlixd.service"):
@@ -59,6 +77,11 @@ def result(command):
         if mode == "failed-unit" and unit == "lightlixd.service":
             active = "failed"
         return f"LoadState=loaded\nActiveState={active}\nSubState={sub}\nResult=success\nMainPID={pid}", 0
+    if command == "sudo -n systemctl restart lightlixd.service":
+        daemon_restarts += 1
+        if mode == "no-adoption" and daemon_restarts == 1:
+            stopped = True
+        return "", 0
     if command.startswith("sudo -n -u nobody"):
         return "lightlix: permission denied: add your user to the 'lightlix' group or run with sudo", 3
     if command.startswith("LIGHTLIX_SOCKET="):
@@ -68,6 +91,9 @@ def result(command):
     if command.startswith("sudo -n journalctl"):
         return "Lightlix test journal", 0
     args = command.removeprefix("lightlix --json ")
+    if args.startswith("config set autostart "):
+        autostart = args.rsplit(" ", 1)[1] == "on"
+        return json.dumps({"config": {"autostart": autostart}, "restart_required": False}), 0
     if args == "status":
         return json.dumps(status()), 0
     if args == "serve start e2e-missing.gguf":

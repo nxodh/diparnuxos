@@ -207,10 +207,52 @@ def running_status(status, model):
     require(bool(server.get("warnings")), "CPU fallback warning is missing")
 
 
+def require_runtime(status, model, pid):
+    running_status(status, model)
+    server = status["server"]
+    require(server.get("pid") == pid, "Daemon restart changed the active llama-server PID")
+    plan = server.get("plan", {})
+    require(plan.get("ctx") == 256, "Daemon restart changed the active context size")
+    require(plan.get("batch") == 32, "Daemon restart changed the active batch size")
+
+
+def set_autostart(console, enabled, label, timeout):
+    value = "on" if enabled else "off"
+    result = console.cli(label, f"config set autostart {value}", timeout)
+    require(result.get("config", {}).get("autostart") is enabled,
+            f"Autostart setting did not change to {value}")
+    require(result.get("restart_required") is False, "Autostart change unexpectedly requires a server restart")
+
+
+def status_poll_command():
+    return (
+        "attempt=0; while [ \"$attempt\" -lt 10 ]; do "
+        "if status=$(lightlix --json status 2>&1); then printf '%s\\n' \"$status\"; exit 0; "
+        "else rc=$?; case \"$status\" in "
+        "*\"lightlixd is not running (systemctl status lightlixd)\"*) ;; "
+        "*) printf '%s\\n' \"$status\" >&2; exit \"$rc\";; esac; fi; "
+        "attempt=$((attempt + 1)); sleep 1; done; "
+        "printf '%s\\n' 'lightlix status remained unavailable after daemon restart' >&2; exit 1"
+    )
+
+
+def wait_for_status(console, label, timeout):
+    # 데몬 재시작 직후 소켓 연결 오류만 다시 시도하고 나머지 오류는 바로 돌려준다.
+    output = console.command(label, status_poll_command(), timeout)
+    try:
+        status = json.loads(output)
+    except ValueError:
+        raise Failure("invalid_json", f"CLI output for {label} is not a single JSON value") from None
+    require(isinstance(status, dict), f"CLI output for {label} must be an object")
+    return status
+
+
 def scenario(console, budgets):
     cmd = budgets["COMMAND_TIMEOUT"]
     console.login(budgets["BOOT_TIMEOUT"])
-    identity = console.command("identity", "id -u; id -un; id -Gn; test -d /sys/firmware/efi; uname -m", cmd)
+    identity = console.command(
+        "identity", "id -u && id -un && id -Gn && test -d /sys/firmware/efi && uname -m", cmd
+    )
     lines = identity.splitlines()
     require(len(lines) == 4 and lines[0].isdigit() and int(lines[0]) != 0 and lines[1] == "user",
             "Serial session must run as the unprivileged live user")
@@ -246,6 +288,12 @@ def scenario(console, budgets):
     stopped_chat = console.command("chat-before-start", "lightlix --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in stopped_chat, "Stopped server must reject chat")
 
+    console.command(
+        "disk-memory-before-pull",
+        "df -B1 -P /; grep -E '^(MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo; "
+        "findmnt -no SOURCE,FSTYPE,OPTIONS /",
+        cmd,
+    )
     pull = console.cli("model-pull", f"model pull {MODEL_REPO} --file {MODEL_FILE}", budgets["PULL_TIMEOUT"])
     require(pull.get("state") == "done" and pull.get("model_id") == MODEL_FILE, "HF download job did not finish")
     require(pull.get("bytes_done", 0) > 0 and pull.get("bytes_done") == pull.get("bytes_total"), "HF download size is incomplete")
@@ -271,8 +319,9 @@ def scenario(console, budgets):
     require(bool(plan["plan"].get("warnings")), "CPU plan must explain fallback")
     started = console.cli("serve-start", "serve start --ctx 256 --batch 32", budgets["START_TIMEOUT"])
     running_status(started, MODEL_FILE)
+    require_runtime(started, MODEL_FILE, started["server"]["pid"])
     status = console.cli("status-running", "status", cmd)
-    running_status(status, MODEL_FILE)
+    require_runtime(status, MODEL_FILE, started["server"]["pid"])
     props = unit_properties(console, "unit-running-llama", "lightlix-llama.service", cmd)
     require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and props.get("Result") == "success",
             "llama systemd service did not start cleanly")
@@ -282,6 +331,29 @@ def scenario(console, budgets):
     require(isinstance(chat.get("tokens_predicted"), int) and chat["tokens_predicted"] > 0, "Chat token count must be positive")
     require(isinstance(chat.get("tokens_per_second"), (int, float)) and chat["tokens_per_second"] > 0,
             "Chat generation speed must be positive")
+
+    for enabled, setting in ((False, "off"), (True, "on")):
+        set_autostart(console, enabled, "autostart-" + setting, cmd)
+        console.command("daemon-restart-autostart-" + setting,
+                        "sudo -n systemctl restart lightlixd.service", budgets["START_TIMEOUT"])
+        recovered = wait_for_status(console, "status-after-daemon-restart-" + setting,
+                                    budgets["START_TIMEOUT"])
+        require_runtime(recovered, MODEL_FILE, started["server"]["pid"])
+        props = unit_properties(console, "unit-after-daemon-restart-" + setting,
+                                "lightlix-llama.service", cmd)
+        require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and
+                props.get("MainPID") == str(started["server"]["pid"]),
+                f"llama-server was not preserved after autostart {setting} daemon restart")
+        restart_chat = console.cli("chat-after-daemon-restart-" + setting,
+                                   "chat --max-tokens 4 'daemon restart check'", budgets["CHAT_TIMEOUT"])
+        require(isinstance(restart_chat.get("content"), str) and bool(restart_chat["content"].strip()),
+                f"Chat after autostart {setting} daemon restart generated no text")
+        require(isinstance(restart_chat.get("tokens_predicted"), int) and restart_chat["tokens_predicted"] > 0,
+                f"Chat after autostart {setting} daemon restart returned no token count")
+        require(isinstance(restart_chat.get("tokens_per_second"), (int, float)) and
+                restart_chat["tokens_per_second"] > 0,
+                f"Chat after autostart {setting} daemon restart returned no generation speed")
+
     console.cli("serve-logs", "serve logs -n 80", cmd)
     stop = console.cli("serve-stop", "serve stop", cmd)
     require(stop.get("state") == "stopped", "Stop did not return stopped")
@@ -312,8 +384,18 @@ def main():
     parser.add_argument("iso", type=Path)
     args = parser.parse_args()
     logs = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-e2e"))
+    # 제한된 umask를 쓰는 CI root 컨테이너에서도 새 결과 파일을 runner가 읽게 한다.
+    # 새 실행의 권한만 지정하고 기존 실행 로그는 건드리지 않는다.
+    os.umask(0o022)
     logs.mkdir(parents=True, exist_ok=True)
-    logs = Path(tempfile.mkdtemp(prefix="run-", dir=logs))
+    log_root = logs
+    while True:
+        logs = log_root / f"run-{secrets.token_hex(4)}"
+        try:
+            logs.mkdir(mode=0o755)
+            break
+        except FileExistsError:
+            continue
     print(f"cpu-inference: logs={logs}", flush=True)
     result = {"outcome": "failed", "kind": "internal", "message": "Driver did not finish"}
     console = None
@@ -354,7 +436,7 @@ def main():
                     "E2E_TIMEOUT": 5400 if slow else 1800,
                 }.items()}
                 argv = [qemu, "-name", "lightlix-cpu-e2e", "-machine", "q35", "-accel", chosen,
-                        "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "2G",
+                        "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "4096M",
                         "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
                         "-drive", f"if=pflash,format=raw,unit=1,file={qemu_value(variables)}",
                         "-cdrom", str(args.iso), "-nic", "user,model=virtio-net-pci,ipv6=off",

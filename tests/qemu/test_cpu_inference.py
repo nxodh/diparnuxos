@@ -4,6 +4,7 @@
 import json
 import os
 from pathlib import Path
+import runpy
 import signal
 import subprocess
 import sys
@@ -13,15 +14,88 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parent
+STATUS_POLL_COMMAND = runpy.run_path(str(ROOT / "cpu-inference.py"))["status_poll_command"]
+
+
+class StatusPollTests(unittest.TestCase):
+    def run_poll(self, script):
+        with tempfile.TemporaryDirectory(prefix="lightlix-status-poll-") as work:
+            work = Path(work)
+            binary_dir = work / "bin"
+            binary_dir.mkdir()
+            fake = binary_dir / "lightlix"
+            fake.write_text(script)
+            fake.chmod(0o755)
+            calls = work / "calls"
+            environment = os.environ.copy()
+            environment.update({"PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+                                "POLL_CALLS": str(calls)})
+            result = subprocess.run(["sh", "-c", STATUS_POLL_COMMAND()], env=environment,
+                                    capture_output=True, text=True)
+            return result, int(calls.read_text())
+
+    def test_retries_temporary_daemon_unavailability(self):
+        result, calls = self.run_poll("""#!/bin/sh
+count=0
+if [ -f "$POLL_CALLS" ]; then count=$(cat "$POLL_CALLS"); fi
+count=$((count + 1))
+printf '%s' "$count" > "$POLL_CALLS"
+if [ "$count" -eq 1 ]; then
+    echo "lightlix: lightlixd is not running (systemctl status lightlixd)" >&2
+    exit 3
+fi
+printf '%s\\n' '{"server":{"state":"running_cpu_fallback"}}'
+""")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '{"server":{"state":"running_cpu_fallback"}}\n')
+        self.assertEqual(calls, 2)
+
+    def test_propagates_non_transport_status_error_without_retry(self):
+        result, calls = self.run_poll("""#!/bin/sh
+printf '1' > "$POLL_CALLS"
+echo "lightlix: permission denied: add your user to the 'lightlix' group" >&2
+exit 3
+""")
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("permission denied", result.stderr)
+        self.assertEqual(calls, 1)
 
 
 class DriverTests(unittest.TestCase):
-    def run_fixture(self, mode, expected_exit=1, interrupt=False):
+    def assert_unprivileged_reader_can_read(self, files):
+        for path in files:
+            self.assertTrue(path.stat().st_mode & 0o004, f"other-read bit is missing: {path}")
+        if os.geteuid() != 0:
+            for path in files:
+                path.read_bytes()
+            return
+
+        def drop_privileges():
+            os.setgroups([])
+            os.setgid(65534)
+            os.setuid(65534)
+
+        reader = subprocess.run(
+            [sys.executable, "-c", "from pathlib import Path; import sys; [Path(p).read_bytes() for p in sys.argv[1:]]",
+             *(str(path) for path in files)],
+            preexec_fn=drop_privileges, capture_output=True, text=True,
+        )
+        self.assertEqual(reader.returncode, 0, reader.stderr)
+
+    def run_fixture(self, mode, expected_exit=1, interrupt=False, interrupt_signal=signal.SIGTERM):
         with tempfile.TemporaryDirectory(prefix="lightlix-e2e-fixture-") as work:
             work = Path(work)
+            work.chmod(0o755)
             iso, firmware = work / "fixture.iso", work / "firmware.fd"
             iso.touch()
             firmware.write_bytes(b"fixture")
+            log_root = work / "logs"
+            log_root.mkdir(mode=0o755)
+            log_root.chmod(0o755)
+            unrelated = log_root / "existing-run"
+            unrelated.mkdir(mode=0o700)
+            private_log = unrelated / "private.log"
+            private_log.touch(mode=0o600)
             environment = os.environ.copy()
             environment.update({
                 "QEMU_BIN": str(ROOT / "fixtures/fake-qemu.py"), "QEMU_ACCEL": "tcg",
@@ -43,15 +117,17 @@ class DriverTests(unittest.TestCase):
                     "sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')"
                 )
                 driver_args = [sys.executable, "-c", launcher, str(ROOT / "cpu-inference.py"), str(iso)]
-            proc = subprocess.Popen(driver_args,
-                                    env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(
+                driver_args, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                preexec_fn=lambda: os.umask(0o077),
+            )
             try:
                 if interrupt:
                     deadline = time.monotonic() + 5
                     while not (work / "pid").exists() and time.monotonic() < deadline:
                         time.sleep(0.02)
                     self.assertTrue((work / "pid").exists(), "fixture did not start")
-                    proc.send_signal(signal.SIGTERM)
+                    proc.send_signal(interrupt_signal)
                 stdout, stderr = proc.communicate(timeout=35)
             finally:
                 if proc.poll() is None:
@@ -63,6 +139,14 @@ class DriverTests(unittest.TestCase):
             result = json.loads((logs[0] / "result.json").read_text())
             self.assertTrue((logs[0] / "serial.log").exists())
             self.assertTrue((logs[0] / "commands.jsonl").exists())
+            self.assertEqual(logs[0].stat().st_mode & 0o777, 0o755)
+            log_files = [path for path in logs[0].iterdir() if path.is_file()]
+            self.assertTrue(log_files)
+            for path in log_files:
+                self.assertEqual(path.stat().st_mode & 0o777, 0o644, path)
+            self.assert_unprivileged_reader_can_read(log_files)
+            self.assertEqual(unrelated.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(private_log.stat().st_mode & 0o777, 0o600)
             qemu_pid = int((work / "pid").read_text())
             with self.assertRaises(ProcessLookupError):
                 os.kill(qemu_pid, 0)
@@ -73,7 +157,14 @@ class DriverTests(unittest.TestCase):
             self.assertEqual(firmware.read_bytes(), b"fixture")
             self.assertEqual(argv[argv.index("-nic") + 1], "user,model=virtio-net-pci,ipv6=off")
             self.assertIn("-no-reboot", argv)
+            self.assertEqual(argv[argv.index("-m") + 1], "4096M")
             commands = [json.loads(line) for line in (logs[0] / "commands.jsonl").read_text().splitlines()]
+            if mode == "pass":
+                labels = [event["label"] for event in commands if event["event"] == "start"]
+                self.assertLess(labels.index("disk-memory-before-pull"), labels.index("model-pull"))
+                diagnostics = next(logs[0].glob("*-disk-memory-before-pull.txt")).read_text()
+                for evidence in ("Available", "MemTotal", "overlay"):
+                    self.assertIn(evidence, diagnostics)
             if mode == "kvm-fallback":
                 attempts = [json.loads(line) for line in (logs[0] / "qemu-command.jsonl").read_text().splitlines()]
                 self.assertEqual([attempt[attempt.index("-accel") + 1] for attempt in attempts], ["kvm", "tcg"])
@@ -85,6 +176,14 @@ class DriverTests(unittest.TestCase):
         starts = [event for event in commands if event["event"] == "start"]
         self.assertTrue(any(event["label"] == "model-sha256" for event in starts))
         self.assertTrue(any(event["label"] == "chat-after-stop" for event in starts))
+        labels = [event["label"] for event in starts]
+        for label in ("autostart-off", "daemon-restart-autostart-off", "status-after-daemon-restart-off",
+                      "chat-after-daemon-restart-off", "autostart-on", "daemon-restart-autostart-on",
+                      "status-after-daemon-restart-on", "chat-after-daemon-restart-on"):
+            self.assertIn(label, labels)
+        self.assertLess(labels.index("autostart-off"), labels.index("daemon-restart-autostart-off"))
+        self.assertLess(labels.index("daemon-restart-autostart-off"), labels.index("autostart-on"))
+        self.assertLess(labels.index("autostart-on"), labels.index("daemon-restart-autostart-on"))
         for event in starts:
             if event["label"] in ("status-initial", "model-pull", "model-default", "serve-plan", "serve-start", "chat", "serve-stop"):
                 self.assertTrue(event["command"].startswith("lightlix --json "))
@@ -107,6 +206,29 @@ class DriverTests(unittest.TestCase):
         result, _ = self.run_fixture("boot-timeout")
         self.assertEqual(result["kind"], "serial_timeout")
 
+    def test_efi_check_failure_propagates(self):
+        result, _ = self.run_fixture("efi-check-failure")
+        self.assertEqual(result["kind"], "command_exit")
+        self.assertIn("identity exited 1", result["message"])
+
+    def test_daemon_restart_rejects_missing_adoption_pid_or_plan(self):
+        for mode in ("no-adoption", "replaced-pid", "lost-runtime-plan"):
+            with self.subTest(mode=mode):
+                result, _ = self.run_fixture(mode)
+                self.assertEqual(result["kind"], "assertion")
+                self.assertEqual(result["outcome"], "failed")
+
+    def test_shell_efi_check_failure_is_not_masked_by_uname(self):
+        with tempfile.TemporaryDirectory(prefix="lightlix-missing-efi-") as work:
+            missing_efi = Path(work) / "sys/firmware/efi"
+            command = "id -u && id -un && id -Gn && test -d \"$1\" && uname -m"
+            result = subprocess.run(
+                ["sh", "-c", command, "identity-check", str(missing_efi)],
+                capture_output=True, text=True,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("x86_64", result.stdout)
+
     def test_guest_timeout_and_exit_are_distinct(self):
         for mode, kind in (("guest-timeout", "command_timeout"), ("command-exit", "command_exit"),
                            ("guest-killed", "command_exit"), ("serial-timeout", "serial_timeout")):
@@ -123,12 +245,15 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(result["accel"], "tcg")
 
     def test_signal_cleans_process_and_firmware(self):
-        result, _ = self.run_fixture("signal", expected_exit=143, interrupt=True)
-        self.assertEqual(result["kind"], "signal")
+        for interrupt_signal in (signal.SIGINT, signal.SIGTERM):
+            with self.subTest(signum=interrupt_signal):
+                result, _ = self.run_fixture("signal", expected_exit=128 + interrupt_signal,
+                                             interrupt=True, interrupt_signal=interrupt_signal)
+                self.assertEqual(result["kind"], "signal")
 
 
 class DockerWrapperTests(unittest.TestCase):
-    def wrapper_fixture(self, interrupt=False):
+    def wrapper_fixture(self, interrupt=False, interrupt_signal=signal.SIGTERM):
         with tempfile.TemporaryDirectory(prefix="lightlix-docker-fixture-") as work:
             work = Path(work)
             (work / "fixture.iso").touch()
@@ -165,13 +290,14 @@ if sys.argv[1]=='stop':
                     while not (work / "pid").exists() and time.monotonic() < deadline:
                         time.sleep(0.02)
                     self.assertTrue((work / "pid").exists())
-                    proc.send_signal(signal.SIGTERM)
+                    proc.send_signal(interrupt_signal)
                 stdout, stderr = proc.communicate(timeout=10)
             finally:
                 if proc.poll() is None:
                     proc.kill()
                     proc.communicate(timeout=5)
-            self.assertEqual(proc.returncode, 143 if interrupt else 17, (stdout + stderr).decode())
+            expected_exit = 128 + interrupt_signal if interrupt else 17
+            self.assertEqual(proc.returncode, expected_exit, (stdout + stderr).decode())
             calls = [json.loads(line) for line in (work / "docker.jsonl").read_text().splitlines()]
             run = next(call for call in calls if call[0] == "run")
             self.assertEqual(run[run.index("--platform") + 1], "linux/amd64")
@@ -193,7 +319,9 @@ if sys.argv[1]=='stop':
         self.wrapper_fixture()
 
     def test_signal_stops_container_and_client(self):
-        self.wrapper_fixture(interrupt=True)
+        for interrupt_signal in (signal.SIGINT, signal.SIGTERM):
+            with self.subTest(signum=interrupt_signal):
+                self.wrapper_fixture(interrupt=True, interrupt_signal=interrupt_signal)
 
 
 if __name__ == "__main__":

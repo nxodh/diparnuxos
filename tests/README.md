@@ -55,7 +55,7 @@ OVMF 후보 경로는 Debian 13(`ovmf` 패키지)과 Ubuntu 24.04(`ovmf` 패키�
 
 - GRUB 메뉴 타임아웃은 유한해야 한다. 스크립트는 키 입력을 보내지 않는다.
 - 기본 OVMF 변수 템플릿에는 Secure Boot 키가 없으므로 Secure Boot 는 꺼진 상태로 부팅된다. Secure Boot 검증은 범위 밖이다.
-- 네트워크는 없다(`-nic none`). 디스플레이도 없다(`-display none`). 메모리는 2G.
+- 네트워크는 없다(`-nic none`). 디스플레이도 없다(`-display none`). 메모리는 2 GiB.
 - 이 테스트는 직렬 로그만 본다. 모니터(VGA) 표시는 검사하지 않는다.
 
 ## Phase 2 CPU 추론 E2E
@@ -63,6 +63,7 @@ OVMF 후보 경로는 Debian 13(`ovmf` 패키지)과 Ubuntu 24.04(`ovmf` 패키�
 `boot-smoke.sh` 다음 단계로, 완성된 **amd64 Phase 2 ISO**를 OVMF에서 CD-ROM으로 부팅해 `user` / `live`로 직렬 로그인한다.
 `lightlix --json status`, `model pull ggml-org/tiny-llamas --file stories260K.gguf`, `model default`, `serve plan`, `serve start`, `chat`, `serve stop`을 실제 라이브 사용자가 실행한다.
 자동 계획을 확인하려고 `--ngl`은 지정하지 않는다. 작은 모델의 컨텍스트와 배치만 `--ctx 256 --batch 32`로 제한하고, 채팅은 16토큰으로 제한한다.
+게스트에는 4096 MiB를 할당한다. 모델 다운로드 뒤에도 데몬의 기존 1 GiB 여유 공간 검사를 만족시키기 위한 E2E 환경 설정이다. 다운로드 직전 루트 파일시스템 용량·여유 공간과 게스트 메모리 정보를 로그에 남긴다.
 
 ```sh
 # ISO 는 별도 빌드나 CI 산출물을 사용한다. 이 실행기는 ISO 를 만들지 않는다.
@@ -83,12 +84,13 @@ python3 -B tests/qemu/test_cpu_inference.py
 - Hugging Face 다운로드 작업의 완료 상태·바이트 수와 모델 목록의 저장소·SHA-256·완전성을 검사한다. 게스트에서 실제 GGUF 파일에 `sha256sum`을 실행해 고정 해시와 다시 대조한다.
 - 모델의 기본값 저장을 확인하고 CPU 계획과 실행 상태가 `running_cpu_fallback`인지, NGL=0·오프로드 0·CPU 경고·loopback 바인딩인지 확인한다.
 - CLI JSON의 `content`에 공백 이외의 생성 텍스트가 있고 토큰 수·초당 토큰이 양수인지 확인한다. 중지 뒤 PID가 0이고 서버 오류가 남지 않아야 한다.
+- 실행 중 `autostart`를 끄고 켠 뒤 데몬을 각각 재시작한다. CLI가 데몬 연결 불가를 반환할 때만 1초 간격으로 최대 10회 재시도한다. 연결 뒤 상태 오류는 즉시 실패하고, 같은 모델·llama PID·256 컨텍스트·32 배치와 양수 생성 결과를 확인한다.
 
 고정 모델 해시는 `047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b`다.
 2026-10-11에 [Hugging Face 원본 파일 페이지](https://huggingface.co/ggml-org/tiny-llamas/blob/main/stories260K.gguf)와 기존 패키지 테스트에서 대조했다.
 모델의 `main` 내용이 바뀌면 테스트는 해시 불일치로 실패하므로 원본을 검토한 뒤에만 해시를 갱신한다.
 
-정상 CLI 명령에는 `sudo`를 쓰지 않는다. **게스트 안에서만** 모델 파일 해시·system journal을 읽고 `nobody`로 접근을 시도할 때 `sudo -n`을 쓴다.
+정상 추론·설정 명령은 라이브 사용자로 실행한다. **게스트 안에서만** 모델 파일 해시·system journal을 읽거나 `nobody` 접근을 시도하고, 실행 중 데몬을 재시작할 때 `sudo -n`을 쓴다.
 호스트에는 도구를 설치하지 않으며, 호스트 sudo나 특권 Docker 컨테이너를 요구하지 않는다. 게스트에 Python·jq를 추가하지 않는다.
 네트워크는 Docker 브리지와 QEMU `-nic user,model=virtio-net-pci,ipv6=off` NAT를 쓴다. 모델을 호스트에서 주입하거나 다운로드 응답을 대신하지 않는다.
 DNS, DHCP, HTTPS, Hugging Face가 실제로 동작해야 통과한다. 네트워크 오류나 서비스 오류를 SKIP으로 처리하지 않는다.
@@ -116,7 +118,7 @@ OVMF 변수는 임시 사본만 쓰고, Secure Boot·USB E2E·GPU 오프로드�
 
 실행 디렉터리에 `serial.log`(직렬 원문), `qemu.log`(QEMU 표준 오류), `qemu-command.jsonl`(실제 QEMU 인자),
 `commands.jsonl`(게스트 명령·기대 종료 코드·실제 종료 코드), 단계별 `.txt`, `result.json`을 남긴다.
-성공·실패·신호 중단 모두 QEMU 프로세스를 회수하고 임시 OVMF 사본을 지운다. Docker 실행기도 trap으로 이번 컨테이너와 CID 임시 파일을 지운다.
+성공·실패·신호 중단 모두 QEMU 프로세스를 회수하고 임시 OVMF 사본을 지운다. 실행별 새 로그 디렉터리는 0755, 로그 파일은 0644로 만들어 Docker의 root 프로세스가 작성해도 CI runner가 읽을 수 있다. 기존 실행 로그의 권한은 바꾸지 않는다. Docker 실행기도 trap으로 이번 컨테이너와 CID 임시 파일을 지운다.
 로그 디렉터리와 기존 `out/drive-upload` 등 다른 산출물은 지우지 않는다.
 
 - 종료 코드 0: 모든 검사 통과.
