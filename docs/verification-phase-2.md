@@ -61,16 +61,38 @@ root가 데몬 RSS 기록을 추가하고 fixture의 준비 표시 경쟁을 수
 정상 흐름, 권한·서비스·해시·생성 응답 오류, QEMU 종료, 명령·직렬·전체 시간 초과, 신호 정리와 KVM 초기화 실패의 TCG 재시도를 검사했다.
 실제 ISO와 모델 추론은 이 fixture에서 실행하지 않았다.
 
-## CI에서 실제로 확인할 항목
+## GitHub Actions 실행 결과
 
-- amd64 CUDA 모듈 전체 컴파일과 런타임 의존성, CUDA 모듈이 들어 있는 패키지의 CPU 추론
-- 최종 ISO의 데몬·CLI·llama 패키지 설치, 모델·API 키 권한, 서비스 활성화와 기본 방화벽
-- OVMF CD와 USB 저장 장치 부팅
-- 라이브 사용자로 로그인한 뒤 Hugging Face 다운로드, 실제 파일 SHA-256, 기본 모델 저장, 자동 CPU 계획, 실제 생성과 정상 중지
-- 데몬 소켓의 그룹 권한, 접근 거부, 서비스 오류 부재, 유휴 데몬 RSS 기록
+[CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)는 PR의 `b525ed9662e85cd9c83e89f6e38e78ac9d7842d7` head에서 실행되어 전체 실패로 끝났다(2026-10-11 10:16:37–11:15:18 UTC). 결과와 아래 단계 시간은 GitHub Actions job/step API와 실제 로그에서 확인했다.
 
-QEMU E2E는 `out/qemu-e2e/run-*`에 직렬 원문, 단계별 응답, 명령 종료 코드, `result.json`을 남긴다.
-제어된 fixture는 드라이버의 판정·시간 제한·정리만 검사하며 실제 ISO의 추론 성공으로 계산하지 않는다.
+통과한 단계:
+
+- lint job은 1분 23초에 통과했다. 전체 Go build/vet/test, 셸 lint, GPU 진단 스텁 23개, QEMU E2E fixture 검사를 포함한다.
+- `Build llama.cpp package (lightlix-llm)`는 44분 7초에 통과했다. 실제 amd64 CUDA 모듈을 빌드했고, CUDA 모듈의 `NEEDED` 항목과 `.deb` 의존성 검사를 실행했다.
+- `Check lightlix-llm package without CUDA`는 8초에 통과했다. `lightlix-llm_0.2.0_amd64.deb`에 CUDA 모듈이 포함됐고 CPU 백엔드 모듈 14개, 제3자 고지 7개와 `lightlix-nvidia` 의존성이 확인됐다. CUDA 없는 Debian에서 `libcudart.so.13`과 `libcublas.so.13`은 `not found`였고, 고정 모델 `stories260K.gguf`의 SHA-256 `047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b` 검증, `/health` 200, 채팅 응답이 통과했다. 응답은 16 completion tokens, 로그의 `predicted_per_second`는 4005.3404539385847이었다. 이는 패키지 검사용 Debian 컨테이너 결과이며 ISO의 live-user E2E 결과가 아니다.
+- `Save verified llama.cpp package` 캐시 저장이 통과했다.
+- ISO 생성은 12분 34초, NVIDIA 모듈·이미지 정책 검사는 6초에 통과했다. ISO 검사 로그에서 `lightlix-llm=0.2.0`, `lightlix-daemon=0.2.0`, NVIDIA 드라이버 595.91.07, CUDA 런타임 패키지를 확인했고 CUDA 개발 도구와 `-dev` 패키지 부재, 라이선스, 오픈 모듈, 서명 키 제거, GPT/EFI 파티션 검사가 통과했다. 이 이미지는 물리 GPU에서 부팅·추론한 결과가 아니다.
+- UEFI 직렬 로그인 프롬프트 부팅은 32초, ISO를 USB 저장 장치로 붙인 UEFI 부팅은 34초에 통과했다.
+
+실패한 단계와 확보한 근거:
+
+- `CPU inference E2E (UEFI, live user, Hugging Face NAT)`는 34초 후 실패했다. 실제 로그에서 `model-pull` 명령이 `ggml-org/tiny-llamas/stories260K.gguf` (revision `99dd1a73db5a37100bd4ae633f4cfce6560e1567`) 다운로드 전 중단됐고, `bytes_done`은 0 / `bytes_total`은 1,185,376, `error_code`는 `insufficient_space`, 오류는 `not enough free disk space for the model`이었다. CLI는 모델에 약 1.1 MiB가 필요하다고 출력했다.
+- 따라서 이 run은 ISO에서의 실제 모델 SHA 검증, 채팅 생성, llama 서비스 시작·정상 중지, PID와 RSS를 입증하지 못했다. 앞선 패키지 검사 결과를 live-user 추론 성공으로 간주하지 않는다.
+- `Upload QEMU E2E logs`도 실패했다. GitHub 로그는 `EACCES: permission denied, scandir '/home/runner/work/lightlixos/lightlixos/out/qemu-e2e/run-3koliggf'`를 기록했다. GitHub Artifacts API 결과는 빈 목록이어서 요청된 `result.json`과 직렬 로그를 받을 수 없었다. 이후 ISO와 checksum 아티팩트 업로드는 건너뛰었다.
+
+이 CI 실행에서 live-user CPU 추론은 미검증으로 남았다. 나머지 E2E 단계는 모델을 받지 못해 실행되지 않았다.
+
+HF 토큰 변경 뒤 CLI가 llama 서버 재시작을 안내하던 문제도 `5c4afbf`로 수정했다.
+다운로드 클라이언트의 새 토큰 적용에는 데몬 재시작이 필요하므로 `sudo systemctl restart lightlixd`를 안내한다.
+이 변경의 Debian 컨테이너 CLI/client gofmt, vet, race 검사가 통과했다.
+
+## 검증 경계와 남은 항목
+
+- 패키지 수준의 CPU 추론은 성공했지만, ISO live-user CPU 흐름은 다운로드 공간 검사에서 실패했다.
+- 실 NVIDIA GPU에서의 CUDA 오프로드·추론은 이 CI로 검증하지 않았다. CUDA 모듈 컴파일과 CUDA 없는 환경에서의 CPU 폴백 검사만 확인했다.
+- Secure Boot, 실기 Wi-Fi, 실기 USB 부팅은 확인하지 않았다. CI의 USB 시험은 QEMU에서 ISO를 USB 저장 장치로 연결한 결과다.
+- 유휴 전체 OS 메모리 사용량은 이 실행에서 측정하지 않았다. 실패한 QEMU E2E의 로그 아티팩트가 없어 실제 데몬 PID/RSS 출력도 확보하지 못했다.
+- 제어된 fixture는 드라이버의 판정·시간 제한·정리만 검사하며 실제 ISO의 추론 성공으로 계산하지 않는다.
 
 ## 남은 실기 검증
 

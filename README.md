@@ -1,7 +1,7 @@
 # Lightlix
 
 - 확인 날짜: 2026-10-11
-- 상태: Phase 2 구현과 통합 검증 진행 중. **NVIDIA 실 하드웨어에서 검증하지 않았다.**
+- 상태: [Phase 2 CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776), head `b525ed9`, 전체 결과는 실패다. CUDA 패키지 빌드·패키지 CPU 추론 검사, ISO·이미지 정책 검사, UEFI CD·USB 부팅은 통과했다. 라이브 사용자 E2E는 모델 다운로드 전에 `insufficient_space`로 실패했고 QEMU 로그 업로드도 실패했다. **실 GPU, Secure Boot, Wi-Fi, 유휴 전체 램은 미검증이다.** 자세한 출력은 [Phase 2 검증 기록](docs/verification-phase-2.md)에 있다.
 - 저장소: https://github.com/nxodh/lightlixos
 
 Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최소로 줄이면서 로컬 LLM 추론 서버를 돌리는 것이 목표다. amd64 아키텍처와 UEFI 부팅만 지원한다는 것이 계획이다. 대상 GPU는 NVIDIA RTX 30, 40, 50 계열이다.
@@ -22,7 +22,7 @@ Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최
 - CUDA 런타임(`cudart`, `cublas`). CUDA 컴파일러와 툴킷은 포함하지 않는다.
 - 부팅 시 GPU 진단 결과를 영어 한 줄로 로그인 프롬프트 위에 표시(모니터와 직렬 콘솔 모두), 원인별 CPU 폴백 안내, 서버 모드의 절전 비활성화
 - Intel Wi-Fi 펌웨어(`firmware-iwlwifi`)와 Intel 이더넷 펌웨어(`firmware-intel-misc`), 무선 접속 데몬 iwd. 실기 접속은 미검증이다.
-- llama.cpp의 `llama-server`와 CPU·CUDA 백엔드 모듈(`lightlix-llm`, `/usr/lib/lightlix/llama`). 이 빌드의 CUDA 경로는 아직 실 GPU에서 확인하지 않았다. 빌드 방법과 검증 범위는 [llama/README.md](llama/README.md)에 있다.
+- llama.cpp의 `llama-server`와 CPU·CUDA 백엔드 모듈(`lightlix-llm`, `/usr/lib/lightlix/llama`). amd64 CUDA 패키지 빌드와 CPU 검사는 CI에서 통과했지만, CUDA 경로의 실 GPU 오프로드는 아직 확인하지 않았다. 빌드 방법과 검증 범위는 [llama/README.md](llama/README.md)에 있다.
 - `lightlixd` 데몬과 `lightlix` CLI. 모델 조회·다운로드, SHA-256 검사, 실행 계획 계산, 서버 시작·중지, 채팅, 설정과 API 키 관리를 제공한다.
 - systemd 소켓 활성화, 별도 추론 서비스 사용자, 기본 nftables 방화벽. 추론 API는 기본적으로 localhost에서만 열린다.
 
@@ -123,7 +123,7 @@ out/             빌드 산출물(git 제외)
 |---|---|---|
 | 0 | 저장소 뼈대, 최소 Debian 13 ISO, CI, 문서 초안 | 완료. main의 CI 빌드와 QEMU 부팅 통과 |
 | 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 CI 검증 완료. NVIDIA 실기 검증 대기 |
-| 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 구현과 통합 검증 진행 중. 실 GPU 검증은 대기 |
+| 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | CUDA 패키지·ISO·UEFI CD/USB는 CI에서 확인. 라이브 사용자 추론 CI는 `insufficient_space`로 실패했으며 실 GPU 검증은 미실시 |
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 계획 |
 | 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |
 | 5 | 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |

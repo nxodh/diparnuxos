@@ -1,7 +1,7 @@
 # llama (llama.cpp 빌드와 lightlix-llm 패키지)
 
 - 확인 날짜: 2026-10-11
-- 상태: 구현 완료. 로컬 arm64 CPU 전용 스모크 빌드와 패키지 검사(실제 추론 포함)를 통과했다. CUDA 빌드 전체는 아직 한 번도 컴파일하지 않았다. CUDA 경로의 검증은 CI가 처음 한다. **실 NVIDIA GPU에서는 아직 확인하지 않았다.**
+- 상태: 로컬 arm64 CPU 빌드와 실제 추론 검사, CI의 amd64 CUDA 전체 빌드와 CUDA 없는 환경의 CPU 패키지 추론 검사, ISO 생성·이미지 정책 검사, UEFI CD·USB 부팅이 통과했다. [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)는 라이브 E2E에서 모델 다운로드 전 `insufficient_space`로 실패했다. 따라서 live-user ISO 추론은 확인되지 않았고 **실 NVIDIA GPU 오프로드도 미검증이다.**
 
 ## 책임
 
@@ -75,7 +75,7 @@ CUDA 빌드는 환경 변수 `CUDACXX`로 nvcc를 가리킨다. `build.sh`가 `c
 - 이름: `lightlix-llm_<LIGHTLIX_VERSION>_<arch>.deb`. `Architecture: any`, 소스 형식 `3.0 (native)`.
 - `Depends`: `${shlibs:Depends}, ${misc:Depends}`에 CUDA 빌드면 `, lightlix-nvidia`를 더한다. `shlibs` 계산 결과는 CPU 스모크 빌드에서 `libc6, libgcc-s1, libgomp1, libssl3t64, libstdc++6`이었다.
 - `rules`
-  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. CUDA 의존성은 `lightlix-nvidia`가 맡는다. 이 처리는 CUDA 빌드에서 **아직 실행해 보지 않았다**(CI가 확인한다).
+  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. CUDA 의존성은 `lightlix-nvidia`가 맡는다. CI의 실제 amd64 CUDA 패키지 생성과 의존성 검사가 통과했다.
   - `override_dh_makeshlibs`: 비워 둔다. 이 라이브러리들은 `/usr/lib/lightlix/llama`의 비공개 라이브러리다. 이것을 `shlibs`에 등록하면 다른 패키지가 시스템 제공 라이브러리로 볼 수 있다. 빌드 중 `shlibs`와 ldconfig 트리거가 생겨서 이 처리를 넣었다.
   - `override_dh_strip`: `dh_strip --no-automatic-dbgsym`. `-dbgsym` 패키지를 만들지 않는다.
   - `override_dh_dwz`: 비운다. 디버그 정보가 없어 dwz가 경고만 냈다.
@@ -133,7 +133,7 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 
 ## 로컬에서 할 수 있는 것과 없는 것
 
-- CUDA 빌드 전체는 로컬에서 하지 않는다. CUDA 컴파일 시간은 측정하지 않았다. Docker VM 메모리는 약 4 GB이고, 컴파일이 메모리를 넘칠 수 있다는 점은 실측하지 않았다. CUDA 경로의 최종 검증은 CI다.
+- CUDA 빌드 전체는 로컬에서 하지 않는다. CI의 첫 전체 CUDA 패키지 빌드 단계는 44분 7초였다(빌더 준비·컴파일·패키징 포함). Docker VM 메모리는 약 4 GB이고, 로컬 컴파일이 메모리를 넘칠 수 있다는 점은 실측하지 않았다.
 - 로컬 CPU 스모크 빌드(arm64 Mac, 네이티브 arm64 컨테이너): `LLAMA_CUDA=OFF LLAMA_PLATFORM=linux/arm64 make llama`. 실측 약 43분(컴파일 단계가 대부분). 이어서 `make test-llama-docker`(실측 약 17초, 추론 포함). 검사가 끝나면 `make clean-llama`로 산출물을 지운다. 아키텍처가 다른 `.deb`이 `out/llama`에 남으면 `make iso`와 CI가 혼동하기 때문이다.
 - amd64 빌드는 로컬 arm64 Mac에서 에뮬레이션으로 돌아간다. 조사 기록에 따르면 에뮬레이션된 4코어에서 CPU 전용 llama-server 빌드가 13~19분이었다. 이 값은 CUDA 빌드의 시간을 말해 주지 않는다. 로컬에서는 스모크 빌드만 한다.
 
@@ -148,10 +148,10 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 | 패키지 검사와 CPU 추론 | 확인됨(로컬 arm64) |
 | CUDA 빌더 이미지(nvcc, cmake, g++, CUDA 패키지 버전) | 확인됨(로컬 amd64 이미지, 컴파일 없음) |
 | CUDA 구성 단계(CMake, `GGML_CUDA=ON`) | 확인됨(로컬, 컴파일 없음) |
-| CUDA 모듈 컴파일과 `libggml-cuda.so`의 `NEEDED` | **미확인**(CI) |
-| CUDA `.deb`의 `dh_shlibdeps -X libggml-cuda.so`와 `lightlix-nvidia` 의존성 | **미확인**(CI) |
-| CUDA 패키지 검사(`ldd`의 `libcudart.so.13 => not found`, 추론) | **미확인**(CI) |
-| ISO 안의 `lightlix-llm`과 이미지 검사 | **미확인**(CI) |
+| CUDA 모듈 컴파일과 `libggml-cuda.so`의 `NEEDED` | 확인됨(CI amd64, 38131367776) |
+| CUDA `.deb`의 `dh_shlibdeps -X libggml-cuda.so`와 `lightlix-nvidia` 의존성 | 확인됨(CI amd64, 38131367776) |
+| CUDA 패키지 검사(`ldd`의 `libcudart.so.13 => not found`, 추론) | 확인됨(CI amd64, 38131367776) |
+| ISO 안의 `lightlix-llm`과 이미지 검사 | 확인됨(CI 38131367776: 0.2.0 포함, 이미지 정책 검사 통과) |
 | 실 NVIDIA GPU에서의 오프로드와 추론 | **미확인**(실기 필요) |
 
 ## 남은 문제와 한계
@@ -159,8 +159,8 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 - CUDA 아키텍처는 sm_86, sm_89, sm_120a만 있다(`-real`, PTX 없음). RTX 20과 그 이전, 데이터센터 GPU(sm_80, sm_90 등)용 CUDA 커널은 없다. 대상 범위는 [support-matrix.md](../docs/support-matrix.md)에 있다.
 - `GGML_CUDA_FA_QUANTS`는 기본값이다. KV 캐시 양자화 조합 중 기본 목록에 없는 것은 f16으로 변환되어 느리다([조사 기록](../docs/verification-phase-2-research.md)의 발견 7번).
 - llama.cpp v0.6.0의 제3자 보고(IQ3_S 출력 오류, Blackwell iGPU 분류, CUDA graph hang 등)는 이 빌드에서 재현하지 않았다. 실기 검증 항목으로 [support-matrix.md](../docs/support-matrix.md)에 적었다.
-- 제3자 고지 추출은 고정 소스를 사용한 Debian 컨테이너 검사에서 통과했다. 최종 CUDA `.deb`에 포함되는지는 CI 패키지 검사에서 확인한다.
-- 미확인: CUDA 빌드 시간. CI의 `iso` job 제한 시간은 180분이다.
+- 제3자 고지 추출과 최종 CUDA `.deb`의 고지 파일 포함 검사가 통과했다.
+- 첫 CI CUDA 패키지 빌드 단계는 44분 7초였다. CI의 `iso` job 제한 시간은 180분이다.
 - `--version`의 `0.6.0-dev`는 `LLAMA_BUILD_IS_DEV` 기본값 때문이다. 버전 표시를 바꾸려면 옵션을 바꾸고 `build-info`와 함께 기록해야 한다.
 - 로컬 arm64 스모크 빌드 산출물은 검사 후 지웠다. CI가 같은 키로 amd64 `.deb`을 만든다.
 
