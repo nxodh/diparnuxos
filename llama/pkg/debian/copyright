@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: llama.cpp
+Upstream-Contact: https://github.com/ggml-org/llama.cpp
+Source: https://github.com/ggml-org/llama.cpp
+
+Files: *
+Copyright: 2023-2026 The ggml authors
+License: MIT

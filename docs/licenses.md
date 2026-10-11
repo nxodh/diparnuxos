@@ -81,6 +81,7 @@ Lightlix ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라
 - 사용자 확정 U3에 따라 `cudart`와 `cublas`를 첫 부팅 설치가 아니라 ISO에 넣는다.
 - **해석 위험**: "응용 프로그램이 실질적인 추가 기능을 가진다"와 "재배포 부분은 그 응용 프로그램만 접근한다"는 조건을 OS 이미지 번들링이 만족하는지 불명확하다. llama-server와 함께 들어가 있으면 응용이 접근하는 것으로 읽을 수 있다. 하지만 OS 이미지가 다른 프로그램에도 같은 라이브러리를 제공하면 이 조건에 어긋난다고 볼 수도 있다. 이 해석은 법률 자문을 받지 않았다.
 - 조사 기록은 첫 부팅 설치 방식이 이 조건을 피한다고 적는다. 검증자도 같은 위험을 지적했다. 사용자는 이 위험을 알고 ISO 포함을 선택했다. 결정문에 해석 위험이 남았다는 사실을 계속 적어 둔다.
+- **Phase 2 추가 사실**: 0.2.0부터 ISO에 CUDA 런타임을 쓰는 응용(llama-server)이 함께 들어간다. 이 항목은 사실만 적으며 법적 판단은 쓰지 않는다.
 - 권장 조치: 배포 전에 법률 검토를 받거나 NVIDIA에 문의한다.
 
 ### 2.4 CUDA 버전과 라이선스
@@ -98,9 +99,16 @@ Lightlix ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라
 
 ## 4. llama.cpp
 
-- 라이선스 종류와 원문: 이번 조사에서 확인하지 않았다. llama.cpp를 빌드하는 Phase 2에서 고정 태그의 `LICENSE` 파일을 확인한 뒤 이 절을 채운다.
-- 웹 UI 자산: 사용자 확정 U6에 따라 내장 UI 없이 빌드한다. 기본 설정에서 내려받는 `dist.tar.gz`가 ISO에 들어가지 않도록 끈다([decisions.md](decisions.md)의 D4-2).
-- 근거: https://github.com/ggml-org/llama.cpp/releases (v0.6.0 정식 릴리스)
+- 확인 날짜: 2026-10-11 (Phase 2)
+- 소스: `ggml-org/llama.cpp` 태그 `v0.6.0`, 커밋 `d81235049384534c167caea52b85a694f6103d14`(`lightlix.conf`의 `LLAMA_CPP_COMMIT`).
+- 라이선스: MIT. 원문은 같은 커밋의 `LICENSE` 파일이다. 파일 크기 1,078바이트, sha256 `94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d`(2026-10-11에 `https://raw.githubusercontent.com/ggml-org/llama.cpp/v0.6.0/LICENSE`에서 받아 잰 값).
+- 저작권 표시: `Copyright (c) 2023-2026 The ggml authors`.
+- 패키지에서의 위치: `lightlix-llm`의 `/usr/share/doc/lightlix-llm/copyright`에 DEP-5 형식으로 원문을 그대로 넣었다(각 줄 앞에 공백 한 칸을 붙이고, 빈 줄은 ` .`으로 적는다. 이는 DEP-5 들여쓰기 규칙이다). 원문 파일은 `/usr/share/doc/lightlix-llm/LICENSE.llama.cpp`에도 있다.
+- 같은 고정 커밋의 `vendor/CMakeLists.txt`와 서버·mtmd의 링크 구성을 확인했다. cpp-httplib(MIT), SHA-256(공개 도메인), xxHash(BSD-2-Clause), nlohmann JSON(MIT), miniaudio(공개 도메인 또는 MIT-0), stb_image(MIT 또는 공개 도메인), sheredom subprocess(공개 도메인)의 원문 고지를 `/usr/share/doc/lightlix-llm/vendor-licenses/`에 넣는다. JSON 헤더 안의 저작권 표시도 모두 보존한다. 빌드 스크립트가 같은 소스에서 추출하며 누락·빈 파일을 거부한다.
+- 근거: [고정 소스의 vendor 구성](https://github.com/ggml-org/llama.cpp/blob/d81235049384534c167caea52b85a694f6103d14/vendor/CMakeLists.txt), 그 아래 각 LICENSE 파일과 `json.hpp`, `miniaudio.h`, `stb_image.h`, `subprocess.h`의 고지다.
+- 웹 UI 자산: 사용자 확정 U6에 따라 내장 UI 없이 빌드한다(`LLAMA_BUILD_UI=OFF`, `LLAMA_USE_PREBUILT_UI=OFF`). 기본 설정에서 내려받는 `dist.tar.gz`는 이미지에 들어가지 않는다([decisions.md](decisions.md)의 D4-2).
+- 빌드 도구(nvcc 등 CUDA 툴킷)는 최종 이미지에 들어가지 않는다. CUDA 런타임(`cudart`, `cublas`)만 `lightlix-nvidia`가 설치한다(2절 참고).
+- 근거: https://github.com/ggml-org/llama.cpp/releases (v0.6.0 정식 릴리스), https://raw.githubusercontent.com/ggml-org/llama.cpp/v0.6.0/LICENSE
 
 ---
 

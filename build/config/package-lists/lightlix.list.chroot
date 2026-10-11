@@ -1,4 +1,4 @@
-# Lightlix Phase 1 헤드리스 구성. 드라이버 의존성은 lightlix-nvidia 에서 한 번에 설치한다.
+# Lightlix Phase 2 헤드리스 구성. 드라이버 의존성은 lightlix-nvidia 에서 한 번에 설치한다.
 # user-setup: live-config 가 라이브 사용자(user)를 만들 때 필요하다. Recommends 라서 직접 적는다.
 lightlix-base
 lightlix-nvidia
@@ -20,3 +20,9 @@ firmware-intel-misc
 iwd
 # 무선 규제 도메인 데이터. iwd 의 Recommends 라서 직접 적는다. 없으면 규제 도메인이 기본값으로 제한되어 5GHz 채널이 줄어든다.
 wireless-regdb
+# llama.cpp 의 llama-server 와 백엔드 모듈(make llama 가 만든 .deb, scripts/build-iso.sh 가 로컬 저장소에 넣는다).
+# CUDA 빌드는 lightlix-nvidia 에 의존하므로 드라이버와 CUDA 런타임이 함께 들어간다.
+lightlix-llm
+# Go 데몬과 CLI, 소켓, 기본 차단 방화벽을 설치한다.
+lightlix-daemon
+nftables
