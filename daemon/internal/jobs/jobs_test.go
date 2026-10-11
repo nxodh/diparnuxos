@@ -3,6 +3,7 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"net/http"
 	"os"
@@ -21,6 +22,30 @@ const testToken = "hf_test_secret_token_value"
 // content 는 tag 를 n 번 반복한 테스트 내용을 돌려준다. tag 가 다르면 SHA-256 도 다르다.
 func content(tag string, n int) []byte {
 	return bytes.Repeat([]byte(tag), n)
+}
+
+// minimalGGUF 는 캐시 무결성 테스트에 쓸 최소 GGUF v3 헤더를 만든다.
+func minimalGGUF(arch string) []byte {
+	var b bytes.Buffer
+	_ = binary.Write(&b, binary.LittleEndian, []byte("GGUF"))
+	_ = binary.Write(&b, binary.LittleEndian, uint32(3))
+	_ = binary.Write(&b, binary.LittleEndian, uint64(0))
+	_ = binary.Write(&b, binary.LittleEndian, uint64(2))
+	writeKey := func(key string) {
+		_ = binary.Write(&b, binary.LittleEndian, uint64(len(key)))
+		_, _ = b.WriteString(key)
+	}
+	writeString := func(value string) {
+		_ = binary.Write(&b, binary.LittleEndian, uint64(len(value)))
+		_, _ = b.WriteString(value)
+	}
+	writeKey("general.architecture")
+	_ = binary.Write(&b, binary.LittleEndian, uint32(8))
+	writeString(arch)
+	writeKey(arch + ".block_count")
+	_ = binary.Write(&b, binary.LittleEndian, uint32(4))
+	_ = binary.Write(&b, binary.LittleEndian, uint32(1))
+	return b.Bytes()
 }
 
 // TestPullInstallsModelAndRecordsSidecar 는 내려받기가 성공하면 파일, 사이드카, 기본 모델, 진행률이 맞는지 확인한다.
@@ -206,9 +231,17 @@ func TestDownloadChecksumMismatchRemovesPart(t *testing.T) {
 
 // TestNameConflictWithDifferentModel 는 같은 이름의 다른 모델이 있으면 name_conflict 가 되는지 확인한다.
 func TestNameConflictWithDifferentModel(t *testing.T) {
-	h := newHub(t, "a/b", hubFile{path: "m.gguf", data: content("m", 10)})
+	local := minimalGGUF("gemma")
+	h := newHub(t, "a/b", hubFile{path: "m.gguf", data: minimalGGUF("llama")})
 	m := newTestManager(t, h, "")
-	writeInstalled(t, m, "m.gguf", strings.Repeat("c", 64))
+	if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf"), local, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.store.WriteSidecar("m.gguf", models.Sidecar{
+		Repo: h.repo, Revision: h.sha, SHA256: sha256Hex(local),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := m.StartPull(t.Context(), platform.PullRequest{Repo: h.repo})
 	expectCode(t, err, CodeNameConflict)
@@ -217,8 +250,8 @@ func TestNameConflictWithDifferentModel(t *testing.T) {
 	}
 }
 
-// TestNameConflictWithUnrecordedFile 는 사이드카 없이 같은 이름의 파일이 있으면 같은 내용인지 알 수 없으므로 충돌로 보는지 확인한다.
-func TestNameConflictWithUnrecordedFile(t *testing.T) {
+// TestIncompleteUnrecordedModelIsPreserved 는 사이드카 없는 같은 이름 파일을 불완전 오류로 거부하고 보존하는지 확인한다.
+func TestIncompleteUnrecordedModelIsPreserved(t *testing.T) {
 	h := newHub(t, "a/b", hubFile{path: "m.gguf", data: content("m", 10)})
 	m := newTestManager(t, h, "")
 	if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf"), content("m", 10), 0o644); err != nil {
@@ -226,22 +259,193 @@ func TestNameConflictWithUnrecordedFile(t *testing.T) {
 	}
 
 	_, err := m.StartPull(t.Context(), platform.PullRequest{Repo: h.repo})
-	expectCode(t, err, CodeNameConflict)
+	expectCode(t, err, CodeCorruptModel)
 }
 
-// TestInstalledSameDigestIsDoneWithoutDownload 는 같은 SHA-256 의 모델이 있으면 내려받지 않고 done 으로 돌려주는지 확인한다.
+// TestInstalledSameDigestIsDoneWithoutDownload 는 실제 다운로드된 GGUF 캐시를 해시 검증 후 재사용하는지 확인한다.
 func TestInstalledSameDigestIsDoneWithoutDownload(t *testing.T) {
-	data := content("m", 10)
+	data := minimalGGUF("llama")
 	h := newHub(t, "a/b", hubFile{path: "m.gguf", data: data})
 	m := newTestManager(t, h, "")
-	writeInstalled(t, m, "m.gguf", sha256Hex(data))
+	first := mustWait(t, m, mustPull(t, m, platform.PullRequest{Repo: h.repo}).ID)
+	if first.State != platform.JobDone {
+		t.Fatalf("initial download job = %+v", first)
+	}
+	resolveCount := h.count("/" + h.repo + "/resolve/")
 
-	j := mustPull(t, m, platform.PullRequest{Repo: h.repo})
+	j, err := m.StartPull(t.Context(), platform.PullRequest{Repo: h.repo})
+	if err != nil {
+		t.Fatalf("StartPull cached model: %v", err)
+	}
 	if j.State != platform.JobDone || j.ModelID != "m.gguf" {
 		t.Fatalf("job = %+v, want done with model m.gguf", j)
 	}
-	if n := h.count("/" + h.repo + "/resolve/"); n != 0 {
-		t.Fatalf("resolve requests = %d, want 0", n)
+	if n := h.count("/" + h.repo + "/resolve/"); n != resolveCount || n != 1 {
+		t.Fatalf("resolve requests after cache reuse = %d, initial count %d", n, resolveCount)
+	}
+}
+
+// TestCorruptCachedModelsFailClosedPreservingFiles 는 손상된 캐시 파일을 덮어쓰거나 지우지 않는지 확인한다.
+func TestCorruptCachedModelsFailClosedPreservingFiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		mutate   func(t *testing.T, m *Manager, data []byte)
+		wantCode string
+	}{
+		{
+			name: "short file",
+			mutate: func(t *testing.T, m *Manager, data []byte) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf"), data[:len(data)-1], 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantCode: CodeSizeMismatch,
+		},
+		{
+			name: "same size corruption with matching sidecar",
+			mutate: func(t *testing.T, m *Manager, data []byte) {
+				t.Helper()
+				corrupt := append([]byte(nil), data...)
+				corrupt[len(corrupt)-1] ^= 0xff
+				if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf"), corrupt, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantCode: CodeChecksumMismatch,
+		},
+		{
+			name: "missing sidecar",
+			mutate: func(t *testing.T, m *Manager, _ []byte) {
+				t.Helper()
+				if err := os.Remove(filepath.Join(m.store.Dir, "m.gguf.json")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantCode: CodeCorruptModel,
+		},
+		{
+			name: "incomplete sidecar metadata",
+			mutate: func(t *testing.T, m *Manager, data []byte) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf.json"), []byte(`{"sha256":"`+sha256Hex(data)+`"}`), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantCode: CodeCorruptModel,
+		},
+		{
+			name: "partial download marker",
+			mutate: func(t *testing.T, m *Manager, _ []byte) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(m.store.Dir, "m.gguf.part"), []byte("active partial"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantCode: CodeCorruptModel,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			data := append(minimalGGUF("llama"), bytes.Repeat([]byte{0x41}, 16)...)
+			h := newHub(t, "a/b", hubFile{path: "m.gguf", data: data})
+			m := newTestManager(t, h, "")
+			initial := mustWait(t, m, mustPull(t, m, platform.PullRequest{Repo: h.repo}).ID)
+			if initial.State != platform.JobDone {
+				t.Fatalf("initial download job = %+v", initial)
+			}
+			resolveCount := h.count("/" + h.repo + "/resolve/")
+			tc.mutate(t, m, data)
+
+			modelPath := filepath.Join(m.store.Dir, "m.gguf")
+			modelBefore, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sidecarPath := filepath.Join(m.store.Dir, "m.gguf.json")
+			sidecarBefore, sidecarErr := os.ReadFile(sidecarPath)
+			partPath := filepath.Join(m.store.Dir, "m.gguf.part")
+			partBefore, partErr := os.ReadFile(partPath)
+			defaultPath := filepath.Join(m.store.Dir, ".default")
+			defaultBefore, err := os.ReadFile(defaultPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			activeFile, openErr := os.Open(modelPath)
+			if openErr != nil {
+				t.Fatal(openErr)
+			}
+			defer activeFile.Close()
+
+			_, err = m.StartPull(t.Context(), platform.PullRequest{Repo: h.repo})
+			expectCode(t, err, tc.wantCode)
+			if n := h.count("/" + h.repo + "/resolve/"); n != resolveCount {
+				t.Fatalf("resolve requests after rejecting cache = %d, want unchanged count %d", n, resolveCount)
+			}
+			modelAfter, err := os.ReadFile(modelPath)
+			if err != nil || !bytes.Equal(modelAfter, modelBefore) {
+				t.Fatalf("model changed while rejecting cache: err=%v equal=%v", err, bytes.Equal(modelAfter, modelBefore))
+			}
+			if sidecarErr == nil {
+				sidecarAfter, err := os.ReadFile(sidecarPath)
+				if err != nil || !bytes.Equal(sidecarAfter, sidecarBefore) {
+					t.Fatalf("sidecar changed while rejecting cache: err=%v equal=%v", err, bytes.Equal(sidecarAfter, sidecarBefore))
+				}
+			} else if !errors.Is(sidecarErr, os.ErrNotExist) {
+				t.Fatal(sidecarErr)
+			} else if _, err := os.Stat(sidecarPath); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("missing sidecar was recreated: %v", err)
+			}
+			if partErr == nil {
+				partAfter, err := os.ReadFile(partPath)
+				if err != nil || !bytes.Equal(partAfter, partBefore) {
+					t.Fatalf("partial marker changed while rejecting cache: err=%v equal=%v", err, bytes.Equal(partAfter, partBefore))
+				}
+			} else if !errors.Is(partErr, os.ErrNotExist) {
+				t.Fatal(partErr)
+			} else if _, err := os.Stat(partPath); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("partial marker was created while rejecting cache: %v", err)
+			}
+			if _, err := activeFile.Stat(); err != nil {
+				t.Fatalf("open active model file was disturbed: %v", err)
+			}
+			defaultAfter, err := os.ReadFile(defaultPath)
+			if err != nil || !bytes.Equal(defaultAfter, defaultBefore) {
+				t.Fatalf("default model changed while rejecting cache: err=%v equal=%v", err, bytes.Equal(defaultAfter, defaultBefore))
+			}
+			if got := jobCount(m); got != 1 {
+				t.Fatalf("job count = %d, want only the original completed download", got)
+			}
+		})
+	}
+}
+
+// TestCancelDuringCachedModelHashPreventsDone 는 해시 계산 도중 취소되면 캐시 재사용 작업을 완료하지 않는지 확인한다.
+func TestCancelDuringCachedModelHashPreventsDone(t *testing.T) {
+	data := append(minimalGGUF("llama"), bytes.Repeat([]byte{0x5a}, 256<<10)...)
+	h := newHub(t, "a/b", hubFile{path: "m.gguf", data: data})
+	m := newTestManager(t, h, "")
+	initial := mustWait(t, m, mustPull(t, m, platform.PullRequest{Repo: h.repo}).ID)
+	if initial.State != platform.JobDone {
+		t.Fatalf("initial download job = %+v", initial)
+	}
+	resolveCount := h.count("/" + h.repo + "/resolve/")
+	ctx, cancel := context.WithCancel(t.Context())
+	m.cacheHashHook = cancel
+
+	_, err := m.StartPull(ctx, platform.PullRequest{Repo: h.repo})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("StartPull after cancellation during cache hash = %v, want context canceled", err)
+	}
+	if got := jobCount(m); got != 1 {
+		t.Fatalf("job count = %d, want no completed cache-reuse job", got)
+	}
+	if n := h.count("/" + h.repo + "/resolve/"); n != resolveCount {
+		t.Fatalf("resolve requests after canceled cache hash = %d, want unchanged count %d", n, resolveCount)
+	}
+	if got, err := os.ReadFile(filepath.Join(m.store.Dir, "m.gguf")); err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("cache changed during canceled hash: err=%v equal=%v", err, bytes.Equal(got, data))
 	}
 }
 
@@ -534,16 +738,5 @@ func TestCancelUnknownAndWaitUnknown(t *testing.T) {
 	}
 	if _, ok := m.Wait("job-999"); ok {
 		t.Fatal("Wait on an unknown ID reported a job")
-	}
-}
-
-// writeInstalled 는 모델 파일과 사이드카를 디렉터리에 직접 만든다. sha 는 사이드카의 SHA-256 이다.
-func writeInstalled(t *testing.T, m *Manager, name, sha string) {
-	t.Helper()
-	if err := os.WriteFile(filepath.Join(m.store.Dir, name), content("m", 10), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := m.store.WriteSidecar(name, models.Sidecar{SHA256: sha}); err != nil {
-		t.Fatal(err)
 	}
 }

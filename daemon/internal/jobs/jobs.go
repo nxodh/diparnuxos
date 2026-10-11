@@ -76,6 +76,8 @@ type Manager struct {
 	wg sync.WaitGroup
 	// progressHook 은 테스트가 진행률을 관찰하려고 넣는다. nil 이면 아무 일도 하지 않는다.
 	progressHook func(id string, done int64)
+	// cacheHashHook 은 테스트가 캐시 해시 도중 취소를 유도하려고 넣는다. nil 이면 아무 일도 하지 않는다.
+	cacheHashHook func()
 
 	mu     sync.Mutex
 	closed bool
@@ -132,7 +134,8 @@ func NewManager(o Options) *Manager {
 //
 // 먼저 저장소 정보(ModelInfo)와 파일 목록(ListFiles)을 조회한다. 두 조회는 각각 시간 제한을 가진다.
 // File 이 있으면 그 파일을, 없으면 .gguf 파일이 정확히 하나일 때만 그 파일을 고른다. 고른 파일에 SHA-256 이 없으면 거부한다.
-// 모델 디렉터리에 같은 이름의 모델이 있으면 SHA-256 이 같을 때만 done 으로 돌려주고, 다르면 name_conflict 다.
+// 모델 디렉터리에 같은 이름의 완전한 모델이 있으면 실제 파일 크기와 SHA-256 을 검증한 뒤 done 으로 돌려준다.
+// 파일이나 메타데이터가 손상된 경우 명시적 오류를 돌려주고 기존 파일은 건드리지 않는다.
 // 거부는 *PullError 로 돌려주며 작업은 만들지 않는다. 같은 대상을 이미 내려받는 작업이 있으면 그 작업을 돌려준다.
 //
 // 내려받기는 리비전을 조회한 커밋 SHA 로 고정해 받으므로, 기록하는 리비전은 실제로 받은 내용과 일치한다.
@@ -189,11 +192,21 @@ func (m *Manager) StartPull(ctx context.Context, req platform.PullRequest) (plat
 	if err != nil {
 		return platform.Job{}, err
 	}
-	switch {
-	case present != nil && present.SHA256 != "" && strings.EqualFold(present.SHA256, f.SHA256):
+	if present != nil {
+		if present.Incomplete {
+			return platform.Job{}, cachedModelError(name, models.ErrIncomplete)
+		}
+		if !strings.EqualFold(present.SHA256, f.SHA256) {
+			return platform.Job{}, newPullError(CodeNameConflict, "a different model named "+name+" already exists", nil)
+		}
+		if err := m.store.Verify(ctx, *present, f.Size, f.SHA256, func() {
+			if m.cacheHashHook != nil {
+				m.cacheHashHook()
+			}
+		}); err != nil {
+			return platform.Job{}, cachedModelError(name, err)
+		}
 		return m.installedJob(repo, pinned, f, info.License, name)
-	case present != nil:
-		return platform.Job{}, newPullError(CodeNameConflict, "a different model named "+name+" already exists", nil)
 	}
 	if _, err := os.Lstat(filepath.Join(m.store.Dir, name)); err == nil {
 		return platform.Job{}, newPullError(CodeNameConflict, "a file named "+name+" already exists in the model directory", nil)
@@ -204,6 +217,24 @@ func (m *Manager) StartPull(ctx context.Context, req platform.PullRequest) (plat
 	j := m.newJob(repo, pinned, f, info.License, name)
 	j.view.State = platform.JobQueued
 	return m.insert(j)
+}
+
+// cachedModelError 는 로컬 캐시 검증 오류를 명시적인 pull 오류로 바꾼다.
+func cachedModelError(name string, err error) error {
+	const recovery = "; stop any server using it, remove the model, then pull again"
+	switch {
+	case errors.Is(err, models.ErrIncomplete):
+		return newPullError(CodeCorruptModel, "cached model "+name+" is incomplete or has invalid metadata"+recovery, err)
+	case errors.Is(err, models.ErrSizeMismatch):
+		return newPullError(CodeSizeMismatch, "cached model "+name+" has a size that does not match the repository"+recovery, err)
+	case errors.Is(err, models.ErrChecksumMismatch):
+		return newPullError(CodeChecksumMismatch, "cached model "+name+" does not match the repository SHA-256"+recovery, err)
+	default:
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		return newPullError(CodeInternal, "cannot verify cached model "+name+": "+sanitize(err.Error(), ""), err)
+	}
 }
 
 // selectFile 은 파일 목록에서 내려받을 파일을 고른다. want 가 비어 있으면 .gguf 가 정확히 하나여야 한다.

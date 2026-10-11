@@ -7,6 +7,9 @@ package models
 
 import (
 	"bufio"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +42,15 @@ var ErrOutsideDir = errors.New("symbolic link points outside the model directory
 
 // ErrNotRegular is returned when a path is not a regular file.
 var ErrNotRegular = errors.New("not a regular file")
+
+// ErrIncomplete 은 모델 파일이나 메타데이터가 불완전하면 반환한다.
+var ErrIncomplete = errors.New("model is incomplete")
+
+// ErrSizeMismatch 는 모델 파일 크기가 예상값과 다르면 반환한다.
+var ErrSizeMismatch = errors.New("model size does not match")
+
+// ErrChecksumMismatch 는 모델 파일의 SHA-256 이 예상값과 다르면 반환한다.
+var ErrChecksumMismatch = errors.New("model SHA-256 does not match")
 
 // Store is a model directory. Dir is the directory path, such as /var/lib/lightlix/models.
 type Store struct {
@@ -133,7 +145,7 @@ func (s Store) List() ([]Model, error) {
 		m := Model{ID: id, Path: s.path(id), Size: info.Size(), Default: id == defaultID}
 		sc, sidecarOK := s.readSidecar(id)
 		m.SHA256, m.Repo, m.Revision, m.License = sc.SHA256, sc.Repo, sc.Revision, sc.License
-		m.Incomplete = !sidecarOK || metaErr != nil || partExists(s.path(id)+partSuffix)
+		m.Incomplete = !sidecarOK || !completeSidecar(sc) || metaErr != nil || partExists(s.path(id)+partSuffix)
 		if metaErr == nil {
 			m.Architecture = meta.Architecture
 			m.Name = meta.Name
@@ -145,6 +157,118 @@ func (s Store) List() ([]Model, error) {
 		out = append(out, m)
 	}
 	return out, nil
+}
+
+// Verify 는 모델이 완전하고 현재 바이트가 고정된 원격 메타데이터와 일치하는지 확인한다.
+// 모델 파일을 읽기만 하므로 실행 중인 mmap 모델을 바꾸지 않는다.
+// onHashChunk 가 있으면 해시 계산 중 청크를 읽을 때마다 호출하며, 테스트 취소 확인에 쓴다.
+func (s Store) Verify(ctx context.Context, model Model, expectedSize int64, expectedSHA string, onHashChunk func()) error {
+	if err := validID(model.ID); err != nil || model.Path != s.path(model.ID) {
+		return fmt.Errorf("%w: invalid model reference", ErrIncomplete)
+	}
+	if model.Incomplete {
+		return ErrIncomplete
+	}
+	if expectedSize < 0 || model.Size != expectedSize {
+		return ErrSizeMismatch
+	}
+	if !isSHA256(expectedSHA) || !strings.EqualFold(model.SHA256, expectedSHA) {
+		return ErrChecksumMismatch
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if partExists(s.path(model.ID) + partSuffix) {
+		return ErrIncomplete
+	}
+	sc, ok := s.readSidecar(model.ID)
+	if !ok || !completeSidecar(sc) {
+		return ErrIncomplete
+	}
+	if !strings.EqualFold(sc.SHA256, expectedSHA) {
+		return ErrChecksumMismatch
+	}
+
+	f, err := s.open(s.path(model.ID))
+	if err != nil {
+		return fmt.Errorf("models: open cached model: %w", err)
+	}
+	defer f.Close()
+	before, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("models: stat cached model: %w", err)
+	}
+	if before.Size() != expectedSize {
+		return ErrSizeMismatch
+	}
+	if _, err := gguf.ReadMeta(bufio.NewReader(f)); err != nil {
+		return fmt.Errorf("%w: invalid GGUF metadata", ErrIncomplete)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("models: seek cached model: %w", err)
+	}
+
+	h := sha256.New()
+	buf := make([]byte, 64<<10)
+	var hashed int64
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		n, readErr := f.Read(buf)
+		if n > 0 {
+			hashed += int64(n)
+			if hashed > expectedSize {
+				return ErrSizeMismatch
+			}
+			if _, err := h.Write(buf[:n]); err != nil {
+				return fmt.Errorf("models: hash cached model: %w", err)
+			}
+			if onHashChunk != nil {
+				onHashChunk()
+			}
+		}
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			return fmt.Errorf("models: read cached model: %w", readErr)
+		}
+	}
+	if hashed != expectedSize {
+		return ErrSizeMismatch
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !strings.EqualFold(hex.EncodeToString(h.Sum(nil)), expectedSHA) {
+		return ErrChecksumMismatch
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("models: restat cached model: %w", err)
+	}
+	current, err := s.open(s.path(model.ID))
+	if err != nil {
+		return fmt.Errorf("models: reopen cached model: %w", err)
+	}
+	defer current.Close()
+	currentInfo, err := current.Stat()
+	if err != nil {
+		return fmt.Errorf("models: restat cached model path: %w", err)
+	}
+	if !os.SameFile(before, after) || before.Size() != after.Size() || before.ModTime() != after.ModTime() ||
+		!os.SameFile(after, currentInfo) || after.Size() != currentInfo.Size() || after.ModTime() != currentInfo.ModTime() {
+		return ErrIncomplete
+	}
+	if partExists(s.path(model.ID) + partSuffix) {
+		return ErrIncomplete
+	}
+	currentSidecar, ok := s.readSidecar(model.ID)
+	if !ok || currentSidecar != sc {
+		return ErrIncomplete
+	}
+	return ctx.Err()
 }
 
 // WriteSidecar writes the sidecar of model id. The model file must exist.
@@ -357,6 +481,11 @@ func isSHA256(s string) bool {
 		}
 	}
 	return true
+}
+
+// completeSidecar 는 사이드카에 다운로드 식별에 필요한 필드가 있는지 확인한다.
+func completeSidecar(sc Sidecar) bool {
+	return sc.Repo != "" && sc.Revision != "" && isSHA256(sc.SHA256)
 }
 
 // writeAtomic writes data to a temporary file in dir, syncs it, and renames it to target.

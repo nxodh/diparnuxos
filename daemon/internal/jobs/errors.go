@@ -20,6 +20,7 @@ const (
 	CodeInsufficientSpace = "insufficient_space"
 	CodeChecksumMismatch  = "checksum_mismatch"
 	CodeSizeMismatch      = "size_mismatch"
+	CodeCorruptModel      = "corrupt_model"
 	CodeInvalidInput      = "invalid_input"
 	CodeNetwork           = "network"
 	CodeAmbiguousFile     = "ambiguous_file"

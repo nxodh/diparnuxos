@@ -51,6 +51,8 @@ func fixture(t *testing.T) Store {
 	dir := t.TempDir()
 	write(t, dir, "good.gguf", ggufBytes("gemma3", 26))
 	write(t, dir, "good.gguf.json", []byte(`{"repo":"ggml-org/gemma-3-1b-it-GGUF","revision":"f9c28bcd","sha256":"`+goodSHA+`","license":"gemma"}`))
+	write(t, dir, "incomplete.gguf", ggufBytes("llama", 8))
+	write(t, dir, "incomplete.gguf.json", []byte(`{"sha256":"`+goodSHA+`"}`))
 	write(t, dir, "nosidecar.gguf", ggufBytes("llama", 16))
 	write(t, dir, "broken.gguf", ggufBytes("llama", 12))
 	write(t, dir, "broken.gguf.json", []byte(`{"repo":`))
@@ -94,7 +96,7 @@ func TestListSkipsNonModelsAndKeepsIncomplete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	want := []string{"badsha.gguf", "broken.gguf", "garbage.gguf", "good.gguf", "nosidecar.gguf", "partial.gguf"}
+	want := []string{"badsha.gguf", "broken.gguf", "garbage.gguf", "good.gguf", "incomplete.gguf", "nosidecar.gguf", "partial.gguf"}
 	if got := idsOf(models); !reflect.DeepEqual(got, want) {
 		t.Fatalf("List IDs = %q\nwant %q", got, want)
 	}
@@ -131,12 +133,13 @@ func TestListIncompleteFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]bool{
-		"nosidecar.gguf": true,  // sidecar missing
-		"broken.gguf":    true,  // sidecar is not JSON
-		"badsha.gguf":    true,  // sidecar digest is not hex
-		"garbage.gguf":   true,  // GGUF metadata unreadable
-		"partial.gguf":   true,  // a .part file exists for this name
-		"good.gguf":      false, // complete
+		"nosidecar.gguf":  true,  // sidecar missing
+		"broken.gguf":     true,  // sidecar is not JSON
+		"badsha.gguf":     true,  // sidecar digest is not hex
+		"garbage.gguf":    true,  // GGUF metadata unreadable
+		"partial.gguf":    true,  // a .part file exists for this name
+		"good.gguf":       false, // complete
+		"incomplete.gguf": true,  // missing repository and revision
 	}
 	for id, want := range cases {
 		if got := byID(t, models, id).Incomplete; got != want {
@@ -350,8 +353,8 @@ func TestInvalidIDsAreRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models) != 6 {
-		t.Fatalf("models after rejected calls = %d, want 6", len(models))
+	if len(models) != 7 {
+		t.Fatalf("models after rejected calls = %d, want 7", len(models))
 	}
 }
 
