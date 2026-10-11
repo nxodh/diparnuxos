@@ -130,6 +130,17 @@ func TestLlamaUnitKeepsGPUAccess(t *testing.T) {
 	}
 }
 
+// TestLlamaUnitWaitsForExecBeforeStartReturns는 데몬의 즉시 MainPID 검증에 필요한 실행 장벽을 고정한다.
+func TestLlamaUnitWaitsForExecBeforeStartReturns(t *testing.T) {
+	llama := readFile(t, "lightlix-llama.service")
+	if !hasLine(llama, "Type=exec") {
+		t.Fatal("lightlix-llama.service must wait until ExecStart has executed before systemctl start succeeds")
+	}
+	if hasLine(llama, "Type=simple") {
+		t.Fatal("Type=simple can report success before ExecStart calls execve")
+	}
+}
+
 // TestFirewallDefaultsBeforeSaved 는 저장 파일이 깨져도 기본 차단을 먼저 적용하는 의존성을 확인한다.
 func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	saved := readFile(t, "lightlix-firewall.service")

@@ -5,7 +5,8 @@ Description=Lightlix llama-server (local LLM inference)
 After=lightlix-gpu-check.service
 
 [Service]
-Type=simple
+# 데몬은 systemctl start 반환 뒤 MainPID의 실행 파일과 환경을 즉시 검증한다. execve 성공을 시작 장벽으로 둔다.
+Type=exec
 # 전용 시스템 사용자로 돈다. root 권한은 필요 없다. GPU 는 장치 노드 권한으로 접근한다.
 User=lightlix-llm
 Group=lightlix-llm
