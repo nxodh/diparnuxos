@@ -133,7 +133,7 @@ report() {
 }
 
 # ERR 트랩: 예상하지 못한 명령 실패를 internal_error 로 기록하고 3 으로 끝낸다.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 on_error() {
     if (( WRITTEN )); then
         exit 3
@@ -142,7 +142,7 @@ on_error() {
 }
 
 # EXIT 트랩: 상태를 쓰지 못하고 끝나는 경우를 막는 안전망이다.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 on_exit() {
     local rc=$?
     if (( WRITTEN == 0 )); then

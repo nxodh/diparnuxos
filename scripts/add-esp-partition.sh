@@ -37,7 +37,9 @@ for cmd in xorriso sfdisk mdir mcopy cmp sha256sum awk sed dd stat mktemp; do
     command -v "${cmd}" >/dev/null 2>&1 || die "required command not found: ${cmd}"
 done
 
-[ -f "${IN}" ] && [ -r "${IN}" ] || die "input ISO is not a readable file: ${IN}"
+if [ ! -f "${IN}" ] || [ ! -r "${IN}" ]; then
+    die "input ISO is not a readable file: ${IN}"
+fi
 [ ! -e "${OUT}" ] || die "output already exists, refusing to overwrite: ${OUT}"
 OUT_DIR="$(dirname -- "${OUT}")"
 [ -d "${OUT_DIR}" ] || die "output directory does not exist: ${OUT_DIR}"
@@ -151,8 +153,9 @@ run_logged extract-in-squashfs xorriso -osirrox on -indev "${IN}" -extract "${SQ
 run_logged extract-out-squashfs xorriso -osirrox on -indev "${OUT}" -extract "${SQUASHFS_ISO_PATH}" "${OUT_SQUASHFS}"
 IN_SQUASHFS_SHA="$(sha256sum "${IN_SQUASHFS}" | awk '{ print $1 }')"
 OUT_SQUASHFS_SHA="$(sha256sum "${OUT_SQUASHFS}" | awk '{ print $1 }')"
-[ -n "${IN_SQUASHFS_SHA}" ] && [ "${IN_SQUASHFS_SHA}" = "${OUT_SQUASHFS_SHA}" ] \
-    || die "${SQUASHFS_ISO_PATH} sha256 differs: input=${IN_SQUASHFS_SHA} output=${OUT_SQUASHFS_SHA}"
+if [ -z "${IN_SQUASHFS_SHA}" ] || [ "${IN_SQUASHFS_SHA}" != "${OUT_SQUASHFS_SHA}" ]; then
+    die "${SQUASHFS_ISO_PATH} sha256 differs: input=${IN_SQUASHFS_SHA} output=${OUT_SQUASHFS_SHA}"
+fi
 echo "add-esp-partition: ${SQUASHFS_ISO_PATH} sha256 unchanged: ${OUT_SQUASHFS_SHA}"
 rm -f -- "${IN_SQUASHFS}" "${OUT_SQUASHFS}"
 
