@@ -11,6 +11,11 @@
 #   - Secure Boot 상태 (mokutil 이 있을 때, 기록용)
 #   - NVIDIA 드라이버 로드 흔적 (/proc/driver/nvidia/version 이 있을 때)
 #   - nvidia-smi 가 있을 때의 compute_cap (8.6 / 8.9 / 12.0 중 하나여야 함)
+#   - GPU 진단 상태 /run/lightlix/gpu-status 의 LIGHTLIX_GPU_STATUS 와 USABLE_COUNT
+#     (ready 면 PASS, no_gpu 면 SKIP, 그 밖이면 FAIL)
+#   - ready 일 때 /dev/dri/card* 가 있는지 (없으면 FAIL)
+#   - 로드된 드라이버 버전이 /usr/share/lightlix/nvidia.conf 의 고정 버전과 같은지
+#     (드라이버가 로드되지 않았으면 SKIP)
 #   - 무선 인터페이스(/sys/class/net/wl*)가 있으면 이름, 그때 iwd.service 가 active 인지
 #     (무선 장치가 없으면 SKIP)
 # 나머지는 SKIP 으로 출력한다.
@@ -22,6 +27,9 @@
 #   LIGHTLIX_EFI_DIR             기본 /sys/firmware/efi
 #   LIGHTLIX_NVIDIA_VERSION_FILE 기본 /proc/driver/nvidia/version
 #   LIGHTLIX_NET_CLASS_DIR       기본 /sys/class/net
+#   LIGHTLIX_GPU_STATUS_FILE     기본 /run/lightlix/gpu-status
+#   LIGHTLIX_NVIDIA_CONF_FILE    기본 /usr/share/lightlix/nvidia.conf
+#   LIGHTLIX_DRI_DIR             기본 /dev/dri
 
 set -euo pipefail
 
@@ -29,6 +37,9 @@ OS_RELEASE_FILE="${LIGHTLIX_OS_RELEASE:-/etc/os-release}"
 EFI_DIR="${LIGHTLIX_EFI_DIR:-/sys/firmware/efi}"
 NVIDIA_VERSION_FILE="${LIGHTLIX_NVIDIA_VERSION_FILE:-/proc/driver/nvidia/version}"
 NET_CLASS_DIR="${LIGHTLIX_NET_CLASS_DIR:-/sys/class/net}"
+GPU_STATUS_FILE="${LIGHTLIX_GPU_STATUS_FILE:-/run/lightlix/gpu-status}"
+NVIDIA_CONF_FILE="${LIGHTLIX_NVIDIA_CONF_FILE:-/usr/share/lightlix/nvidia.conf}"
+DRI_DIR="${LIGHTLIX_DRI_DIR:-/dev/dri}"
 
 # RTX 30 (Ampere), RTX 40 (Ada), RTX 50 (Blackwell) 의 compute capability.
 readonly SUPPORTED_COMPUTE_CAPS='8.6 8.9 12.0'
@@ -134,6 +145,71 @@ check_nvidia_smi_and_compute_cap() {
   fi
 }
 
+# gpu-status 를 source 해 키 값을 꺼낸다. 파일이 없거나 키가 없으면 빈 값이다.
+gpu_status_value() {  # gpu_status_value KEY
+  [[ -r "$GPU_STATUS_FILE" ]] || return 0
+  # shellcheck source=/dev/null
+  ( . "$GPU_STATUS_FILE" && printf '%s' "${!1:-}" ) || true
+}
+
+check_gpu_status() {
+  if [[ ! -r "$GPU_STATUS_FILE" ]]; then
+    emit SKIP gpu-status "$GPU_STATUS_FILE not found (gpu-check did not record a state)"
+    emit SKIP gpu-usable 'gpu-status not found'
+    return 0
+  fi
+  local state usable message
+  state="$(gpu_status_value LIGHTLIX_GPU_STATUS)"
+  usable="$(gpu_status_value LIGHTLIX_GPU_USABLE_COUNT)"
+  message="$(gpu_status_value LIGHTLIX_GPU_MESSAGE)"
+  case "$state" in
+    ready)  emit PASS gpu-status "ready (usable GPUs: ${usable:-0})" ;;
+    no_gpu) emit SKIP gpu-status "no_gpu: $message" ;;
+    *)      emit FAIL gpu-status "${state:-unknown}: $message" ;;
+  esac
+  if [[ "$state" != ready ]]; then
+    emit SKIP gpu-usable 'gpu-status is not ready'
+  elif (( ${usable:-0} >= 1 )); then
+    emit PASS gpu-usable "$usable GPU(s) usable"
+  else
+    emit FAIL gpu-usable 'ready but USABLE_COUNT is 0'
+  fi
+}
+
+check_dri_card() {
+  local state
+  state="$(gpu_status_value LIGHTLIX_GPU_STATUS)"
+  if [[ "$state" != ready ]]; then
+    emit SKIP dri-card "gpu-status is not ready (${state:-none})"
+    return 0
+  fi
+  if ls "$DRI_DIR"/card* >/dev/null 2>&1; then
+    emit PASS dri-card "card device(s) present in $DRI_DIR"
+  else
+    emit FAIL dri-card "no card device in $DRI_DIR (nvidia-drm did not create a DRM device)"
+  fi
+}
+
+check_driver_pin() {
+  if [[ ! -r "$NVIDIA_VERSION_FILE" ]]; then
+    emit SKIP driver-version-pin 'NVIDIA driver is not loaded'
+    return 0
+  fi
+  if [[ ! -r "$NVIDIA_CONF_FILE" ]]; then
+    emit FAIL driver-version-pin "not readable: $NVIDIA_CONF_FILE"
+    return 0
+  fi
+  local pinned loaded
+  # shellcheck source=/dev/null
+  pinned="$(. "$NVIDIA_CONF_FILE" && printf '%s' "${NVIDIA_DRIVER_VERSION:-}")"
+  loaded="$(head -n 1 "$NVIDIA_VERSION_FILE" | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' | head -n 1 || true)"
+  if [[ -n "$pinned" && "$loaded" == "$pinned" ]]; then
+    emit PASS driver-version-pin "loaded $loaded = pinned $pinned"
+  else
+    emit FAIL driver-version-pin "loaded '${loaded:-unknown}', pinned '${pinned:-unset}'"
+  fi
+}
+
 check_wifi() {
   local iface='' dev state
   for dev in "$NET_CLASS_DIR"/wl*; do
@@ -171,6 +247,9 @@ check_uefi
 check_secure_boot
 check_nvidia_driver_file
 check_nvidia_smi_and_compute_cap
+check_gpu_status
+check_dri_card
+check_driver_pin
 check_wifi
 skip_later model-load 'Phase 2 에서 구현'
 skip_later gpu-offload 'Phase 2 에서 구현'

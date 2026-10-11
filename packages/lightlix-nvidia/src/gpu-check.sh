@@ -1,94 +1,295 @@
 #!/usr/bin/env bash
-# GPU 와 드라이버 상태를 기록한다. 실패해도 부팅은 계속하며 CPU 폴백 대상으로 안내한다.
-# 이 단계에는 추론 엔진이 없다. 종료 코드 0 은 GPU 준비, 1 은 CPU 폴백 대상이다.
-set -euo pipefail
+# GPU 와 드라이버 상태를 진단해 /run/lightlix/gpu-status 에 기록한다.
+# 같은 내용을 화면(stdout, 콘솔)과 로그인 프롬프트 위(/run/issue.d), 로그인 뒤(/run/motd.d)에 쓴다.
+#
+# 종료 코드 (docs/drivers.md 의 "GPU 진단 계약"):
+#   0  쓸 수 있는 GPU 가 하나 이상 있다 (ready)
+#   1  NVIDIA GPU 가 없다 (no_gpu). CPU 폴백은 정상이다.
+#   2  NVIDIA GPU 는 있지만 쓸 수 없다
+#   3  스크립트 자체의 오류 (internal_error, config_missing)
+#
+# 화면과 상태 파일에 나가는 문구는 리눅스 텍스트 콘솔에서 읽히도록 ASCII 영어로 쓴다.
+# 주석만 한국어로 쓴다. bash 3.2 에서도 돌도록 연관 배열과 빈 배열 확장을 쓰지 않는다.
+set -eEuo pipefail
 export LC_ALL=C
+umask 022
+
 CONF="${LIGHTLIX_NVIDIA_CONF:-/usr/share/lightlix/nvidia.conf}"
 SYSFS="${LIGHTLIX_SYSFS:-/sys}"
 VERSION_FILE="${LIGHTLIX_NVIDIA_VERSION_FILE:-/proc/driver/nvidia/version}"
 RUNTIME="${LIGHTLIX_RUNTIME_DIR:-/run/lightlix}"
-NVIDIA_DRIVER_VERSION=""
-if [[ -r "$CONF" ]]; then
-    # shellcheck source=/dev/null
-    . "$CONF"
-fi
-mkdir -p "$RUNTIME"
+ISSUE_DIR="${LIGHTLIX_ISSUE_DIR:-/run/issue.d}"
+MOTD_DIR="${LIGHTLIX_MOTD_DIR:-/run/motd.d}"
+MOKUTIL="${LIGHTLIX_MOKUTIL:-mokutil}"
+NVIDIA_SMI="${LIGHTLIX_NVIDIA_SMI:-nvidia-smi}"
 
+# 진단 중 쌓이는 값. report 가 상태 파일과 화면 출력을 만든다.
+STATE=internal_error
+MESSAGE=""
+WRITTEN=0
+DETAIL=""
+TEXT=""
+GPU_PRESENT=0
+PCI_COUNT=0
+GPU_COUNT=0
+USABLE_COUNT=0
+USABLE_INDEXES=""
+IGNORED=""
+SECURE_BOOT=unknown
+DRIVER_VERSION=""
+GPU_KEYS=""
+NVIDIA_DRIVER_VERSION=""
+
+# 값이 셸 source 와 화면 출력을 깨지 않도록 출력 가능한 ASCII 만 남기고 " $ ` \ 를 지운다.
+# 지울 문자는 8진수로 쓴다: " 042, $ 044, ` 140, \ 134.
+clean() {
+    printf '%s' "$1" | tr -cd '\40-\176' | tr -d '\042\044\140\134'
+}
+
+trim() {
+    printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+# 화면 상세 줄을 덧붙인다. 파이프 안에서 부르면 값이 사라지므로 리다이렉션으로만 읽는다.
+add_line() {
+    DETAIL="${DETAIL}$(clean "$1")"$'\n'
+}
+
+# 파일의 앞 다섯 줄을 화면 상세에 덧붙인다. 원인 확인용 오류문을 보여 준다.
+add_file_head() {
+    local file="$1" line="" count=0
+    [[ -r "$file" ]] || return 0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        add_line "  $line"
+        count=$((count + 1))
+        if (( count >= 5 )); then
+            break
+        fi
+    done < "$file"
+    return 0
+}
+
+# Secure Boot 가 켜져 있었다면 모듈 실패 문구에 그 사실을 덧붙인다.
+module_message() {
+    if [[ "$SECURE_BOOT" == enabled ]]; then
+        printf '%s Secure Boot is enabled.' "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
+# GPU 한 장의 판정 결과를 상태 파일 키로 쌓는다. add_gpu INDEX NAME CAP SUPPORTED REASON
+add_gpu() {
+    GPU_KEYS="${GPU_KEYS}LIGHTLIX_GPU_${1}_NAME=\"$(clean "$2")\""$'\n'
+    GPU_KEYS="${GPU_KEYS}LIGHTLIX_GPU_${1}_COMPUTE_CAP=$(clean "$3")"$'\n'
+    GPU_KEYS="${GPU_KEYS}LIGHTLIX_GPU_${1}_SUPPORTED=$4"$'\n'
+    GPU_KEYS="${GPU_KEYS}LIGHTLIX_GPU_${1}_REASON=$5"$'\n'
+}
+
+# 상태 파일을 임시 파일에 쓴 뒤 mv 로 바꿔 끼운다. 셸에서 source 할 수 있는 KEY=VALUE 형식이다.
+write_status() {
+    local tmp="$RUNTIME/gpu-status.new"
+    {
+        printf 'LIGHTLIX_GPU_STATUS=%s\n' "$STATE"
+        printf 'LIGHTLIX_GPU_PRESENT=%s\n' "$GPU_PRESENT"
+        printf 'LIGHTLIX_GPU_PCI_COUNT=%s\n' "$PCI_COUNT"
+        printf 'LIGHTLIX_GPU_COUNT=%s\n' "$GPU_COUNT"
+        printf 'LIGHTLIX_GPU_USABLE_COUNT=%s\n' "$USABLE_COUNT"
+        printf 'LIGHTLIX_GPU_USABLE_INDEXES="%s"\n' "$USABLE_INDEXES"
+        printf 'LIGHTLIX_SECURE_BOOT=%s\n' "$SECURE_BOOT"
+        printf 'LIGHTLIX_DRIVER_VERSION=%s\n' "$DRIVER_VERSION"
+        printf 'LIGHTLIX_GPU_MESSAGE="%s"\n' "$(clean "$MESSAGE")"
+        printf '%s' "$GPU_KEYS"
+    } > "$tmp" && chmod 644 "$tmp" && mv -f "$tmp" "$RUNTIME/gpu-status"
+}
+
+# 로그인 프롬프트와 로그인 뒤 안내 파일에 같은 내용을 쓴다. write_text DIR NAME
+write_text() {
+    local tmp="$RUNTIME/.$2.tmp"
+    mkdir -p "$1" && printf '%s' "$TEXT" > "$tmp" && chmod 644 "$tmp" && mv -f "$tmp" "$1/$2"
+}
+
+# report STATE MESSAGE RC: 상태를 기록하고 화면과 안내 파일에 쓴 뒤 종료한다.
 report() {
     local state="$1" message="$2" rc="$3"
-    printf 'LIGHTLIX_GPU_STATUS=%s\n' "$state" > "$RUNTIME/gpu-status.new"
-    chmod 644 "$RUNTIME/gpu-status.new"
-    mv "$RUNTIME/gpu-status.new" "$RUNTIME/gpu-status"
-    printf 'Lightlix GPU [%s]: %s\n' "$state" "$message"
-    if [[ "$rc" != 0 ]]; then
-        echo 'Lightlix: CPU 폴백 대상입니다. LLM 추론 엔진은 Phase 2에서 추가합니다.'
+    set +e
+    WRITTEN=1
+    STATE="$state"
+    MESSAGE="$message"
+    TEXT="Lightlix GPU [$state]: $(clean "$message")"$'\n'"$DETAIL"
+    if [[ "$rc" == 1 || "$rc" == 2 ]]; then
+        TEXT="${TEXT}Lightlix: running in CPU fallback mode."$'\n'
     fi
+    if ! write_status; then
+        echo 'lightlix-gpu-check: cannot write /run/lightlix/gpu-status' >&2
+        rc=3
+    fi
+    if ! write_text "$ISSUE_DIR" 50-lightlix-gpu.issue || ! write_text "$MOTD_DIR" 50-lightlix-gpu; then
+        echo 'lightlix-gpu-check: cannot write the login notice files' >&2
+        rc=3
+    fi
+    printf '%s' "$TEXT"
     exit "$rc"
 }
 
-secure_boot=unknown
-if command -v mokutil >/dev/null 2>&1; then
-    sb="$(mokutil --sb-state 2>&1 || true)"
+# ERR 트랩: 예상하지 못한 명령 실패를 internal_error 로 기록하고 3 으로 끝낸다.
+# shellcheck disable=SC2317,SC2329
+on_error() {
+    if (( WRITTEN )); then
+        exit 3
+    fi
+    report internal_error "internal error at line $1. See journalctl -u lightlix-gpu-check.service." 3
+}
+
+# EXIT 트랩: 상태를 쓰지 못하고 끝나는 경우를 막는 안전망이다.
+# shellcheck disable=SC2317,SC2329
+on_exit() {
+    local rc=$?
+    if (( WRITTEN == 0 )); then
+        report internal_error "stopped unexpectedly with exit status $rc." 3
+    fi
+}
+
+trap 'on_error $LINENO' ERR
+trap on_exit EXIT
+
+mkdir -p "$RUNTIME"
+
+# 1. Secure Boot 상태. mokutil 이 없거나 해석할 수 없으면 unknown 이다.
+if command -v "$MOKUTIL" >/dev/null 2>&1; then
+    sb="$("$MOKUTIL" --sb-state 2>&1 || true)"
     case "$sb" in
-        *'SecureBoot enabled'*) secure_boot=enabled ;;
-        *'SecureBoot disabled'*) secure_boot=disabled ;;
+        *'SecureBoot enabled'*) SECURE_BOOT=enabled ;;
+        *'SecureBoot disabled'*) SECURE_BOOT=disabled ;;
     esac
 fi
-printf 'Lightlix Secure Boot: %s\n' "$secure_boot"
+add_line "Lightlix Secure Boot: $SECURE_BOOT"
 
-# PCI 디스플레이 장치만 센다. NVIDIA 오디오/USB 장치를 GPU 로 오인하지 않는다.
-gpu_count=0
+# 2. PCI 디스플레이 장치(class 0x03xx)만 센다. NVIDIA 오디오와 USB 장치는 GPU 로 세지 않는다.
 for device in "$SYSFS"/bus/pci/devices/*; do
     [[ -r "$device/vendor" && -r "$device/class" ]] || continue
     [[ "$(cat "$device/vendor")" == 0x10de ]] || continue
     case "$(cat "$device/class")" in
-        0x03*) gpu_count=$((gpu_count + 1)) ;;
+        0x03*) PCI_COUNT=$((PCI_COUNT + 1)) ;;
     esac
 done
-if (( gpu_count == 0 )); then
-    report no_gpu 'NVIDIA GPU가 없습니다.' 1
+if (( PCI_COUNT > 0 )); then
+    GPU_PRESENT=1
 fi
 
+# 3. 고정 드라이버 버전. 읽을 수 없으면 버전 검사를 건너뛰지 않고 config_missing 으로 끝낸다.
+if [[ ! -r "$CONF" ]]; then
+    report config_missing "Cannot read the NVIDIA config file: $CONF" 3
+fi
+# shellcheck source=/dev/null
+. "$CONF"
+if [[ -z "${NVIDIA_DRIVER_VERSION:-}" ]]; then
+    report config_missing "NVIDIA_DRIVER_VERSION is not set in $CONF" 3
+fi
+
+if (( PCI_COUNT == 0 )); then
+    report no_gpu 'No NVIDIA GPU was found on the PCI bus.' 1
+fi
+
+# 4. 오픈 커널 모듈 로드. 서명 거부 문구가 있고 Secure Boot 가 켜져 있을 때만 secure_boot 이다.
 if [[ ! -r "$VERSION_FILE" ]]; then
-    if ! timeout 30 modprobe nvidia > "$RUNTIME/module-load" 2>&1; then
-        cat "$RUNTIME/module-load" >&2
-        if [[ "$secure_boot" == enabled ]]; then
-            report secure_boot 'Secure Boot가 켜진 상태에서 모듈 로드에 실패했습니다. 라이브 ISO의 DKMS 키는 기기에 등록되어 있지 않습니다. UEFI 설정에서 Secure Boot를 끈 뒤 다시 부팅하세요. 자세한 원인은 journalctl -k에서 확인하세요. 기기별 MOK 등록은 후속 단계에서 구현합니다.' 1
+    load_log="$RUNTIME/module-load.log"
+    if ! timeout -k 5 30 modprobe nvidia > "$load_log" 2>&1; then
+        add_file_head "$load_log"
+        if [[ "$SECURE_BOOT" == enabled ]] && grep -Fq 'Key was rejected by service' "$load_log"; then
+            add_line 'To use the NVIDIA GPU: 1) restart and open the UEFI/BIOS setup,'
+            add_line '2) turn off Secure Boot, 3) save and boot Lightlix again.'
+            report secure_boot 'Secure Boot is on and blocked the NVIDIA kernel module. Turn off Secure Boot in UEFI setup and boot again.' 2
         fi
-        report module_unloaded 'NVIDIA 모듈을 로드하지 못했습니다. journalctl -k와 modinfo nvidia로 원인을 확인하세요.' 1
+        report module_unloaded "$(module_message 'NVIDIA kernel module failed to load. See journalctl -k.')" 2
     fi
 fi
-[[ -r "$VERSION_FILE" ]] || report module_unloaded 'NVIDIA 모듈의 버전 파일이 없습니다.' 1
-grep -q 'Open Kernel Module' "$VERSION_FILE" || report proprietary_module '오픈 커널 모듈이 아닙니다. 독점 모듈은 사용할 수 없습니다.' 1
-if [[ -n "$NVIDIA_DRIVER_VERSION" ]] && ! grep -Fq "$NVIDIA_DRIVER_VERSION" "$VERSION_FILE"; then
-    report version_mismatch '로드된 모듈이 이미지에 고정된 드라이버 버전과 다릅니다.' 1
+[[ -r "$VERSION_FILE" ]] || report module_unloaded "$(module_message 'NVIDIA module version file is missing.')" 2
+
+if ! grep -q 'Open Kernel Module' "$VERSION_FILE"; then
+    report proprietary_module 'The loaded NVIDIA module is not the open kernel module. Proprietary modules are not supported.' 2
 fi
-command -v nvidia-smi >/dev/null 2>&1 || report driver_missing 'nvidia-smi가 없습니다. 드라이버 패키지 구성을 확인하세요.' 1
-if ! timeout 20 nvidia-smi --query-gpu=name,compute_cap,driver_version --format=csv,noheader,nounits > "$RUNTIME/gpu-query" 2> "$RUNTIME/gpu-query-error"; then
-    cat "$RUNTIME/gpu-query-error" >&2
-    if grep -qi 'driver/library version mismatch\|API mismatch' "$RUNTIME/gpu-query-error"; then
-        report version_mismatch '커널 모듈과 사용자 공간 라이브러리 버전이 다릅니다. 같은 버전으로 복구한 뒤 재부팅하세요.' 1
+DRIVER_VERSION="$(head -n 1 "$VERSION_FILE" | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' | head -n 1 || true)"
+if ! grep -Fq "$NVIDIA_DRIVER_VERSION" "$VERSION_FILE"; then
+    report version_mismatch "Loaded NVIDIA module does not match the pinned driver $NVIDIA_DRIVER_VERSION. Restore the matching version and reboot." 2
+fi
+
+# 5. nvidia-smi 로 GPU 별 판정. 표준 출력과 오류 출력을 함께 받는다. nvidia-smi 는 오류문을 stdout 에 쓴다.
+if ! command -v "$NVIDIA_SMI" >/dev/null 2>&1; then
+    report driver_missing 'nvidia-smi was not found. Check the NVIDIA driver packages.' 2
+fi
+query="$RUNTIME/gpu-query.txt"
+query_rc=0
+timeout -k 5 20 "$NVIDIA_SMI" --query-gpu=index,name,compute_cap,driver_version --format=csv,noheader,nounits > "$query" 2>&1 || query_rc=$?
+if (( query_rc != 0 )); then
+    add_file_head "$query"
+    if grep -Eqi 'driver/library version mismatch|API mismatch' "$query"; then
+        report version_mismatch 'The kernel module and the user-space NVIDIA library versions differ. Restore the same version and reboot.' 2
     fi
-    report query_failed 'nvidia-smi GPU 조회에 실패했습니다. journalctl -k를 확인하세요.' 1
+    report query_failed "nvidia-smi GPU query failed with exit status $query_rc. See journalctl -k." 2
 fi
 
-count=0
-bad=0
-while IFS=, read -r name cap version; do
-    [[ -n "$name" ]] || continue
-    name="$(printf '%s' "$name" | sed 's/^ *//;s/ *$//')"
-    cap="${cap//[[:space:]]/}"
-    version="${version//[[:space:]]/}"
-    printf 'Lightlix GPU: %s compute_cap=%s driver=%s\n' "$name" "$cap" "$version"
-    [[ -z "$NVIDIA_DRIVER_VERSION" || "$version" == "$NVIDIA_DRIVER_VERSION" ]] || report version_mismatch 'nvidia-smi가 보고한 드라이버 버전이 이미지 설정과 다릅니다.' 1
-    case "$cap" in 8.6|8.9|12.0) ;; *) bad=$((bad + 1)) ;; esac
-    [[ "$name" =~ GeForce\ RTX\ (30|40|50)[0-9][0-9] ]] || bad=$((bad + 1))
-    count=$((count + 1))
-done < "$RUNTIME/gpu-query"
-(( count > 0 )) || report query_failed 'nvidia-smi가 GPU를 보고하지 않았습니다.' 1
-(( bad == 0 )) || report unsupported_gpu '대상은 GeForce RTX 30/40/50이며 compute_cap은 8.6, 8.9, 12.0입니다. 감지된 GPU 중 대상 밖의 장치가 있습니다.' 1
+while IFS= read -r raw || [[ -n "$raw" ]]; do
+    [[ -n "$raw" ]] || continue
+    IFS=, read -r idx name cap version <<< "$raw"
+    idx="$(trim "$idx")"
+    name="$(trim "$name")"
+    cap="$(trim "$cap")"
+    version="$(trim "$version")"
+    if [[ ! "$idx" =~ ^[0-9]+$ || -z "$cap" || -z "$version" ]]; then
+        add_line "Unexpected nvidia-smi output: $raw"
+        report query_failed 'nvidia-smi returned output that could not be parsed. See journalctl -k.' 2
+    fi
+    if [[ "$version" != "$NVIDIA_DRIVER_VERSION" ]]; then
+        report version_mismatch "nvidia-smi reports driver $version, but the image is pinned to $NVIDIA_DRIVER_VERSION." 2
+    fi
+    # 판정: compute_cap 을 먼저 보고, 그다음 이름이 GeForce RTX 30/40/50 인지 본다.
+    reason=ok
+    case "$cap" in
+        8.6|8.9|12.0) ;;
+        *) reason=compute_cap ;;
+    esac
+    if [[ "$reason" == ok && ! "$name" =~ GeForce\ RTX\ (30|40|50)[0-9][0-9] ]]; then
+        reason=name
+    fi
+    supported=0
+    if [[ "$reason" == ok ]]; then
+        supported=1
+    fi
+    GPU_COUNT=$((GPU_COUNT + 1))
+    add_gpu "$idx" "$name" "$cap" "$supported" "$reason"
+    add_line "Lightlix GPU $idx: $name (compute_cap $cap, driver $version, supported=$supported, reason=$reason)"
+    if (( supported == 1 )); then
+        USABLE_COUNT=$((USABLE_COUNT + 1))
+        USABLE_INDEXES="${USABLE_INDEXES:+$USABLE_INDEXES,}$idx"
+    else
+        IGNORED="${IGNORED:+$IGNORED,}$idx"
+    fi
+done < "$query"
 
-# 향후 CUDA 와 Wayland 를 쓸 경로도 준비한다. GUI 기동 자체는 Phase 3에서 검증한다.
-timeout 20 modprobe nvidia-uvm || report module_unloaded 'nvidia-uvm을 로드하지 못했습니다.' 1
-timeout 20 modprobe nvidia-drm || report module_unloaded 'nvidia-drm을 로드하지 못했습니다.' 1
-report ready 'NVIDIA 오픈 모듈과 대상 GPU를 확인했습니다. 실기 CUDA 추론과 화면 동작은 별도 검증이 필요합니다.' 0
+if (( GPU_COUNT == 0 )); then
+    report query_failed 'nvidia-smi did not report any GPU.' 2
+fi
+if (( PCI_COUNT > GPU_COUNT )); then
+    add_line "Lightlix GPU: warning: PCI shows $PCI_COUNT NVIDIA display device(s), but nvidia-smi lists $GPU_COUNT."
+fi
+if [[ -n "$IGNORED" ]] && (( USABLE_COUNT > 0 )); then
+    add_line "Lightlix GPU: ignoring unsupported GPU(s) at index $IGNORED."
+fi
+if (( USABLE_COUNT == 0 )); then
+    report unsupported_gpu 'No supported GPU. Targets are GeForce RTX 30, 40 and 50 series with compute_cap 8.6, 8.9 or 12.0.' 2
+fi
+
+# 6. 쓸 수 있는 GPU 가 있을 때만 CUDA 와 DRM 모듈을 올린다.
+for module in nvidia-uvm nvidia-drm; do
+    module_log="$RUNTIME/$module.log"
+    if ! timeout -k 5 20 modprobe "$module" > "$module_log" 2>&1; then
+        add_file_head "$module_log"
+        # 계약: 쓸 수 있는 GPU 수는 ready 일 때만 0 보다 크다. 데몬은 이 값만 보고 판단할 수 있어야 한다.
+        USABLE_COUNT=0
+        USABLE_INDEXES=""
+        report module_unloaded "$(module_message "$module failed to load. See journalctl -k.")" 2
+    fi
+done
+
+report ready "NVIDIA open kernel module is loaded. $USABLE_COUNT of $GPU_COUNT GPU(s) usable." 0

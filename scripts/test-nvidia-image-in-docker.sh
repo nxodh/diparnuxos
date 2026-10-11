@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Debian 컨테이너에서 완성된 ISO 의 NVIDIA 구성 검사를 실행한다.
+# sfdisk 는 trixie 에서 fdisk 패키지에 있다(util-linux 에는 없다).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
@@ -11,6 +12,6 @@ docker run --rm -v "$ROOT:/src:ro" -v "$iso_dir:/iso:ro" \
     "debian:$DEBIAN_SUITE" bash -euc '
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -qq
-        apt-get install -y -qq --no-install-recommends xorriso squashfs-tools >/dev/null
+        apt-get install -y -qq --no-install-recommends xorriso squashfs-tools fdisk >/dev/null
         exec bash /src/tests/nvidia/image.sh "/iso/$1"
     ' _ "$(basename "$ISO")"

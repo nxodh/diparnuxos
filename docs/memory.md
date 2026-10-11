@@ -1,9 +1,9 @@
 # 메모리 예산과 측정 계획
 
-- 확인 날짜: 2026-10-10
-- 상태: 초안. 실측값은 아직 없다.
+- 확인 날짜: 2026-10-11
+- 상태: 수정 전(0.1.0)의 QEMU 실측값이 있다. 수정 후(0.1.2) 실측값은 미측정이다. 드라이버를 로드한 실기 값은 아직 없다.
 
-Lightlix의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌리는 것이다. 이 문서는 목표치, 측정 방법 초안, 실측값 표를 둔다. **지금 모든 실측값은 "미측정"이다.** 측정은 Phase 1 이후 실제 이미지로 한다.
+Lightlix의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌리는 것이다. 이 문서는 목표치, 측정 방법 초안, 실측값 표를 둔다. 실측값은 QEMU에서 잰 수정 전 값이 있다(3절). 드라이버를 로드한 실기 값은 아직 없다.
 
 ---
 
@@ -59,9 +59,42 @@ Lightlix의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌
 
 | 항목 | 목표 | 실측 | 측정 날짜 | 이미지 버전 | 조건 |
 |---|---|---|---|---|---|
-| 헤드리스 유휴 | 300 MB 이하 | 미측정 | — | — | — |
+| 헤드리스 유휴 | 300 MB 이하 | 234 MiB (부팅 3분, NIC 없음). 3시간 52분 방치 후 319 MiB로 목표를 넘었다. | 2026-10-11 | 0.1.0 (수정 전) | QEMU 10.0.13 TCG, vCPU 1, 메모리 2G, GPU 없음, 0.1.0 ISO, 수정 전 |
+| 헤드리스 유휴 (드라이버 로드) | 300 MB 이하 | 미측정 | — | — | 실기 NVIDIA GPU 필요 |
 | GUI 유휴 | 700 MB 이하 | 미측정 | — | — | — |
 | `lightlixd` 유휴 | 30 MB 이하 | 미측정 | — | — | — |
+| 헤드리스 유휴 (수정 후) | 300 MB 이하 | 미측정 | — | 0.1.2 | 0.1.2 ISO, QEMU 로도 아직 재측정하지 않았다 |
+
+### 3.1 수정 전 측정 기록 (0.1.0, QEMU)
+
+모든 값은 QEMU 10.0.13(TCG, arm64 호스트, q35, vCPU 1, 메모리 2G, GPU 없음)의 라이브 부팅 값이다.
+
+| 조건 | used (MiB) | 비고 |
+|---|---|---|
+| NIC 없음, 부팅 3분(로그인 후 약 100초) | 234 | free 1684, shared 23, buff/cache 202, available 1731 |
+| NIC 있음, 부팅 3분 | 251, 257 | 두 번 부팅. ifupdown과 dhcpcd가 같은 NIC를 관리했다 |
+| Secure Boot 켬, 4.5분 | 276 | modprobe 시도 후 |
+| NIC 없음, 3시간 52분 방치 | 319 | shared 66, Shmem 75.9 MB |
+| `apt-get update` 직후 | 379 | shared 122 |
+
+- 3시간 52분 방치 시점의 RSS 상위(kB): systemd-resolved 14136, systemd 13992, systemd-networkd 11212, systemd-journald 10080, systemd-udevd 9864, systemd-logind 8592, dbus-daemon 4420.
+- 드라이버를 로드한 상태의 유휴 램은 잴 수 없었다. NIC가 있을 때 목표까지 여유는 43~49 MB다.
+- zram: `/dev/zram0` lz4 983M, 우선순위 100, 사용 0.
+
+### 3.2 목표를 넘은 원인과 0.1.2의 수정
+
+- 3시간 52분 방치 뒤 overlay(tmpfs) 74 MiB 중 `/var/cache/apt`가 46 MiB, `/var/log/journal`이 21 MiB였다. 라이브 세션에서 `/var/log/journal`은 램(overlay tmpfs)에 있다. 저널 상한은 `System Journal ... max 98.2M`이었다.
+- apt 일일 타이머 `apt-daily.timer`와 `apt-daily-upgrade.timer`가 활성이어서 apt 목록과 캐시를 램에 채웠다.
+- ISO에는 apt 목록 153 MB와 캐시 94 MB가 들어 있었다.
+
+0.1.2에서 바꾼 것:
+
+- journald를 `Storage=volatile`과 `RuntimeMaxUse=16M`으로 제한했다(`build/config/includes.chroot/etc/systemd/journald.conf.d/lightlix.conf`).
+- apt-daily와 apt-daily-upgrade 타이머를 `/dev/null`로 마스크했다. 갱신은 Phase 4의 `lightlix-update`가 맡는다.
+- `--apt-indices false`로 apt 목록을 이미지에서 뺐다. `--apt-source-archives false`로 deb-src를 끈다(`build/auto/config`).
+- ifupdown과 dhcpcd-base를 제거해 DHCP 클라이언트를 systemd-networkd 하나로 줄였다. 이것이 램에 주는 영향은 측정하지 않았다.
+
+**0.1.2의 유휴 램 실측값은 미측정이다.** 같은 조건(QEMU, 3시간 방치)으로 다시 재야 목표 달성을 말할 수 있다.
 
 ---
 

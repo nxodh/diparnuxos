@@ -38,6 +38,12 @@ else
     rm -f "${SNAPSHOT_APT_CONF}"
 fi
 
+# 커널 명령줄의 마지막 console= 이 /dev/console 이 된다(Documentation/admin-guide/serial-console.rst).
+# 그래서 tty0 를 마지막에 둔다. 그러면 systemd 와 서비스의 출력은 /dev/console 인 tty0(모니터)로 간다.
+# 커널 메시지는 두 콘솔 모두에 나온다. 직렬 포트의 로그인 프롬프트는 systemd-getty-generator 가
+# console=ttyS0 를 보고 serial-getty@ttyS0 로 띄운다(systemd-getty-generator(8)). 실기 모니터 표시는 미검증이다.
+# --apt-indices false: apt 목록(/var/lib/apt/lists)을 이미지에 넣지 않는다. 설치 후 apt 는 apt-get update 가 필요하다.
+# --apt-source-archives false: deb-src 항목을 최종 sources.list 에서 주석 처리한다(lb_config(1)).
 lb config noauto \
     --distribution "${DEBIAN_SUITE}" \
     --architecture amd64 \
@@ -50,6 +56,8 @@ lb config noauto \
     --security true \
     --updates true \
     --apt-recommends false \
+    --apt-indices false \
+    --apt-source-archives false \
     --firmware-chroot false \
     --firmware-binary false \
     --apt-options "${apt_options}" \
@@ -59,7 +67,7 @@ lb config noauto \
     --mirror-binary "${mirror}" \
     --mirror-chroot-security "${security_mirror}" \
     --mirror-binary-security "${security_mirror}" \
-    --bootappend-live "boot=live components console=tty0 console=ttyS0,115200 hostname=${LIGHTLIX_ID}" \
+    --bootappend-live "boot=live components console=ttyS0,115200 console=tty0 hostname=${LIGHTLIX_ID}" \
     --iso-volume "${LIGHTLIX_NAME}" \
     --iso-application "${LIGHTLIX_NAME}" \
     --iso-publisher "${LIGHTLIX_NAME}" \

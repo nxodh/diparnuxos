@@ -5,11 +5,14 @@
 #
 # 동작
 #   QEMU + OVMF(UEFI 펌웨어) 로 ISO 를 부팅하고 직렬 콘솔 출력을 로그 파일로 받는다.
-#   제한 시간 안에 "lightlix login:" 과 GPU 없는 CPU 폴백 안내가 나오면 성공(0).
+#   제한 시간 안에 "lightlix login:" 과 "Lightlix GPU [no_gpu]:" 가 직렬 로그에 나오면 성공(0).
+#   "Lightlix GPU [no_gpu]:" 줄은 /run/issue.d/*.issue 를 agetty 가 로그인 프롬프트 위에 출력한 것이다.
 #   그렇지 않으면 로그 끝부분을 출력하고 실패(1).
 #   사용법이 잘못되었거나 ISO/펌웨어/QEMU 를 찾지 못하면 2 로 끝난다.
 #
 # 환경 변수
+#   BOOT_MEDIA          cdrom(기본값): ISO 를 가상 광학 드라이브로 붙인다.
+#                       usb: ISO 를 xHCI 컨트롤러의 usb-storage 장치로 붙인다. 실기의 USB 기록 매체와 가깝다.
 #   OVMF_CODE           UEFI 코드 이미지(읽기 전용). 없으면 아래 후보 경로에서 찾는다.
 #   OVMF_VARS_TEMPLATE  UEFI 변수 저장소 템플릿. 없으면 아래 후보 경로에서 찾는다.
 #                       실행할 때마다 임시 디렉터리에 쓰기 가능한 사본을 만들어 쓴다.
@@ -26,6 +29,9 @@
 #     등록되어 있지 않으므로 Secure Boot 가 꺼진 상태로 부팅한다. Secure Boot 검증은 이
 #     테스트의 범위가 아니다.
 #   - 네트워크와 디스플레이는 없다(-nic none, -display none).
+#   - 직렬 로그에 "Lightlix" 를 포함하고 ASCII 가 아닌 바이트가 있는 줄이 있으면 실패한다. 실기 텍스트 콘솔은
+#     한글을 표시하지 못하므로 화면에 나오는 Lightlix 문구는 ASCII 여야 한다.
+#   - 이 테스트는 직렬 로그만 본다. 모니터(VGA) 표시는 검사하지 않는다. 모니터 표시는 자동 검사 범위 밖이며 미검증이다.
 #
 # 의존성: qemu-system-x86 (QEMU), ovmf (OVMF 펌웨어). Debian 13 과 Ubuntu 24.04 에서 확인한 경로만 후보로 둔다.
 
@@ -33,6 +39,7 @@ set -euo pipefail
 
 readonly PROMPT='lightlix login:'
 readonly GPU_WARNING='Lightlix GPU [no_gpu]:'
+readonly BOOT_MEDIA="${BOOT_MEDIA:-cdrom}"
 readonly QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 readonly MEMORY='2G'
 readonly OVMF_CODE_CANDIDATES=(
@@ -62,6 +69,10 @@ first_existing_file() {
 [[ $# -eq 1 ]] || usage
 ISO="$1"
 [[ -f "$ISO" ]] || { echo "ERROR: ISO not found: $ISO" >&2; exit 2; }
+case "$BOOT_MEDIA" in
+  cdrom|usb) ;;
+  *) echo "ERROR: BOOT_MEDIA must be cdrom or usb: $BOOT_MEDIA" >&2; exit 2 ;;
+esac
 
 if ! command -v "$QEMU_BIN" >/dev/null 2>&1; then
   echo "ERROR: QEMU not found: $QEMU_BIN (Debian/Ubuntu: apt install qemu-system-x86)" >&2
@@ -139,6 +150,17 @@ if ! [[ "$BOOT_TIMEOUT" =~ ^[0-9]+$ ]] || (( BOOT_TIMEOUT < 1 )); then
   exit 2
 fi
 
+# 매체 선택. usb 는 xHCI 컨트롤러에 ISO 를 읽기 전용 usb-storage 로 붙인다(qemu-system-x86_64 -device help 로 확인).
+if [[ "$BOOT_MEDIA" == usb ]]; then
+  MEDIA_ARGS=(
+    -device "qemu-xhci,id=xhci"
+    -drive "if=none,id=stick,format=raw,readonly=on,file=$ISO"
+    -device "usb-storage,bus=xhci.0,drive=stick"
+  )
+else
+  MEDIA_ARGS=(-cdrom "$ISO")
+fi
+
 # -no-reboot: 커널 패닉 등으로 재부팅하면 QEMU 가 바로 끝나 실패로 판정된다.
 # -serial file: 직렬 콘솔을 로그 파일로 받는다. 사람용 모니터는 끈다.
 QEMU_ARGS=(
@@ -148,7 +170,7 @@ QEMU_ARGS=(
   -m "$MEMORY"
   -drive "if=pflash,format=raw,unit=0,readonly=on,file=$OVMF_CODE"
   -drive "if=pflash,format=raw,unit=1,file=$VARS_COPY"
-  -cdrom "$ISO"
+  "${MEDIA_ARGS[@]}"
   -nic none
   -display none
   -monitor none
@@ -156,17 +178,28 @@ QEMU_ARGS=(
   -no-reboot
 )
 
-echo "boot-smoke: iso=$ISO accel=$ACCEL_NAME timeout=${BOOT_TIMEOUT}s"
+echo "boot-smoke: iso=$ISO media=$BOOT_MEDIA accel=$ACCEL_NAME timeout=${BOOT_TIMEOUT}s"
 echo "boot-smoke: firmware=$OVMF_CODE vars-template=$OVMF_VARS_TEMPLATE"
 
 "$QEMU_BIN" "${QEMU_ARGS[@]}" >"$QEMU_OUT" 2>&1 &
 QEMU_PID=$!
 
+# 직렬 로그에서 "Lightlix" 를 포함하는 줄 중 ASCII 가 아닌 바이트가 있는지 본다. tr 로 ASCII 를 지운 뒤 남는 것이 있는지 확인한다.
+has_non_ascii_lightlix_line() {
+  local lines="$WORKDIR/lightlix-lines"
+  grep -a 'Lightlix' "$LOG" > "$lines" 2>/dev/null || true
+  [[ -s "$lines" ]] || return 1
+  LC_ALL=C tr -d '\000-\177' < "$lines" | LC_ALL=C grep -q .
+}
+
 start=$SECONDS
 while :; do
   # 프롬프트를 먼저 확인한다. QEMU 가 프롬프트를 쓰고 바로 끝나는 경우도 성공으로 본다.
   if grep -q -F "$PROMPT" "$LOG" 2>/dev/null && grep -q -F "$GPU_WARNING" "$LOG" 2>/dev/null; then
-    echo "PASS: found '$PROMPT' and GPU 없는 CPU 폴백 안내 after $((SECONDS - start))s"
+    if has_non_ascii_lightlix_line; then
+      fail "직렬 로그의 Lightlix 줄에 ASCII 가 아닌 바이트가 있다(실기 텍스트 콘솔은 표시하지 못한다)"
+    fi
+    echo "PASS: found '$PROMPT' and '$GPU_WARNING' after $((SECONDS - start))s (media=$BOOT_MEDIA)"
     exit 0
   fi
   if ! kill -0 "$QEMU_PID" 2>/dev/null; then

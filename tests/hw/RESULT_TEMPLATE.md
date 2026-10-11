@@ -42,6 +42,10 @@
 | 8 | GPU 오프로드 | 모델 레이어가 GPU 에 올라감 | | LLM 스택 |
 | 9 | 토큰/초 측정 | 아래 3번 표에 기록 | | LLM 스택 |
 | 10 | 무선 인터페이스와 iwd | `wl*` 인터페이스가 있고 `iwd.service` 가 active (무선 장치가 없으면 SKIP) | | Wi-Fi |
+| 11 | GPU 진단 상태 (`gpu-status`의 `LIGHTLIX_GPU_STATUS`) | `ready` (`no_gpu`는 SKIP, 그 밖의 상태는 FAIL로 상태를 적는다) | | `docs/drivers.md` GPU 진단 계약 |
+| 12 | 쓸 수 있는 GPU 수 (`LIGHTLIX_GPU_USABLE_COUNT`) | `ready` 일 때 1 이상 | | `ready` 가 아니면 SKIP |
+| 13 | DRM 장치 | `ready` 일 때 `/dev/dri/card*` 가 있다 | | `nvidia-drm` 로드 확인 |
+| 14 | 로드된 드라이버 버전과 고정 버전 | `/proc/driver/nvidia/version` 의 버전이 `/usr/share/lightlix/nvidia.conf` 의 `NVIDIA_DRIVER_VERSION` 과 같다 | | 드라이버가 없으면 SKIP |
 
 ## 3. 토큰/초 측정
 
