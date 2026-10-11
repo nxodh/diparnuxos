@@ -9,3 +9,11 @@ user-setup
 iproute2
 systemd-resolved
 systemd-zram-generator
+# Intel Wi-Fi 펌웨어(iwlwifi). 모든 Intel Wi-Fi 세대의 펌웨어가 들어 있다. 펌웨어 자동 설치가 꺼져 있어 이름으로 넣는다.
+firmware-iwlwifi
+# Intel 이더넷 펌웨어(ice 등). 자동 설치가 꺼져 있어 이름으로 넣는다.
+firmware-intel-misc
+# 무선 접속 데몬. 인증과 연결을 맡는다. 상주 프로세스이며 D-Bus 시스템 버스를 쓴다(dbus 는 systemd-resolved 의 Depends 로 이미 들어온다).
+iwd
+# 무선 규제 도메인 데이터. iwd 의 Recommends 라서 직접 적는다. 없으면 규제 도메인이 기본값으로 제한되어 5GHz 채널이 줄어든다.
+wireless-regdb

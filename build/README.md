@@ -13,10 +13,12 @@ build/
 │   └── clean                           lb clean 의 auto 스크립트 (noauto 로 위임)
 └── config/
     ├── package-lists/
-    │   └── lightlix.list.chroot        Phase 1 헤드리스 구성과 lightlix-nvidia
+    │   └── lightlix.list.chroot        Phase 1 헤드리스 구성, lightlix-nvidia, Intel 펌웨어와 iwd
     ├── includes.chroot/                chroot 에 그대로 복사할 파일
     │   ├── etc/systemd/network/20-lightlix-wired.network   유선 인터페이스 DHCP 설정
+    │   ├── etc/systemd/network/25-lightlix-wireless.network   무선 인터페이스(wl*) DHCP 설정 (인증은 iwd 가 맡는다)
     │   ├── etc/systemd/system/multi-user.target.wants/systemd-networkd.service   networkd 활성화 링크
+    │   ├── etc/systemd/system/multi-user.target.wants/iwd.service               iwd 활성화 링크
     │   └── etc/tmpfiles.d/lightlix-resolv.conf             /etc/resolv.conf 를 resolved 스텁으로 연결
     └── packages.chroot/                local 패키지 저장소. scripts/build-debs.sh 가 .deb 를 넣는다. .gitkeep 만 커밋된다.
 ```
@@ -25,7 +27,8 @@ build/
 
 - 배포판 `trixie`, 아키텍처 `amd64`, 구성요소는 `DEBIAN_AREAS`
 - 이미지는 `iso-hybrid`, 부트로더는 `grub-efi` 만 쓴다 (UEFI 전용, BIOS 부트로더를 쓰지 않는다). BIOS 부트로더가 없으면 live-build 가 hybrid MBR 을 넣지 않아 ISO 에 파티션 테이블이 없다. QEMU/OVMF 에서는 CD 와 USB 저장 장치 양쪽으로 부팅됐지만, 실기에서 USB 에 쓴 ISO 의 부팅은 미검증이다. Phase 1 의 실기 검증 전에 ESP 파티션을 덧붙일지 정한다.
-- 펌웨어 자동 설치는 끈다 (`--firmware-chroot false`, `--firmware-binary false`). 켜 두면 non-free-firmware 의 펌웨어 패키지 35개(약 850 MB)가 들어온다. 실기에 필요한 펌웨어는 Phase 1 에서 패키지 목록에 이름으로 적는다.
+- 펌웨어 자동 설치는 끈다 (`--firmware-chroot false`, `--firmware-binary false`). 켜 두면 non-free-firmware 의 펌웨어 패키지 35개(약 850 MB)가 들어온다. 실기에 필요한 펌웨어는 Phase 1 에서 패키지 목록에 이름으로 적는다. Intel Wi-Fi(`firmware-iwlwifi`)와 Intel 이더넷(`firmware-intel-misc`)은 이름으로 넣는다. 다른 제조사(Realtek, Broadcom, MediaTek) 펌웨어는 넣지 않았다.
+- 무선 접속은 iwd 가 맡는다. iwd 는 D-Bus 시스템 버스를 쓰며, dbus 는 systemd-resolved 의 Depends 로 이미 들어온다. iwd 의 Recommends(`wireless-regdb`)는 꺼져 있으므로 목록에 직접 적었다. 패키지 postinst 는 새 설치에서 `iwd.service` 를 enable 하지 않으므로 `includes.chroot` 에 활성화 링크를 둔다. 이 링크는 `systemd-networkd` 와 같은 방식이다.
 - debian-installer 없음, backports 끔, security 와 updates 사용, apt recommends 끔
 - 커널 패키지는 `linux-image` 와 `linux-headers`
 - 미러는 `lightlix.conf` 값을 쓴다. `DEBIAN_SNAPSHOT` 이 있으면 snapshot 주소의 그 시점을 쓰고, apt 의 `Check-Valid-Until` 을 끈다.

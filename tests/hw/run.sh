@@ -11,6 +11,8 @@
 #   - Secure Boot 상태 (mokutil 이 있을 때, 기록용)
 #   - NVIDIA 드라이버 로드 흔적 (/proc/driver/nvidia/version 이 있을 때)
 #   - nvidia-smi 가 있을 때의 compute_cap (8.6 / 8.9 / 12.0 중 하나여야 함)
+#   - 무선 인터페이스(/sys/class/net/wl*)가 있으면 이름, 그때 iwd.service 가 active 인지
+#     (무선 장치가 없으면 SKIP)
 # 나머지는 SKIP 으로 출력한다.
 #
 # 출력: 항목마다 PASS / FAIL / SKIP 한 줄. FAIL 이 하나라도 있으면 1 로 끝난다.
@@ -19,12 +21,14 @@
 #   LIGHTLIX_OS_RELEASE          기본 /etc/os-release
 #   LIGHTLIX_EFI_DIR             기본 /sys/firmware/efi
 #   LIGHTLIX_NVIDIA_VERSION_FILE 기본 /proc/driver/nvidia/version
+#   LIGHTLIX_NET_CLASS_DIR       기본 /sys/class/net
 
 set -euo pipefail
 
 OS_RELEASE_FILE="${LIGHTLIX_OS_RELEASE:-/etc/os-release}"
 EFI_DIR="${LIGHTLIX_EFI_DIR:-/sys/firmware/efi}"
 NVIDIA_VERSION_FILE="${LIGHTLIX_NVIDIA_VERSION_FILE:-/proc/driver/nvidia/version}"
+NET_CLASS_DIR="${LIGHTLIX_NET_CLASS_DIR:-/sys/class/net}"
 
 # RTX 30 (Ampere), RTX 40 (Ada), RTX 50 (Blackwell) 의 compute capability.
 readonly SUPPORTED_COMPUTE_CAPS='8.6 8.9 12.0'
@@ -130,6 +134,32 @@ check_nvidia_smi_and_compute_cap() {
   fi
 }
 
+check_wifi() {
+  local iface='' dev state
+  for dev in "$NET_CLASS_DIR"/wl*; do
+    if [[ -e "$dev" ]]; then
+      iface="${dev##*/}"
+      break
+    fi
+  done
+  if [[ -z "$iface" ]]; then
+    emit SKIP wifi-interface '무선 장치 없음'
+    emit SKIP iwd-service '무선 장치 없음'
+    return 0
+  fi
+  emit PASS wifi-interface "$iface"
+  if ! command -v systemctl >/dev/null 2>&1; then
+    emit FAIL iwd-service 'systemctl 이 없다'
+    return 0
+  fi
+  state="$(systemctl is-active iwd.service 2>/dev/null || true)"
+  if [[ "$state" == "active" ]]; then
+    emit PASS iwd-service 'active'
+  else
+    emit FAIL iwd-service "${state:-unknown} (expected active)"
+  fi
+}
+
 # Phase 1 범위 밖 항목. SKIP 사유는 "Phase N 에서 구현" 형태로 적는다.
 skip_later() {
   emit SKIP "$1" "$2"
@@ -141,6 +171,7 @@ check_uefi
 check_secure_boot
 check_nvidia_driver_file
 check_nvidia_smi_and_compute_cap
+check_wifi
 skip_later model-load 'Phase 2 에서 구현'
 skip_later gpu-offload 'Phase 2 에서 구현'
 skip_later tokens-per-sec 'Phase 2 에서 구현'

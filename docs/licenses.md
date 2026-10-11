@@ -5,7 +5,7 @@
 
 > 이 문서는 법률 자문이 아니다. 라이선스 원문을 인용하고 출처를 적는다. 해석이 필요한 부분은 해석 위험으로 표시한다. 최종 판단은 법률 검토나 NVIDIA 문의로 확인해야 한다(NVIDIA 라이선스 질문 창구는 조사 기록에 있는 `nvidia-compute-license-questions`다).
 
-Lightlix ISO에는 세 종류의 제3자 소프트웨어가 들어간다. NVIDIA 드라이버, CUDA 런타임, llama.cpp와 Debian 패키지다. 프로젝트 자체 라이선스는 아직 정하지 않았다.
+Lightlix ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라이버, CUDA 런타임, Intel 무선·이더넷 펌웨어(9절), llama.cpp와 Debian 패키지다. 프로젝트 자체 라이선스는 아직 정하지 않았다.
 
 ---
 
@@ -141,3 +141,31 @@ Lightlix ISO에는 세 종류의 제3자 소프트웨어가 들어간다. NVIDIA
 - 프로젝트 자체 라이선스는 아직 정하지 않았다(사용자 확정 U7).
 - 저장소에 `LICENSE` 파일을 만들지 않는다.
 - 제3자 구성 요소의 라이선스는 위 절에 따라 그대로 유지된다.
+
+---
+
+## 9. Intel 무선·이더넷 펌웨어
+
+- 확인 날짜: 2026-10-11
+- 대상: `firmware-iwlwifi` 20250410-2, `firmware-intel-misc` 20250410-2 (trixie, non-free-firmware)
+- 출처: 두 패키지의 `usr/share/doc/<패키지>/copyright`. Debian 저장소 동봉본을 `dpkg-deb -x`로 풀어 확인했다. 웹 원문은 따로 받지 않았다. 두 파일은 내용이 같다(`cmp`로 확인). 두 파일은 linux-firmware 저작권 문서 전체(6,755줄)다.
+- 원문은 줄바꿈이 있으나 아래 인용에서는 이어 붙이고 목록 기호를 `*`로 표시했다.
+
+> Redistribution and use in binary form, without modification, are permitted provided that the following conditions are met: * Redistributions must reproduce the above copyright notice and the following disclaimer in the documentation and/or other materials provided with the distribution. * Neither the name of Intel Corporation nor the names of its suppliers may be used to endorse or promote products derived from this software without specific prior written permission. * No reverse engineering, decompilation, or disassembly of this software is permitted.
+
+### 9.1 Wi-Fi 펌웨어 (`iwlwifi-*`)
+
+- 적용 조건: `Files: intel/ibt-* iwlwifi-*`, 라이선스 `binary-redist-Intel`. AX200용 `iwlwifi-cc-a0-*.ucode`도 이 항목에 속한다.
+- 한국어 요약: 수정하지 않은 바이너리 형태로 재배포할 수 있다. 조건은 세 가지다. (1) 저작권 고지와 면책 문구를 배포물에 함께 넣는다. (2) Intel의 이름을 파생물의 보증이나 홍보에 쓰지 않는다. (3) 역공학, 디컴파일, 디스어셈블을 하지 않는다. 특허 라이선스는 원문상 "Intel이 소유하거나 통제하는 특허 중 이 소프트웨어를 단독으로, 또는 승인된 오픈소스 라이선스의 운영체제와 결합해 사용하는 데 필요한 범위"로 제한된다. 하드웨어 자체는 라이선스되지 않는다.
+- 이 빌드의 상태: 빌드는 Debian 패키지를 그대로 설치한다. 저장소에는 펌웨어 파일을 두지 않았으므로 펌웨어를 수정하지 않는다.
+
+### 9.2 이더넷 펌웨어 (`intel/ice/`)
+
+- `intel/ice/ddp/ice-*.pkg`(`ice.pkg`의 대상)는 `binary-redist-Intel` 조건으로 9.1과 같다.
+- `intel/ice/ddp-comms/ice_comms-*.pkg`와 `intel/ice/ddp-wireless_edge/ice_wireless_edge-*.pkg`는 `binary-redist-Intel-Ice-enhanced` 조건이다. 원문은 9.1과 같은 조항에 다음 한정이 붙어 있다: "Redistribution and use in binary form, without modification, are permitted **solely operating in conjunction with Intel authorized products**, provided that the following conditions are met". 한국어로는 "Intel 승인 제품과 함께 동작하는 경우에만" 재배포가 허용된다는 뜻이다. 이 한정이 Lightlix 이미지에 어떻게 적용되는지는 해석이 필요하며, 이번에 판단하지 않았다.
+- `intel/ice/ddp-lag/ice_lag-1.3.1.0.pkg`는 `firmware-intel-misc`에 들어 있지만, copyright 파일에 이 경로를 다루는 항목이 없다. 이 파일의 라이선스 조건은 **미확인**이다.
+
+### 9.3 범위와 미확인 항목
+
+- 이 절은 Lightlix가 쓰는 Wi-Fi 펌웨어와 이더넷 펌웨어 중 위 파일만 다룬다. `firmware-intel-misc`에는 `e100/`, `hfi1_*`, `qat_*`, `intel/ish/`, `intel/vpu/` 파일도 들어 있다. `e100/*`는 `BSD-3-clause-Intel`, `hfi1_*`는 `binary-redist-Intel-narrower-patent`, `qat_*.bin`은 `binary-redist-Intel-1`로 적혀 있다. `intel/vpu/*`는 `binary-redist-Intel`, `intel/ish/*`의 조건 이름은 이번에 확인하지 않았다. 이 파일들의 원문은 읽지 않았다(미확인).
+- 이 절은 법률 자문이 아니다. "승인 제품"과 "수정"의 범위처럼 해석이 필요한 부분은 법률 검토나 Intel 문의로 확인해야 한다.

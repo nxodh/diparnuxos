@@ -21,6 +21,7 @@ Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최
 - NVIDIA 공식 저장소, 지정 버전의 오픈 커널 모듈과 사용자 공간 드라이버
 - CUDA 런타임(`cudart`, `cublas`). CUDA 컴파일러와 툴킷은 포함하지 않는다.
 - 부팅 시 GPU 진단과 원인별 CPU 폴백 안내, 서버 모드의 절전 비활성화
+- Intel Wi-Fi 펌웨어(`firmware-iwlwifi`)와 Intel 이더넷 펌웨어(`firmware-intel-misc`), 무선 접속 데몬 iwd. 실기 접속은 미검증이다.
 
 llama.cpp, `lightlixd`, CLI, GUI, 설치기는 후속 단계에서 구현한다. 지금의 CPU 폴백 안내는 진단 결과이며, 추론 서버를 실행한다는 뜻은 아니다.
 
@@ -29,6 +30,19 @@ llama.cpp, `lightlixd`, CLI, GUI, 설치기는 후속 단계에서 구현한다.
 GPU 진단은 `sudo lightlix-gpu-check`로 다시 실행한다. 결과는 `/run/lightlix/gpu-status`에 기록된다. 라이선스 전문은 이미지의 `/usr/share/lightlix/licenses/`에서 읽을 수 있다.
 
 NVIDIA 실 하드웨어에서 검증하지 않았다. ISO 빌드와 GPU 없는 QEMU 부팅 결과는 [검증 기록](docs/verification-phase-1.md)에 적는다. 실기 결과가 생기기 전까지 특정 GPU에서의 동작을 주장하지 않는다. 노트북을 포함한 대상과 상태는 [docs/support-matrix.md](docs/support-matrix.md)에 있다.
+
+### Wi-Fi 접속
+
+인증은 iwd가 맡고, IP 설정은 systemd-networkd가 맡는다. 실기에서 Wi-Fi 접속은 아직 확인하지 않았다. 장치 이름은 기기마다 다르므로 `wlan0`으로 가정하지 않고 먼저 확인한다.
+
+```sh
+iwctl device list                     # 무선 장치 이름을 Name 열에서 확인한다
+iwctl station <장치> scan             # 주변 네트워크를 검색한다
+iwctl station <장치> get-networks     # 검색 결과를 보여 준다
+iwctl station <장치> connect <SSID>   # 연결한다. 암호를 물으면 입력한다
+```
+
+iwd의 D-Bus 정책(`iwd-dbus.conf`)상 `iwctl`은 root와 `sudo`·`netdev` 그룹 사용자에게 허용된다. 권한 오류가 나면 `sudo iwctl`로 실행한다.
 
 ---
 

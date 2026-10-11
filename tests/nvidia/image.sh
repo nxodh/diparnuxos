@@ -59,4 +59,20 @@ for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp "cuda-
     unsquashfs -cat "$WORK/rootfs.squashfs" "usr/share/lightlix/licenses/$pkg.copyright" > "$WORK/license"
     [[ -s "$WORK/license" ]]
 done
+# 네트워크: Intel Wi-Fi 펌웨어(AX200 은 iwlwifi-cc-a0-*.ucode), Intel 이더넷 펌웨어(ice.pkg 는 심볼릭 링크),
+# iwd 실행 파일과 활성화 링크, 무선 networkd 설정, wireless-regdb 의 regulatory.db(alternatives 심볼릭 링크)를 확인한다.
+require_path() {
+    local pattern="$1" label="$2"
+    grep -Eq "$pattern" "$WORK/files" || { echo "FAIL: 네트워크 항목이 없다: $label" >&2; exit 1; }
+}
+require_path 'squashfs-root/(usr/)?lib/firmware/iwlwifi-cc-a0-[0-9]+[.]ucode$' 'AX200 Wi-Fi 펌웨어 (iwlwifi-cc-a0-*.ucode)'
+require_path 'squashfs-root/(usr/)?lib/firmware/intel/ice/ddp/ice[.]pkg( |$)' 'Intel 이더넷 펌웨어 (intel/ice/ddp/ice.pkg)'
+require_path 'squashfs-root/(usr/)?libexec/iwd$' 'iwd 실행 파일 (/usr/libexec/iwd)'
+# iwd 는 D-Bus 시스템 버스가 있어야 뜬다. dbus 는 직접 적지 않고 systemd-resolved 의 Depends 로 들어오므로 여기서 지킨다.
+require_path 'squashfs-root/(usr/)?bin/dbus-daemon$' 'D-Bus 시스템 버스 (dbus-daemon, iwd 가 필요로 한다)'
+require_path 'squashfs-root/etc/systemd/system/multi-user[.]target[.]wants/iwd[.]service -> /lib/systemd/system/iwd[.]service$' 'iwd 서비스 활성화 링크'
+require_path 'squashfs-root/etc/systemd/network/25-lightlix-wireless[.]network$' '무선 networkd 설정 (25-lightlix-wireless.network)'
+require_path 'squashfs-root/(usr/)?lib/firmware/regulatory[.]db -> ' 'wireless-regdb 의 regulatory.db'
+require_path 'squashfs-root/(usr/)?lib/firmware/regulatory[.]db-debian$' 'wireless-regdb 의 regulatory.db-debian'
+echo 'PASS: 네트워크 항목이 있다 (Intel Wi-Fi 펌웨어, ice.pkg, iwd 와 활성화 링크, 무선 networkd 설정, regulatory.db)'
 echo 'PASS: 완성된 ISO 에 오픈 모듈, 라이선스 전문, GPU 진단이 있으며 독점 모듈과 빌드 서명 키는 없다'

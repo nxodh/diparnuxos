@@ -14,6 +14,7 @@
 | 메모리 | |
 | GPU 모델 | |
 | 노트북 하위 모델 (예: Stealth 15M A11UEK/B12UE) | |
+| Wi-Fi 칩 (`lspci` 결과, 예: AX200 은 PCI ID 8086:2723) | |
 | VRAM / 내장 GPU / 그래픽 모드 | |
 | GPU 아키텍처 (RTX 30 / 40 / 50) | |
 | compute_cap (nvidia-smi) | |
@@ -40,6 +41,7 @@
 | 7 | 모델 로드 | 지정 GGUF 모델이 메모리에 올라감 | | LLM 스택 |
 | 8 | GPU 오프로드 | 모델 레이어가 GPU 에 올라감 | | LLM 스택 |
 | 9 | 토큰/초 측정 | 아래 3번 표에 기록 | | LLM 스택 |
+| 10 | 무선 인터페이스와 iwd | `wl*` 인터페이스가 있고 `iwd.service` 가 active (무선 장치가 없으면 SKIP) | | Wi-Fi |
 
 ## 3. 토큰/초 측정
 

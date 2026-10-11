@@ -1,0 +1,12 @@
+# 무선 인터페이스(wl*)의 IP 설정을 systemd-networkd 가 맡는다.
+# 인증과 연결은 iwd 가 맡는다. iwd 의 자체 네트워크 설정 기능(EnableNetworkConfiguration)은 켜지 않는다.
+# RequiredForOnline=no: 무선 장치가 없거나 연결되지 않아도 network-online 대기에서 부팅이 막히지 않게 한다.
+
+[Match]
+Name=wl*
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+DHCP=yes
