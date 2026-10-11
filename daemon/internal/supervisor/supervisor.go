@@ -1,6 +1,6 @@
 // Package supervisor는 llama-server 유닛을 시작하고 멈추고 감시한다.
 //
-// 시작은 계획, 사전 검사, 환경 파일 기록, systemctl restart, /health 대기, 오프로드 검증 순서로 진행한다.
+// 시작은 입력 검증, 기존 유닛 중지와 메모리 회수, 계획, 환경 파일 기록, systemctl start, health와 오프로드 검증 순서로 진행한다.
 // GPU를 쓰도록 계획했는데 오프로드가 확인되지 않으면 유닛을 멈추고 실패로 끝낸다. CPU로 조용히 떨어지지 않는다.
 // 한 번에 하나의 수명 주기 작업(Start, Stop, SetMode, 감시 점검)만 돈다.
 //
@@ -34,8 +34,11 @@ const (
 	defaultServerBinary  = "/usr/lib/lightlix/llama/llama-server"
 	defaultUnit          = "lightlix-llama.service"
 	defaultFirewallPath  = "/var/lib/lightlix/firewall.nft"
+	defaultProcRoot      = "/proc"
 	defaultHealthTimeout = 10 * time.Minute
 	defaultPollInterval  = 2 * time.Second
+	defaultReclaimTime   = 30 * time.Second
+	defaultReclaimPoll   = 500 * time.Millisecond
 )
 
 // 내부 상수다.
@@ -85,7 +88,7 @@ type Offload struct {
 	// Offloaded 와 Total 은 로그의 "offloaded N/M layers to GPU" 값이다. 로그가 없으면 0이다.
 	Offloaded int `json:"offloaded"`
 	Total     int `json:"total"`
-	// Verified 는 로그 검사를 통과했다는 뜻이다.
+	// Verified 는 GPU 오프로드나 CPU 전용 런타임 설정을 검증했다는 뜻이다.
 	Verified bool `json:"verified"`
 	// Note 는 VRAM 검사 결과 등 부가 설명이다.
 	Note string `json:"note,omitempty"`
@@ -93,23 +96,32 @@ type Offload struct {
 
 // Status는 llama-server의 현재 상태다. Plan 은 API 계층이 JSON으로 바꾼다.
 type Status struct {
-	State      State            `json:"state"`
-	ModelID    string           `json:"model_id"`
-	Host       string           `json:"host"`
-	Port       int              `json:"port"`
-	LANExposed bool             `json:"lan_exposed"`
-	PID        int              `json:"pid"`
-	Since      time.Time        `json:"since"`
-	Plan       *autoconf.Output `json:"-"`
-	Offload    Offload          `json:"offload"`
-	Warnings   []string         `json:"warnings"`
-	LastError  *Error           `json:"last_error,omitempty"`
+	State            State            `json:"state"`
+	ModelID          string           `json:"model_id"`
+	Host             string           `json:"host"`
+	Port             int              `json:"port"`
+	LANExposed       bool             `json:"lan_exposed"`
+	PID              int              `json:"pid"`
+	UnitUnverifiable bool             `json:"unit_unverifiable,omitempty"`
+	Since            time.Time        `json:"since"`
+	Plan             *autoconf.Output `json:"-"`
+	Offload          Offload          `json:"offload"`
+	Warnings         []string         `json:"warnings"`
+	LastError        *Error           `json:"last_error,omitempty"`
 }
 
 // StartRequest는 Start와 StartAsync의 입력이다. ModelID 가 비어 있으면 기본 모델을 쓴다.
 type StartRequest struct {
 	ModelID   string
 	Overrides autoconf.Overrides
+}
+
+// startJob 는 시작 한 번의 검증된 입력과 이미 기록한 키 스냅샷 경로다.
+type startJob struct {
+	model      models.Model
+	ov         autoconf.Overrides
+	cfg        config.Config
+	apiKeyFile string
 }
 
 // Options는 Supervisor의 의존성과 설정이다. 비워 둔 값은 기본값을 쓴다.
@@ -148,6 +160,17 @@ type Options struct {
 	Sleep func(ctx context.Context, d time.Duration) error
 	// Logger 는 진행 로그를 남긴다. nil 이면 stderr에 쓴다.
 	Logger *log.Logger
+	// KeySnapshotDir 는 시작별 API 키 파일의 디렉터리다. 비어 있으면 Keys.KeyFile의 디렉터리를 쓴다.
+	KeySnapshotDir string
+	// ChownKeyFile 은 키 스냅샷을 llama-server 실행 그룹이 읽도록 설정한다.
+	ChownKeyFile func(path string) error
+	// KeySnapshotGID 는 서비스 그룹의 GID다. 0이면 테스트 편의를 위해 소유 그룹 검사를 건너뛴다.
+	KeySnapshotGID uint32
+	// ProcRoot 는 실행 중 프로세스의 실행 파일과 환경을 읽는 루트다. 기본 /proc.
+	ProcRoot string
+	// ReclaimTimeout 과 ReclaimPollInterval 은 이전 유닛의 프로세스 회수 제한이다.
+	ReclaimTimeout      time.Duration
+	ReclaimPollInterval time.Duration
 }
 
 // Supervisor는 llama-server 유닛의 시작, 중지, 감시를 맡는다.
@@ -156,13 +179,19 @@ type Supervisor struct {
 
 	// sem 은 수명 주기 작업을 한 번에 하나만 돌리는 세마포어다(채널 용량 1).
 	sem chan struct{}
+	// firewallMu 는 설정 읽기부터 nft 적용까지 방화벽 갱신 전체를 직렬화한다.
+	firewallMu sync.Mutex
 
 	// mu 는 아래 필드를 보호한다. 시스템 명령을 부를 때는 잡지 않는다.
-	mu     sync.Mutex
-	st     Status
-	cancel context.CancelFunc // 진행 중인 Start 를 끊는 함수, 없으면 nil
-	done   chan struct{}      // 진행 중이거나 마지막 Start 의 종료 신호
-	runErr *Error             // 마지막 Start 의 결과 오류
+	mu          sync.Mutex
+	st          Status
+	cancel      context.CancelFunc // 진행 중인 Start 를 끊는 함수, 없으면 nil
+	done        chan struct{}      // 진행 중이거나 마지막 Start 의 종료 신호
+	runErr      *Error             // 마지막 Start 의 결과 오류
+	priorStatus *Status            // 시작 도중 이전 서버가 남은 경우 복원할, 검증된 서버 정보
+	// pendingReclaimPIDs 는 systemd 가 MainPID 를 해제했지만 NVML 에서 아직
+	// 보이는 이전 서버 PID다. 취소된 시작 다음 재시도에서도 VRAM 계획 전에 회수한다.
+	pendingReclaimPIDs []uint32
 }
 
 // New는 Supervisor를 만든다. 비워 둔 옵션은 기본값으로 채운다. 필수 의존성이 없어도 패닉하지 않고 오류로 보고한다.
@@ -181,6 +210,18 @@ func New(opts Options) *Supervisor {
 	}
 	if opts.FirewallPath == "" {
 		opts.FirewallPath = defaultFirewallPath
+	}
+	if opts.KeySnapshotDir == "" && opts.Keys != nil && opts.Keys.KeyFile != "" {
+		opts.KeySnapshotDir = filepath.Dir(opts.Keys.KeyFile)
+	}
+	if opts.ProcRoot == "" {
+		opts.ProcRoot = defaultProcRoot
+	}
+	if opts.ReclaimTimeout <= 0 {
+		opts.ReclaimTimeout = defaultReclaimTime
+	}
+	if opts.ReclaimPollInterval <= 0 {
+		opts.ReclaimPollInterval = defaultReclaimPoll
 	}
 	if opts.HTTP == nil {
 		opts.HTTP = &http.Client{}
@@ -244,11 +285,17 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 		return Status{}, err
 	}
 	cfg := s.opts.Config()
-	keys, kerr := s.keyCount()
-	if kerr != nil {
-		return Status{}, errorf(CodeInternal, "read API keys: %v", kerr)
+	if err := cfg.Validate(); err != nil {
+		return Status{}, errorf(CodeInvalidSettings, "invalid daemon settings: %v", err)
 	}
-	if cfg.LANExposed && keys == 0 {
+	keySnapshot, keyErr := s.keySnapshot()
+	if keyErr != nil {
+		return Status{}, errorf(CodeInternal, "read API key snapshot: %v", keyErr)
+	}
+	if err := validateCredentialSnapshot(keySnapshot); err != nil {
+		return Status{}, errorf(CodeInternal, "API key snapshot is malformed")
+	}
+	if cfg.LANExposed && len(keySnapshot) == 0 {
 		return Status{}, errorf(CodeAPIKeyRequired, "LAN exposure requires at least one API key; create a key first")
 	}
 
@@ -256,6 +303,16 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 	case s.sem <- struct{}{}:
 	default:
 		return Status{}, errorf(CodeBusy, "another server operation is in progress")
+	}
+
+	apiKeyFile := ""
+	if len(keySnapshot) > 0 {
+		var snapshotErr error
+		apiKeyFile, snapshotErr = s.writeKeySnapshot(keySnapshot)
+		if snapshotErr != nil {
+			<-s.sem
+			return Status{}, errorf(CodeEnvFile, "write API key snapshot: %v", snapshotErr)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.opts.HealthTimeout+startSlack)
@@ -269,6 +326,12 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 	s.cancel = cancel
 	s.done = done
 	s.runErr = nil
+	prior := copyStatus(s.st)
+	if prior.State == StateRunning || prior.State == StateRunningCPU || prior.PID > 0 || prior.UnitUnverifiable {
+		s.priorStatus = &prior
+	} else {
+		s.priorStatus = nil
+	}
 	s.st = Status{
 		State:      StateStarting,
 		ModelID:    m.ID,
@@ -278,10 +341,14 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 		Since:      s.opts.Now(),
 		Warnings:   []string{},
 	}
+	if s.priorStatus != nil {
+		s.st.UnitUnverifiable = true
+		s.st.PID = prior.PID
+	}
 	snap := copyStatus(s.st)
 	s.mu.Unlock()
 
-	job := startJob{model: m, ov: req.Overrides, cfg: cfg}
+	job := startJob{model: m, ov: req.Overrides, cfg: cfg, apiKeyFile: apiKeyFile}
 	go func() {
 		runErr := s.run(ctx, job)
 		cancel()
@@ -339,16 +406,15 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 	}
 	defer func() { <-s.sem }()
 
-	if e := s.stopUnit(context.WithoutCancel(ctx)); e != nil {
-		s.mu.Lock()
-		s.st.State = StateFailed
-		s.st.PID = 0
-		s.st.LastError = e
-		s.mu.Unlock()
-		return e
+	if e := s.stopAndReclaim(ctx); e != nil {
+		return s.recordFailedState(ctx, e)
+	}
+	if err := s.cleanupKeySnapshots(""); err != nil {
+		return s.recordFailedState(ctx, errorf(CodeEnvFile, "remove inactive API key snapshots: %v", err))
 	}
 	s.mu.Lock()
 	s.st = Status{State: StateStopped, Warnings: []string{}}
+	s.priorStatus = nil
 	s.mu.Unlock()
 	return nil
 }
@@ -376,8 +442,23 @@ func (s *Supervisor) Logs(ctx context.Context, lines int) (string, error) {
 	return string(res.Stdout), nil
 }
 
-// Autostart는 설정의 Autostart 가 켜져 있고 기본 모델이 있을 때만 시작한다. 그 밖에는 이유를 로그에 남기고 돌아온다.
+// Initialize 는 API 소켓을 열기 전에 기존 유닛 상태를 조정한다.
+func (s *Supervisor) Initialize(ctx context.Context) error {
+	_, err := s.reconcileActive(ctx)
+	return err
+}
+
+// Autostart 는 조정된 상태가 stopped 일 때만 설정된 기본 모델을 백그라운드에서 시작한다.
 func (s *Supervisor) Autostart(ctx context.Context) {
+	st := s.Status()
+	if st.State == StateRunning || st.State == StateRunningCPU {
+		s.logf("autostart skipped: an active llama-server was already adopted")
+		return
+	}
+	if st.State != StateStopped {
+		s.logf("autostart skipped: server state is %s", st.State)
+		return
+	}
 	cfg := s.opts.Config()
 	if !cfg.Autostart {
 		s.logf("autostart skipped: autostart is disabled in the config")
@@ -425,18 +506,29 @@ func (s *Supervisor) watchOnce(ctx context.Context) {
 	}
 	state, err := s.unitState(ctx)
 	if err != nil {
-		s.logf("watch: cannot read unit state: %v", err)
+		s.recordFailedState(ctx, errorf(CodeUnitCheck, "watch cannot read unit state: %v", err))
 		return
 	}
-	if state == "active" {
+	pid, err := s.mainPID(ctx)
+	if err != nil {
+		s.recordFailedState(ctx, errorf(CodeUnitCheck, "watch cannot read unit MainPID: %v", err))
 		return
 	}
-	s.mu.Lock()
-	s.st.State = StateFailed
-	s.st.PID = 0
-	s.st.LastError = errorf(CodeServerExited, "unit is %s; the server is no longer running", state)
-	s.mu.Unlock()
-	s.logf("watch: server exited (unit is %s)", state)
+	if state == "active" && pid > 0 && int(pid) == st.PID {
+		return
+	}
+	if (state == "inactive" || state == "failed") && pid == 0 {
+		s.mu.Lock()
+		s.st.State = StateFailed
+		s.st.PID = 0
+		s.st.UnitUnverifiable = false
+		s.st.LastError = errorf(CodeServerExited, "unit is %s; the server is no longer running", state)
+		s.priorStatus = nil
+		s.mu.Unlock()
+		s.logf("watch: server exited (unit is %s)", state)
+		return
+	}
+	s.recordFailedState(ctx, errorf(CodeUnitCheck, "watch found unit state %q with MainPID %d inconsistent with the managed server", state, pid))
 }
 
 // findModel은 ID 의 모델을 찾는다. ID 가 비어 있으면 기본 모델을 쓴다.
@@ -463,12 +555,12 @@ func (s *Supervisor) findModel(id string) (models.Model, *Error) {
 	return models.Model{}, errorf(CodeNoModel, "model %q was not found", id)
 }
 
-// keyCount는 API 키 개수를 돌려준다. 저장소가 없으면 0이다.
-func (s *Supervisor) keyCount() (int, error) {
+// keySnapshot 은 Store 가 mutex 안에서 검증한 키 바이트의 복사본을 돌려준다.
+func (s *Supervisor) keySnapshot() ([]byte, error) {
 	if s.opts.Keys == nil {
-		return 0, nil
+		return nil, nil
 	}
-	return s.opts.Keys.Count()
+	return s.opts.Keys.Snapshot()
 }
 
 // exec는 주입된 Runner로 명령을 실행한다. Runner 가 없으면 오류다.

@@ -1,6 +1,6 @@
 // Command lightlixd는 Lightlix 데몬이다. 유닉스 소켓으로 REST API 를 제공하고 llama-server 유닛을 관리한다.
 //
-// 시작 순서는 설정 로드, 의존성 조립, 방화벽 적용(실패해도 계속), API 시작, Autostart(백그라운드), Watch 다.
+// 시작 순서는 설정 로드, 의존성 조립, 방화벽 적용, 서버 상태 조정, API 시작, Watch 다.
 // 종료는 SIGTERM 과 SIGINT 로 한다. 데몬이 끝나도 llama-server 유닛은 멈추지 않는다.
 // 로그는 표준 오류로 쓰고 systemd 저널이 받는다. 비밀은 로그에 쓰지 않는다.
 package main
@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -96,6 +97,10 @@ func run(args []string) error {
 	store := models.Store{Dir: cfg.ModelsDir}
 	keyFile := *stateDir + "/api-keys"
 	keys := &apikeys.Store{KeyFile: keyFile, MetaFile: *stateDir + "/api-keys.json"}
+	keyGID, err := groupID(keyGroup)
+	if err != nil {
+		return fmt.Errorf("look up llama-server key group: %w", err)
+	}
 
 	jobMgr := jobs.NewManager(jobs.Options{
 		HF:            &hf.Client{Token: cfg.HFToken},
@@ -108,18 +113,21 @@ func run(args []string) error {
 	defer jobMgr.Close()
 
 	sup := supervisor.New(supervisor.Options{
-		Runner:        cmds,
-		GPU:           gpu,
-		Store:         store,
-		Keys:          keys,
-		Config:        src.get,
-		MemInfo:       mem,
-		GPUStatusPath: gpuStatusPath,
-		EnvFilePath:   envFilePath,
-		ServerBinary:  llamaBinary,
-		Unit:          llamaUnit,
-		FirewallPath:  *stateDir + "/firewall.nft",
-		Now:           time.Now,
+		Runner:         cmds,
+		GPU:            gpu,
+		Store:          store,
+		Keys:           keys,
+		Config:         src.get,
+		MemInfo:        mem,
+		GPUStatusPath:  gpuStatusPath,
+		EnvFilePath:    envFilePath,
+		ServerBinary:   llamaBinary,
+		Unit:           llamaUnit,
+		FirewallPath:   *stateDir + "/firewall.nft",
+		KeySnapshotDir: *stateDir,
+		KeySnapshotGID: uint32(keyGID),
+		ChownKeyFile:   chownKeyFile,
+		Now:            time.Now,
 	})
 
 	rep := report.Deps{
@@ -132,7 +140,7 @@ func run(args []string) error {
 		KeyCount:      keys.Count,
 		Models:        store,
 		Server:        sup.Status,
-		Secrets:       secretsFunc(keyFile, src.get),
+		Secrets:       secretsFunc(keyFile, *stateDir, src.get),
 		GPUStatusPath: gpuStatusPath,
 		EnvFilePath:   envFilePath,
 		OSReleasePath: osReleasePath,
@@ -163,6 +171,9 @@ func run(args []string) error {
 	// 방화벽은 실패해도 데몬을 띄운다. 이전 규칙이 그대로 남으므로 LAN 공개가 꺼진 상태라면 포트는 닫혀 있다.
 	if err := sup.ApplyFirewall(ctx); err != nil {
 		log.Printf("firewall rules were not applied: %v", err)
+	}
+	if err := sup.Initialize(ctx); err != nil {
+		log.Printf("llama startup reconciliation failed: %v", err)
 	}
 
 	ln, created, err := socketListener(*socketPath, *socketGroup)
@@ -257,24 +268,34 @@ func (p hfProxy) ListFiles(ctx context.Context, repo, rev string) ([]hf.File, er
 	return p.client().ListFiles(ctx, repo, rev)
 }
 
-// secretsFunc 은 리포트에서 가릴 값들을 돌려준다. HF 토큰과 키 파일의 평문 키다.
-func secretsFunc(keyFile string, cfg func() config.Config) func() []string {
+// secretsFunc 은 리포트에서 가릴 HF 토큰과 저장·실행 중인 API 키를 돌려준다.
+func secretsFunc(keyFile, snapshotDir string, cfg func() config.Config) func() []string {
 	return func() []string {
 		var out []string
 		if t := cfg().HFToken; t != "" {
 			out = append(out, t)
 		}
-		data, err := os.ReadFile(keyFile)
-		if err != nil {
-			return out
-		}
-		for _, line := range strings.Split(string(data), "\n") {
-			if t := strings.TrimSpace(line); t != "" && !strings.HasPrefix(t, "#") {
-				out = append(out, t)
+		for _, file := range append([]string{keyFile}, snapshotFiles(snapshotDir)...) {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				if t := strings.TrimSpace(line); t != "" && !strings.HasPrefix(t, "#") {
+					out = append(out, t)
+				}
 			}
 		}
 		return out
 	}
+}
+
+func snapshotFiles(dir string) []string {
+	if dir == "" {
+		return nil
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "api-keys.start-*.key"))
+	return files
 }
 
 // chownKeyFile 은 키 파일의 그룹을 llama-server 가 쓰는 lightlix-llm 으로 맞춘다.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,12 +18,14 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
 	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
 	"github.com/nxodh/lightlixos/daemon/internal/config"
+	"github.com/nxodh/lightlixos/daemon/internal/llamaargs"
 	"github.com/nxodh/lightlixos/daemon/internal/models"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 )
@@ -43,6 +46,8 @@ type sysFake struct {
 	activeSeq     []string // 있으면 is-active 가 이 순서로 답한다. 마지막 값이 반복된다.
 	restartExit   int
 	stopExit      int
+	stateErr      error
+	pidErr        error
 	pid           string
 	journal       string
 	listDevices   string
@@ -50,6 +55,10 @@ type sysFake struct {
 	greetd        bool
 	nftExit       int
 	nftStderr     string
+	stopCount     int
+	gpu           *gpuFake
+	newPID        int
+	startGate     chan struct{}
 }
 
 func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Result, error) {
@@ -66,12 +75,30 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 	switch cmd.Name {
 	case "systemctl":
 		switch cmd.Args[0] {
-		case "restart":
+		case "start":
+			if f.startGate != nil {
+				select {
+				case <-ctx.Done():
+					return platform.Result{}, ctx.Err()
+				case <-f.startGate:
+				}
+			}
 			if f.restartExit == 0 {
 				f.active = "active"
+				pid := testPID
+				if f.newPID > 0 {
+					pid = f.newPID
+				}
+				f.pid = strconv.Itoa(pid)
+				if f.stopCount > 0 && f.gpu != nil {
+					f.gpu.addPID(uint32(pid))
+				}
 			}
-			return exit(f.restartExit, "restart failed")
+			return exit(f.restartExit, "start failed")
 		case "is-active":
+			if f.stateErr != nil {
+				return platform.Result{}, f.stateErr
+			}
 			if len(f.activeSeq) > 0 {
 				v := f.activeSeq[0]
 				if len(f.activeSeq) > 1 {
@@ -81,9 +108,20 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			}
 			return out(f.active + "\n")
 		case "stop":
-			f.active = "inactive"
+			if f.stopExit == 0 {
+				f.active = "inactive"
+				oldPID, _ := strconv.Atoi(f.pid)
+				f.pid = "0"
+				f.stopCount++
+				if f.gpu != nil {
+					f.gpu.beginReclaim(uint32(oldPID))
+				}
+			}
 			return exit(f.stopExit, "stop failed")
 		case "show":
+			if f.pidErr != nil {
+				return platform.Result{}, f.pidErr
+			}
 			return out(f.pid + "\n")
 		case "get-default":
 			return out(f.defaultTarget + "\n")
@@ -120,16 +158,85 @@ func (f *sysFake) count(name, first string) int {
 }
 
 // gpuFake는 고정된 NVML 스냅샷을 돌려준다.
-type gpuFake struct{ snap platform.GPUSnapshot }
+type gpuFake struct {
+	mu          sync.Mutex
+	snap        platform.GPUSnapshot
+	history     []platform.GPUSnapshot
+	holdReclaim bool
+}
 
-func (g gpuFake) Snapshot(ctx context.Context) platform.GPUSnapshot { return g.snap }
+func (g *gpuFake) Snapshot(ctx context.Context) platform.GPUSnapshot {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	snap := cloneSnapshot(g.snap)
+	g.history = append(g.history, cloneSnapshot(snap))
+	return snap
+}
+
+func (g *gpuFake) addPID(pid uint32) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for i := range g.snap.Devices {
+		device := &g.snap.Devices[i]
+		for _, process := range device.Processes {
+			if process.PID == pid {
+				return
+			}
+		}
+		if device.ProcessesKnown {
+			device.Processes = append(device.Processes, platform.GPUProcess{PID: pid, UsedMiB: 1200})
+			device.MemFreeMiB -= 1200
+			device.MemUsedMiB += 1200
+		}
+	}
+}
+
+func (g *gpuFake) dropPID(pid uint32) {
+	if pid == 0 {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for i := range g.snap.Devices {
+		device := &g.snap.Devices[i]
+		kept := device.Processes[:0]
+		for _, process := range device.Processes {
+			if process.PID == pid {
+				device.MemFreeMiB += process.UsedMiB
+				device.MemUsedMiB -= process.UsedMiB
+				continue
+			}
+			kept = append(kept, process)
+		}
+		device.Processes = kept
+	}
+}
+
+func (g *gpuFake) beginReclaim(pid uint32) {
+	g.mu.Lock()
+	hold := g.holdReclaim
+	g.mu.Unlock()
+	if !hold {
+		g.dropPID(pid)
+	}
+}
+
+func cloneSnapshot(in platform.GPUSnapshot) platform.GPUSnapshot {
+	out := in
+	out.Devices = append([]platform.GPUDevice(nil), in.Devices...)
+	for i := range out.Devices {
+		out.Devices[i].Processes = append([]platform.GPUProcess(nil), in.Devices[i].Processes...)
+	}
+	return out
+}
 
 // clock은 가짜 시각이다. Sleep 은 실제로 기다리지 않고 시각만 앞으로 옮긴다.
 // block 이 있으면 ctx 가 끝나거나 block 이 닫힐 때까지 기다린다.
 type clock struct {
-	mu    sync.Mutex
-	t     time.Time
-	block chan struct{}
+	mu       sync.Mutex
+	t        time.Time
+	block    chan struct{}
+	sleeping chan struct{}
 }
 
 func (c *clock) now() time.Time {
@@ -139,11 +246,20 @@ func (c *clock) now() time.Time {
 }
 
 func (c *clock) sleep(ctx context.Context, d time.Duration) error {
-	if c.block != nil {
+	c.mu.Lock()
+	block, sleeping := c.block, c.sleeping
+	if sleeping != nil {
+		c.sleeping = nil
+	}
+	c.mu.Unlock()
+	if block != nil {
+		if sleeping != nil {
+			close(sleeping)
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-c.block:
+		case <-block:
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -157,22 +273,35 @@ func (c *clock) sleep(ctx context.Context, d time.Duration) error {
 
 // fixture는 테스트 한 건의 환경이다.
 type fixture struct {
-	sup     *Supervisor
-	sys     *sysFake
-	clk     *clock
-	health  *atomic.Int32
-	cfg     config.Config
-	keys    *apikeys.Store
-	dir     string
-	gpuPath string
-	envPath string
-	fwPath  string
+	sup        *Supervisor
+	sys        *sysFake
+	clk        *clock
+	health     *atomic.Int32
+	cfg        config.Config
+	keys       *apikeys.Store
+	dir        string
+	gpuPath    string
+	envPath    string
+	fwPath     string
+	procRoot   string
+	chownCalls []string
 }
 
 // newFixture는 GPU 상태가 ready 인 환경을 만든다. gpuState 가 빈 문자열이 아니면 그 상태를 쓴다.
 func newFixture(t *testing.T, snap platform.GPUSnapshot, gpuState string) *fixture {
 	t.Helper()
 	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	// t.TempDir 가 만든 테스트 전용 상위 디렉터리만 서비스 그룹이 통과할 수 있게 준비한다.
+	if err := os.Chmod(filepath.Dir(dir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	procRoot := filepath.Join(dir, "proc")
+	if err := os.Mkdir(procRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	health := &atomic.Int32{}
 	health.Store(http.StatusOK)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -190,14 +319,16 @@ func newFixture(t *testing.T, snap platform.GPUSnapshot, gpuState string) *fixtu
 		t.Fatal(err)
 	}
 
+	gpuProbe := &gpuFake{snap: cloneSnapshot(snap)}
 	f := &fixture{
-		sys:     &sysFake{active: "inactive", pid: strconv.Itoa(testPID), journal: offloadOK, listDevices: deviceOK, defaultTarget: "multi-user.target"},
-		clk:     &clock{t: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)},
-		health:  health,
-		dir:     dir,
-		gpuPath: gpuPath,
-		envPath: filepath.Join(dir, "llama-server.env"),
-		fwPath:  filepath.Join(dir, "firewall.nft"),
+		sys:      &sysFake{active: "inactive", pid: "0", journal: offloadOK, listDevices: deviceOK, defaultTarget: "multi-user.target", gpu: gpuProbe},
+		clk:      &clock{t: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)},
+		health:   health,
+		dir:      dir,
+		gpuPath:  gpuPath,
+		envPath:  filepath.Join(dir, "llama-server.env"),
+		fwPath:   filepath.Join(dir, "firewall.nft"),
+		procRoot: procRoot,
 		keys: &apikeys.Store{
 			KeyFile:  filepath.Join(dir, "api-keys"),
 			MetaFile: filepath.Join(dir, "api-keys.json"),
@@ -207,17 +338,23 @@ func newFixture(t *testing.T, snap platform.GPUSnapshot, gpuState string) *fixtu
 	f.cfg.Port = port
 	f.cfg.ModelsDir = dir
 	f.sup = New(Options{
-		Runner:        f.sys,
-		GPU:           gpuFake{snap: snap},
-		Store:         models.Store{Dir: dir},
-		Keys:          f.keys,
-		Config:        func() config.Config { return f.cfg },
-		MemInfo:       func() (platform.MemInfo, error) { return platform.MemInfo{TotalMiB: 65536, AvailableMiB: 32768}, nil },
-		GPUStatusPath: gpuPath,
-		EnvFilePath:   f.envPath,
-		ServerBinary:  testServerBinary,
-		Unit:          testUnit,
-		FirewallPath:  f.fwPath,
+		Runner:         f.sys,
+		GPU:            gpuProbe,
+		Store:          models.Store{Dir: dir},
+		Keys:           f.keys,
+		Config:         func() config.Config { return f.cfg },
+		MemInfo:        func() (platform.MemInfo, error) { return platform.MemInfo{TotalMiB: 65536, AvailableMiB: 32768}, nil },
+		GPUStatusPath:  gpuPath,
+		EnvFilePath:    f.envPath,
+		ServerBinary:   testServerBinary,
+		Unit:           testUnit,
+		FirewallPath:   f.fwPath,
+		KeySnapshotDir: dir,
+		ProcRoot:       procRoot,
+		ChownKeyFile: func(path string) error {
+			f.chownCalls = append(f.chownCalls, path)
+			return nil
+		},
 		HTTP:          srv.Client(),
 		Now:           f.clk.now,
 		HealthTimeout: 30 * time.Second,
@@ -305,6 +442,44 @@ func (f *fixture) startSync(req StartRequest) (Status, error) {
 	return f.sup.Start(context.Background(), req)
 }
 
+func writeActiveRuntime(t *testing.T, f *fixture, pid int, modelID, host string, output autoconf.Output, apiKeyFile string) {
+	t.Helper()
+	modelPath := filepath.Join(f.dir, modelID)
+	if _, err := os.Stat(modelPath); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(modelPath, ggufFile("llama", 32, 8192, 4096), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	settings := llamaargs.ServerSettings{
+		ModelPath:  modelPath,
+		Host:       host,
+		Port:       f.cfg.Port,
+		APIKeyFile: apiKeyFile,
+	}
+	env, err := llamaargs.Env(output, settings)
+	if err != nil {
+		t.Fatalf("make active runtime environment: %v", err)
+	}
+	if err := os.WriteFile(f.envPath, []byte(llamaargs.EnvFile(env)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	procDir := filepath.Join(f.procRoot, strconv.Itoa(pid))
+	if err := os.MkdirAll(procDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(f.sup.opts.ServerBinary, filepath.Join(procDir, "exe")); err != nil {
+		t.Fatal(err)
+	}
+	var rawEnv []byte
+	for key, value := range env {
+		rawEnv = append(rawEnv, []byte(key+"="+value)...)
+		rawEnv = append(rawEnv, 0)
+	}
+	if err := os.WriteFile(filepath.Join(procDir, "environ"), rawEnv, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // wantCode는 오류 코드를 확인한다.
 func wantCode(t *testing.T, err error, code string) {
 	t.Helper()
@@ -313,17 +488,37 @@ func wantCode(t *testing.T, err error, code string) {
 	}
 }
 
-// wantStopped는 실패 뒤에 systemctl stop 이 불렸고 상태가 failed 인지 확인한다.
+func TestStatusJSONUnitUnverifiableOmitsFalseAndExposesTrue(t *testing.T) {
+	data, err := json.Marshal(Status{State: StateFailed, UnitUnverifiable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"unit_unverifiable":true`) {
+		t.Fatalf("status JSON lacks the active uncertainty flag: %s", data)
+	}
+	data, err = json.Marshal(Status{State: StateStopped})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "unit_unverifiable") {
+		t.Fatalf("false uncertainty flag should be omitted: %s", data)
+	}
+}
+
+// wantStopped 는 실패 뒤 상태가 failed 이고 실행 유닛이 남지 않았는지 확인한다.
 func wantStoppedAfterFailure(t *testing.T, f *fixture, st Status, code string) {
 	t.Helper()
-	if f.sys.count("systemctl", "stop") == 0 {
-		t.Fatalf("no systemctl stop call after failure %s", code)
-	}
 	if st.State != StateFailed {
 		t.Fatalf("state = %s, want failed", st.State)
 	}
 	if st.LastError == nil || st.LastError.Code != code {
 		t.Fatalf("last error = %+v, want code %s", st.LastError, code)
+	}
+	f.sys.mu.Lock()
+	active, pid := f.sys.active, f.sys.pid
+	f.sys.mu.Unlock()
+	if active == "active" || pid != "0" {
+		t.Fatalf("failed start left unit state=%s PID=%s", active, pid)
 	}
 }
 
@@ -376,7 +571,7 @@ func TestStartCPUFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if st.State != StateRunningCPU {
+	if st.State != StateRunningCPU || st.UnitUnverifiable || st.Offload.Verified {
 		t.Fatalf("state = %s, want running_cpu_fallback", st.State)
 	}
 	joined := strings.Join(st.Warnings, "\n")
@@ -385,6 +580,39 @@ func TestStartCPUFallback(t *testing.T) {
 	}
 	if f.sys.count(testServerBinary, "") != 0 {
 		t.Fatal("CPU plan must not run the CUDA pre-check")
+	}
+}
+
+func TestCPUOnlyRestartAndStopDoNotRequireNVML(t *testing.T) {
+	for _, nvmlUnavailable := range []bool{false, true} {
+		t.Run(fmt.Sprintf("nvml_unavailable_%v", nvmlUnavailable), func(t *testing.T) {
+			f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+			if nvmlUnavailable {
+				f.sup.opts.GPU = nil
+			}
+			for run := 0; run < 2; run++ {
+				st, err := f.startSync(StartRequest{})
+				if err != nil {
+					t.Fatalf("Start run %d: %v", run+1, err)
+				}
+				if st.State != StateRunningCPU || st.Offload.Verified || st.UnitUnverifiable {
+					t.Fatalf("CPU run %d status = %+v", run+1, st)
+				}
+			}
+			if got := len(f.sup.reclaimPIDs()); got != 0 {
+				t.Fatalf("verified CPU-only PID was queued for GPU reclamation: %v", f.sup.reclaimPIDs())
+			}
+			if err := f.sup.Stop(context.Background()); err != nil {
+				t.Fatalf("Stop CPU-only unit: %v", err)
+			}
+			st := f.sup.Status()
+			if st.State != StateStopped || st.PID != 0 || st.UnitUnverifiable {
+				t.Fatalf("CPU-only Stop status = %+v", st)
+			}
+			if f.sys.count("systemctl", "start") != 2 || f.sys.count("systemctl", "stop") != 2 {
+				t.Fatalf("CPU-only start/stop calls = %d/%d", f.sys.count("systemctl", "start"), f.sys.count("systemctl", "stop"))
+			}
+		})
 	}
 }
 
@@ -411,8 +639,8 @@ func TestStartCUDABackendMissing(t *testing.T) {
 	st, err := f.startSync(StartRequest{})
 	wantCode(t, err, CodeCUDABackend)
 	wantStoppedAfterFailure(t, f, st, CodeCUDABackend)
-	if f.sys.count("systemctl", "restart") != 0 {
-		t.Fatal("pre-check failure must not restart the unit")
+	if f.sys.count("systemctl", "start") != 0 {
+		t.Fatal("pre-check failure must not start the unit")
 	}
 }
 
@@ -521,7 +749,23 @@ func TestStartLANWithoutKeyRejected(t *testing.T) {
 func TestStartLANWithKeyBindsAllInterfaces(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
 	f.cfg.LANExposed = true
-	if _, _, err := f.keys.Create("laptop"); err != nil {
+	groupGID := uint32(os.Getgid())
+	if groupGID == 0 {
+		if os.Geteuid() != 0 {
+			t.Skip("an expected non-root llama-server group is required for group ownership verification")
+		}
+		groupGID = 1
+	}
+	if err := os.Chown(f.dir, os.Geteuid(), int(groupGID)); err != nil {
+		t.Skipf("cannot set a test group on runtime directory: %v", err)
+	}
+	f.sup.opts.KeySnapshotGID = groupGID
+	f.sup.opts.ChownKeyFile = func(path string) error {
+		f.chownCalls = append(f.chownCalls, path)
+		return os.Chown(path, os.Geteuid(), int(groupGID))
+	}
+	key, plaintext, err := f.keys.Create("laptop")
+	if err != nil {
 		t.Fatal(err)
 	}
 	st, err := f.startSync(StartRequest{})
@@ -535,11 +779,102 @@ func TestStartLANWithKeyBindsAllInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+f.keys.KeyFile+`"`) {
+	snapshots, err := filepath.Glob(filepath.Join(f.dir, "api-keys.start-*.key"))
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("runtime snapshot files = %v, %v", snapshots, err)
+	}
+	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+snapshots[0]+`"`) || strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+f.keys.KeyFile+`"`) {
 		t.Fatalf("env file lacks key file path: %s", env)
 	}
 	if strings.Contains(string(env), "llx_") {
 		t.Fatal("env file must not contain a plaintext key")
+	}
+	snapshot, err := os.ReadFile(snapshots[0])
+	if err != nil || string(snapshot) != plaintext+"\n" {
+		t.Fatalf("runtime snapshot did not preserve one canonical key")
+	}
+	info, err := os.Stat(snapshots[0])
+	if err != nil || info.Mode().Perm() != 0o640 {
+		t.Fatalf("snapshot mode = %v, %v", info, err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || stat.Uid != uint32(os.Geteuid()) || stat.Gid != groupGID {
+		t.Fatalf("snapshot uid/gid = %+v, want daemon uid %d and group %d", info.Sys(), os.Geteuid(), groupGID)
+	}
+	if len(f.chownCalls) != 1 || f.chownCalls[0] != snapshots[0] {
+		t.Fatalf("key group callback paths = %v", f.chownCalls)
+	}
+	if err := f.keys.Delete(key.ID); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(snapshots[0]); err != nil || string(data) != plaintext+"\n" {
+		t.Fatal("deleting the mutable Store key changed the running server snapshot")
+	}
+}
+
+func TestStartUsesImmutableCredentialSnapshotAcrossStoreDeletion(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.LANExposed = true
+	key, plaintext, err := f.keys.Create("laptop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.sys.startGate = make(chan struct{})
+	if _, err := f.sup.StartAsync(StartRequest{}); err != nil {
+		t.Fatalf("StartAsync: %v", err)
+	}
+	snapshots, err := filepath.Glob(filepath.Join(f.dir, "api-keys.start-*.key"))
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("runtime snapshot files = %v, %v", snapshots, err)
+	}
+	if err := f.keys.Delete(key.ID); err != nil {
+		t.Fatal(err)
+	}
+	remaining, err := f.keys.Snapshot()
+	if err != nil || len(remaining) != 0 {
+		t.Fatalf("mutable Store after deletion has %d bytes, %v", len(remaining), err)
+	}
+	close(f.sys.startGate)
+	st, err := f.sup.Wait(context.Background())
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if st.State != StateRunning {
+		t.Fatalf("state = %s, want running", st.State)
+	}
+	env, err := os.ReadFile(f.envPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+snapshots[0]+`"`) {
+		t.Fatalf("llama environment does not use the immutable snapshot: %s", env)
+	}
+	data, err := os.ReadFile(snapshots[0])
+	if err != nil || string(data) != plaintext+"\n" {
+		t.Fatal("Store deletion changed the key bytes selected for llama startup")
+	}
+	if strings.Contains(string(env), plaintext) {
+		t.Fatal("environment file contains a plaintext key")
+	}
+}
+
+func TestStartRejectsLANWhenKeyStoreSnapshotIsInconsistent(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.LANExposed = true
+	_, plaintext, err := f.keys.Create("laptop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(f.keys.KeyFile, nil, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.sup.StartAsync(StartRequest{})
+	wantCode(t, err, CodeInternal)
+	if strings.Contains(err.Error(), plaintext) {
+		t.Fatal("key snapshot error leaked a plaintext credential")
+	}
+	if f.sys.count("systemctl", "start") != 0 || f.sys.count("systemctl", "stop") != 0 {
+		t.Fatal("inconsistent key store changed the running unit")
 	}
 }
 
@@ -556,11 +891,185 @@ func TestStartNoModel(t *testing.T) {
 	wantCode(t, err, CodeNoModel)
 }
 
+func TestStartClearsPriorUnitUnverifiableAfterVerifiedLaunch(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sup.st = Status{State: StateFailed, ModelID: "previous-model", UnitUnverifiable: true}
+	st, err := f.startSync(StartRequest{})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if st.State != StateRunning || st.PID != testPID || st.UnitUnverifiable {
+		t.Fatalf("verified launch did not clear prior unit uncertainty: %+v", st)
+	}
+	if err := f.sup.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if st := f.sup.Status(); st.State != StateStopped || st.PID != 0 || st.UnitUnverifiable {
+		t.Fatalf("verified stop did not clear unit uncertainty: %+v", st)
+	}
+}
+
 func TestStartInvalidOverride(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
 	bad := "lots"
 	_, err := f.sup.StartAsync(StartRequest{Overrides: autoconf.Overrides{NGL: &bad}})
 	wantCode(t, err, CodeInvalidOverrides)
+}
+
+func TestInvalidStartRequestDoesNotStopHealthyActiveServer(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+	_, err := f.sup.StartAsync(StartRequest{ModelID: "missing.gguf"})
+	wantCode(t, err, CodeNoModel)
+	f.cfg.Port = 0
+	_, err = f.sup.StartAsync(StartRequest{})
+	wantCode(t, err, CodeInvalidSettings)
+	if f.sys.count("systemctl", "stop") != 0 || f.sys.count("systemctl", "start") != 0 {
+		t.Fatal("invalid model or settings stopped/replaced the healthy active unit")
+	}
+	f.sys.mu.Lock()
+	active, pid := f.sys.active, f.sys.pid
+	f.sys.mu.Unlock()
+	if active != "active" || pid != strconv.Itoa(testPID) {
+		t.Fatalf("active unit changed after invalid request: %s/%s", active, pid)
+	}
+}
+
+func TestRestartWaitsForOldGPUProcessAndKeepsExternalUsage(t *testing.T) {
+	snap := readyGPU()
+	snap.Devices[0].MemFreeMiB = 1564
+	snap.Devices[0].MemUsedMiB = 23000
+	snap.Devices[0].Processes = []platform.GPUProcess{
+		{PID: testPID, UsedMiB: 17000},
+		{PID: 9000, UsedMiB: 6000},
+	}
+	f := newFixture(t, snap, "ready")
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.newPID = 4343
+	f.sys.journal = "load_tensors: offloaded 33/33 layers to GPU\n"
+	f.sys.mu.Unlock()
+	st, err := f.startSync(StartRequest{})
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if st.State != StateRunning || st.Plan == nil || st.Plan.CPUOnly || st.Plan.NGL == "0" {
+		t.Fatalf("restart plan ignored released server memory: %+v", st)
+	}
+	probe := f.sup.opts.GPU.(*gpuFake)
+	probe.mu.Lock()
+	history := append([]platform.GPUSnapshot(nil), probe.history...)
+	probe.mu.Unlock()
+	if len(history) < 2 {
+		t.Fatalf("GPU snapshots = %d, want reclaim and planning observations", len(history))
+	}
+	first := history[0].Devices[0]
+	if first.MemFreeMiB != 18564 {
+		t.Fatalf("post-reclaim free VRAM = %d MiB, want 18564 MiB with external usage retained", first.MemFreeMiB)
+	}
+	seenExternal, seenOld := false, false
+	for _, process := range first.Processes {
+		seenExternal = seenExternal || process.PID == 9000
+		seenOld = seenOld || process.PID == testPID
+	}
+	if !seenExternal || seenOld {
+		t.Fatalf("post-reclaim GPU processes = %+v; external PID must remain and old unit PID must be gone", first.Processes)
+	}
+	probe.mu.Lock()
+	final := append([]platform.GPUProcess(nil), probe.snap.Devices[0].Processes...)
+	probe.mu.Unlock()
+	seenNew, seenExternal, seenOld := false, false, false
+	for _, process := range final {
+		seenNew = seenNew || process.PID == 4343
+		seenExternal = seenExternal || process.PID == 9000
+		seenOld = seenOld || process.PID == testPID
+	}
+	if !seenNew || !seenExternal || seenOld {
+		t.Fatalf("post-start GPU processes = %+v", final)
+	}
+}
+
+func TestRestartGPUReclaimWaitIsBoundedAndCancellable(t *testing.T) {
+	t.Run("bounded", func(t *testing.T) {
+		f := newFixture(t, readyGPU(), "ready")
+		f.sys.mu.Lock()
+		f.sys.active = "active"
+		f.sys.pid = strconv.Itoa(testPID)
+		f.sys.mu.Unlock()
+		probe := f.sup.opts.GPU.(*gpuFake)
+		probe.mu.Lock()
+		probe.holdReclaim = true
+		probe.mu.Unlock()
+		f.sup.opts.ReclaimTimeout = 2 * time.Second
+		f.sup.opts.ReclaimPollInterval = 500 * time.Millisecond
+		_, err := f.startSync(StartRequest{})
+		wantCode(t, err, CodeUnitStopFailed)
+		if f.sys.count("systemctl", "start") != 0 || f.sup.Status().PID != 0 {
+			t.Fatal("new server started before the old GPU process was reclaimed")
+		}
+		if elapsed := f.clk.now().Sub(time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)); elapsed < 2*time.Second {
+			t.Fatalf("reclaim polling stopped after %s, want bounded 2s deadline", elapsed)
+		}
+	})
+	t.Run("cancellable", func(t *testing.T) {
+		f := newFixture(t, readyGPU(), "ready")
+		f.sys.mu.Lock()
+		f.sys.active = "active"
+		f.sys.pid = strconv.Itoa(testPID)
+		f.sys.mu.Unlock()
+		f.sup.opts.ReclaimTimeout = 2 * time.Second
+		f.sup.opts.ReclaimPollInterval = 500 * time.Millisecond
+		probe := f.sup.opts.GPU.(*gpuFake)
+		probe.mu.Lock()
+		probe.holdReclaim = true
+		probe.mu.Unlock()
+		f.clk.block = make(chan struct{})
+		f.clk.sleeping = make(chan struct{})
+		sleeping := f.clk.sleeping
+		block := f.clk.block
+		if _, err := f.sup.StartAsync(StartRequest{}); err != nil {
+			t.Fatalf("StartAsync: %v", err)
+		}
+		select {
+		case <-sleeping:
+		case <-time.After(2 * time.Second):
+			t.Fatal("start did not enter cancellable GPU reclaim polling")
+		}
+		f.sup.mu.Lock()
+		cancel := f.sup.cancel
+		f.sup.mu.Unlock()
+		cancel()
+		if _, err := f.sup.Wait(context.Background()); err == nil {
+			t.Fatal("canceled reclaim unexpectedly succeeded")
+		}
+		close(block)
+		f.clk.block = nil
+		if _, err := f.sup.StartAsync(StartRequest{}); err != nil {
+			t.Fatalf("retry StartAsync: %v", err)
+		}
+		_, err := f.sup.Wait(context.Background())
+		wantCode(t, err, CodeUnitStopFailed)
+		if f.sys.count("systemctl", "start") != 0 {
+			t.Fatal("retry started before the canceled old GPU PID was reclaimed")
+		}
+		probe.mu.Lock()
+		probe.holdReclaim = false
+		probe.mu.Unlock()
+		probe.dropPID(testPID)
+		if _, err := f.sup.StartAsync(StartRequest{}); err != nil {
+			t.Fatalf("final retry StartAsync: %v", err)
+		}
+		if _, err := f.sup.Wait(context.Background()); err != nil {
+			t.Fatalf("final retry after process release: %v", err)
+		}
+		if err := f.sup.Stop(context.Background()); err != nil {
+			t.Fatalf("Stop after retry: %v", err)
+		}
+	})
 }
 
 func TestConcurrentStartBusyAndStopInterrupts(t *testing.T) {
@@ -592,25 +1101,106 @@ func TestStopRunningServer(t *testing.T) {
 	if _, err := f.startSync(StartRequest{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
+	f.sup.mu.Lock()
+	f.sup.st.UnitUnverifiable = true
+	f.sup.mu.Unlock()
 	if err := f.sup.Stop(context.Background()); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 	st := f.sup.Status()
-	if st.State != StateStopped || st.PID != 0 {
+	if st.State != StateStopped || st.PID != 0 || st.UnitUnverifiable {
 		t.Fatalf("status after Stop = %+v", st)
 	}
 }
 
 func TestStopReportsUnitStopFailure(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.LANExposed = true
+	_, plaintext, err := f.keys.Create("lan")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := f.startSync(StartRequest{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
+	snapshots, err := filepath.Glob(filepath.Join(f.dir, keySnapshotPrefix+"*.key"))
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("active snapshots = %v, %v", snapshots, err)
+	}
 	f.sys.stopExit = 1
-	err := f.sup.Stop(context.Background())
+	err = f.sup.Stop(context.Background())
 	wantCode(t, err, CodeUnitStopFailed)
-	if f.sup.Status().State != StateFailed {
-		t.Fatal("a failed stop must leave the state failed")
+	st := f.sup.Status()
+	if st.State != StateFailed || !st.UnitUnverifiable || st.PID != testPID {
+		t.Fatalf("a failed stop must retain an unverifiable active MainPID: %+v", st)
+	}
+	data, readErr := os.ReadFile(snapshots[0])
+	if readErr != nil || string(data) != plaintext+"\n" {
+		t.Fatalf("failed stop removed or changed the active credential snapshot: %v", readErr)
+	}
+}
+
+func TestRecordFailedStateTracksUnitVerifiability(t *testing.T) {
+	t.Run("state unreadable", func(t *testing.T) {
+		f := newFixture(t, readyGPU(), "ready")
+		f.sup.st = Status{State: StateRunning, ModelID: "known-model", PID: 9876}
+		f.sys.stateErr = errors.New("systemctl unavailable")
+		f.sys.pid = strconv.Itoa(testPID)
+		f.sup.recordFailedState(context.Background(), errorf(CodeUnitCheck, "test failure"))
+		st := f.sup.Status()
+		if !st.UnitUnverifiable || st.PID != testPID || st.ModelID != "known-model" {
+			t.Fatalf("unreadable unit state lost evidence: %+v", st)
+		}
+	})
+	t.Run("MainPID unreadable", func(t *testing.T) {
+		f := newFixture(t, readyGPU(), "ready")
+		f.sup.st = Status{State: StateRunning, ModelID: "known-model", PID: 9876}
+		f.sys.active = "active"
+		f.sys.pidErr = errors.New("systemctl show failed")
+		f.sup.recordFailedState(context.Background(), errorf(CodeUnitCheck, "test failure"))
+		st := f.sup.Status()
+		if !st.UnitUnverifiable || st.PID != 9876 || st.ModelID != "known-model" {
+			t.Fatalf("unreadable MainPID lost prior evidence: %+v", st)
+		}
+	})
+	t.Run("verified stopped", func(t *testing.T) {
+		f := newFixture(t, readyGPU(), "ready")
+		f.sup.st = Status{State: StateRunning, ModelID: "known-model", PID: testPID, UnitUnverifiable: true}
+		f.sup.recordFailedState(context.Background(), errorf(CodeUnitStopFailed, "test failure"))
+		st := f.sup.Status()
+		if st.UnitUnverifiable || st.PID != 0 {
+			t.Fatalf("verified inactive unit remained unverifiable: %+v", st)
+		}
+	})
+}
+
+func TestFailedStartPreparationRetainsActivePIDAndPriorModel(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.stopExit = 1
+	f.sys.mu.Unlock()
+	f.sup.st = Status{State: StateRunning, ModelID: "known-manual-model", Host: "127.0.0.1", Port: f.cfg.Port, PID: testPID}
+	_, err := f.startSync(StartRequest{})
+	wantCode(t, err, CodeUnitStopFailed)
+	st := f.sup.Status()
+	if st.State != StateFailed || !st.UnitUnverifiable || st.PID != testPID || st.ModelID != "known-manual-model" {
+		t.Fatalf("failed replacement did not retain old server evidence: %+v", st)
+	}
+}
+
+func TestFailedStartCleanupRetainsActivePID(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.mu.Lock()
+	f.sys.stopExit = 1
+	f.sys.journal = "server started without a verifiable offload line\n"
+	f.sys.mu.Unlock()
+	_, err := f.startSync(StartRequest{})
+	wantCode(t, err, CodeGPUOffloadFailed)
+	st := f.sup.Status()
+	if st.State != StateFailed || !st.UnitUnverifiable || st.PID != testPID || st.ModelID != "llama.gguf" {
+		t.Fatalf("failed start cleanup lost its active MainPID: %+v", st)
 	}
 }
 
@@ -620,13 +1210,30 @@ func TestWatchDetectsDeadServer(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	f.sys.activeSeq = []string{"failed"}
+	f.sys.pid = "0"
 	f.sup.watchOnce(context.Background())
 	st := f.sup.Status()
 	if st.State != StateFailed || st.LastError == nil || st.LastError.Code != CodeServerExited {
 		t.Fatalf("status = %+v", st)
 	}
-	if f.sys.count("systemctl", "restart") != 1 {
-		t.Fatal("Watch must not restart the unit")
+	if f.sys.count("systemctl", "start") != 1 {
+		t.Fatal("Watch must not start another server")
+	}
+}
+
+func TestWatchRetainsPIDForTransitionalUnit(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	if _, err := f.startSync(StartRequest{}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	f.sys.mu.Lock()
+	f.sys.activeSeq = []string{"deactivating"}
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+	f.sup.watchOnce(context.Background())
+	st := f.sup.Status()
+	if st.State != StateFailed || !st.UnitUnverifiable || st.PID != testPID || st.ModelID != "llama.gguf" {
+		t.Fatalf("transitional unit evidence was discarded: %+v", st)
 	}
 }
 
@@ -677,6 +1284,62 @@ func TestApplyFirewallNftFailure(t *testing.T) {
 	f.sys.nftExit = 1
 	f.sys.nftStderr = "syntax error"
 	wantCode(t, f.sup.ApplyFirewall(context.Background()), CodeFirewallFailed)
+}
+
+func TestApplyFirewallSerializesConfigReadThroughNft(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	cfgMu := sync.Mutex{}
+	cfg := config.Default()
+	cfg.Port = f.cfg.Port
+	cfg.LANExposed = true
+	reads := 0
+	firstRead := make(chan struct{})
+	secondRead := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	f.sup.opts.Config = func() config.Config {
+		cfgMu.Lock()
+		reads++
+		readNumber := reads
+		value := cfg
+		cfgMu.Unlock()
+		if readNumber == 1 {
+			close(firstRead)
+			<-releaseFirst
+		}
+		if readNumber == 2 {
+			close(secondRead)
+		}
+		return value
+	}
+	results := make(chan error, 2)
+	go func() { results <- f.sup.ApplyFirewall(context.Background()) }()
+	<-firstRead
+	cfgMu.Lock()
+	cfg.LANExposed = false
+	cfgMu.Unlock()
+	go func() { results <- f.sup.ApplyFirewall(context.Background()) }()
+	select {
+	case <-secondRead:
+		close(releaseFirst)
+		t.Fatal("the second firewall update read config before the first nft application finished")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(releaseFirst)
+	for range 2 {
+		if err := <-results; err != nil {
+			t.Fatalf("ApplyFirewall: %v", err)
+		}
+	}
+	if reads != 2 {
+		t.Fatalf("config reads = %d, want 2", reads)
+	}
+	rules, err := os.ReadFile(f.fwPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(rules), fmt.Sprintf("tcp dport %d accept", f.cfg.Port)) {
+		t.Fatalf("stale LAN-on rules were last applied after LAN-off: %s", rules)
+	}
 }
 
 func TestSetModeDesktopNotInstalled(t *testing.T) {
@@ -787,5 +1450,353 @@ func TestAutostartStartsDefaultModel(t *testing.T) {
 	f.sup.Autostart(context.Background())
 	if st := f.sup.Status(); st.State != StateRunning {
 		t.Fatalf("state = %s, want running", st.State)
+	}
+}
+
+func TestInitializeAdoptsActiveManualModelForEitherAutostartValue(t *testing.T) {
+	for _, autostart := range []bool{false, true} {
+		t.Run(fmt.Sprintf("autostart_%v", autostart), func(t *testing.T) {
+			f := newFixture(t, readyGPU(), "ready")
+			f.cfg.Autostart = autostart
+			manualPath := filepath.Join(f.dir, "manual.gguf")
+			if err := os.WriteFile(manualPath, ggufFile("llama", 32, 8192, 4096), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out := autoconf.Output{
+				NGL:            "12",
+				Ctx:            4096,
+				CacheTypeK:     "f16",
+				CacheTypeV:     "f16",
+				Batch:          768,
+				LoadMode:       "mmap",
+				VisibleDevices: []int{0},
+			}
+			f.sys.journal = "load_tensors: offloaded 12/33 layers to GPU\n"
+			writeActiveRuntime(t, f, testPID, "manual.gguf", "127.0.0.1", out, "")
+			f.sys.mu.Lock()
+			f.sys.active = "active"
+			f.sys.pid = strconv.Itoa(testPID)
+			f.sys.mu.Unlock()
+
+			if err := f.sup.Initialize(context.Background()); err != nil {
+				t.Fatalf("Initialize: %v", err)
+			}
+			st := f.sup.Status()
+			if st.State != StateRunning || st.ModelID != "manual.gguf" || st.PID != testPID || st.Port != f.cfg.Port || st.UnitUnverifiable {
+				t.Fatalf("active manual server was not restored: %+v", st)
+			}
+			if st.Plan == nil || st.Plan.NGL != "12" || st.Plan.Ctx != 4096 || st.Plan.Batch != 768 {
+				t.Fatalf("runtime overrides were not restored: %+v", st.Plan)
+			}
+			if !st.Offload.Verified || st.Offload.Offloaded != 12 {
+				t.Fatalf("GPU offload state was not verified: %+v", st.Offload)
+			}
+			if f.sys.count("systemctl", "start") != 0 || f.sys.count("systemctl", "stop") != 0 {
+				t.Fatal("Initialize replaced or stopped the healthy active server")
+			}
+		})
+	}
+}
+
+func TestInitializeAdoptsVerifiedCPUFallback(t *testing.T) {
+	f := newFixture(t, platform.GPUSnapshot{}, "no_gpu")
+	out := autoconf.Output{
+		NGL:        "0",
+		Ctx:        4096,
+		CacheTypeK: "f16",
+		CacheTypeV: "f16",
+		Batch:      512,
+		LoadMode:   "mmap",
+		CPUOnly:    true,
+	}
+	writeActiveRuntime(t, f, testPID, "llama.gguf", "127.0.0.1", out, "")
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+	if err := f.sup.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+	st := f.sup.Status()
+	if st.State != StateRunningCPU || st.PID != testPID || st.Plan == nil || !st.Plan.CPUOnly || st.Offload.Verified || st.UnitUnverifiable {
+		t.Fatalf("CPU fallback state was not restored: %+v", st)
+	}
+	if !strings.Contains(st.Offload.Note, "CPU-only runtime environment and health endpoint verified") {
+		t.Fatalf("CPU runtime state was not verified: %+v", st.Offload)
+	}
+	for _, warnings := range [][]string{st.Warnings, st.Plan.Warnings} {
+		if !strings.Contains(strings.Join(warnings, "\n"), "adopted CPU-only runtime (N_GPU_LAYERS=0)") || !strings.Contains(strings.Join(warnings, "\n"), "health endpoint returned HTTP 200") {
+			t.Fatalf("CPU adoption warnings do not explain the restored runtime: %q", warnings)
+		}
+	}
+	if f.sys.count("systemctl", "start") != 0 {
+		t.Fatal("CPU fallback adoption was replaced by autostart")
+	}
+}
+
+func TestInitializePreservesActiveCredentialSnapshot(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.Autostart = false
+	f.cfg.LANExposed = true
+	key, plaintext, err := f.keys.Create("lan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeKeyFile, err := f.sup.writeKeySnapshot([]byte(plaintext + "\n"))
+	if err != nil {
+		t.Fatalf("write runtime snapshot: %v", err)
+	}
+	out := autoconf.Output{
+		NGL:            "all",
+		Ctx:            8192,
+		CacheTypeK:     "f16",
+		CacheTypeV:     "f16",
+		Batch:          2048,
+		LoadMode:       "mmap",
+		VisibleDevices: []int{0},
+	}
+	writeActiveRuntime(t, f, testPID, "llama.gguf", "0.0.0.0", out, runtimeKeyFile)
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+	if err := f.sup.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+	if st := f.sup.Status(); st.State != StateRunning || !st.LANExposed || st.PID != testPID {
+		t.Fatalf("active LAN server was not adopted: %+v", st)
+	}
+	if data, err := os.ReadFile(runtimeKeyFile); err != nil || string(data) != plaintext+"\n" {
+		t.Fatal("daemon reconciliation changed the active runtime credential snapshot")
+	}
+	if err := f.keys.Delete(key.ID); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(runtimeKeyFile); err != nil || string(data) != plaintext+"\n" {
+		t.Fatal("mutable Store deletion changed the adopted server credential snapshot")
+	}
+}
+
+func TestInitializeRejectsLegacyStoreKeyFileForLAN(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.LANExposed = true
+	if _, _, err := f.keys.Create("legacy-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(f.keys.KeyFile, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	out := autoconf.Output{NGL: "0", Ctx: 4096, CacheTypeK: "f16", CacheTypeV: "f16", Batch: 512, LoadMode: "mmap", CPUOnly: true}
+	writeActiveRuntime(t, f, testPID, "llama.gguf", "0.0.0.0", out, f.keys.KeyFile)
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+	if err := f.sup.Initialize(context.Background()); err == nil {
+		t.Fatal("Initialize adopted a LAN server using the mutable legacy key store path")
+	}
+	st := f.sup.Status()
+	f.sys.mu.Lock()
+	active, pid := f.sys.active, f.sys.pid
+	f.sys.mu.Unlock()
+	if active != "inactive" || pid != "0" || f.sys.count("systemctl", "stop") != 1 || st.State != StateFailed || st.PID != 0 || st.UnitUnverifiable {
+		t.Fatalf("legacy mutable LAN key file was adopted or reported inaccurately: unit=%s/%s status=%+v", active, pid, st)
+	}
+}
+
+func TestRuntimeCredentialRequiresDaemonOwnershipGroupAndSafeDirectory(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	groupGID := uint32(os.Getgid())
+	if groupGID == 0 {
+		if os.Geteuid() != 0 {
+			t.Skip("an expected non-root llama-server group is required for group ownership verification")
+		}
+		groupGID = 1
+	}
+	if err := os.Chown(f.dir, os.Geteuid(), int(groupGID)); err != nil {
+		t.Skipf("cannot set a test group on runtime directory: %v", err)
+	}
+	f.sup.opts.KeySnapshotGID = groupGID
+	_, plaintext, err := f.keys.Create("runtime-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(f.dir, keySnapshotPrefix+"verification.key")
+	writeValid := func(uid, gid int) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(plaintext+"\n"), 0o640); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, 0o640); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chown(path, uid, gid); err != nil {
+			t.Skipf("cannot set credential test ownership: %v", err)
+		}
+	}
+	writeValid(os.Geteuid(), int(groupGID))
+	if got, err := f.sup.readRuntimeCredentialFile(path); err != nil || string(got) != plaintext+"\n" {
+		t.Fatalf("valid owned 0640 runtime file rejected: err=%v", err)
+	}
+
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+		t.Fatal("runtime key file with mode 0600 passed validation")
+	}
+	writeValid(os.Geteuid(), int(groupGID))
+
+	if os.Geteuid() == 0 {
+		wrongGID := 2
+		if uint32(wrongGID) == groupGID {
+			wrongGID = 3
+		}
+		if err := os.Chown(path, os.Geteuid(), wrongGID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+			t.Fatal("runtime key file with the wrong llama-server group passed validation")
+		}
+		writeValid(1, int(groupGID))
+		if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+			t.Fatal("runtime key file owned by a different user passed validation")
+		}
+		writeValid(os.Geteuid(), int(groupGID))
+		if err := os.Chown(f.dir, os.Geteuid(), wrongGID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+			t.Fatal("runtime key directory with the wrong llama-server group passed validation")
+		}
+		if err := os.Chown(f.dir, os.Geteuid(), int(groupGID)); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		t.Log("wrong-user and wrong-group ownership cases require privileged chown; production ownership checks were exercised by the valid uid/gid case")
+	}
+
+	writeValid(os.Geteuid(), int(groupGID))
+	if err := os.Chmod(f.dir, 0o770); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+		t.Fatal("group-writable key directory passed validation")
+	}
+	if err := os.Chmod(f.dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	linkPath := path + ".link"
+	if err := os.Symlink(path, linkPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.sup.readRuntimeCredentialFile(linkPath); err == nil {
+		t.Fatal("symlink key file passed runtime credential validation")
+	}
+	if err := os.Remove(linkPath); err != nil {
+		t.Fatal(err)
+	}
+	// 부모는 t.TempDir 전용이며 owner(root) 실행 권한만으로는 서비스 그룹 통과를 증명하지 못한다.
+	parent := filepath.Dir(f.dir)
+	if err := os.Chmod(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.sup.readRuntimeCredentialFile(path); err == nil {
+		t.Fatal("a root-only parent directory was accepted for the llama-server group")
+	}
+	if err := os.Chmod(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInitializeStopsUnsafeActiveUnitOrReportsItsPID(t *testing.T) {
+	for _, stopFails := range []bool{false, true} {
+		t.Run(fmt.Sprintf("stop_fails_%v", stopFails), func(t *testing.T) {
+			f := newFixture(t, readyGPU(), "ready")
+			f.cfg.Autostart = true
+			procDir := filepath.Join(f.procRoot, strconv.Itoa(testPID))
+			if err := os.MkdirAll(procDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("/bin/sleep", filepath.Join(procDir, "exe")); err != nil {
+				t.Fatal(err)
+			}
+			f.sys.mu.Lock()
+			f.sys.active = "active"
+			f.sys.pid = strconv.Itoa(testPID)
+			if stopFails {
+				f.sys.stopExit = 1
+			}
+			f.sys.mu.Unlock()
+
+			err := f.sup.Initialize(context.Background())
+			if err == nil {
+				t.Fatal("unsafe active process unexpectedly passed startup reconciliation")
+			}
+			st := f.sup.Status()
+			if st.State != StateFailed || f.sys.count("systemctl", "start") != 0 {
+				t.Fatalf("unsafe active server state = %+v, starts=%d", st, f.sys.count("systemctl", "start"))
+			}
+			f.sys.mu.Lock()
+			active, pid := f.sys.active, f.sys.pid
+			f.sys.mu.Unlock()
+			if stopFails {
+				if active != "active" || pid != strconv.Itoa(testPID) || st.PID != testPID {
+					t.Fatalf("failed stop did not report the active PID: unit=%s/%s status=%+v", active, pid, st)
+				}
+			} else if active != "inactive" || pid != "0" || st.PID != 0 {
+				t.Fatalf("unsafe server was not stopped accurately: unit=%s/%s status=%+v", active, pid, st)
+			}
+		})
+	}
+}
+
+func TestInitializeRejectsEnvironmentFileFromFailedRestart(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.Autostart = true
+	manual := autoconf.Output{
+		NGL:            "12",
+		Ctx:            4096,
+		CacheTypeK:     "f16",
+		CacheTypeV:     "f16",
+		Batch:          768,
+		LoadMode:       "mmap",
+		VisibleDevices: []int{0},
+	}
+	writeActiveRuntime(t, f, testPID, "llama.gguf", "127.0.0.1", manual, "")
+	defaultEnv, err := llamaargs.Env(autoconf.Output{
+		NGL:            "all",
+		Ctx:            8192,
+		CacheTypeK:     "f16",
+		CacheTypeV:     "f16",
+		Batch:          2048,
+		LoadMode:       "mmap",
+		VisibleDevices: []int{0},
+	}, llamaargs.ServerSettings{
+		ModelPath: filepath.Join(f.dir, "llama.gguf"),
+		Host:      "127.0.0.1",
+		Port:      f.cfg.Port,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(f.envPath, []byte(llamaargs.EnvFile(defaultEnv)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.sys.journal = "load_tensors: offloaded 12/33 layers to GPU\n"
+	f.sys.mu.Lock()
+	f.sys.active = "active"
+	f.sys.pid = strconv.Itoa(testPID)
+	f.sys.mu.Unlock()
+
+	err = f.sup.Initialize(context.Background())
+	if err == nil {
+		t.Fatal("stale environment file was accepted for the active MainPID")
+	}
+	if st := f.sup.Status(); st.State != StateFailed || st.PID != 0 {
+		t.Fatalf("stale environment was not stopped and reported: %+v", st)
+	}
+	if f.sys.count("systemctl", "stop") != 1 || f.sys.count("systemctl", "start") != 0 {
+		t.Fatal("unsafe active process was not stopped without default autostart")
 	}
 }

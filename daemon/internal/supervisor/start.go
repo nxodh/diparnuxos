@@ -8,49 +8,57 @@ import (
 	"strconv"
 
 	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/config"
 	"github.com/nxodh/lightlixos/daemon/internal/llamaargs"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 )
 
-// startJob은 Start 한 번의 입력이다. 설정은 시작 시점의 값을 고정해 쓴다.
-type startJob struct {
-	model models.Model
-	ov    autoconf.Overrides
-	cfg   config.Config
-}
-
-// run은 시작 순서를 수행한다. 실패하면 유닛을 멈추고 실패 오류를 돌려준다. 성공하면 nil 이다.
+// run 은 입력을 먼저 검증하고 기존 유닛을 중지·회수한 뒤 VRAM 계획과 새 실행을 한다.
 // 호출자는 수명 주기 세마포어를 잡고 있어야 한다.
 func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
+	host := "127.0.0.1"
+	if job.cfg.LANExposed {
+		host = "0.0.0.0"
+	}
+	settings := llamaargs.ServerSettings{
+		ModelPath:  job.model.Path,
+		Host:       host,
+		Port:       job.cfg.Port,
+		APIKeyFile: job.apiKeyFile,
+	}
+	if err := autoconf.ValidateOverrides(mergeOverrides(job.cfg.Overrides, job.ov)); err != nil {
+		s.discardKeySnapshot(job.apiKeyFile)
+		return s.failWithoutStopping(ctx, errorf(CodeInvalidSettings, "invalid model settings: %v", err))
+	}
+	if _, err := llamaargs.Env(validationOutput(), settings); err != nil {
+		s.discardKeySnapshot(job.apiKeyFile)
+		return s.failWithoutStopping(ctx, errorf(CodeInvalidSettings, "%v", err))
+	}
+
+	if err := s.stopAndReclaim(ctx); err != nil {
+		s.discardKeySnapshotIfInactive(ctx, job.apiKeyFile)
+		return s.recordFailedState(ctx, err)
+	}
+	if err := s.cleanupKeySnapshots(job.apiKeyFile); err != nil {
+		s.discardKeySnapshot(job.apiKeyFile)
+		return s.recordFailedState(ctx, errorf(CodeEnvFile, "remove inactive API key snapshots: %v", err))
+	}
+	s.mu.Lock()
+	s.priorStatus = nil
+	s.st.PID = 0
+	s.st.UnitUnverifiable = false
+	s.mu.Unlock()
+
+	// 기존 llama-server의 메모리가 회수된 뒤에만 free VRAM을 읽어 계획한다.
 	pr := s.buildPlan(ctx, job.model, job.ov, job.cfg)
 	s.mu.Lock()
 	s.st.Plan = &pr.Output
 	s.st.Warnings = append([]string{}, pr.Output.Warnings...)
 	s.mu.Unlock()
 
-	keys, err := s.keyCount()
-	if err != nil {
-		return s.fail(ctx, errorf(CodeInternal, "read API keys: %v", err))
-	}
-	host := "127.0.0.1"
-	if job.cfg.LANExposed {
-		host = "0.0.0.0"
-	}
-	settings := llamaargs.ServerSettings{
-		ModelPath: job.model.Path,
-		Host:      host,
-		Port:      job.cfg.Port,
-	}
-	if keys > 0 {
-		settings.APIKeyFile = s.opts.Keys.KeyFile
-	}
 	env, err := llamaargs.Env(pr.Output, settings)
 	if err != nil {
 		return s.fail(ctx, errorf(CodeInvalidSettings, "%v", err))
 	}
-
 	if !pr.Output.CPUOnly {
 		if e := s.checkCUDA(ctx, env); e != nil {
 			return s.fail(ctx, e)
@@ -65,15 +73,15 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	sinceUnix := s.now().Unix()
 	res, err := s.exec(ctx, platform.Command{
 		Name:      "systemctl",
-		Args:      []string{"restart", s.opts.Unit},
+		Args:      []string{"start", s.opts.Unit},
 		Timeout:   restartTimeout,
 		MaxOutput: maxCommandOutput,
 	})
 	if err != nil {
-		return s.fail(ctx, errorf(CodeUnitStartFailed, "systemctl restart: %v", err))
+		return s.fail(ctx, errorf(CodeUnitStartFailed, "systemctl start: %v", err))
 	}
 	if res.ExitCode != 0 {
-		return s.fail(ctx, errorf(CodeUnitStartFailed, "systemctl restart exited %d: %s", res.ExitCode, excerpt(string(res.Stderr), 512)))
+		return s.fail(ctx, errorf(CodeUnitStartFailed, "systemctl start exited %d: %s", res.ExitCode, excerpt(string(res.Stderr), 512)))
 	}
 
 	if e := s.waitHealthy(ctx, job.cfg.Port); e != nil {
@@ -90,7 +98,7 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 
 	var off Offload
 	if pr.Output.CPUOnly {
-		off = Offload{Requested: "0", Note: "CPU-only plan; GPU offload is not attempted"}
+		off = Offload{Requested: "0", Verified: false, Note: "CPU-only plan selected; health endpoint returned HTTP 200"}
 	} else {
 		o, e := s.verifyOffload(ctx, pr.Output, sinceUnix, pid)
 		if e != nil {
@@ -102,8 +110,10 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.st.PID = int(pid)
+	s.st.UnitUnverifiable = false
 	s.st.Offload = off
 	s.st.LastError = nil
+	s.priorStatus = nil
 	s.st.Since = s.now()
 	if pr.Output.CPUOnly {
 		s.st.State = StateRunningCPU
@@ -112,6 +122,19 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 		s.st.State = StateRunning
 	}
 	return nil
+}
+
+// validationOutput 은 llamaargs가 요청 설정을 검사할 때 쓰는 유효한 최소 계획이다.
+func validationOutput() autoconf.Output {
+	return autoconf.Output{
+		NGL:        "0",
+		Ctx:        256,
+		CacheTypeK: "f16",
+		CacheTypeV: "f16",
+		Batch:      1,
+		LoadMode:   "mmap",
+		CPUOnly:    true,
+	}
 }
 
 // cpuFallbackWarning은 CPU 전용 계획일 때 GPU 상태를 경고 한 줄로 만든다.
@@ -124,16 +147,12 @@ func cpuFallbackWarning(g GPUSummary) string {
 
 // fail은 실패를 기록하고 유닛을 멈춘다. 멈추지 못하면 그 사실을 오류 메시지에 덧붙인다.
 func (s *Supervisor) fail(ctx context.Context, e *Error) *Error {
-	if stopErr := s.stopUnit(context.WithoutCancel(ctx)); stopErr != nil {
-		e = &Error{Code: e.Code, Message: e.Message + "; the unit could not be stopped: " + stopErr.Message}
+	if stopErr := s.stopAndReclaim(ctx); stopErr != nil {
+		e = &Error{Code: e.Code, Message: e.Message + "; the unit could not be stopped safely: " + stopErr.Message}
+	} else if err := s.cleanupKeySnapshots(""); err != nil {
+		e = &Error{Code: e.Code, Message: e.Message + "; inactive API key snapshots could not be removed: " + err.Error()}
 	}
-	s.mu.Lock()
-	s.st.State = StateFailed
-	s.st.PID = 0
-	s.st.LastError = e
-	s.mu.Unlock()
-	s.logf("start failed: %s", e)
-	return e
+	return s.recordFailedState(ctx, e)
 }
 
 // checkCUDA는 서버와 같은 CUDA 환경 변수로 --list-devices 를 실행해 장치가 하나 이상 있는지 본다.
