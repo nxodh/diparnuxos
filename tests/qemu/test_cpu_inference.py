@@ -159,6 +159,10 @@ class DriverTests(unittest.TestCase):
             self.assertIn("-no-reboot", argv)
             self.assertEqual(argv[argv.index("-m") + 1], "4096M")
             commands = [json.loads(line) for line in (logs[0] / "commands.jsonl").read_text().splitlines()]
+            result["_fixture_outputs"] = {
+                path.name: path.read_text(encoding="utf-8")
+                for path in logs[0].glob("*-*.txt")
+            }
             if mode == "pass":
                 labels = [event["label"] for event in commands if event["event"] == "start"]
                 self.assertLess(labels.index("disk-memory-before-pull"), labels.index("model-pull"))
@@ -189,6 +193,72 @@ class DriverTests(unittest.TestCase):
                 self.assertTrue(event["command"].startswith("lightlix --json "))
                 self.assertNotIn("sudo", event["command"])
 
+    def test_trained_context_is_taken_from_the_actual_plan(self):
+        result, commands = self.run_fixture("trained-context-128", expected_exit=0)
+        self.assertEqual(result["outcome"], "succeeded")
+        outputs = result["_fixture_outputs"]
+
+        def raw_output(label):
+            matches = [content for name, content in outputs.items() if name.endswith("-" + label + ".txt")]
+            self.assertEqual(len(matches), 1, f"missing or duplicated {label} fixture output")
+            return matches[0]
+
+        def output(label):
+            return json.loads(raw_output(label))
+
+        plan = output("serve-plan")
+        self.assertEqual(plan["input"]["ctx_train"], 128)
+        self.assertEqual(plan["plan"]["ctx"], 128)
+        self.assertEqual(plan["plan"]["batch"], 32)
+        self.assertIn("ctx override 256 ignored", " ".join(plan["plan"]["warnings"]))
+        commands_by_label = {event["label"]: event["command"] for event in commands if event["event"] == "start"}
+        self.assertEqual(commands_by_label["serve-plan"],
+                         "lightlix --json serve plan --ctx 256 --batch 32")
+        self.assertEqual(commands_by_label["serve-start"],
+                         "lightlix --json serve start --ctx 256 --batch 32")
+
+        expected_pid = 42
+        for label in ("serve-start", "status-running", "status-after-daemon-restart-off",
+                      "status-after-daemon-restart-on"):
+            server = output(label)["server"]
+            self.assertEqual(server["model_id"], "stories260K.gguf")
+            self.assertEqual(server["pid"], expected_pid)
+            self.assertEqual(server["plan"]["ctx"], plan["plan"]["ctx"])
+            self.assertEqual(server["plan"]["batch"], 32)
+
+        starts = [event["label"] for event in commands if event["event"] == "start"]
+        expected_order = (
+            "serve-plan", "serve-start", "status-running", "chat", "autostart-off",
+            "daemon-restart-autostart-off", "status-after-daemon-restart-off", "chat-after-daemon-restart-off",
+            "autostart-on", "daemon-restart-autostart-on", "status-after-daemon-restart-on",
+            "chat-after-daemon-restart-on", "serve-stop", "status-stopped", "chat-after-stop",
+        )
+        positions = [starts.index(label) for label in expected_order]
+        self.assertEqual(positions, sorted(positions))
+        for label in ("model-sha256", "chat", "chat-after-daemon-restart-off",
+                      "chat-after-daemon-restart-on", "serve-stop", "status-stopped", "chat-after-stop"):
+            self.assertIn(label, starts)
+        self.assertEqual(raw_output("model-sha256").split()[0],
+                         "047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b")
+        for label in ("chat", "chat-after-daemon-restart-off", "chat-after-daemon-restart-on"):
+            chat = output(label)
+            self.assertTrue(chat["content"].strip())
+            self.assertGreater(chat["tokens_predicted"], 0)
+            self.assertGreater(chat["tokens_per_second"], 0)
+        self.assertEqual(output("serve-stop")["state"], "stopped")
+        self.assertEqual(output("status-stopped")["server"]["state"], "stopped")
+        self.assertEqual(output("status-stopped")["server"]["pid"], 0)
+
+    def test_serve_start_context_must_match_the_validated_plan(self):
+        result, commands = self.run_fixture("wrong-start-context")
+        self.assertEqual(result["kind"], "assertion")
+        self.assertEqual(result["outcome"], "failed")
+        self.assertEqual(result["message"], "Serve start changed the active context size")
+        labels = [event["label"] for event in commands if event["event"] == "start"]
+        self.assertIn("serve-plan", labels)
+        self.assertIn("serve-start", labels)
+        self.assertNotIn("status-running", labels)
+
     def test_rejects_bad_data_and_service_states(self):
         for mode, kind in (("bad-permissions", "assertion"), ("failed-unit", "assertion"),
                            ("bad-sha", "assertion"), ("empty-chat", "assertion"), ("bad-json", "invalid_json")):
@@ -212,11 +282,29 @@ class DriverTests(unittest.TestCase):
         self.assertIn("identity exited 1", result["message"])
 
     def test_daemon_restart_rejects_missing_adoption_pid_or_plan(self):
-        for mode in ("no-adoption", "replaced-pid", "lost-runtime-plan"):
+        for mode in ("no-adoption", "replaced-pid"):
             with self.subTest(mode=mode):
                 result, _ = self.run_fixture(mode)
                 self.assertEqual(result["kind"], "assertion")
                 self.assertEqual(result["outcome"], "failed")
+
+    def test_daemon_restart_context_change_is_rejected_after_each_setting(self):
+        for mode, setting, expected_labels in (
+            ("lost-runtime-plan-off", "off", ("status-after-daemon-restart-off",)),
+            ("lost-runtime-plan-on", "on", ("status-after-daemon-restart-off",
+                                               "status-after-daemon-restart-on")),
+        ):
+            with self.subTest(mode=mode):
+                result, commands = self.run_fixture(mode)
+                self.assertEqual(result["kind"], "assertion")
+                self.assertEqual(result["outcome"], "failed")
+                self.assertIn(f"Daemon restart with autostart {setting} changed the active context size",
+                              result["message"])
+                labels = [event["label"] for event in commands if event["event"] == "start"]
+                for label in expected_labels:
+                    self.assertIn(label, labels)
+                if setting == "off":
+                    self.assertNotIn("status-after-daemon-restart-on", labels)
 
     def test_shell_efi_check_failure_is_not_masked_by_uname(self):
         with tempfile.TemporaryDirectory(prefix="lightlix-missing-efi-") as work:

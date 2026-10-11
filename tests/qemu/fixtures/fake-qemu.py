@@ -36,7 +36,18 @@ def emit(text):
 
 def status():
     pid = 0 if stopped else (99 if mode == "replaced-pid" and daemon_restarts else 42)
-    ctx, batch = (512, 64) if mode == "lost-runtime-plan" and daemon_restarts else (256, 32)
+    trained_context = mode == "trained-context-128"
+    wrong_start_context = mode == "wrong-start-context" and not stopped and daemon_restarts == 0
+    changed_context = (
+        (mode == "lost-runtime-plan-off" and daemon_restarts == 1)
+        or (mode == "lost-runtime-plan-on" and daemon_restarts == 2)
+    )
+    if changed_context:
+        ctx, batch = 512, 64
+    elif trained_context or wrong_start_context:
+        ctx, batch = 128, 32
+    else:
+        ctx, batch = 256, 32
     return {"gpu": {"status": {"state": "no_gpu"}}, "server": {
         "state": "stopped" if stopped else "running_cpu_fallback", "pid": pid,
         "model_id": model, "host": "127.0.0.1", "lan_exposed": False,
@@ -108,12 +119,22 @@ def result(command):
         return json.dumps({"state": "done", "model_id": model, "bytes_done": 1185376, "bytes_total": 1185376}), 0
     if args == "model list":
         return json.dumps({"default": default, "models": [{"id": model, "sha256": sha,
-                          "repo": repo, "size_bytes": 1185376, "incomplete": False}]}), 0
+                          "repo": repo, "size_bytes": 1185376, "incomplete": False,
+                          **({"context_length": 128} if mode == "trained-context-128" else {})}]}), 0
     if args.startswith("model default "):
         default = model
         return json.dumps({"default": default}), 0
     if args.startswith("serve plan "):
-        return json.dumps({"model_id": model, "plan": {"ngl": "0", "cpu_only": True, "warnings": ["CPU fallback"]}}), 0
+        trained_context = mode == "trained-context-128"
+        ctx = 128 if trained_context else 256
+        warnings = ["CPU fallback"]
+        rationale = ""
+        if trained_context:
+            warnings.append("ctx override 256 ignored: allowed range is 256-128")
+            rationale = "CPU plan uses the model training context of 128 tokens"
+        return json.dumps({"model_id": model, "plan": {"ngl": "0", "ctx": ctx, "batch": 32,
+                          "cpu_only": True, "warnings": warnings, "rationale": rationale},
+                          "input": {"ctx_train": 128 if trained_context else 2048}}), 0
     if args.startswith("serve start "):
         stopped = False
         return json.dumps(status()), 0

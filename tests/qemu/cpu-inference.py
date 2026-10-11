@@ -207,13 +207,13 @@ def running_status(status, model):
     require(bool(server.get("warnings")), "CPU fallback warning is missing")
 
 
-def require_runtime(status, model, pid):
+def require_runtime(status, model, pid, expected_context, phase):
     running_status(status, model)
     server = status["server"]
-    require(server.get("pid") == pid, "Daemon restart changed the active llama-server PID")
+    require(server.get("pid") == pid, f"{phase} changed the active llama-server PID")
     plan = server.get("plan", {})
-    require(plan.get("ctx") == 256, "Daemon restart changed the active context size")
-    require(plan.get("batch") == 32, "Daemon restart changed the active batch size")
+    require(plan.get("ctx") == expected_context, f"{phase} changed the active context size")
+    require(plan.get("batch") == 32, f"{phase} changed the active batch size")
 
 
 def set_autostart(console, enabled, label, timeout):
@@ -317,11 +317,15 @@ def scenario(console, budgets):
     require(plan.get("plan", {}).get("cpu_only") is True and plan["plan"].get("ngl") == "0",
             "Auto plan must select CPU fallback without a manual NGL override")
     require(bool(plan["plan"].get("warnings")), "CPU plan must explain fallback")
+    planned_context = plan["plan"].get("ctx")
+    require(isinstance(planned_context, int) and not isinstance(planned_context, bool) and planned_context > 0,
+            "Serve plan did not report a valid positive context size")
+    require(plan["plan"].get("batch") == 32, "Serve plan did not preserve requested batch size 32")
     started = console.cli("serve-start", "serve start --ctx 256 --batch 32", budgets["START_TIMEOUT"])
-    running_status(started, MODEL_FILE)
-    require_runtime(started, MODEL_FILE, started["server"]["pid"])
+    require_runtime(started, MODEL_FILE, started.get("server", {}).get("pid"), planned_context, "Serve start")
+    initial_context = started["server"]["plan"]["ctx"]
     status = console.cli("status-running", "status", cmd)
-    require_runtime(status, MODEL_FILE, started["server"]["pid"])
+    require_runtime(status, MODEL_FILE, started["server"]["pid"], initial_context, "Initial status")
     props = unit_properties(console, "unit-running-llama", "lightlix-llama.service", cmd)
     require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and props.get("Result") == "success",
             "llama systemd service did not start cleanly")
@@ -338,7 +342,8 @@ def scenario(console, budgets):
                         "sudo -n systemctl restart lightlixd.service", budgets["START_TIMEOUT"])
         recovered = wait_for_status(console, "status-after-daemon-restart-" + setting,
                                     budgets["START_TIMEOUT"])
-        require_runtime(recovered, MODEL_FILE, started["server"]["pid"])
+        require_runtime(recovered, MODEL_FILE, started["server"]["pid"], initial_context,
+                        "Daemon restart with autostart " + setting)
         props = unit_properties(console, "unit-after-daemon-restart-" + setting,
                                 "lightlix-llama.service", cmd)
         require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and
