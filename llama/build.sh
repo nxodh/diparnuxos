@@ -200,6 +200,7 @@ else
     NVIDIA_DEP=""
 fi
 sed -i "s/@LIGHTLIX_NVIDIA_DEPENDS@/${NVIDIA_DEP}/" "${PKGSRC}/debian/control"
+sed -i "s|@LIGHTLIX_HOME_URL@|${LIGHTLIX_HOME_URL}|g" "${PKGSRC}/debian/control"
 
 {
     cat "${SRC}/llama/pkg/debian/copyright"

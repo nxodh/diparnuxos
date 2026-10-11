@@ -4,9 +4,9 @@ Priority: optional
 Maintainer: Lightlix Developers <noreply@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.7.2
-Homepage: https://github.com/nxodh/lightlixos
-Vcs-Git: https://github.com/nxodh/lightlixos.git
-Vcs-Browser: https://github.com/nxodh/lightlixos
+Homepage: @LIGHTLIX_HOME_URL@
+Vcs-Git: @LIGHTLIX_HOME_URL@.git
+Vcs-Browser: @LIGHTLIX_HOME_URL@
 
 # 이 파일은 llama/build.sh 가 복사해 쓴다. @LIGHTLIX_NVIDIA_DEPENDS@ 는 CUDA 빌드에서만 ", lightlix-nvidia" 로 바뀐다.
 Package: lightlix-llm
