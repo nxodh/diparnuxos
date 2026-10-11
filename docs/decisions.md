@@ -18,6 +18,10 @@
 
 원래 사양의 조직 이름은 이 저장소 결정으로 대체되었다. 현재 저장소는 https://github.com/nxodh/lightlixos 이다.
 
+### Phase 2 검증 상태 메모 (2026-10-11)
+
+이 문서는 기술 결정을 기록하며, 아래 D4의 CI 링크는 해당 패키지 검사 결과의 출처다. [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)의 CUDA 패키지 빌드와 CPU 컨테이너 추론은 실제 NVIDIA 오프로드를 입증하지 않는다. 후속 ISO E2E는 38138886386에서 잘못된 context assertion, 38140520091에서 CPU MainPID 런타임 증거 확인으로 끝났고, [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)(`035dfb4`)에서 live CPU E2E가 전체 통과했다. 이 통과도 GPU 없는 VM의 CPU 경로이며 실제 GPU 오프로드는 확인되지 않았다. 실행별 구분과 남은 검증은 [Phase 2 검증 기록](verification-phase-2.md)에 있다.
+
 ---
 
 ## U. 사용자가 확정한 결정
@@ -165,7 +169,7 @@
 
 ### D4-4. 런타임 라이브러리와 재배포 (`사용자 확정`)
 
-- llama.cpp CUDA 백엔드는 `CUDA::cudart`, `CUDA::cublas`, `CUDA::cuda_driver`에 링크한다(`GGML_CUDA_NO_VMM`이 아닐 때 `cuda_driver`가 추가된다). [Phase 2 CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)의 실제 amd64 CUDA 패키지 빌드와 `NEEDED`·`ldd` 검사가 통과했다. 검사는 `llama/build.sh`와 `tests/llama/package.sh`에 있다.
+- llama.cpp CUDA 백엔드는 `CUDA::cudart`, `CUDA::cublas`, `CUDA::cuda_driver`에 링크한다(`GGML_CUDA_NO_VMM`이 아닐 때 `cuda_driver`가 추가된다). 역사적 패키지 근거인 [Phase 2 CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)에서 amd64 CUDA 패키지 빌드와 `NEEDED`·`ldd` 검사가 통과했다. 검사는 `llama/build.sh`와 `tests/llama/package.sh`에 있다. 이 결과는 이후 live ISO E2E 실패를 없애거나 실 GPU 오프로드를 증명하지 않는다.
 - ISO에 `cudart`와 `cublas`를 넣는 것은 사용자 확정 U3이다. 재배포 근거와 남은 해석 위험은 [licenses.md](licenses.md)에 적는다.
 - **근거**: https://raw.githubusercontent.com/ggml-org/llama.cpp/v0.6.0/ggml/src/ggml-cuda/CMakeLists.txt , https://docs.nvidia.com/cuda/eula/index.html
 
@@ -173,7 +177,7 @@
 
 - **결정**: 별도 CPU 전용 빌드를 만들지 않는다. CUDA를 포함한 빌드 한 벌이 `llama-server`, `libggml-cpu-*.so`(CPU 변형 여러 개), `libggml-cuda.so`를 함께 만든다. CUDA 백엔드는 실행 중에 `dlopen`되므로, CUDA 라이브러리나 GPU가 없으면 로드에 실패하고 CPU 백엔드로 돈다.
 - **근거**: 조사 기록 `docs/verification-phase-2-research.md`의 "설계에 영향을 주는 발견" 1번. 소스에서 `GGML_BACKEND_DL=ON`이면 CUDA 백엔드가 `MODULE`이고 실행 파일에 링크되지 않음을 확인했다(`ggml/src/CMakeLists.txt:381-385`). `dlopen`이 실패하면 Release 빌드는 조용히 넘어간다(`ggml-backend-reg.cpp:221-228, 578-599`). CUDA 없는 환경에서 가짜 `libggml-cuda.so`를 로드해 `--list-devices`와 `/v1/chat/completions`가 정상임을 직접 확인했다.
-- **실제 확인**: 로컬에서는 CPU 전용 스모크 빌드만 실행했다. [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)의 `make test-llama-docker`는 nvcc로 만든 진짜 CUDA 모듈을 가진 `.deb`에서 `libcudart.so.13 => not found`와 실제 CPU 추론을 확인해 통과했다. GPU가 있는 기기의 CUDA 오프로드는 아직 확인하지 않았다.
+- **실제 확인**: 로컬에서는 CPU 전용 스모크 빌드만 실행했다. 역사적 패키지 검사인 [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)의 `make test-llama-docker`는 nvcc로 만든 CUDA 모듈을 가진 `.deb`에서 `libcudart.so.13 => not found`와 실제 CPU 추론을 확인해 통과했다. 이는 CUDA 없는 컨테이너 결과다. live ISO의 CPU E2E는 CI 38142350756에서 통과했지만, GPU가 있는 기기의 CUDA 오프로드는 확인되지 않았다.
 
 ---
 

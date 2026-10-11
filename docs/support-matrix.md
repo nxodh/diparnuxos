@@ -5,7 +5,7 @@
 
 > 실 하드웨어에서 검증하기 전에는 어떤 GPU에서도 동작을 주장하지 않는다. 이 문서의 행은 대상 범위와 확인 근거를 적는 자리이며, 검증 결과가 아니다. 상태가 바뀌려면 실기 테스트 기록(날짜, 이미지 버전, 드라이버 버전, 결과)이 있어야 한다.
 
-[2026-10-11 CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)에서 CUDA 모듈이 포함된 `lightlix-llm` 패키지의 CPU 추론은 CUDA 없는 Debian 컨테이너에서 통과했다. 같은 run의 ISO live-user E2E는 모델 다운로드 전 `insufficient_space`로 실패했으므로, 이 검사는 ISO의 통합 CPU 폴백을 확인한 결과가 아니다. 아래 GPU 행은 모두 실기 미검증이다.
+CUDA 모듈을 포함한 패키지의 CPU 추론은 [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)에서 CUDA 없는 Debian 컨테이너로 확인했다. [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)(`035dfb4`)에서는 GPU 없는 QEMU/KVM VM의 live ISO가 모델 다운로드, CPU 서버 시작, 채팅, 데몬 재시작 뒤 채택, 정상 중지까지 통과했다. 이 두 결과는 CPU 경로이며 어떤 GPU에서의 동작도 입증하지 않는다. 아래 GPU 행은 모두 실기 미검증이다.
 
 ---
 

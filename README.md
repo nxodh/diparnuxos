@@ -1,7 +1,8 @@
 # Lightlix
 
 - 확인 날짜: 2026-10-11
-- 상태: [Phase 2 CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776), head `b525ed9`, 전체 결과는 실패다. CUDA 패키지 빌드·패키지 CPU 추론 검사, ISO·이미지 정책 검사, UEFI CD·USB 부팅은 통과했다. 라이브 사용자 E2E는 모델 다운로드 전에 `insufficient_space`로 실패했고 QEMU 로그 업로드도 실패했다. **실 GPU, Secure Boot, Wi-Fi, 유휴 전체 램은 미검증이다.** 자세한 출력은 [Phase 2 검증 기록](docs/verification-phase-2.md)에 있다.
+- 상태: Phase 2의 [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)(`035dfb4`)이 전체 성공했다. QEMU/KVM의 실제 ISO에서 live 사용자가 모델을 내려받아 SHA-256을 확인하고, CPU로 서버를 시작해 채팅하고, 데몬 재시작 뒤 같은 서버를 채택하고, 정상 중지하는 흐름이 통과했다. 앞선 세 실행은 각각 공간 부족, E2E assertion 오류, CPU MainPID 런타임 확인 실패로 끝났고 [검증 기록](docs/verification-phase-2.md)에 남겼다.
+- 검증 범위: 이 결과는 GPU 없는 VM의 CPU 경로다. **실 NVIDIA 오프로드, Secure Boot, 실기 Wi-Fi·USB 부팅, 유휴 전체 OS 램은 미검증이다.** 실기 지원을 주장하지 않는다.
 - 저장소: https://github.com/nxodh/lightlixos
 
 Lightlix는 Debian 13(trixie) 기반의 Linux 배포판이다. 램 사용을 최소로 줄이면서 로컬 LLM 추론 서버를 돌리는 것이 목표다. amd64 아키텍처와 UEFI 부팅만 지원한다는 것이 계획이다. 대상 GPU는 NVIDIA RTX 30, 40, 50 계열이다.
@@ -123,7 +124,7 @@ out/             빌드 산출물(git 제외)
 |---|---|---|
 | 0 | 저장소 뼈대, 최소 Debian 13 ISO, CI, 문서 초안 | 완료. main의 CI 빌드와 QEMU 부팅 통과 |
 | 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 CI 검증 완료. NVIDIA 실기 검증 대기 |
-| 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | CUDA 패키지·ISO·UEFI CD/USB는 CI에서 확인. 라이브 사용자 추론 CI는 `insufficient_space`로 실패했으며 실 GPU 검증은 미실시 |
+| 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 구현 및 CI 검증 완료(CUDA 패키지, ISO, UEFI CD/USB, live CPU E2E). 실 GPU 오프로드는 실기 검증 대기 |
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 계획 |
 | 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |
 | 5 | 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
@@ -137,6 +138,7 @@ out/             빌드 산출물(git 제외)
 | [docs/decisions.md](docs/decisions.md) | 기술 결정 기록. 원래 결정, 2026-10-10 변경, 근거와 출처 |
 | [docs/drivers.md](docs/drivers.md) | NVIDIA 드라이버 구성과 Phase 1 검증 |
 | [docs/verification-phase-1.md](docs/verification-phase-1.md) | 이번 단계에서 실제로 확인한 내용과 남은 한계 |
+| [docs/verification-phase-2.md](docs/verification-phase-2.md) | Phase 2 CI 실행별 결과, 패키지/fixture/ISO 검증 범위와 미검증 항목 |
 | [docs/licenses.md](docs/licenses.md) | NVIDIA 드라이버 라이선스, CUDA EULA, 상표, 프로젝트 라이선스(미정) |
 | [docs/secure-boot.md](docs/secure-boot.md) | Secure Boot와 커널 모듈 서명 설계(Phase 1, 3 예정) |
 | [docs/memory.md](docs/memory.md) | 메모리 목표, 측정 방법 초안, 실측값(미측정) |

@@ -1,7 +1,13 @@
 # Phase 2 검증 기록
 
 확인 날짜: 2026-10-11. 작업 브랜치는 `phase-2`, PR의 기준 브랜치는 `phase-1-fixes`다.
-NVIDIA 실 하드웨어에서는 확인하지 않았다. 아래 로컬 결과와 실제 ISO·CUDA 경로의 CI 결과를 구분한다.
+NVIDIA 실 하드웨어에서는 확인하지 않았다. 아래 로컬 결과, 패키지 컨테이너 검사, QEMU fixture, 실제 ISO CI를 구분한다. 실행별 결과는 아래 실행표를 기준으로 한다.
+
+## 현재 요약
+
+`035dfb4a12ae09ebc04b72967b708d6ed67c22d2`의 [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)이 전체 성공했다(lint와 ISO 빌드·부팅 job 모두). 이 실행에서 QEMU/KVM 위의 실제 ISO가 live 사용자 권한으로 모델 다운로드와 SHA-256 확인, CPU 서버 시작, 채팅, 데몬 재시작 뒤 기존 서버 채택, 정상 중지까지 마쳤다. 이 확인은 CPU 경로에 한정된다. GPU가 없는 VM이므로 `running_cpu_fallback`이며 NVIDIA 오프로드는 검증하지 않았다.
+
+앞선 세 실행은 각각 다른 단계에서 실패했고 아래 표에 보존했다. 마지막 실패(38140520091)의 정확한 `/proc` 원인은 로그로 확정하지 못했다. 그 뒤 llama 유닛을 `Type=exec`로 바꾼 `035dfb4`에서 같은 단계가 통과했지만, 이것이 그 실패의 원인이었다고 단정하지 않는다.
 
 ## 인수 시점과 구현
 
@@ -82,20 +88,53 @@ root가 데몬 RSS 기록을 추가하고 fixture의 준비 표시 경쟁을 수
 
 이 CI 실행에서 live-user CPU 추론은 미검증으로 남았다. 나머지 E2E 단계는 모델을 받지 못해 실행되지 않았다.
 
+## 후속 통합 CI 실행
+
+아래 실행은 첫 CI 이후 수정 사항을 확인하기 위해 순서대로 진행했다. 이전 실패 설명은 당시 로그에서 확인한 사실로 유지하며, 이후 수정이 과거 실행을 성공으로 바꾸지는 않는다.
+
+| 실행 / head | 실제 결과 | 완료된 범위 | 멈춘 범위와 근거 |
+|---|---|---|---|
+| [38138886386](https://github.com/nxodh/lightlixos/actions/runs/38138886386) / `1e689e1` | 실패 | 빌드·ISO·UEFI 부팅·모델 pull/SHA·CPU 서버 시작. 실제 계획과 서버 context는 128, batch는 32였다. | E2E 드라이버가 context 256을 기대해 잘못 실패했다. 채팅, daemon 재시작, 정상 중지는 실행하지 않았다. 로그 아티팩트는 업로드됐고 ISO/checksum 아티팩트는 없었다. |
+| [38140520091](https://github.com/nxodh/lightlixos/actions/runs/38140520091) / `be4a344` | 실패 | 캐시된 패키지 검사·ISO·이미지 정책·UEFI CD/USB 부팅·모델 pull/SHA. QEMU 실패 로그 업로드는 성공했다. | CPU MainPID의 실행 파일/환경 정체성 확인이 실패해 시작을 중단했다. 로그에는 당시 `/proc` 실행 파일이나 환경 차이가 없어 원인을 확정할 수 없다. chat, daemon 재시작, 정상 중지는 실행하지 않았고 ISO/checksum은 업로드되지 않았다. |
+| [38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756) / `035dfb4a12ae09ebc04b72967b708d6ed67c22d2` | **성공** (사용자 요청 취소 뒤 같은 SHA로 재실행) | lint, 캐시된 llama 패키지 검사, ISO 빌드, 이미지 정책, UEFI CD/USB 부팅, live CPU E2E 전체, QEMU 로그와 ISO/checksum 업로드. | 없음. 상세는 아래 "CI 38142350756의 live CPU E2E"에 있다. |
+
+R13의 `Type=simple` fork-before-exec 경로는 독립 Sol 리뷰와 disposable supervisor fake에서 재현되었고, shipped llama 유닛은 `Type=exec`로 바뀌었다. 독립 리뷰는 `035dfb4`의 두 파일 변경(`daemon/dist/lightlix-llama.service`, `daemon/dist/dist_test.go`)을 소스 수준에서 승인했고 새 발견은 없었다. 이 승인은 systemd 257.13 파서 검증과 Docker Go 검사에 근거하며 실제 PID 1 실행을 대신하지 않는다. 같은 변경이 포함된 CI 38142350756에서 실제 서비스 시작이 통과했지만, 38140520091의 실패가 바로 이 타이밍 때문이었다고 단정하지 않는다.
+
+### CI 38142350756의 live CPU E2E
+
+실행 시각은 2026-10-11 13:34 UTC 이후이며, 아래 값은 업로드된 `lightlix-qemu-e2e-logs` 아티팩트(`result.json`과 단계별 출력)에서 읽었다. `result.json`은 `outcome: succeeded`, `kind: pass`, `accel: kvm`, 총 26.648초였다.
+
+| 확인 | 실제 결과 |
+|---|---|
+| 사용자와 권한 | 비특권 `user`(uid 1000)가 `lightlix` 그룹에 속했다. 제어 소켓은 `660 root:lightlix`였다. 그룹 밖 사용자는 `permission denied`, 데몬이 없으면 `lightlixd is not running`을 받았다. |
+| 모델 다운로드 | `ggml-org/tiny-llamas`의 `stories260K.gguf`(revision `99dd1a73db5a37100bd4ae633f4cfce6560e1567`) 1,185,376바이트가 약 0.5초에 내려왔다. SHA-256은 `047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b`로 고정값과 같았다. |
+| 서버 계획 | GPU 없음(`no_gpu`)이라 `cpu_only`, ctx 128, batch 32, mmap이었다. 모델 학습 context가 128이라 ctx 256 override는 무시됐다. |
+| 서버 시작 | 상태 `running_cpu_fallback`, 127.0.0.1:8080, `lan_exposed: false`. 유닛은 `ActiveState=active`, `Result=success`였다. |
+| 채팅 | 16 토큰 응답을 받았다. 이 모델은 26만 파라미터급 테스트 모델이라 `tokens_per_second` 값(약 7,300)은 성능 지표가 아니다. |
+| 데몬 재시작 | autostart를 끈 채로, 그리고 켠 채로 `lightlixd`를 각각 재시작했다. 두 경우 모두 같은 PID 1312, 같은 모델·ctx 128·batch 32의 서버를 채택했고 채팅이 계속 성공했다. 채택 사유는 CPU 전용 런타임 환경과 health 200 확인이었다. |
+| 정상 중지 | `serve stop`이 `stopped`를 돌려줬고 유닛은 `inactive`(MainPID 0), 이후 채팅은 `server_not_running`이었다. |
+| 데몬 메모리 | `lightlixd`의 VmRSS는 33,980 kB였다. 이는 데몬 프로세스 하나의 값이며 전체 OS 유휴 램이 아니다. |
+
+이 실행의 `llama-server` 로그에는 `ggml_cuda_init: failed to initialize CUDA: no CUDA-capable device is detected`가 남았다. GPU가 없는 VM에서 CUDA 모듈이 로드에 실패하고 CPU로 동작한다는 설계된 경로이며 오류가 아니다.
+
+알려진 사소한 결함이 하나 있다. context override가 무시될 때 경고 문구가 `allowed range is 256-128`처럼 최솟값과 최댓값 순서를 바꿔 출력한다. 동작에는 영향이 없다. 소스를 승인된 SHA 이후로 바꾸게 되므로 이번 검증 범위에서는 고치지 않았다.
+
 HF 토큰 변경 뒤 CLI가 llama 서버 재시작을 안내하던 문제도 `5c4afbf`로 수정했다.
 다운로드 클라이언트의 새 토큰 적용에는 데몬 재시작이 필요하므로 `sudo systemctl restart lightlixd`를 안내한다.
 이 변경의 Debian 컨테이너 CLI/client gofmt, vet, race 검사가 통과했다.
 
 ## 검증 경계와 남은 항목
 
-- 패키지 수준의 CPU 추론은 성공했지만, ISO live-user CPU 흐름은 다운로드 공간 검사에서 실패했다.
-- 실 NVIDIA GPU에서의 CUDA 오프로드·추론은 이 CI로 검증하지 않았다. CUDA 모듈 컴파일과 CUDA 없는 환경에서의 CPU 폴백 검사만 확인했다.
+- ISO 안에서 live 사용자의 CPU 흐름(다운로드, SHA, 시작, 채팅, 데몬 재시작 채택, 정지)은 CI 38142350756에서 처음 끝까지 통과했다. 이 값은 KVM VM 한 번의 결과이며 반복 횟수나 안정성을 보장하지 않는다.
+- 실 NVIDIA GPU에서의 CUDA 오프로드·추론은 검증하지 않았다. CUDA 모듈 컴파일, CUDA 없는 환경의 CPU 폴백, GPU 없는 VM에서의 `running_cpu_fallback`만 확인했다. 오프로드 검증(`offloaded N/M layers to GPU`, NVML 프로세스 목록)과 `lightlix-llm`의 `/dev/nvidia*` 접근은 실기에서만 확인할 수 있다.
 - Secure Boot, 실기 Wi-Fi, 실기 USB 부팅은 확인하지 않았다. CI의 USB 시험은 QEMU에서 ISO를 USB 저장 장치로 연결한 결과다.
-- 유휴 전체 OS 메모리 사용량은 이 실행에서 측정하지 않았다. 실패한 QEMU E2E의 로그 아티팩트가 없어 실제 데몬 PID/RSS 출력도 확보하지 못했다.
+- 유휴 전체 OS 메모리 사용량은 측정하지 않았다. 위 33,980 kB는 데몬 프로세스의 값이다.
 - 제어된 fixture는 드라이버의 판정·시간 제한·정리만 검사하며 실제 ISO의 추론 성공으로 계산하지 않는다.
+- CI 아티팩트(ISO 약 1.3 GB, E2E 로그)의 보존 기간은 7일이다. 이 ISO에는 NVIDIA 드라이버와 CUDA 런타임이 들어 있어 공개 저장소의 CI 아티팩트로 배포해도 되는지는 사용자 결정이 남아 있다. 재배포 조건의 해석 위험은 `docs/licenses.md`에 있다.
 
 ## 남은 실기 검증
 
 RTX 3060 Laptop을 포함한 RTX 30/40/50의 NVIDIA 모듈 로드, CUDA 오프로드, 장치 권한, 토큰 속도, 온도와 전력은 실기가 필요하다.
 Secure Boot, 실기 Wi-Fi·USB 부팅, 장시간 유휴 램 목표도 아직 확인하지 않았다.
 GUI·설치기·업데이트는 후속 Phase이며 이 작업에서 시작하지 않는다.
+Phase 3의 GUI(labwc/greetd/GTK), 기기별 Secure Boot MOK 절차는 남아 있다. 설치기, 커널·드라이버 업데이트/롤백, 자체 APT 저장소는 Phase 4 범위이며, 실기 지원 범위 확정과 릴리스 전 검증도 남아 있다.

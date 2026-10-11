@@ -1,7 +1,7 @@
 # llama (llama.cpp 빌드와 lightlix-llm 패키지)
 
 - 확인 날짜: 2026-10-11
-- 상태: 로컬 arm64 CPU 빌드와 실제 추론 검사, CI의 amd64 CUDA 전체 빌드와 CUDA 없는 환경의 CPU 패키지 추론 검사, ISO 생성·이미지 정책 검사, UEFI CD·USB 부팅이 통과했다. [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)는 라이브 E2E에서 모델 다운로드 전 `insufficient_space`로 실패했다. 따라서 live-user ISO 추론은 확인되지 않았고 **실 NVIDIA GPU 오프로드도 미검증이다.**
+- 상태: [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)(`035dfb4`)에서 amd64 CUDA 패키지 빌드, CUDA 없는 환경의 CPU 패키지 추론, ISO 이미지 정책, UEFI CD·USB 부팅, live 사용자 CPU E2E(다운로드·SHA·시작·채팅·데몬 재시작 채택·정지)가 통과했다. **실 NVIDIA GPU 오프로드는 미검증이다.** 앞선 실패 실행의 내용은 [Phase 2 검증 기록](../docs/verification-phase-2.md)에 있다.
 
 ## 책임
 
@@ -152,6 +152,7 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 | CUDA `.deb`의 `dh_shlibdeps -X libggml-cuda.so`와 `lightlix-nvidia` 의존성 | 확인됨(CI amd64, 38131367776) |
 | CUDA 패키지 검사(`ldd`의 `libcudart.so.13 => not found`, 추론) | 확인됨(CI amd64, 38131367776) |
 | ISO 안의 `lightlix-llm`과 이미지 검사 | 확인됨(CI 38131367776: 0.2.0 포함, 이미지 정책 검사 통과) |
+| live ISO CPU E2E 전체(다운로드·SHA·시작·채팅·데몬 재시작 채택·정지) | 확인됨(CI 38142350756, GPU 없는 QEMU/KVM VM) |
 | 실 NVIDIA GPU에서의 오프로드와 추론 | **미확인**(실기 필요) |
 
 ## 남은 문제와 한계
