@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
@@ -97,8 +98,9 @@ type Deps struct {
 
 // server 는 핸들러 묶음이다.
 type server struct {
-	d   Deps
-	mux *http.ServeMux
+	d          Deps
+	mux        *http.ServeMux
+	mutationMu sync.Mutex
 }
 
 // New는 API 핸들러를 만든다. 반환값은 유닉스 소켓 서버에 그대로 꽂는다.
@@ -274,6 +276,9 @@ func writeErr(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "invalid_input", "%v", err)
 	case errors.Is(err, models.ErrOutsideDir), errors.Is(err, models.ErrNotRegular):
 		writeError(w, http.StatusBadRequest, "invalid_input", "%v", err)
+	case errors.Is(err, apikeys.ErrInconsistent):
+		log.Printf("api: API key storage consistency check failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "api_key_store_inconsistent", "API key storage is inconsistent; repair it before exposing the server to LAN")
 	default:
 		log.Printf("api: internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal", "internal error; see the daemon log")

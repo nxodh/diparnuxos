@@ -169,6 +169,9 @@ func (c *cli) apikeyCreate(args []string) int {
 	kv(c.env.stdout, "  prefix", res.Prefix)
 	kv(c.env.stdout, "  key", res.Key)
 	fmt.Fprintln(c.env.stdout, "The key is shown only once. Store it now.")
+	if res.RestartRequired {
+		fmt.Fprintln(c.env.stdout, "restart the server for the new API key to take effect: lightlix serve stop, then lightlix serve start")
+	}
 	return exitOK
 }
 

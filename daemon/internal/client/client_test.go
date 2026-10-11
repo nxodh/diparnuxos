@@ -47,7 +47,7 @@ func writeJSONHandler(status int, body string) http.HandlerFunc {
 }
 
 func TestStatusDecodesAndKeepsRawBody(t *testing.T) {
-	body := `{"version":"0.2.0","mode":"server","gpu":{"status":{"state":"ready","usable_count":1,"usable_indexes":[0],"gpus":[]},"status_error":"","open_module":"yes","secure_boot":"disabled","driver_version":"595.91.07","nvml":{"available":true,"devices":[{"index":0,"name":"GeForce RTX 4090","memory_total_mib":24564,"memory_used_mib":1200,"temperature_c":45,"power_mw":120000}]}},"memory":{"total_mib":15912,"available_mib":10000},"server":{"state":"running","model_id":"m.gguf","host":"127.0.0.1","port":8080,"lan_exposed":false,"offload":{"requested":"auto","offloaded":33,"total":33,"verified":true},"warnings":[],"plan":{"ngl":"33","ctx":4096,"cache_type_k":"f16","cache_type_v":"f16","flash_attn":false,"batch":2048,"visible_devices":[0],"load_mode":"mmap","fit":false,"cpu_only":false,"est_vram_mib":2000,"est_ram_mib":0,"rationale":["a"],"warnings":[],"advice":[]}}}`
+	body := `{"version":"0.2.0","mode":"server","gpu":{"status":{"state":"ready","usable_count":1,"usable_indexes":[0],"gpus":[]},"status_error":"","open_module":"yes","secure_boot":"disabled","driver_version":"595.91.07","nvml":{"available":true,"devices":[{"index":0,"name":"GeForce RTX 4090","memory_total_mib":24564,"memory_used_mib":1200,"temperature_c":45,"power_mw":120000}]}},"memory":{"total_mib":15912,"available_mib":10000},"server":{"state":"running","model_id":"m.gguf","host":"127.0.0.1","port":8080,"lan_exposed":false,"unit_unverifiable":true,"offload":{"requested":"auto","offloaded":33,"total":33,"verified":true},"warnings":[],"plan":{"ngl":"33","ctx":4096,"cache_type_k":"f16","cache_type_v":"f16","flash_attn":false,"batch":2048,"visible_devices":[0],"load_mode":"mmap","fit":false,"cpu_only":false,"est_vram_mib":2000,"est_ram_mib":0,"rationale":["a"],"warnings":[],"advice":[]}}}`
 	sock := newSocketServer(t, writeJSONHandler(http.StatusOK, body))
 	st, raw, err := New(sock).Status(context.Background())
 	if err != nil {
@@ -65,7 +65,7 @@ func TestStatusDecodesAndKeepsRawBody(t *testing.T) {
 	if st.Memory == nil || st.Memory.TotalMiB != 15912 {
 		t.Fatalf("memory = %+v", st.Memory)
 	}
-	if st.Server.State != "running" || st.Server.Port != 8080 || st.Server.Offload.Offloaded != 33 || !st.Server.Offload.Verified {
+	if st.Server.State != "running" || st.Server.Port != 8080 || st.Server.Offload.Offloaded != 33 || !st.Server.Offload.Verified || !st.Server.UnitUnverifiable {
 		t.Fatalf("server = %+v", st.Server)
 	}
 	if st.Server.Plan == nil || st.Server.Plan.NGL != "33" || st.Server.Plan.Ctx != 4096 {
@@ -73,6 +73,18 @@ func TestStatusDecodesAndKeepsRawBody(t *testing.T) {
 	}
 	if string(raw) != body {
 		t.Fatalf("raw body was not kept as received")
+	}
+}
+
+func TestCreateAPIKeyDecodesRestartRequired(t *testing.T) {
+	const key = "llx_api-key-once"
+	body := fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_api-","created":"2026-10-11T09:00:00Z","key":%q,"note":"shown once","restart_required":true}`, key)
+	created, raw, err := New(newSocketServer(t, writeJSONHandler(http.StatusCreated, body))).CreateAPIKey(context.Background(), "laptop")
+	if err != nil {
+		t.Fatal("CreateAPIKey:", err)
+	}
+	if !created.RestartRequired || created.Key != key || string(raw) != body {
+		t.Fatal("CreateAPIKey did not preserve its restart contract and raw response")
 	}
 }
 

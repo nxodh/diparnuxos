@@ -78,17 +78,18 @@ type Memory struct {
 
 // Server 는 llama-server 의 상태와 그 계획이다.
 type Server struct {
-	State      string     `json:"state"`
-	ModelID    string     `json:"model_id"`
-	Host       string     `json:"host"`
-	Port       int        `json:"port"`
-	LANExposed bool       `json:"lan_exposed"`
-	PID        int        `json:"pid"`
-	Since      time.Time  `json:"since"`
-	Offload    Offload    `json:"offload"`
-	Warnings   []string   `json:"warnings"`
-	LastError  *ErrorInfo `json:"last_error,omitempty"`
-	Plan       *Plan      `json:"plan"`
+	State            string     `json:"state"`
+	ModelID          string     `json:"model_id"`
+	Host             string     `json:"host"`
+	Port             int        `json:"port"`
+	LANExposed       bool       `json:"lan_exposed"`
+	PID              int        `json:"pid"`
+	UnitUnverifiable bool       `json:"unit_unverifiable,omitempty"`
+	Since            time.Time  `json:"since"`
+	Offload          Offload    `json:"offload"`
+	Warnings         []string   `json:"warnings"`
+	LastError        *ErrorInfo `json:"last_error,omitempty"`
+	Plan             *Plan      `json:"plan"`
 }
 
 // Offload 는 GPU 오프로드 검증 결과다.
@@ -349,12 +350,13 @@ type APIKeyList struct {
 
 // APIKeyCreated 는 POST /v1/apikeys 의 응답이다. Key 는 이 응답에서만 나온다.
 type APIKeyCreated struct {
-	ID      string `json:"id"`
-	Label   string `json:"label"`
-	Prefix  string `json:"prefix"`
-	Created string `json:"created"`
-	Key     string `json:"key"`
-	Note    string `json:"note"`
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	Prefix          string `json:"prefix"`
+	Created         string `json:"created"`
+	Key             string `json:"key"`
+	Note            string `json:"note"`
+	RestartRequired bool   `json:"restart_required"`
 }
 
 // APIKeyDeleted 는 DELETE /v1/apikeys/{id} 의 응답이다.

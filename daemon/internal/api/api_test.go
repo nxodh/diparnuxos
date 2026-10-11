@@ -1,9 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -311,6 +314,120 @@ func TestConfigPutLANNeedsKeyThenAppliesFirewall(t *testing.T) {
 	}
 }
 
+func TestConcurrentConfigPatchesKeepBothChanges(t *testing.T) {
+	e := newEnv(t, &fakeSup{})
+	start := make(chan struct{})
+	ready := make(chan struct{}, 2)
+	codes := make(chan int, 2)
+	requests := []string{`{"port":9091}`, `{"autostart":false}`}
+	for _, body := range requests {
+		body := body
+		go func() {
+			ready <- struct{}{}
+			<-start
+			codes <- e.do("PUT", "/v1/config", body).Code
+		}()
+	}
+	<-ready
+	<-ready
+	close(start)
+	first, second := <-codes, <-codes
+	if first != http.StatusOK || second != http.StatusOK {
+		t.Fatalf("concurrent config statuses = %d, %d", first, second)
+	}
+	saved, err := config.Load(e.cfgPath)
+	if err != nil {
+		t.Fatal("load saved config:", err)
+	}
+	if saved.Port != 9091 || saved.Autostart {
+		t.Fatalf("independent concurrent config updates were lost: port=%d autostart=%v", saved.Port, saved.Autostart)
+	}
+}
+
+func TestConcurrentLastKeyDeletesKeepLANProtected(t *testing.T) {
+	e := newEnv(t, &fakeSup{})
+	cfg, err := config.Load(e.cfgPath)
+	if err != nil {
+		t.Fatal("load config:", err)
+	}
+	cfg.LANExposed = true
+	if err := config.Save(e.cfgPath, cfg); err != nil {
+		t.Fatal("enable LAN in fixture:", err)
+	}
+	first, _, err := e.keys.Create("first")
+	if err != nil {
+		t.Fatal("create first key:", err)
+	}
+	second, _, err := e.keys.Create("second")
+	if err != nil {
+		t.Fatal("create second key:", err)
+	}
+	start := make(chan struct{})
+	ready := make(chan struct{}, 2)
+	codes := make(chan int, 2)
+	for _, id := range []string{first.ID, second.ID} {
+		id := id
+		go func() {
+			ready <- struct{}{}
+			<-start
+			codes <- e.do("DELETE", "/v1/apikeys/"+id, "").Code
+		}()
+	}
+	<-ready
+	<-ready
+	close(start)
+	codeA, codeB := <-codes, <-codes
+	wins := map[int]int{codeA: 1}
+	wins[codeB]++
+	if wins[http.StatusOK] != 1 || wins[http.StatusConflict] != 1 {
+		t.Fatalf("concurrent last-key delete statuses = %d, %d", codeA, codeB)
+	}
+	count, err := e.keys.Count()
+	if err != nil || count != 1 {
+		t.Fatalf("keys after concurrent deletes = %d, %v; want one key", count, err)
+	}
+}
+
+func TestConcurrentLANEnableAndLastKeyDeletePreserveInvariant(t *testing.T) {
+	e := newEnv(t, &fakeSup{})
+	key, _, err := e.keys.Create("only")
+	if err != nil {
+		t.Fatal("create key:", err)
+	}
+	start := make(chan struct{})
+	ready := make(chan struct{}, 2)
+	putCode := make(chan int, 1)
+	deleteCode := make(chan int, 1)
+	go func() {
+		ready <- struct{}{}
+		<-start
+		putCode <- e.do("PUT", "/v1/config", `{"lan_exposed":true}`).Code
+	}()
+	go func() {
+		ready <- struct{}{}
+		<-start
+		deleteCode <- e.do("DELETE", "/v1/apikeys/"+key.ID, "").Code
+	}()
+	<-ready
+	<-ready
+	close(start)
+	putStatus, deleteStatus := <-putCode, <-deleteCode
+	cfg, err := config.Load(e.cfgPath)
+	if err != nil {
+		t.Fatal("load resulting config:", err)
+	}
+	count, err := e.keys.Count()
+	if err != nil {
+		t.Fatal("count resulting keys:", err)
+	}
+	if cfg.LANExposed && count == 0 {
+		t.Fatalf("concurrent requests violated the LAN key invariant: PUT=%d DELETE=%d", putStatus, deleteStatus)
+	}
+	if (putStatus != http.StatusOK && putStatus != http.StatusConflict) || (deleteStatus != http.StatusOK && deleteStatus != http.StatusConflict) {
+		t.Fatalf("concurrent LAN enable/delete statuses = %d, %d", putStatus, deleteStatus)
+	}
+}
+
 func TestConfigPutInvalidPortIsRejected(t *testing.T) {
 	e := newEnv(t, &fakeSup{})
 	w := e.do("PUT", "/v1/config", `{"port":70000}`)
@@ -341,6 +458,43 @@ func TestKeyCreateShowsPlaintextOnceAndListHidesIt(t *testing.T) {
 	}
 }
 
+func TestKeyCreateRestartRequiredMatchesServerState(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		state supervisor.State
+		pid   int
+		unit  bool
+		want  bool
+	}{
+		{name: "verified stopped", state: supervisor.StateStopped, want: false},
+		{name: "starting", state: supervisor.StateStarting, want: true},
+		{name: "running", state: supervisor.StateRunning, want: true},
+		{name: "CPU fallback", state: supervisor.StateRunningCPU, want: true},
+		{name: "failed without process", state: supervisor.StateFailed, want: false},
+		{name: "failed with active process", state: supervisor.StateFailed, pid: 4242, want: true},
+		{name: "unit unverifiable", state: supervisor.StateFailed, unit: true, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, &fakeSup{status: supervisor.Status{State: tc.state, PID: tc.pid, UnitUnverifiable: tc.unit}})
+			w := e.do("POST", "/v1/apikeys", `{"label":"laptop"}`)
+			wantStatus(t, w, http.StatusCreated)
+			var response struct {
+				Key             string `json:"key"`
+				RestartRequired bool   `json:"restart_required"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+				t.Fatal("decode create response:", err)
+			}
+			if response.RestartRequired != tc.want {
+				t.Fatalf("restart_required = %v, want %v", response.RestartRequired, tc.want)
+			}
+			if response.Key == "" || strings.Count(w.Body.String(), response.Key) != 1 {
+				t.Fatal("plaintext key was missing or appeared more than once")
+			}
+		})
+	}
+}
+
 func TestKeyCreateRejectsBadLabel(t *testing.T) {
 	e := newEnv(t, &fakeSup{})
 	w := e.do("POST", "/v1/apikeys", `{"label":"tab\tkey"}`)
@@ -366,6 +520,79 @@ func TestDeleteLastKeyWhileLANExposedIsConflict(t *testing.T) {
 	wantStatus(t, w, http.StatusConflict)
 	if errCode(t, w) != "last_key_in_use" {
 		t.Fatalf("code = %s", errCode(t, w))
+	}
+}
+
+func TestDeleteRetryRepairsRevocationMetadataWithoutOpeningLAN(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("run as an unprivileged user to exercise directory permissions")
+	}
+	sup := &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}
+	e := newEnv(t, sup)
+	metaDir := filepath.Join(e.dir, "metadata")
+	if err := os.Mkdir(metaDir, 0o700); err != nil {
+		t.Fatal("make metadata directory:", err)
+	}
+	e.keys.MetaFile = filepath.Join(metaDir, "keys.json")
+	revoked, _, err := e.keys.Create("revoked")
+	if err != nil {
+		t.Fatal("create revoked key:", err)
+	}
+	remaining, _, err := e.keys.Create("remaining")
+	if err != nil {
+		t.Fatal("create remaining key:", err)
+	}
+	if err := os.Chmod(metaDir, 0o500); err != nil {
+		t.Fatal("remove metadata write permission:", err)
+	}
+	defer os.Chmod(metaDir, 0o700)
+	w := e.do("DELETE", "/v1/apikeys/"+revoked.ID, "")
+	wantStatus(t, w, http.StatusInternalServerError)
+	if err := os.Chmod(metaDir, 0o700); err != nil {
+		t.Fatal("restore metadata write permission:", err)
+	}
+	if _, err := e.keys.Snapshot(); err == nil {
+		t.Fatal("snapshot accepted stale metadata after key revocation")
+	}
+
+	// 시스템 서비스 상태를 검증할 수 없을 때는 메타 복구를 보류한다.
+	sup.status.UnitUnverifiable = true
+	w = e.do("DELETE", "/v1/apikeys/"+revoked.ID, "")
+	wantStatus(t, w, http.StatusInternalServerError)
+	if errCode(t, w) != "api_key_store_inconsistent" {
+		t.Fatal("inconsistent key store was repairable while the server unit was unverifiable")
+	}
+	sup.status.UnitUnverifiable = false
+
+	// LAN이 켜진 동안에는 불일치 복구를 거부한다.
+	cfg, err := config.Load(e.cfgPath)
+	if err != nil {
+		t.Fatal("load config:", err)
+	}
+	cfg.LANExposed = true
+	if err := config.Save(e.cfgPath, cfg); err != nil {
+		t.Fatal("enable LAN in fixture:", err)
+	}
+	sup.status.LANExposed = true
+	w = e.do("DELETE", "/v1/apikeys/"+revoked.ID, "")
+	wantStatus(t, w, http.StatusInternalServerError)
+	if errCode(t, w) != "api_key_store_inconsistent" {
+		t.Fatal("inconsistent key store was not rejected while LAN was enabled")
+	}
+
+	// 먼저 LAN을 끄고 같은 ID 삭제를 재시도하면 유령 메타만 정리한다.
+	sup.status.LANExposed = false
+	w = e.do("PUT", "/v1/config", `{"lan_exposed":false}`)
+	wantStatus(t, w, http.StatusOK)
+	w = e.do("DELETE", "/v1/apikeys/"+revoked.ID, "")
+	wantStatus(t, w, http.StatusOK)
+	count, err := e.keys.Count()
+	if err != nil || count != 1 {
+		t.Fatalf("key count after metadata repair = %d, %v", count, err)
+	}
+	list, err := e.keys.List()
+	if err != nil || len(list) != 1 || list[0].ID != remaining.ID {
+		t.Fatal("metadata retry did not leave the remaining key manageable")
 	}
 }
 
@@ -495,6 +722,61 @@ func TestModelDeleteInUseAndMissing(t *testing.T) {
 	}
 	w = e.do("DELETE", "/v1/models/nothere.gguf", "")
 	wantStatus(t, w, http.StatusNotFound)
+}
+
+func TestModelDeleteBlocksActiveOrUnidentifiedFailedUnits(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status supervisor.Status
+		code   string
+	}{
+		{
+			name:   "failed unit still owns requested model",
+			status: supervisor.Status{State: supervisor.StateFailed, ModelID: "m.gguf", PID: 4242},
+			code:   "model_in_use",
+		},
+		{
+			name:   "active process has unknown model",
+			status: supervisor.Status{State: supervisor.StateFailed, PID: 4242},
+			code:   "server_state_unverifiable",
+		},
+		{
+			name:   "unit identity is unverifiable",
+			status: supervisor.Status{State: supervisor.StateStopped, UnitUnverifiable: true},
+			code:   "server_state_unverifiable",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, &fakeSup{status: tc.status})
+			path := filepath.Join(e.dir, "m.gguf")
+			content := []byte("GGUF active model fixture")
+			if err := os.WriteFile(path, content, 0o644); err != nil {
+				t.Fatal("write model fixture:", err)
+			}
+			w := e.do("DELETE", "/v1/models/m.gguf", "")
+			wantStatus(t, w, http.StatusConflict)
+			if errCode(t, w) != tc.code {
+				t.Fatalf("code = %s, want %s", errCode(t, w), tc.code)
+			}
+			stillPresent, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(stillPresent, content) {
+				t.Fatal("API removed model bytes while the unit state was active or unknown")
+			}
+		})
+	}
+}
+
+func TestModelDeleteAllowsVerifiedStoppedUnit(t *testing.T) {
+	e := newEnv(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}})
+	path := filepath.Join(e.dir, "m.gguf")
+	if err := os.WriteFile(path, []byte("GGUF stopped model fixture"), 0o644); err != nil {
+		t.Fatal("write model fixture:", err)
+	}
+	w := e.do("DELETE", "/v1/models/m.gguf", "")
+	wantStatus(t, w, http.StatusOK)
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("verified stopped model still exists: %v", err)
+	}
 }
 
 func TestSearchNeedsQuery(t *testing.T) {

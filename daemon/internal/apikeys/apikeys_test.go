@@ -368,3 +368,164 @@ func TestDefaultClockAndRandom(t *testing.T) {
 		t.Fatalf("plain length %d", len(plain))
 	}
 }
+
+func TestSnapshotEmptyAndCanonicalCopy(t *testing.T) {
+	s := newStore(t)
+	snapshot, err := s.Snapshot()
+	if err != nil || snapshot == nil || len(snapshot) != 0 {
+		t.Fatalf("empty snapshot length/nil/error = %d/%v/%v", len(snapshot), snapshot == nil, err)
+	}
+
+	if err := os.WriteFile(s.KeyFile, []byte("# local comment\n\n"), 0o640); err != nil {
+		t.Fatal("write comments:", err)
+	}
+	snapshot, err = s.Snapshot()
+	if err != nil || snapshot == nil || len(snapshot) != 0 {
+		t.Fatalf("comment-only snapshot length/nil/error = %d/%v/%v", len(snapshot), snapshot == nil, err)
+	}
+
+	first, firstPlain, err := s.Create("first")
+	if err != nil {
+		t.Fatal("create first key:", err)
+	}
+	second, secondPlain, err := s.Create("second")
+	if err != nil {
+		t.Fatal("create second key:", err)
+	}
+	want := []byte(firstPlain + "\n" + secondPlain + "\n")
+	snapshot, err = s.Snapshot()
+	if err != nil || !bytes.Equal(snapshot, want) {
+		t.Fatal("snapshot did not contain the canonical keys")
+	}
+	snapshot[0] ^= 0xff
+	again, err := s.Snapshot()
+	if err != nil || !bytes.Equal(again, want) {
+		t.Fatal("snapshot was not an independent copy")
+	}
+	if first.ID == second.ID {
+		t.Fatal("test key ids unexpectedly collided")
+	}
+}
+
+func TestSnapshotRejectsMismatchMalformedDuplicatesAndReadErrors(t *testing.T) {
+	t.Run("metadata without actual key", func(t *testing.T) {
+		s := newStore(t)
+		if _, _, err := s.Create("valid"); err != nil {
+			t.Fatal("create key:", err)
+		}
+		if err := os.WriteFile(s.KeyFile, nil, 0o640); err != nil {
+			t.Fatal("clear key file:", err)
+		}
+		assertStoreRejectsInconsistency(t, s)
+	})
+	t.Run("malformed key", func(t *testing.T) {
+		s := newStore(t)
+		if err := os.WriteFile(s.KeyFile, []byte("llx_not-a-valid-key\n"), 0o640); err != nil {
+			t.Fatal("write malformed key:", err)
+		}
+		assertStoreRejectsInconsistency(t, s)
+	})
+	t.Run("duplicate plaintext", func(t *testing.T) {
+		s := newStore(t)
+		_, plain, err := s.Create("duplicate")
+		if err != nil {
+			t.Fatal("create key:", err)
+		}
+		if err := os.WriteFile(s.KeyFile, []byte(plain+"\n"+plain+"\n"), 0o640); err != nil {
+			t.Fatal("duplicate key line:", err)
+		}
+		assertStoreRejectsInconsistency(t, s)
+	})
+	t.Run("key file read error", func(t *testing.T) {
+		s := newStore(t)
+		if err := os.Mkdir(s.KeyFile, 0o700); err != nil {
+			t.Fatal("make key path a directory:", err)
+		}
+		if _, err := s.Snapshot(); err == nil {
+			t.Fatal("snapshot accepted an unreadable key file")
+		}
+	})
+	t.Run("metadata read error", func(t *testing.T) {
+		s := newStore(t)
+		if err := os.Mkdir(s.MetaFile, 0o700); err != nil {
+			t.Fatal("make metadata path a directory:", err)
+		}
+		if _, err := s.Snapshot(); err == nil {
+			t.Fatal("snapshot accepted unreadable metadata")
+		}
+	})
+}
+
+func assertStoreRejectsInconsistency(t *testing.T, s *Store) {
+	t.Helper()
+	if _, err := s.Snapshot(); err == nil {
+		t.Error("Snapshot accepted an inconsistent or malformed store")
+	}
+	if _, err := s.List(); err == nil {
+		t.Error("List accepted an inconsistent or malformed store")
+	}
+	if _, err := s.Count(); err == nil {
+		t.Error("Count accepted an inconsistent or malformed store")
+	}
+	if _, _, err := s.Create("must-fail"); err == nil {
+		t.Error("Create accepted an inconsistent or malformed store")
+	}
+}
+
+func TestDeleteMetadataWriteFailureNeverRestoresRevokedKey(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("run as an unprivileged user to exercise directory permissions")
+	}
+	dir := t.TempDir()
+	metaDir := filepath.Join(dir, "metadata")
+	if err := os.Mkdir(metaDir, 0o700); err != nil {
+		t.Fatal("make metadata directory:", err)
+	}
+	s := &Store{KeyFile: filepath.Join(dir, "api-keys"), MetaFile: filepath.Join(metaDir, "keys.json")}
+	revoked, revokedPlain, err := s.Create("revoked")
+	if err != nil {
+		t.Fatal("create revoked key:", err)
+	}
+	remaining, remainingPlain, err := s.Create("remaining")
+	if err != nil {
+		t.Fatal("create remaining key:", err)
+	}
+	if err := os.Chmod(metaDir, 0o500); err != nil {
+		t.Fatal("remove metadata write permission:", err)
+	}
+	if err := s.Delete(revoked.ID); err == nil {
+		t.Fatal("Delete succeeded when metadata could not be written")
+	}
+	if err := os.Chmod(metaDir, 0o700); err != nil {
+		t.Fatal("restore metadata write permission:", err)
+	}
+	keyFile, err := os.ReadFile(s.KeyFile)
+	if err != nil {
+		t.Fatal("read actual key file:", err)
+	}
+	if bytes.Contains(keyFile, []byte(revokedPlain)) || !bytes.Contains(keyFile, []byte(remainingPlain)) {
+		t.Fatal("failed metadata write changed the revocation result")
+	}
+	if _, err := s.Snapshot(); err == nil {
+		t.Fatal("Snapshot accepted stale metadata after revocation")
+	}
+	if _, err := s.List(); err == nil {
+		t.Fatal("List exposed stale metadata as actual keys")
+	}
+	if count, err := s.Count(); err == nil || count != 0 {
+		t.Fatal("Count treated stale metadata as actual keys")
+	}
+
+	// 같은 삭제를 재시도하면 오래된 메타 항목만 없어지고 폐기 키는 되살아나지 않는다.
+	if err := s.Delete(revoked.ID); err != nil {
+		t.Fatal("repair stale metadata on delete retry:", err)
+	}
+	snapshot, err := s.Snapshot()
+	if err != nil || !bytes.Equal(snapshot, []byte(remainingPlain+"\n")) {
+		t.Fatal("retry did not leave only the still-valid key")
+	}
+	keys, err := s.List()
+	if err != nil || len(keys) != 1 || keys[0].ID != remaining.ID {
+		t.Fatal("retry did not restore a usable key list")
+	}
+}

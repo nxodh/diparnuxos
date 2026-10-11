@@ -68,7 +68,7 @@ func (s *server) listModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"default": def, "models": out})
 }
 
-// deleteModel 은 모델을 지운다. 실행 중인 모델이면 409 다.
+// deleteModel 은 모델을 지운다. 실행 중이거나 상태가 불확실한 모델이면 409 다.
 func (s *server) deleteModel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	list, err := s.d.Store.List()
@@ -88,6 +88,18 @@ func (s *server) deleteModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := s.d.Supervisor.Status()
+	if st.UnitUnverifiable {
+		writeError(w, http.StatusConflict, "server_state_unverifiable", "the server unit could not be verified; stop or verify the server before deleting models")
+		return
+	}
+	if st.PID > 0 && st.ModelID == "" {
+		writeError(w, http.StatusConflict, "server_state_unverifiable", "the server has an active process but its model is unknown; stop or verify the server before deleting models")
+		return
+	}
+	if st.ModelID == id && st.PID > 0 {
+		writeError(w, http.StatusConflict, "model_in_use", "model %q is used by the active server process; stop the server first", id)
+		return
+	}
 	if st.ModelID == id && (st.State == supervisor.StateStarting || st.State == supervisor.StateRunning || st.State == supervisor.StateRunningCPU) {
 		writeError(w, http.StatusConflict, "model_in_use", "model %q is used by the running server; stop the server first", id)
 		return

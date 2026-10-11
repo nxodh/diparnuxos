@@ -41,6 +41,9 @@ func (s *server) putConfig(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &patch) {
 		return
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+
 	old, err := config.Load(s.d.ConfigPath)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", err)
@@ -190,6 +193,9 @@ func (s *server) createKey(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+
 	if s.d.Keys == nil {
 		writeError(w, http.StatusInternalServerError, "internal", "API key storage is not configured")
 		return
@@ -213,25 +219,60 @@ func (s *server) createKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":      key.ID,
-		"label":   key.Label,
-		"prefix":  key.Prefix,
-		"created": key.Created.UTC().Format("2006-01-02T15:04:05Z"),
-		"key":     plain,
-		"note":    "the key is shown only once; store it now",
+		"id":               key.ID,
+		"label":            key.Label,
+		"prefix":           key.Prefix,
+		"created":          key.Created.UTC().Format("2006-01-02T15:04:05Z"),
+		"key":              plain,
+		"note":             "the key is shown only once; store it now",
+		"restart_required": s.apiKeyRestartRequired(),
 	})
 }
 
 // deleteKey 는 키를 지운다. LAN 공개 중에는 마지막 키를 지울 수 없다(409).
 func (s *server) deleteKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+
 	if s.d.Keys == nil {
 		writeError(w, http.StatusNotFound, "not_found", "key %q was not found", id)
 		return
 	}
+
 	list, err := s.d.Keys.List()
 	if err != nil {
-		writeErr(w, err)
+		// 키 폐기 뒤 메타 저장에 실패했을 때 같은 삭제를 다시 요청하면 오래된
+		// 메타 항목을 복구할 수 있다. 저장 설정이나 현재 서버가 LAN에 공개된
+		// 상태에서는 복구를 허용하지 않는다.
+		cfg, cfgErr := config.Load(s.d.ConfigPath)
+		if cfgErr != nil {
+			writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", cfgErr)
+			return
+		}
+		st := s.d.Supervisor.Status()
+		if cfg.LANExposed || st.LANExposed || st.UnitUnverifiable {
+			writeError(w, http.StatusInternalServerError, "api_key_store_inconsistent", "API key storage is inconsistent; disable LAN exposure and stop or verify the server before retrying the key deletion")
+			return
+		}
+		if err := s.d.Keys.Delete(id); err != nil {
+			if errors.Is(err, apikeys.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "not_found", "key %q was not found", id)
+				return
+			}
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":               id,
+			"deleted":          true,
+			"restart_required": s.apiKeyRestartRequired(),
+		})
+		return
+	}
+	cfg, err := config.Load(s.d.ConfigPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", err)
 		return
 	}
 	found := false
@@ -242,11 +283,6 @@ func (s *server) deleteKey(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		writeError(w, http.StatusNotFound, "not_found", "key %q was not found", id)
-		return
-	}
-	cfg, err := config.Load(s.d.ConfigPath)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", err)
 		return
 	}
 	if cfg.LANExposed && len(list) == 1 {
@@ -268,8 +304,24 @@ func (s *server) deleteKey(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id":               id,
 		"deleted":          true,
-		"restart_required": s.d.Supervisor.Status().State != supervisor.StateStopped,
+		"restart_required": s.apiKeyRestartRequired(),
 	})
+}
+
+func (s *server) apiKeyRestartRequired() bool {
+	if s.d.Supervisor == nil {
+		return false
+	}
+	st := s.d.Supervisor.Status()
+	if st.UnitUnverifiable || (st.State == supervisor.StateFailed && st.PID > 0) {
+		return true
+	}
+	switch st.State {
+	case supervisor.StateStarting, supervisor.StateRunning, supervisor.StateRunningCPU:
+		return true
+	default:
+		return false
+	}
 }
 
 // chownKeys 는 키 파일을 쓴 뒤 그룹을 맞춘다. 원자적 쓰기는 파일을 새로 만들므로 매번 필요하다.

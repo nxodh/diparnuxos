@@ -663,12 +663,42 @@ func TestConfigShowHidesToken(t *testing.T) {
 func TestAPIKeyCreatePrintsKeyOnce(t *testing.T) {
 	const key = "llk_0123456789abcdef"
 	f := newFakeDaemon(t)
-	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llk_0123","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now"}`, key))
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llk_0123","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":false}`, key))
 	res := runCLI(t, f, "apikey", "create", "laptop")
 	wantCode(t, res, exitOK)
 	wantContains(t, "create", res.stdout, key, "shown only once", "label:", "laptop")
+	if strings.Count(res.stdout, key) != 1 || strings.Contains(res.stdout, "restart the server") {
+		t.Fatal("stopped-server key creation did not show the key once without a restart notice")
+	}
 	if got := f.bodiesOf("POST /v1/apikeys"); len(got) != 1 || got[0] != `{"label":"laptop"}` {
 		t.Fatalf("apikey body = %v", got)
+	}
+}
+
+func TestAPIKeyCreateWhileRunningShowsRestartInstruction(t *testing.T) {
+	const key = "llx_test-created-key"
+	f := newFakeDaemon(t)
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_test","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	res := runCLI(t, f, "apikey", "create", "laptop")
+	wantCode(t, res, exitOK)
+	wantContains(t, "create", res.stdout, "API key created.", key, "shown only once", "restart the server for the new API key to take effect", "lightlix serve stop, then lightlix serve start")
+	if strings.Count(res.stdout, key) != 1 {
+		t.Fatal("running-server key creation did not show the key exactly once")
+	}
+}
+
+func TestAPIKeyCreateJSONKeepsRestartContract(t *testing.T) {
+	const key = "llx_json-created-key"
+	f := newFakeDaemon(t)
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_json","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	res := runCLI(t, f, "--json", "apikey", "create", "laptop")
+	wantCode(t, res, exitOK)
+	var response map[string]any
+	if err := json.Unmarshal([]byte(res.stdout), &response); err != nil {
+		t.Fatal("JSON key response did not decode:", err)
+	}
+	if response["restart_required"] != true || strings.Count(res.stdout, key) != 1 {
+		t.Fatal("JSON key response did not preserve restart_required and one-time plaintext")
 	}
 }
 

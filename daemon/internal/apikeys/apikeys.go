@@ -46,6 +46,10 @@ const (
 // ErrNotFound는 Delete에 준 ID가 메타 파일에 없을 때의 오류다.
 var ErrNotFound = errors.New("no API key with that id")
 
+// ErrInconsistent 는 평문 키 파일과 메타 파일의 키 목록이 다르다는 뜻이다.
+// 호출자는 어느 한쪽만 믿지 말고 요청을 거부해야 한다.
+var ErrInconsistent = errors.New("API key files are inconsistent")
+
 // Key는 키 목록의 항목이다. 평문은 들어 있지 않다.
 type Key struct {
 	ID      string    `json:"id"`
@@ -80,15 +84,15 @@ func (s *Store) Create(label string) (Key, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 메타 파일을 먼저 읽어 깨졌으면 키 파일을 건드리지 않는다.
-	meta, err := s.readMeta()
+	state, err := s.readState()
 	if err != nil {
 		return Key{}, "", fmt.Errorf("apikeys: create: %w", err)
 	}
-	oldKeys, existed, err := s.readKeyFile()
-	if err != nil {
+	if err := state.validate(); err != nil {
 		return Key{}, "", fmt.Errorf("apikeys: create: %w", err)
 	}
+	meta := state.meta
+	oldKeys, existed := state.keyFile, state.keyFileExists
 
 	plain, err := s.newPlaintext()
 	if err != nil {
@@ -135,27 +139,30 @@ func (s *Store) List() ([]Key, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	meta, err := s.readMeta()
+	state, err := s.readState()
 	if err != nil {
 		return nil, fmt.Errorf("apikeys: list: %w", err)
 	}
-	out := make([]Key, len(meta.Keys))
-	copy(out, meta.Keys)
+	if err := state.validate(); err != nil {
+		return nil, fmt.Errorf("apikeys: list: %w", err)
+	}
+	out := make([]Key, len(state.meta.Keys))
+	copy(out, state.meta.Keys)
 	return out, nil
 }
 
 // Delete는 ID의 키를 지운다. 키 파일에서 먼저 지워 접근을 끊고, 그다음 메타 파일을 고친다.
-// 키 파일을 고친 뒤 메타 쓰기가 실패하면 키는 이미 폐기된 상태이고, 목록에는 남은 항목으로 보인다.
+// 메타 쓰기 실패 뒤에는 키를 되살리지 않으며, 불일치한 목록 읽기는 오류를 돌려준다.
 func (s *Store) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	meta, err := s.readMeta()
+	state, err := s.readState()
 	if err != nil {
 		return fmt.Errorf("apikeys: delete: %w", err)
 	}
 	idx := -1
-	for i, k := range meta.Keys {
+	for i, k := range state.meta.Keys {
 		if k.ID == id {
 			idx = i
 			break
@@ -164,21 +171,39 @@ func (s *Store) Delete(id string) error {
 	if idx < 0 {
 		return fmt.Errorf("apikeys: delete %q: %w", id, ErrNotFound)
 	}
-	hash := meta.Keys[idx].SHA256
+	hash := state.meta.Keys[idx].SHA256
 
-	oldKeys, _, err := s.readKeyFile()
-	if err != nil {
-		return fmt.Errorf("apikeys: delete: %w", err)
-	}
-	newKeys, removed := dropKeyLines(oldKeys, hash)
-	if removed > 0 {
-		if err := writeFileAtomic(s.KeyFile, newKeys, keyFileMode); err != nil {
-			return fmt.Errorf("apikeys: delete: write key file: %w", err)
+	if err := state.validate(); err != nil {
+		// 폐기는 성공했지만 메타 쓰기가 실패하면 오래된 메타 항목이 남는다.
+		// 같은 삭제를 다시 요청했을 때 그 항목만 제거해 두 파일이 일치하는 경우에
+		// 복구한다. 이 경로에서는 평문 파일을 쓰거나 폐기한 키를 되살리지 않는다.
+		for _, plain := range state.keys {
+			if sha256Hex(plain) == hash {
+				return fmt.Errorf("apikeys: delete: %w", err)
+			}
 		}
+		next := metaDoc{Keys: append([]Key(nil), state.meta.Keys...)}
+		next.Keys = append(next.Keys[:idx], next.Keys[idx+1:]...)
+		if pairErr := validatePair(next, state.keys); pairErr != nil {
+			return fmt.Errorf("apikeys: delete: %w", err)
+		}
+		if writeErr := s.writeMeta(next); writeErr != nil {
+			return fmt.Errorf("apikeys: delete: repair stale metadata: %w", writeErr)
+		}
+		return nil
+	}
+	newKeys, removed := dropKeyLines(state.keyFile, hash)
+	if removed != 1 {
+		return fmt.Errorf("apikeys: delete: %w", ErrInconsistent)
+	}
+	if err := writeFileAtomic(s.KeyFile, newKeys, keyFileMode); err != nil {
+		return fmt.Errorf("apikeys: delete: write key file: %w", err)
 	}
 
-	meta.Keys = append(meta.Keys[:idx], meta.Keys[idx+1:]...)
-	if err := s.writeMeta(meta); err != nil {
+	state.meta.Keys = append(state.meta.Keys[:idx], state.meta.Keys[idx+1:]...)
+	if err := s.writeMeta(state.meta); err != nil {
+		// 폐기는 이미 완료됐다. 평문 키 파일을 되돌리지 않으며, 이후 읽기는
+		// 안전한 삭제 재시도가 메타를 복구할 때까지 불일치 오류를 돌려준다.
 		return fmt.Errorf("apikeys: delete: write meta file (key already removed from key file): %w", err)
 	}
 	return nil
@@ -189,11 +214,134 @@ func (s *Store) Count() (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	meta, err := s.readMeta()
+	state, err := s.readState()
 	if err != nil {
 		return 0, fmt.Errorf("apikeys: count: %w", err)
 	}
-	return len(meta.Keys), nil
+	if err := state.validate(); err != nil {
+		return 0, fmt.Errorf("apikeys: count: %w", err)
+	}
+	return len(state.keys), nil
+}
+
+// Snapshot 은 실제 평문 키를 줄바꿈으로 구분한 복사본으로 돌려준다.
+// Store 뮤텍스를 잡은 채 메타와 키 파일을 함께 읽어 목록이 정확히 일치하는지
+// 확인한다. 주석과 빈 줄은 제외하고 반환된 각 키 뒤에는 줄바꿈을 붙인다.
+func (s *Store) Snapshot() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state, err := s.readState()
+	if err != nil {
+		return nil, fmt.Errorf("apikeys: snapshot: %w", err)
+	}
+	if err := state.validate(); err != nil {
+		return nil, fmt.Errorf("apikeys: snapshot: %w", err)
+	}
+	out := make([]byte, len(state.snapshot))
+	copy(out, state.snapshot)
+	return out, nil
+}
+
+type storeState struct {
+	meta          metaDoc
+	keyFile       []byte
+	keyFileExists bool
+	keys          []string
+	snapshot      []byte
+	consistency   error
+}
+
+func (state storeState) validate() error { return state.consistency }
+
+// readState 는 두 파일을 각각 읽고 형식을 검사한다. 파일 목록 불일치는 상태에
+// 담아 반환해 Delete 가 폐기 후 남은 메타 유령 항목만 안전하게 복구할 수 있게 한다.
+// 보안 판단에 쓰는 읽기 메서드는 validate 를 호출해 불일치 시 거부한다.
+func (s *Store) readState() (storeState, error) {
+	meta, err := s.readMeta()
+	if err != nil {
+		return storeState{}, err
+	}
+	keyFile, keyFileExists, err := s.readKeyFile()
+	if err != nil {
+		return storeState{}, err
+	}
+	keys, snapshot, err := parseKeyFile(keyFile)
+	if err != nil {
+		return storeState{}, err
+	}
+	return storeState{
+		meta:          meta,
+		keyFile:       keyFile,
+		keyFileExists: keyFileExists,
+		keys:          keys,
+		snapshot:      snapshot,
+		consistency:   validatePair(meta, keys),
+	}, nil
+}
+
+func parseKeyFile(data []byte) ([]string, []byte, error) {
+	keys := make([]string, 0)
+	snapshot := make([]byte, 0, len(data))
+	seen := make(map[string]struct{})
+	for i, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if line != trimmed || !validPlaintext(line) {
+			return nil, nil, fmt.Errorf("malformed API key file at line %d", i+1)
+		}
+		hash := sha256Hex(line)
+		if _, exists := seen[hash]; exists {
+			return nil, nil, fmt.Errorf("duplicate plaintext key in API key file at line %d", i+1)
+		}
+		seen[hash] = struct{}{}
+		keys = append(keys, line)
+		snapshot = append(snapshot, line...)
+		snapshot = append(snapshot, '\n')
+	}
+	return keys, snapshot, nil
+}
+
+func validPlaintext(key string) bool {
+	if !strings.HasPrefix(key, keyPrefix) || len(key) != len(keyPrefix)+base64.RawURLEncoding.EncodedLen(keyRandomBytes) {
+		return false
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(key[len(keyPrefix):])
+	if err != nil || len(raw) != keyRandomBytes {
+		return false
+	}
+	return base64.RawURLEncoding.EncodeToString(raw) == key[len(keyPrefix):]
+}
+
+func validatePair(meta metaDoc, keys []string) error {
+	actual := make(map[string]struct{}, len(keys))
+	for _, plain := range keys {
+		hash := sha256Hex(plain)
+		actual[hash] = struct{}{}
+	}
+	if len(meta.Keys) != len(actual) {
+		return ErrInconsistent
+	}
+	for _, record := range meta.Keys {
+		if record.Prefix == "" {
+			return ErrInconsistent
+		}
+		if _, ok := actual[record.SHA256]; !ok {
+			return ErrInconsistent
+		}
+		delete(actual, record.SHA256)
+		for _, plain := range keys {
+			if sha256Hex(plain) == record.SHA256 && record.Prefix != plain[:displayPrefixLen] {
+				return ErrInconsistent
+			}
+		}
+	}
+	if len(actual) != 0 {
+		return ErrInconsistent
+	}
+	return nil
 }
 
 // now는 시각을 얻는다. 주입된 함수가 없으면 time.Now를 쓴다.
@@ -245,13 +393,26 @@ func (s *Store) readMeta() (metaDoc, error) {
 	if err := dec.Decode(&m); err != nil {
 		return metaDoc{}, fmt.Errorf("broken meta file %s: %w", s.MetaFile, err)
 	}
+	if m.Keys == nil {
+		return metaDoc{}, fmt.Errorf("broken meta file %s: keys must be an array", s.MetaFile)
+	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return metaDoc{}, fmt.Errorf("broken meta file %s: data after the JSON object", s.MetaFile)
 	}
+	ids := make(map[string]struct{}, len(m.Keys))
+	hashes := make(map[string]struct{}, len(m.Keys))
 	for i, k := range m.Keys {
 		if err := checkKeyRecord(k); err != nil {
 			return metaDoc{}, fmt.Errorf("broken meta file %s: key %d: %w", s.MetaFile, i, err)
 		}
+		if _, exists := ids[k.ID]; exists {
+			return metaDoc{}, fmt.Errorf("broken meta file %s: duplicate key id", s.MetaFile)
+		}
+		if _, exists := hashes[k.SHA256]; exists {
+			return metaDoc{}, fmt.Errorf("broken meta file %s: duplicate key hash", s.MetaFile)
+		}
+		ids[k.ID] = struct{}{}
+		hashes[k.SHA256] = struct{}{}
 	}
 	return m, nil
 }
@@ -286,8 +447,14 @@ func checkKeyRecord(k Key) error {
 	if len(k.ID) != idRandomBytes*2 || !isHex(k.ID) {
 		return fmt.Errorf("id %q is not %d hex characters", k.ID, idRandomBytes*2)
 	}
+	if strings.ToLower(k.ID) != k.ID {
+		return errors.New("id must use lowercase hex")
+	}
 	if len(k.SHA256) != sha256.Size*2 || !isHex(k.SHA256) {
 		return errors.New("sha256 is not 64 hex characters")
+	}
+	if strings.ToLower(k.SHA256) != k.SHA256 {
+		return errors.New("sha256 must use lowercase hex")
 	}
 	if !strings.HasPrefix(k.Prefix, keyPrefix) || len(k.Prefix) != displayPrefixLen {
 		return fmt.Errorf("prefix %q is malformed", k.Prefix)
