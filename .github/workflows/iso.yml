@@ -45,6 +45,10 @@ jobs:
       - name: Test QEMU E2E driver with controlled fixtures
         run: make test-qemu-e2e-driver
 
+      # python3-gi, GTK4, libadwaita 와 xvfb 는 컨테이너 안에만 설치한다.
+      - name: Test Control Center (unit and GTK smoke)
+        run: make test-gui
+
       # Debian의 Go와 gcc를 쓰고 저장소는 읽기 전용으로 복사한다. 모듈 내려받기는 막는다.
       - name: Build and test daemon and CLI
         run: |

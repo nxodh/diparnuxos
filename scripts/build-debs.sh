@@ -43,6 +43,10 @@ for pkgdir in "${ROOT}"/packages/*/; do
     if [ "${name}" = lightlix-daemon ]; then
         cp -a "${ROOT}/daemon" "${src}/daemon"
     fi
+    # Control Center 소스도 패키지의 임시 사본에만 넣는다.
+    if [ "${name}" = lightlix-control-center ]; then
+        cp -a "${ROOT}/gui" "${src}/gui"
+    fi
     (cd "${src}" && dpkg-buildpackage -us -uc -b)
 
     shopt -s nullglob

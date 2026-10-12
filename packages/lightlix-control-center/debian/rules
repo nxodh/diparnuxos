@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+# gui/ 는 build-debs.sh 가 이 패키지의 임시 사본에 복사한다.
+LIGHTLIX_CONF ?= $(CURDIR)/../../lightlix.conf
+DEST = debian/lightlix-control-center
+LIBDIR = $(DEST)/usr/lib/lightlix/control-center
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	sh debian/gen-control.sh "$(LIGHTLIX_CONF)"
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다. 번역 카탈로그는 install 단계에서 만든다.
+
+override_dh_auto_test:
+	# GTK 가 없는 빌드 환경에서는 화면 테스트가 건너뛰어진다. 클라이언트와 표시 논리는 항상 돈다.
+	cd gui && python3 -B -m unittest discover -s tests -t .
+
+override_dh_auto_install:
+	install -d $(LIBDIR)
+	cp -a gui/lightlix_cc $(LIBDIR)/lightlix_cc
+	find $(LIBDIR) -name __pycache__ -type d -prune -exec rm -rf {} +
+	set -e; . "$(LIGHTLIX_CONF)"; sed -i "s/^__version__ = .*/__version__ = \"$$LIGHTLIX_VERSION\"/" $(LIBDIR)/lightlix_cc/__init__.py
+	python3 -m compileall -q $(LIBDIR)
+	install -D -m 755 gui/lightlix-control-center $(DEST)/usr/bin/lightlix-control-center
+	install -D -m 644 gui/data/lightlix-control-center.desktop $(DEST)/usr/share/applications/lightlix-control-center.desktop
+	set -e; for po in gui/po/*.po; do \
+		lang=$$(basename $$po .po); \
+		install -d $(DEST)/usr/share/locale/$$lang/LC_MESSAGES; \
+		msgfmt --check -o $(DEST)/usr/share/locale/$$lang/LC_MESSAGES/lightlix-control-center.mo $$po; \
+	done

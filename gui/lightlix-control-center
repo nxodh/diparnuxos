@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+"""lightlix-control-center 실행 파일. 패키지 설치 경로를 sys.path 에 넣고 앱을 시작한다."""
+
+import os
+import sys
+
+_here = os.path.dirname(os.path.abspath(__file__))
+for candidate in (os.path.join(_here, "..", "lib", "lightlix", "control-center"), _here):
+    if os.path.isdir(os.path.join(candidate, "lightlix_cc")):
+        sys.path.insert(0, os.path.abspath(candidate))
+        break
+
+from lightlix_cc.app import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())

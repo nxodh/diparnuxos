@@ -30,3 +30,5 @@ nftables
 lightlix-desktop
 # SSH 서버. 이미지에서는 꺼 두고 호스트 키를 지운다. Control Center 나 daemon 이 켤 때 키를 만든다.
 openssh-server
+# Control Center(GTK4, libadwaita). 데스크톱 모드에서 쓰며 서버 모드에서는 실행되지 않는다.
+lightlix-control-center

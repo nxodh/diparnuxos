@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gui test-gpu-check test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver
 
 # Docker 안에서 ISO 를 빌드한다. lightlix-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -43,6 +43,10 @@ lint:
 		echo "lint: shellcheck not found; checking syntax with bash -n"; \
 		for f in $(SHELL_SCRIPTS); do bash -n "$$f" || exit 1; done; \
 	fi
+
+# Control Center 단위 테스트와 GTK 스모크 테스트를 Docker 의 xvfb 에서 실행한다.
+test-gui:
+	bash "$(ROOT)/scripts/test-gui-in-docker.sh"
 
 # GPU 진단 분기를 명령 스텁으로 확인한다.
 test-gpu-check:

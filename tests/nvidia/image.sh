@@ -197,6 +197,13 @@ grep -qi 'type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B' "$WORK/ptable" || check_fai
 echo 'PASS: GPT and EFI System partition found'
 # Phase 3: 데스크톱 구성 요소는 설치하되 기본 부팅 대상은 서버 모드(multi-user.target)로 둔다.
 check_package lightlix-desktop "$LIGHTLIX_VERSION"
+check_package lightlix-control-center "$LIGHTLIX_VERSION"
+for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
+    grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
+done
+require_path 'squashfs-root/usr/bin/lightlix-control-center$' 'Control Center launcher'
+require_path 'squashfs-root/usr/lib/lightlix/control-center/lightlix_cc/app[.]py$' 'Control Center application'
+require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/lightlix-control-center[.]mo$' 'Control Center Korean catalog'
 for pkg in labwc greetd tuigreet foot fonts-nanum openssh-server; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
