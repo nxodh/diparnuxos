@@ -115,7 +115,7 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 |---|---|---|---|
 | A. 패키지와 이미지 | `lightlix-desktop` Depends 교체, 패키지 목록, 서비스 활성화(`lightdm`은 기본 부팅 대상을 바꾸지 않고 설치) | `packages/lightlix-desktop/debian`, `build/config/package-lists` | 이미지 검사(`tests/nvidia/image.sh`), QEMU |
 | B. 세션 기본값 | xfconf XML(세션, 창 관리자, 데스크톱, 설정, 전원, Thunar), 패널 배치, 자동 시작 항목 | `packages/lightlix-desktop/src` | 컨테이너에서 XML 구문 검사, Xvfb에서 패널 시작 확인 |
-| C. 로그인 | lightdm 설정, greeter 테마, 라이브 자동 로그인(라이브에서만), 설치된 시스템의 로그인 화면 | `packages/lightlix-desktop/src`, `packages/lightlix-branding` | QEMU에서 greeter 화면 캡처, 자동 로그인·로그인 시험 |
+| C. 로그인 | lightdm 설정, greeter 테마, 라이브 자동 로그인(live-config), 설치된 시스템의 로그인 화면 | `packages/lightlix-desktop/src`, `packages/lightlix-branding` | QEMU에서 greeter 화면 캡처, 자동 로그인·로그인 시험 |
 | D. 디자인 | GTK3 테마, xfwm4 테마, 아이콘 지정, 배경, greeter 이미지, Control Center와의 색 통일 | `assets/brand`, `scripts/make-brand-assets.py`, `packages/lightlix-branding`, `gui/lightlix_cc/theme.py` | Xvfb에서 화면 캡처와 사람 눈 확인, QEMU 화면 캡처 |
 | E. 통합 | 모드 전환 유닛 이름, 계정 예약어, 설치기 Xorg 실행, 네트워크 패널 표시, 한국어 문구 | `daemon/internal/supervisor`, `daemon/internal/accounts`, `daemon/dist/lightlix-user.sh`, `packages/lightlix-installer`, `gui/po` | Go 단위 시험, GUI 시험, 설치 E2E |
 | F. 시험과 CI | `desktop-session.py`를 X11로 바꾸고, 소크 시험의 대상 프로세스를 Xorg·xfwm4·xfce4-panel·lightdm으로 바꾸며, 컨테이너 시험 추가 | `tests/qemu`, `scripts`, `.github/workflows/iso.yml` | CI 전체 |
@@ -148,7 +148,7 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 
 | 항목 | 이유 | 확인 방법 |
 |---|---|---|
-| 라이브에서만 자동 로그인 | 설치된 시스템에는 자동 로그인이 있으면 안 된다. squashfs에 설정을 넣으면 설치본에 복사된다 | 라이브 감지(`/run/live`)로 부팅 때 설정 조각을 만드는 유닛 또는 드롭인을 쓰고, 설치 E2E에서 설치본에 조각이 없음을 확인 |
+| 라이브에서만 자동 로그인 | 설치된 시스템에는 자동 로그인이 있으면 안 된다. squashfs에 설정을 넣으면 설치본에 복사된다 | **구현 결정(2026-10-13)**: 직접 만들지 않고 live-config 의 `0100-lightdm` 구성 요소에 맡긴다. 그 구성 요소가 부팅 때 `/etc/lightdm/lightdm.conf` 의 `autologin-user=` 를 채우며 `noautologin` 부팅 파라미터를 지원한다. 처음에 만든 자체 보조 프로그램은 live-config 와 겹쳐 로그인 화면 시험을 깨뜨려 제거했다. 이미지의 파일에는 자동 로그인이 꺼져 있음을 이미지 검사가 확인한다 |
 | lightdm 설정 읽는 경로 | 어떤 디렉터리의 조각을 읽는지 | 컨테이너에서 `lightdm --show-config`(가능하면)와 문서 확인 |
 | xfdesktop 기본 배경 | 모니터 이름별 키 | Xvfb와 QEMU 화면 |
 | Xorg가 QEMU/VMware 가상 GPU에서 동작 | `modesetting` 드라이버가 virtio, bochs, vmwgfx에서 뜨는지 | QEMU 화면 캡처. VMware는 사용자 확인 |
@@ -162,7 +162,7 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 
 1. 이미지 검사: 새 패키지와 설정 파일이 있고 `labwc`, `greetd`, `tuigreet`, `yambar`, `foot`, `swaybg`가 없다.
 2. QEMU: 서버 모드로 부팅하고 X 서버가 없으며, `lightlix mode desktop` 뒤 lightdm greeter가 화면에 나온다(화면 캡처로 비어 있지 않음과 로고 색을 확인). 로그인하면 xfwm4, xfce4-panel, xfdesktop이 뜨고 Control Center가 창으로 열린다. `lightlix mode server`로 돌아온다.
-3. 라이브: 자동 로그인되어 바탕 화면에 도달한다. 설치 E2E: 설치된 시스템에는 자동 로그인 조각이 없다.
+3. 라이브: 자동 로그인되어 바탕 화면에 도달한다. 설치 E2E: 설치된 시스템의 `lightdm.conf` 에는 자동 로그인이 없다.
 4. 세션 환경: `XDG_SESSION_TYPE=x11`, `XDG_CURRENT_DESKTOP=XFCE`, DBus 세션, polkit 에이전트, PipeWire가 떠 있다.
 5. 소크 시험(8분): 프로세스별 증가량 상한은 유지한다. 대상은 `lightlixd`, Control Center, Xorg, xfwm4, xfce4-panel, xfdesktop, lightdm. 상한 값은 첫 측정 뒤 정한다.
 6. 설치기 창이 Xorg에서 그려진다(설치까지는 하지 않는 기존 검사).

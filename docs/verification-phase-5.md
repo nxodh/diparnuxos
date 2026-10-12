@@ -14,7 +14,7 @@
 | 세션 프로세스 | 같은 세션 | `xfwm4`, `xfce4-panel`, `xfdesktop` 가 뜬다 |
 | 화면(캡처) | `scrot` 으로 확인 | GTK3 테마 `Lightlix`(어두운 창, 둥근 모서리), xfwm4 테마(제목 줄, 닫기·최대화·최소화 단추, 활성 창의 밝은 바깥 선), 하단 패널, 배경 마크가 표시됨. 터미널은 흑백 색으로 시작함 |
 | 로그인 화면 | `lightdm --test-mode`(Xephyr 안) | 통과: `lightdm-gtk-greeter` 가 시작하고 어두운 테마, 로고 아바타, 시계, 사용자 목록이 표시됨. 시험은 greeter 프로세스가 뜨는지를 판정한다 |
-| 라이브 자동 로그인 헬퍼 | 라이브가 아닌 컨테이너에서 실행 | 자동 로그인 조각을 만들지 않음(설치된 시스템 동작) |
+| 설치된 시스템의 자동 로그인 | 컨테이너에 설치한 `/etc/lightdm/lightdm.conf` 확인 | 자동 로그인이 꺼져 있음(라이브 세션에서는 live-config 가 부팅 때만 켠다) |
 | 첫 로그인 설정 | 같은 세션 | `lightlix-session-setup` 이 표식 파일을 만들고 터미널 색 설정을 복사함 |
 | 데몬 | `go vet ./...`, `go test ./...` | 통과(모드 전환의 유닛 이름은 `lightdm.service`) |
 | Control Center | `make test-gui` | 52개 통과 |
@@ -38,8 +38,15 @@
 | 이미지 검사(`tests/nvidia/image.sh`)의 새 항목 | CI 대기 |
 | 소크 시험의 Xorg·xfwm4·xfce4-panel·xfdesktop 증가량 상한 | 첫 측정 전의 넉넉한 값이다. 측정 뒤 조인다 |
 | ISO 크기 | 첫 CI 빌드에서 측정한다(0.4.0 은 약 1.5 GB) |
-| 라이브 자동 로그인(`nopasswdlogin` 그룹과 PAM) | 컨테이너에서는 PAM 자동 로그인을 시험하지 못했다. QEMU 시나리오가 확인한다 |
+| 라이브 자동 로그인 | live-config 가 쓰는 `autologin-user=` 와 PAM 의 자동 로그인(`pam_permit`)을 컨테이너에서는 시험하지 못했다. QEMU 시나리오가 확인한다 |
 | NVIDIA 하이브리드 노트북에서 Xorg 화면 | 실기 필요 |
 | VMware 에서 Xorg `modesetting` 과 `open-vm-tools-desktop` | 사용자 확인 필요 |
 | 한글 입력(fcitx5) | 키 입력 자동화가 없어 확인하지 못했다. 환경 변수와 프로필 생성만 구성했다 |
 | Wi-Fi 상태 클릭 동작(패널 → Control Center 네트워크 쪽) | 구성만 했다. QEMU 에서 `lightlix-panel-net` 출력 형식만 확인한다 |
+
+## 4. CI 실행에서 알게 된 것(2026-10-13)
+
+- **첫 실행(38269109496)**: 새 푸시로 취소되었다.
+- **두 번째 실행(38270708124)**: 데스크톱 E2E 의 `greeter-running` 에서 실패했다. `pgrep -x lightdm-gtk-greeter` 는 이름이 15자를 넘어 항상 실패한다. `pgrep -f` 로 고쳤다. 실패 전까지 서버 모드, 자동 로그인으로 Xfce 세션과 패널, Control Center 창이 뜨는 것(화면 캡처), 서버 모드 복귀는 통과했다.
+- **세 번째 실행(38278565296)**: 로그인 화면 단계에서 실패했다. 원인: live-config 의 `0100-lightdm` 구성 요소가 lightdm 이 설치되어 있으면 부팅 때 `/etc/lightdm/lightdm.conf` 의 `autologin-user=` 를 라이브 사용자로 채운다. 그래서 자체 자동 로그인 끄기 파일과 무관하게 자동 로그인이 일어나 로그인 화면이 나오지 않았다. 자체 보조 프로그램(조각 파일, `nopasswdlogin` 그룹, 서비스 드롭인)은 live-config 와 중복이어서 제거했다. Debian 의 `lightdm-autologin` PAM 은 `pam_permit` 만 쓰므로 그룹이 필요 없다.
+- 시험에 프레임 해시를 넣어 이전 세션의 마지막 프레임이 남아 있는지 가리고, 로그인 직전과 실패 시점에 lightdm, greeter, Xorg 로그를 남기게 했다.

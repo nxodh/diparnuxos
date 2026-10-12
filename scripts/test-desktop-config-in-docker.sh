@@ -18,14 +18,14 @@ if [ -n "${OUT_DIR}" ]; then
     mount_out=(-v "${OUT_DIR}:/out")
 fi
 
-docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" "${mount_out[@]}" \
+docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" ${mount_out[@]+"${mount_out[@]}"} \
     -e DEBIAN_FRONTEND=noninteractive "${IMAGE}" bash -euc '
 apt-get update -qq >/dev/null
 apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils python3 xvfb xauth scrot procps x11-utils >/dev/null
 
 D=/src/packages/lightlix-desktop/src
 echo "== 1. static checks"
-for f in $D/lightlix-panel-net $D/lightlix-session-setup $D/lightdm/lightdm-live-autologin $D/xsession/55lightlix-xdg; do
+for f in $D/lightlix-panel-net $D/lightlix-session-setup $D/xsession/55lightlix-xdg; do
   sh -n "$f"; echo "ok: syntax $(basename "$f")"
 done
 find $D/xdg -name "*.xml" -print0 | xargs -0 xmllint --noout
@@ -60,7 +60,7 @@ ls /tmp/build/*.deb
 apt-get install -y -qq --no-install-recommends /tmp/build/lightlix-branding_*.deb /tmp/build/lightlix-desktop_*.deb >/dev/null
 echo "ok: packages installed"
 for f in /etc/xdg/lightlix/xfce4/panel/default.xml /etc/X11/Xsession.d/55lightlix-xdg /usr/share/lightdm/lightdm.conf.d/50-lightlix.conf \
-         /usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-lightlix.conf /usr/lib/lightlix/lightdm-live-autologin /usr/bin/lightlix-panel-net; do
+         /usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-lightlix.conf /usr/bin/lightlix-panel-net; do
   test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
 done
 echo "ok: installed files"
@@ -74,10 +74,9 @@ for p in whiskermenu tasklist separator systray genmon pulseaudio power-manager-
   ls /usr/share/xfce4/panel/plugins/$p.desktop >/dev/null 2>&1 || { echo "FAIL: panel plugin not installed: $p" >&2; exit 1; }
 done
 echo "ok: panel plugins installed"
-# 라이브 자동 로그인 스크립트: 라이브가 아니면(여기서는 /run/live 가 없다) 조각이 만들어지지 않는다.
-/usr/lib/lightlix/lightdm-live-autologin
-test ! -e /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf || { echo "FAIL: autologin outside live" >&2; exit 1; }
-echo "ok: no autologin outside the live session"
+# 설치된 이미지의 lightdm.conf 는 자동 로그인이 꺼져 있다(라이브 세션에서는 live-config 가 부팅 때만 켠다).
+if grep -Eq "^[[:space:]]*autologin-user=.+" /etc/lightdm/lightdm.conf; then echo "FAIL: autologin is on in the installed lightdm.conf" >&2; exit 1; fi
+echo "ok: no autologin in an installed system"
 
 echo "== 3. Xfce session under Xvfb"
 useradd -m -s /bin/bash tester

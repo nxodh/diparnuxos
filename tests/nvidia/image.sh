@@ -222,13 +222,11 @@ require_path 'squashfs-root/usr/share/themes/Lightlix/gtk-3[.]0/gtk[.]css$' 'GTK
 require_path 'squashfs-root/usr/share/themes/Lightlix/xfwm4/themerc$' 'xfwm4 theme Lightlix'
 require_path 'squashfs-root/usr/share/lightdm/lightdm[.]conf[.]d/50-lightlix[.]conf$' 'lightdm configuration'
 require_path 'squashfs-root/usr/share/lightdm/lightdm-gtk-greeter[.]conf[.]d/50-lightlix[.]conf$' 'greeter configuration'
-require_path 'squashfs-root/usr/lib/lightlix/lightdm-live-autologin$' 'live autologin helper'
-require_path 'squashfs-root/(usr/)?lib/systemd/system/lightdm[.]service[.]d/lightlix[.]conf$' 'lightdm service drop-in'
-unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/lightdm.service.d/lightlix.conf > "$WORK/lightdm-dropin"
-grep -qx 'ExecStartPre=-/usr/lib/lightlix/lightdm-live-autologin' "$WORK/lightdm-dropin" || check_fail 'lightdm drop-in does not run the live autologin helper'
-# 설치된 시스템에 자동 로그인 조각이 들어 있으면 안 된다(라이브에서만 런타임에 만든다).
-if grep -Eq 'squashfs-root/etc/lightdm/lightdm[.]conf[.]d/60-lightlix-live-autologin[.]conf' "$WORK/files"; then
-    check_fail 'the live autologin fragment is baked into the image'
+# 라이브 자동 로그인은 live-config 가 부팅 때 /etc/lightdm/lightdm.conf 에 쓴다. 이미지의 파일에는 자동 로그인이 켜져 있으면 안 된다
+# (설치된 시스템은 이 파일을 그대로 복사한다).
+unsquashfs -cat "$WORK/rootfs.squashfs" etc/lightdm/lightdm.conf > "$WORK/lightdm.conf"
+if grep -Eq '^[[:space:]]*autologin-user=.+' "$WORK/lightdm.conf"; then
+    check_fail 'autologin is enabled in the image lightdm.conf'
 fi
 # 기본 부팅 대상이 graphical.target 이면 부팅하자마자 데스크톱이 떠서 서버 모드의 램 목표를 깨뜨린다.
 if grep -Eq 'squashfs-root/etc/systemd/system/default[.]target -> .*graphical[.]target$' "$WORK/files"; then

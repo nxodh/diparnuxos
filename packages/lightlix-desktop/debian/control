@@ -24,4 +24,4 @@ Description: Lightlix 데스크톱 세션 (Xfce, lightdm)
  필요한 구성 요소와 설정만 설치한다. 설정은 Debian 의 /etc/xdg 파일을 건드리지
  않고 /etc/xdg/lightlix 에 두며, /etc/X11/Xsession.d/55lightlix-xdg 가 이
  디렉터리를 XDG_CONFIG_DIRS 맨 앞에 둔다. 로그인 화면은 lightdm 과
- lightdm-gtk-greeter 이고, 라이브 세션에서만 자동 로그인한다.
+ lightdm-gtk-greeter 이다. 라이브 세션의 자동 로그인은 live-config 가 맡는다.

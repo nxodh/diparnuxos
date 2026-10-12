@@ -147,7 +147,10 @@ def describe_image(width, height, pixels):
         if r + g + b > 96:
             lit += 1
         samples += 1
-    return {"width": width, "height": height, "colors": len(colors), "lit_fraction": round(lit / max(samples, 1), 4)}
+    # 같은 화면인지 비교하려고 화소 전체의 해시를 함께 남긴다(캡처가 이전 프레임 그대로인지 가린다).
+    digest = zlib.crc32(bytes(pixels)) & 0xFFFFFFFF
+    return {"width": width, "height": height, "colors": len(colors), "lit_fraction": round(lit / max(samples, 1), 4),
+            "digest": f"{digest:08x}"}
 
 
 def write_png(path, width, height, pixels):
@@ -193,6 +196,20 @@ def capture(console, monitor, logs, name, workdir):
     return info
 
 
+def greeter_diagnostics(console, cmd, tag):
+    """로그인 화면 문제를 가릴 정보를 남긴다. 실패해도 시험을 끝내지 않는다."""
+    console.command(
+        f"greeter-diagnostics-{tag}",
+        "ps -eo pid,user,etime,args | grep -E 'Xorg|lightdm|greeter|xfce4-session' | grep -v grep; "
+        "echo '== conf.d'; sudo -n sh -c 'for f in /etc/lightdm/lightdm.conf.d/* /usr/share/lightdm/lightdm.conf.d/*; do echo \"-- $f\"; cat \"$f\"; done'; "
+        "echo '== lightdm.log'; sudo -n tail -n 70 /var/log/lightdm/lightdm.log; "
+        "echo '== x-0.log (EE/WW)'; sudo -n grep -E '\\(EE\\)|\\(WW\\)' /var/log/lightdm/x-0.log | tail -n 25; "
+        "echo '== greeter log'; sudo -n sh -c 'tail -n 40 /var/log/lightdm/seat0-greeter.log 2>&1'; "
+        "echo '== journal'; sudo -n journalctl -b -u lightdm.service --no-pager | tail -n 25; true",
+        cmd + 20,
+    )
+
+
 def scenario(console, monitor, budgets, logs, workdir):
     cmd = budgets["COMMAND_TIMEOUT"]
     console.login(budgets["BOOT_TIMEOUT"])
@@ -206,7 +223,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(json_object(mode, "mode-initial").get("mode") == "server", "The image must boot in server mode")
     console.command("lightdm-installed", "systemctl cat lightdm.service >/dev/null", cmd)
     unit = console.command("lightdm-unit", "systemctl cat lightdm.service", cmd)
-    require("/usr/lib/lightlix/lightdm-live-autologin" in unit, "lightdm does not run the live autologin helper")
+    require("lightdm" in unit, "lightdm unit was not found")
     console.command("lightdm-not-active", "! systemctl is-active --quiet lightdm.service", cmd)
     console.command("no-x-server-in-server-mode", "! pgrep -x Xorg && ! pgrep -x lightdm", cmd)
     console.command(
@@ -278,14 +295,18 @@ def scenario(console, monitor, budgets, logs, workdir):
     auto = capture(console, monitor, logs, "autologin", workdir)
     require(auto["width"] >= SCREEN_SIZE_MIN[0] and auto["height"] >= SCREEN_SIZE_MIN[1], "Screen is too small")
     require(auto["colors"] >= 3 and auto["lit_fraction"] > 0.0005, f"The autologin desktop looks blank: {auto}")
-    console.command("autologin-fragment", "test -s /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf", cmd)
-    console.command("autologin-live-user-groups", "id -nG user | tr ' ' '\\n' | grep -x nopasswdlogin", cmd)
+    # 라이브 자동 로그인은 live-config 가 부팅 때 /etc/lightdm/lightdm.conf 에 쓴다.
+    console.command("autologin-config", "grep -x 'autologin-user=user' /etc/lightdm/lightdm.conf", cmd)
     back = console.command("mode-server-after-autologin", "lightlix --json mode server", budgets["START_TIMEOUT"])
     require(json_object(back, "mode-server-after-autologin").get("mode") == "server", "Mode switch did not report server")
     poll_command(console, "autologin-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
 
     # 로그인 화면: 자동 로그인을 끄고 직접 만든 계정으로 로그인한다. 사용자 이름을 직접 입력하는 방식으로 바꿔 둔다.
-    console.command("disable-autologin", "sudo -n touch /run/lightlix-no-autologin", cmd)
+    console.command(
+        "disable-autologin",
+        "sudo -n sed -i -E 's/^(autologin-user(-timeout)?=.*)$/#\\1/' /etc/lightdm/lightdm.conf",
+        cmd,
+    )
     console.command(
         "greeter-manual-login",
         "sudo -n mkdir -p /etc/lightdm/lightdm.conf.d && printf '[Seat:*]\\ngreeter-hide-users=true\\ngreeter-show-manual-login=true\\n' "
@@ -296,10 +317,18 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(json_object(switched, "mode-desktop-greeter").get("mode") == "desktop", "Mode switch did not report desktop")
     poll_command(console, "lightdm-active-greeter", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
     poll_command(console, "greeter-running", "pgrep -f /usr/sbin/lightdm-gtk-greeter", budgets["START_TIMEOUT"])
-    console.command("no-autologin-fragment", "! test -e /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf", cmd)
+    console.command("no-autologin-config", "! grep -E '^autologin-user=' /etc/lightdm/lightdm.conf", cmd)
     console.command("no-session-before-login", "! pgrep -x xfce4-session", cmd)
-    time.sleep(5)
-    greeter = capture(console, monitor, logs, "greeter", workdir)
+    # 이전 세션의 마지막 프레임이 화면에 남아 있을 수 있으므로, 프레임이 바뀔 때까지 기다린다.
+    greeter = None
+    deadline = time.monotonic() + budgets["START_TIMEOUT"] / 2
+    while True:
+        time.sleep(5)
+        greeter = capture(console, monitor, logs, "greeter", workdir)
+        if greeter["digest"] != auto["digest"] or time.monotonic() > deadline:
+            break
+    greeter_diagnostics(console, cmd, "before-login")
+    require(greeter["digest"] != auto["digest"], f"The login screen never replaced the previous frame: {greeter}")
     require(greeter["width"] >= SCREEN_SIZE_MIN[0] and greeter["height"] >= SCREEN_SIZE_MIN[1], "Screen is too small")
     require(greeter["colors"] >= 3 and greeter["lit_fraction"] > 0.0005,
             f"The login screen looks blank: {greeter}")
@@ -309,7 +338,13 @@ def scenario(console, monitor, budgets, logs, workdir):
     monitor.type_text(TEST_USER + "\n")
     time.sleep(2)
     monitor.type_text(TEST_PASSWORD + "\n")
-    poll_command(console, "xfce-session-running", f"pgrep -u {TEST_USER} -x xfce4-session", budgets["START_TIMEOUT"])
+    try:
+        poll_command(console, "xfce-session-running", f"pgrep -u {TEST_USER} -x xfce4-session", budgets["START_TIMEOUT"])
+    except Failure:
+        # 로그인에 실패하면 화면과 로그를 남기고 같은 오류로 끝낸다.
+        capture(console, monitor, logs, "after-login-failure", workdir)
+        greeter_diagnostics(console, cmd, "after-login-failure")
+        raise
     for name in ("xfwm4", "xfce4-panel", "xfdesktop", "xfsettingsd"):
         poll_command(console, f"{name}-running", f"pgrep -u {TEST_USER} -x {name}", budgets["START_TIMEOUT"])
     console.command("xorg-running", "pgrep -x Xorg", cmd)

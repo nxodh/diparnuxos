@@ -29,12 +29,17 @@
 
 ## 라이브 세션이 자동 로그인하지 않게 하려면 (진단용)
 
+라이브 세션의 자동 로그인은 live-config 가 부팅 때 `/etc/lightdm/lightdm.conf` 의 `autologin-user=` 에 라이브 사용자를 써서 켠다. 이미지 안의 파일과 설치된 시스템에는 자동 로그인이 없다.
+
+- 부팅할 때 커널 명령줄에 `noautologin`(또는 `live-config.noautologin`)을 더하면 자동 로그인이 꺼진다.
+- 이미 부팅한 뒤에는 다음으로 로그인 화면을 불러낸다.
+
 ```sh
-sudo touch /run/lightlix-no-autologin
+sudo sed -i -E 's/^(autologin-user(-timeout)?=.*)$/#\1/' /etc/lightdm/lightdm.conf
 sudo systemctl restart lightdm.service     # 로그인 화면이 나온다
 ```
 
-라이브 사용자의 비밀번호는 `live` 다. 자동 로그인 조각(`/etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf`)은 부팅 때 런타임에만 만들어지며 이미지와 설치된 시스템에는 들어 있지 않다.
+라이브 사용자의 비밀번호는 `live` 다.
 
 ## 로그인 직후 세션이 꺼진다
 
