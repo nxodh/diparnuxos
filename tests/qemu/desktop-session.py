@@ -392,7 +392,7 @@ def scenario(console, monitor, budgets, logs, workdir):
         "for i in 0 1 2 3 4 5 6 7; do "
         "echo \"sample=$i lightlixd=$(rss /usr/sbin/lightlixd) cc=$(rss lightlix-control-center) labwc=$(rss labwc) "
         "yambar=$(rss yambar) swaybg=$(rss swaybg) avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)\"; "
-        "[ $i -lt 7 ] && sleep 60; done"
+        "[ $i -lt 7 ] && sleep 60; done; true"
     )
     soak = console.command("soak", soak_script, 8 * 60 + 90)
     samples = []
