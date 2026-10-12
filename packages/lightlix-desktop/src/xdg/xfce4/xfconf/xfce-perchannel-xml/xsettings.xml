@@ -15,6 +15,7 @@
     <property name="RGBA" type="string" value="rgb"/>
   </property>
   <property name="Gtk" type="empty">
+    <property name="ApplicationPreferDarkTheme" type="bool" value="true"/>
     <property name="FontName" type="string" value="Sans 10"/>
     <property name="MonospaceFontName" type="string" value="Monospace 10"/>
     <property name="CursorThemeName" type="string" value="Adwaita"/>

@@ -1,40 +1,74 @@
 # 데스크톱 모드 문제 해결
 
-- 확인 날짜: 2026-10-12
-- 상태: QEMU(virtio-gpu)에서만 시험했다. 실기와 VMware·VirtualBox 는 미검증이다.
+- 확인 날짜: 2026-10-13
+- 상태: 0.5.0(Xfce, lightdm)의 화면은 Docker(Xvfb, Xephyr)와 QEMU(virtio-gpu)에서만 시험했다. 실기, NVIDIA 화면, VMware, VirtualBox는 미검증이다.
 
-데스크톱 모드는 `lightlix mode desktop` 으로 켠다. greetd(tuigreet)가 로그인 화면을 보여 주고, 로그인하면 `lightlix-session`(labwc 래퍼)이 데스크톱 세션을 시작한다.
+데스크톱 모드는 `lightlix mode desktop` 으로 켠다. 로그인 화면은 lightdm(lightdm-gtk-greeter)이고, 로그인하면 Xfce(`startxfce4`) 세션이 Xorg 위에서 시작한다. **라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.** 설치된 시스템은 로그인 화면을 보여 준다. `lightlix mode server` 로 서버 모드로 돌아간다.
+
+## 로그인 화면이 안 뜨거나 검은 화면이다
+
+1. 서비스 상태와 로그를 본다.
+
+   ```sh
+   systemctl status lightdm.service
+   sudo journalctl -b -u lightdm.service --no-pager | tail -50
+   sudo tail -50 /var/log/lightdm/lightdm.log /var/log/lightdm/x-0.log
+   ```
+2. X 서버 로그에서 드라이버 오류(`(EE)`)를 찾는다.
+
+   ```sh
+   sudo grep -E '\(EE\)|\(WW\)' /var/log/Xorg.0.log /var/log/lightdm/x-0.log | head -30
+   ```
+3. 여러 번 실패하면 lightdm 이 start limit 에 걸려 모드 전환이 거절된다. 되돌린다.
+
+   ```sh
+   sudo systemctl reset-failed lightdm.service
+   lightlix mode desktop
+   ```
+4. 가상 머신에서는 Xorg 의 `modesetting` 드라이버가 virtio-gpu, bochs, vmwgfx 로 동작한다. 3D 가속이 없어도 소프트웨어 렌더링(llvmpipe)으로 뜬다. VMware 에서 안 되면 위 로그를 첨부해 알려 주세요.
+
+## 라이브 세션이 자동 로그인하지 않게 하려면 (진단용)
+
+```sh
+sudo touch /run/lightlix-no-autologin
+sudo systemctl restart lightdm.service     # 로그인 화면이 나온다
+```
+
+라이브 사용자의 비밀번호는 `live` 다. 자동 로그인 조각(`/etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf`)은 부팅 때 런타임에만 만들어지며 이미지와 설치된 시스템에는 들어 있지 않다.
 
 ## 로그인 직후 세션이 꺼진다
 
-1. labwc 의 출력은 저널(`lightlix-labwc` 식별자)에 있다. 세션이 꺼진 뒤 다른 가상 터미널에서 로그인해 본다.
+1. 세션 오류는 사용자 홈의 `~/.xsession-errors` 와 저널에 있다. 세션이 꺼진 뒤 다른 가상 터미널(Ctrl+Alt+F3)에서 로그인해 본다.
 
    ```sh
-   sudo journalctl -b -t lightlix-labwc --no-pager | tail -50
-   cat /run/user/$(id -u)/labwc.log          # 가상화 종류와 렌더러 값(짧은 시작 기록)
+   tail -50 ~/.xsession-errors
+   sudo journalctl -b --no-pager | grep -iE 'xfce|xfwm|xfconf|dbus' | tail -50
    ```
-2. 직접 실행해 오류를 화면에서 본다.
+2. 사용자 설정이 원인일 수 있다. 설정을 옮겨 두고 다시 로그인한다.
 
    ```sh
-   sudo systemctl stop greetd.service
-   labwc                                      # 오류가 그대로 출력된다
-   WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1 labwc    # 소프트웨어 렌더링으로 시험
+   mv ~/.config/xfce4 ~/.config/xfce4.bak
+   mv ~/.cache/sessions ~/.cache/sessions.bak 2>/dev/null
    ```
-3. 가상 머신에서는 래퍼가 소프트웨어 렌더러(`WLR_RENDERER=pixman`)와 소프트웨어 커서(`WLR_NO_HARDWARE_CURSORS=1`)를 기본으로 쓴다(`systemd-detect-virt --vm` 으로 판별). 실기에서 같은 값이 필요하면 `/etc/xdg/labwc/environment` 에 한 줄씩 적는다.
-4. 여러 번 실패하면 greetd 가 start limit 에 걸려 모드 전환이 거절된다. 되돌린다.
 
-   ```sh
-   sudo systemctl reset-failed greetd.service
-   lightlix mode desktop
-   ```
+## 화면 구성이 이상하다 (배경, 패널, 테마)
+
+- Lightlix 의 기본값은 `/etc/xdg/lightlix/xfce4/` 에 있고 `/etc/X11/Xsession.d/55lightlix-xdg` 가 `XDG_CONFIG_DIRS` 맨 앞에 둔다. 확인: 세션에서 `echo $XDG_CONFIG_DIRS` 가 `/etc/xdg/lightlix:/etc/xdg` 로 시작해야 한다.
+- 사용자가 바꾼 설정은 `~/.config/xfce4/` 에 저장되어 기본값보다 우선한다. 기본값으로 되돌리려면 그 폴더를 지우고 다시 로그인한다.
+- 배경 화면은 첫 로그인에 `lightlix-session-setup` 이 모든 모니터에 적용한다. 표식 파일 `~/.config/lightlix/session-setup-done` 을 지우고 다시 로그인하면 다시 적용한다.
+- GTK 테마 `Lightlix`, 창 관리자 테마 `Lightlix`, 아이콘 `Adwaita` 는 설정 관리자(모양, 창 관리자)에서 바꿀 수 있다.
+
+## 한글 입력
+
+fcitx5 와 한글 입력기가 들어 있다. 첫 로그인에 영문 자판과 한글이 있는 프로필을 만든다. 입력 전환 키는 fcitx5 설정(트레이의 키보드 아이콘 → 설정)에서 바꾼다. 입력이 안 되면 `echo $GTK_IM_MODULE $XMODIFIERS` 가 `fcitx @im=fcitx` 인지 본다.
 
 ## `EFI loader partition unknown`
 
 systemd 의 `systemd-gpt-auto-generator` 가 GRUB 로 부팅한 시스템에서 내는 안내 문구다. 서비스 단위가 다시 읽힐 때 콘솔에 나올 수 있으며 데스크톱 문제의 원인이 아니다.
 
-## 웹 브라우저(Chrome, Chromium)를 설치하려면
+## 웹 브라우저
 
-라이브 세션은 apt 목록이 없어서 먼저 목록을 받아야 한다. 의존 패키지까지 한 번에 설치되게 `apt` 로 설치한다.
+Firefox ESR 이 이미지에 들어 있다(메뉴 또는 `firefox-esr`). Chrome, Chromium 을 따로 설치하려면 라이브 세션은 apt 목록이 없어서 먼저 목록을 받아야 한다. 의존 패키지까지 한 번에 설치되게 `apt` 로 설치한다.
 
 ```sh
 sudo apt-get update
@@ -44,11 +78,9 @@ curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.d
 sudo apt-get install -y ./google-chrome-stable_current_amd64.deb   # dpkg -i 가 아니라 apt 로 설치해야 의존성이 해결된다
 ```
 
-- 데스크톱 세션(`lightlix mode desktop` 뒤 로그인)의 터미널(`foot`)에서 실행한다. 텍스트 콘솔(tty)에서는 `WAYLAND_DISPLAY` 가 없어 창을 열 수 없다.
-- 세션 래퍼가 `XDG_SESSION_TYPE=wayland` 를 정한다(0.4.1 이전에는 비어 있었다). 확인: `echo $XDG_SESSION_TYPE $WAYLAND_DISPLAY`.
-- Wayland 로 띄우려면 `chromium --ozone-platform=wayland`, XWayland 로 띄우면 `DISPLAY` 가 필요하다.
+- 데스크톱 세션(`lightlix mode desktop` 뒤 로그인)의 터미널에서 실행한다. 텍스트 콘솔(tty)에서는 `DISPLAY` 가 없어 창을 열 수 없다.
 - 라이브 세션에서는 설치한 패키지와 내려받은 파일이 램에 쌓인다. 브라우저는 수백 MB 를 쓴다.
 
 ## 로그 명령
 
-`journalctl` 은 `systemd` 패키지의 `/usr/bin/journalctl` 이다. 저널은 램을 아끼려고 휘발성(`Storage=volatile`, 16 MB)이며 `/var/log` 에 파일이 없다. 일반 사용자는 `systemd-journal` 그룹이 아니면 `sudo journalctl -b` 로 읽어야 한다.
+`journalctl` 은 `systemd` 패키지의 `/usr/bin/journalctl` 이다. 저널은 램을 아끼려고 휘발성(`Storage=volatile`, 16 MB)이며 `/var/log` 에는 lightdm 과 Xorg 의 로그 파일만 있다. 일반 사용자는 `systemd-journal` 그룹이 아니면 `sudo journalctl -b` 로 읽어야 한다.
