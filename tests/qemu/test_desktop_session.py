@@ -55,8 +55,7 @@ class ImageTests(unittest.TestCase):
 
     def test_png_is_valid(self):
         w, h = 40, 30
-        px = bytes((x * 5 % 256, y * 7 % 256, 90) for y in range(h) for x in range(w) for _ in [0] for x in [x]) if False else \
-            b"".join(bytes((x * 5 % 256, y * 7 % 256, 90)) for y in range(h) for x in range(w))
+        px = b"".join(bytes((x * 5 % 256, y * 7 % 256, 90)) for y in range(h) for x in range(w))
         out = Path(tempfile.mkdtemp()) / "x.png"
         ds.write_png(out, w, h, px)
         data = out.read_bytes()
@@ -66,6 +65,20 @@ class ImageTests(unittest.TestCase):
         self.assertEqual((width, height), (20, 15))
         idat = data[data.index(b"IDAT") + 4:data.index(b"IEND") - 8]
         self.assertEqual(len(zlib.decompress(idat)), 15 * (1 + 20 * 3))
+
+
+class JsonTests(unittest.TestCase):
+    def test_skips_console_noise_before_the_object(self):
+        text = "[   18.58] systemd-gpt-auto-generator[1234]: EFI loader partition unknown\n{\n  \"mode\": \"desktop\"\n}"
+        self.assertEqual(ds.json_object(text, "x"), {"mode": "desktop"})
+
+    def test_plain_object(self):
+        self.assertEqual(ds.json_object('{\n  "mode": "server"\n}', "x"), {"mode": "server"})
+
+    def test_missing_object_is_a_failure(self):
+        with self.assertRaises(ds.Failure) as cm:
+            ds.json_object("no json here", "x")
+        self.assertEqual(cm.exception.kind, "invalid_json")
 
 
 class MonitorTests(unittest.TestCase):

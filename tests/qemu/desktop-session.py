@@ -103,6 +103,20 @@ class Monitor:
         raise Failure("screenshot", f"screendump did not write {path}")
 
 
+def json_object(text, label):
+    """명령 출력에서 JSON 객체를 꺼낸다. 직렬 콘솔에는 커널과 systemd 의 로그 줄이 섞여 들어올 수 있다."""
+    lines = text.splitlines()
+    for start, line in enumerate(lines):
+        if line.strip() == "{":
+            try:
+                value = json.loads("\n".join(lines[start:]))
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                return value
+    raise Failure("invalid_json", f"No JSON object in the output of {label}: {text[:200]!r}")
+
+
 def read_ppm(path):
     data = Path(path).read_bytes()
     match = re.match(rb"P6\s+(\d+)\s+(\d+)\s+(\d+)\s", data)
@@ -185,7 +199,7 @@ def scenario(console, monitor, budgets, logs, workdir):
 
     # 이미지는 서버 모드로 부팅하고 데스크톱 구성 요소를 갖는다.
     mode = console.command("mode-initial", "lightlix --json mode", cmd)
-    require(json.loads(mode).get("mode") == "server", "The image must boot in server mode")
+    require(json_object(mode, "mode-initial").get("mode") == "server", "The image must boot in server mode")
     console.command("greetd-installed", "systemctl cat greetd.service >/dev/null", cmd)
     unit = console.command("greetd-unit", "systemctl cat greetd.service", cmd)
     require("--config /etc/greetd/lightlix.toml" in unit, "greetd does not use the Lightlix configuration")
@@ -198,7 +212,7 @@ def scenario(console, monitor, budgets, logs, workdir):
 
     # 데스크톱 모드로 전환한다.
     switched = console.command("mode-desktop", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
-    require(json.loads(switched).get("mode") == "desktop", "Mode switch did not report desktop")
+    require(json_object(switched, "mode-desktop").get("mode") == "desktop", "Mode switch did not report desktop")
     poll_command(console, "greetd-active", "systemctl is-active --quiet greetd.service", budgets["START_TIMEOUT"])
     poll_command(console, "tuigreet-running", "pgrep -x tuigreet", budgets["START_TIMEOUT"])
     console.command("default-target-desktop", "systemctl get-default | grep -x graphical.target", cmd)
@@ -225,7 +239,7 @@ def scenario(console, monitor, budgets, logs, workdir):
 
     # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
     back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])
-    require(json.loads(back).get("mode") == "server", "Mode switch did not report server")
+    require(json_object(back, "mode-server").get("mode") == "server", "Mode switch did not report server")
     poll_command(console, "labwc-gone", "! pgrep -x labwc", budgets["START_TIMEOUT"])
     console.command("greetd-stopped", "! systemctl is-active --quiet greetd.service", cmd)
     console.command("default-target-server", "systemctl get-default | grep -x multi-user.target", cmd)
