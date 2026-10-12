@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lightlix-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 00:15+0000\n"
+"POT-Creation-Date: 2026-10-12 04:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,39 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+
+msgid "Create account"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid ""
+"This account works at the console, at the login screen and, when SSH is on, "
+"over the network."
+msgstr ""
+
+msgid "User name"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Repeat the password"
+msgstr ""
+
+msgid "Administrator"
+msgstr ""
+
+msgid "Allow this account to use sudo."
+msgstr ""
+
+#, python-format
+msgid "Account %s created"
+msgstr ""
 
 msgid "Type a message"
 msgstr ""
@@ -281,6 +314,47 @@ msgstr ""
 msgid "This machine may not use UEFI Secure Boot."
 msgstr ""
 
+msgid "Enter a user name."
+msgstr ""
+
+msgid "The user name can have at most 32 characters."
+msgstr ""
+
+msgid "The user name must start with a lowercase letter."
+msgstr ""
+
+msgid "Use only lowercase letters, digits, _ and - in the user name."
+msgstr ""
+
+msgid "This user name is reserved. Choose another one."
+msgstr ""
+
+msgid "The password must have at least 8 characters."
+msgstr ""
+
+msgid "The password can have at most 128 characters."
+msgstr ""
+
+msgid "Use only printable ASCII characters in the password."
+msgstr ""
+
+msgid "The password must differ from the user name."
+msgstr ""
+
+msgid "The two passwords do not match."
+msgstr ""
+
+msgid "A login account exists"
+msgstr ""
+
+msgid "Create your own login account"
+msgstr ""
+
+msgid ""
+"Without one you can only use the default live account. Choose a user name "
+"and a password."
+msgstr ""
+
 msgid "A model is already installed"
 msgstr ""
 
@@ -398,9 +472,6 @@ msgid "Token saved. Restart lightlixd to use it."
 msgstr ""
 
 msgid "Token saved"
-msgstr ""
-
-msgid "Cancel"
 msgstr ""
 
 #, python-format
@@ -542,6 +613,14 @@ msgstr ""
 msgid "Server mode (no desktop)"
 msgstr ""
 
+msgid "Accounts"
+msgstr ""
+
+msgid ""
+"Create your own account with a user name and a password. It replaces the "
+"default live account for daily use."
+msgstr ""
+
 msgid "Remote access"
 msgstr ""
 
@@ -611,6 +690,28 @@ msgstr ""
 msgid "Version"
 msgstr ""
 
+msgid "No accounts created yet"
+msgstr ""
+
+msgid "Only the default live account exists."
+msgstr ""
+
+msgid "Standard account"
+msgstr ""
+
+msgid "Delete account"
+msgstr ""
+
+msgid "Account deleted"
+msgstr ""
+
+msgid "Delete this account?"
+msgstr ""
+
+#, python-format
+msgid "The account %s is removed. Its home directory and files are kept."
+msgstr ""
+
 msgid "Switching to server mode closes the desktop session and this window."
 msgstr ""
 
@@ -674,6 +775,9 @@ msgstr ""
 msgid "NVIDIA driver"
 msgstr ""
 
+msgid "Account"
+msgstr ""
+
 msgid "Network access"
 msgstr ""
 
@@ -709,6 +813,14 @@ msgid "Run the GPU diagnostic once more."
 msgstr ""
 
 msgid "Finish"
+msgstr ""
+
+msgid "Create an account"
+msgstr ""
+
+msgid ""
+"Choose your own user name and password for the console, the login screen and "
+"SSH."
 msgstr ""
 
 #, python-format

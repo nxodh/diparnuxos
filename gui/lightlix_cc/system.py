@@ -11,7 +11,8 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import __version__, api  # noqa: E402
 from .i18n import _  # noqa: E402
-from .widgets import action_row, confirm, run_async, text_button  # noqa: E402
+from .accounts import CreateAccountDialog  # noqa: E402
+from .widgets import action_row, clear_group, confirm, icon_button, run_async, text_button  # noqa: E402
 
 _SETTINGS_PATH = os.path.join(GLib.get_user_config_dir(), "lightlix-control-center", "settings.json")
 _SCHEMES = ("default", "light", "dark")
@@ -63,6 +64,14 @@ class SystemPage(Adw.PreferencesPage):
         mode_group.add(self.mode_combo)
         self.add(mode_group)
 
+        self._user_rows = []
+        self.users_group = Adw.PreferencesGroup(title=_("Accounts"))
+        self.users_group.set_description(
+            _("Create your own account with a user name and a password. It replaces the default live account for daily use.")
+        )
+        self.users_group.set_header_suffix(text_button(_("Create account"), self.create_account, "suggested-action"))
+        self.add(self.users_group)
+
         ssh_group = Adw.PreferencesGroup(title=_("Remote access"))
         self.ssh_row = Adw.SwitchRow(title=_("SSH server"))
         self.ssh_row.connect("notify::active", self._on_ssh)
@@ -106,6 +115,52 @@ class SystemPage(Adw.PreferencesPage):
 
         ctx.subscribe(self._on_status)
         run_async(ctx.client.ssh, self._on_ssh_state, lambda e: None)
+        self.load_users()
+
+    # --- 계정 ---
+    def load_users(self):
+        run_async(self.ctx.client.users, self._render_users, lambda e: None)
+
+    def _render_users(self, result):
+        clear_group(self.users_group, self._user_rows)
+        users = result.get("users") or []
+        if not users:
+            row = action_row(_("No accounts created yet"), _("Only the default live account exists."))
+            self.users_group.add(row)
+            self._user_rows.append(row)
+        for u in users:
+            sub = _("Administrator") if u.get("admin") else _("Standard account")
+            row = action_row(u.get("name", "?"), sub)
+            row.add_suffix(
+                icon_button("user-trash-symbolic", _("Delete account"), lambda n=u.get("name"): self.delete_account(n), "destructive-action")
+            )
+            self.users_group.add(row)
+            self._user_rows.append(row)
+
+    def create_account(self):
+        def created(_name):
+            self.load_users()
+            run_async(self.ctx.client.ssh, self._on_ssh_state, lambda e: None)
+
+        CreateAccountDialog(self.ctx, on_created=created).present(self.ctx.window)
+
+    def delete_account(self, name):
+        def go():
+            def done(_r):
+                self.ctx.toast(_("Account deleted"))
+                self.load_users()
+                run_async(self.ctx.client.ssh, self._on_ssh_state, lambda e: None)
+
+            run_async(lambda: self.ctx.client.delete_user(name), done, self.ctx.toast_error)
+
+        confirm(
+            self.ctx.window,
+            _("Delete this account?"),
+            _("The account %s is removed. Its home directory and files are kept.") % name,
+            _("Delete"),
+            go,
+            destructive=True,
+        )
 
     # --- 모드 ---
     def _on_status(self, status, error):

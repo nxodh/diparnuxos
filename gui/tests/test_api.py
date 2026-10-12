@@ -76,6 +76,20 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(bodies[("PUT", "/v1/config")], {"lan_exposed": True})
         self.assertEqual(bodies[("POST", "/v1/server/chat")]["max_tokens"], 32)
 
+    def test_user_calls(self):
+        routes = {
+            ("GET", "/v1/users"): (200, {"users": []}),
+            ("POST", "/v1/users"): (201, {"name": "alice", "admin": False, "created": "x"}),
+            ("DELETE", "/v1/users/alice"): (200, {"name": "alice", "deleted": True, "home_kept": True}),
+        }
+        with FakeDaemon(routes) as d:
+            c = api.Client(d.path)
+            self.assertEqual(c.users(), {"users": []})
+            c.create_user("alice", "correct-horse-9")
+            c.delete_user("alice")
+        bodies = {(m, p): b for m, p, b in d.calls}
+        self.assertEqual(bodies[("POST", "/v1/users")], {"name": "alice", "password": "correct-horse-9", "admin": False})
+
     def test_report_is_returned_as_text(self):
         with FakeDaemon({("GET", "/v1/report"): (200, "Lightlix report\nline 2\n")}) as d:
             text = api.Client(d.path).report()

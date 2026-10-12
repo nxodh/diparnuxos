@@ -8,12 +8,14 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
+from .accounts import CreateAccountDialog  # noqa: E402
 from .widgets import action_row, error_text, info_dialog, level_icon, run_async, text_button  # noqa: E402
 
 _STEP_TITLES = {
     "gpu": lambda: _("Graphics card"),
     "driver": lambda: _("NVIDIA driver"),
     "secure_boot": lambda: _("Secure Boot"),
+    "account": lambda: _("Account"),
     "model": lambda: _("Model"),
     "api": lambda: _("Network access"),
 }
@@ -62,7 +64,13 @@ class WizardWindow(Adw.Window):
         def fetch():
             c = self.ctx.client
             out = {"status": c.status()}
-            for key, fn in (("recommendations", c.recommendations), ("models", c.models), ("config", c.config), ("keys", c.api_keys)):
+            for key, fn in (
+                ("recommendations", c.recommendations),
+                ("models", c.models),
+                ("config", c.config),
+                ("keys", c.api_keys),
+                ("users", c.users),
+            ):
                 try:
                     out[key] = fn()
                 except Exception as exc:  # noqa: BLE001 - 일부 실패해도 마법사는 계속한다
@@ -103,6 +111,8 @@ class WizardWindow(Adw.Window):
             return logic.evaluate_driver(status)
         if step == "secure_boot":
             return logic.evaluate_secure_boot(status)
+        if step == "account":
+            return logic.evaluate_account(((self._data.get("users") or {}).get("users")) or [])
         if step == "model":
             models = ((self._data.get("models") or {}).get("models")) or []
             return logic.evaluate_model(self._data.get("recommendations"), models)
@@ -138,6 +148,8 @@ class WizardWindow(Adw.Window):
             g2 = Adw.PreferencesGroup()
             g2.add(action_row(_("Check again"), _("Run the GPU diagnostic once more."), text_button(_("Run"), self._recheck)))
             self._add_group(g2)
+        if step == "account":
+            self._account_extras()
         if step == "model":
             self._model_extras()
         if step == "api":
@@ -148,6 +160,28 @@ class WizardWindow(Adw.Window):
         self.next_btn.set_sensitive(True)
         last = self._index == len(logic.STEPS) - 1
         self.next_btn.set_label(_("Finish") if last else _("Next"))
+
+    def _account_extras(self):
+        group = Adw.PreferencesGroup()
+        group.add(
+            action_row(
+                _("Create an account"),
+                _("Choose your own user name and password for the console, the login screen and SSH."),
+                text_button(_("Create account"), self._create_account, "suggested-action"),
+            )
+        )
+        self._add_group(group)
+
+    def _create_account(self):
+        def created(_name):
+            # 새 계정을 반영해 단계를 다시 그린다.
+            run_async(
+                self.ctx.client.users,
+                lambda r: (self._data.update({"users": r}), self._render()),
+                self.ctx.toast_error,
+            )
+
+        CreateAccountDialog(self.ctx, on_created=created).present(self)
 
     def _model_extras(self):
         rec = self._data.get("recommendations") or {}

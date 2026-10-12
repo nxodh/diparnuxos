@@ -54,6 +54,8 @@ ROUTES = {
     ("GET", "/v1/apikeys"): (200, {"keys": []}),
     ("GET", "/v1/server/logs"): (200, {"lines": 1, "log": "server log line\n"}),
     ("GET", "/v1/system/ssh"): (200, {"enabled": False, "installed": True, "active": False, "password_auth": "no", "port": 22}),
+    ("GET", "/v1/users"): (200, {"users": [{"name": "alice", "admin": True, "created": "2026-10-12T00:00:00Z"}]}),
+    ("POST", "/v1/users"): (201, {"name": "bob", "admin": False, "created": "2026-10-12T01:00:00Z"}),
     ("GET", "/v1/firstboot"): (200, {"done": False, "completed_at": "", "skipped": []}),
     ("PUT", "/v1/firstboot"): (200, {"done": True, "completed_at": "2026-10-12T00:00:00Z", "skipped": []}),
 }
@@ -104,6 +106,40 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(pump(5, until=lambda: server._models == ["a.gguf"]))
         self.assertIn("server log line", server.log_view.get_buffer().get_text(
             server.log_view.get_buffer().get_start_iter(), server.log_view.get_buffer().get_end_iter(), False))
+        win.destroy()
+
+    def test_system_page_lists_accounts(self):
+        from lightlix_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        system = win.stack.get_child_by_name("system")
+        self.assertTrue(pump(5, until=lambda: any("alice" in r.get_title() for r in system._user_rows)))
+        win.destroy()
+
+    def test_create_account_dialog_validates_and_posts(self):
+        from lightlix_cc.accounts import CreateAccountDialog
+        from lightlix_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        created = []
+        dialog = CreateAccountDialog(self.ctx, on_created=created.append)
+        self.assertFalse(dialog.create_btn.get_sensitive(), "an empty form must not be submittable")
+        dialog.name_row.set_text("bob")
+        dialog.pw_row.set_text("short")
+        dialog.pw2_row.set_text("short")
+        self.assertFalse(dialog.create_btn.get_sensitive())
+        self.assertIn("8 characters", dialog.message.get_text())
+        dialog.pw_row.set_text("correct-horse-9")
+        dialog.pw2_row.set_text("different-one-1")
+        self.assertIn("do not match", dialog.message.get_text())
+        dialog.pw2_row.set_text("correct-horse-9")
+        self.assertTrue(dialog.create_btn.get_sensitive())
+        self.assertEqual(dialog.message.get_text(), "")
+        dialog._submit()
+        self.assertTrue(pump(5, until=lambda: bool(created)))
+        posts = [c for c in self.daemon.calls if c[0] == "POST" and c[1] == "/v1/users"]
+        self.assertEqual(posts[0][2], {"name": "bob", "password": "correct-horse-9", "admin": True})
         win.destroy()
 
     def test_daemon_down_shows_banner(self):

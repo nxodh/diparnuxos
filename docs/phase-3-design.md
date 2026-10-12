@@ -58,9 +58,20 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 | C. Control Center 뼈대 | `gui/` Python 패키지, 데몬 클라이언트, 대시보드·모델·서버·채팅·시스템 화면, gettext(ko/en), 다크/라이트 | `gui/**`, `packages/lightlix-control-center` | 컨테이너의 Python 단위 테스트(클라이언트·뷰 모델), 번역 카탈로그 검사 |
 | D. 첫 부팅 마법사 | GPU 감지, 드라이버 검증, Secure Boot 처리, 추천 모델, API 공개 범위 설정 | `gui/**`(C 이후) | 데몬 목(fake)으로 단계 전이 테스트 |
 | E. Secure Boot 보조 | 키 생성, DKMS 서명 설정, 모듈 재빌드, `mokutil --import` | `packages/lightlix-nvidia`, `docs/secure-boot.md` | 쉘 단위 검사, 스텁 테스트 |
+| G. 계정 | 사용자 이름과 비밀번호로 로그인 계정 만들기(API, CLI, GUI, 마법사 단계), SSH를 그 계정에 맞춤 | `daemon/internal/accounts`, `daemon/dist/lightlix-user.sh`, `gui/**` | Go 단위 테스트, 헬퍼 스텁 테스트, QEMU E2E(계정 생성, SSH 로그인, 데스크톱 로그인) |
 | F. 측정과 문서 | 서버/데스크톱 모드 유휴 램 측정, `docs/memory.md`, 지원 표 갱신 | `docs/**` | QEMU 실측(실기 값이 아님을 명시) |
 
 의존 순서: A와 B와 C는 동시에 시작한다. D는 A와 C 뒤, E는 독립이며, F는 B가 끝난 뒤다.
+
+## 4.1 계정과 SSH (사용자 요청, 2026-10-12)
+
+사용자가 기본 live 계정(`user`/`live`) 대신 Mac이나 다른 Linux 터미널처럼 **자기 이름과 비밀번호로 계정을 만들 수 있게** 해 달라고 요청했고, SSH도 그 계정에 맞추라고 했다.
+
+- **왜 헬퍼를 쓰나.** `lightlixd`는 `ProtectSystem=full`과 `ProtectHome=yes`로 돌아 `/etc`와 `/home`에 쓸 수 없다. 데몬의 하드닝을 풀지 않으려고 `systemd-run --pipe`로 하드닝 없는 헬퍼(`/usr/lib/lightlix/lightlix-user`)를 부른다. 비밀번호는 표준 입력으로만 넘어가며 인자, 환경, 파일, 로그에 남지 않는다.
+- **계정 규칙.** 이름은 소문자로 시작하고 소문자, 숫자, `_`, `-`만 쓰며 32자 이하다. `root`, `user`, `lightlix*` 등 예약어는 거절한다. 비밀번호는 8~128자의 출력 가능한 ASCII이고 이름과 달라야 한다. 계정은 `lightlix`, `video`, `render` 그룹에 들어가고, 관리자면 `sudo`도 더한다.
+- **SSH.** 켜면 이 방식으로 만든 계정만 비밀번호로 접속할 수 있다. 헬퍼가 sshd 드롭인(`/etc/ssh/sshd_config.d/50-lightlix.conf`)에 `PasswordAuthentication yes`, `PermitRootLogin no`, `AllowUsers <만든 계정>`을 쓴다. sshd는 첫 값을 쓰므로 live-config가 꺼 둔 비밀번호 로그인을 이 드롭인이 덮는다. 기본 live 계정은 `AllowUsers`에 없어 SSH로 접속할 수 없다. 만든 계정이 없으면 드롭인이 없고 공개키 로그인만 된다.
+- **신뢰 경계.** `lightlix` 그룹 사용자는 관리자 계정을 만들 수 있다. 라이브 세션의 기본 사용자는 이미 비밀번호 없이 sudo를 쓰므로 새로운 권한 상승은 아니지만, 설치된 시스템(Phase 4)에서는 `lightlix` 그룹이 사실상 관리자 권한과 같다는 점을 문서화해 둔다.
+- **지우기.** 계정을 지워도 홈 디렉터리는 남긴다. 데이터를 잃지 않기 위해서다.
 
 ## 5. 위험
 

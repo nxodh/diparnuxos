@@ -34,6 +34,10 @@ def load_base():
 base = load_base()
 Failure, require, seconds, qemu_value, Console = base.Failure, base.require, base.seconds, base.qemu_value, base.Console
 
+# 이 테스트가 만드는 계정이다. 키 입력(sendkey)으로 칠 수 있게 소문자와 숫자만 쓴다.
+TEST_USER = "tester"
+TEST_PASSWORD = "lightlixtest1"
+
 # 키 이름은 QEMU 모니터 sendkey 의 이름이다. 로그인 이름과 비밀번호의 문자만 쓴다.
 SPECIAL_KEYS = {"\n": "ret", " ": "spc"}
 SCREEN_SIZE_MIN = (320, 200)
@@ -207,6 +211,53 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("desktop-files", "test -x /usr/bin/labwc && test -x /usr/bin/tuigreet && test -x /usr/bin/lightlix-control-center", cmd)
     console.command("fonts-korean", "fc-list :lang=ko family | head -n 3 | grep .", cmd)
 
+    # 사용자가 정한 이름과 비밀번호로 계정을 만든다. 비밀번호는 표준 입력으로만 넘긴다.
+    created = console.command(
+        "account-create",
+        f"printf '%s\\n' '{TEST_PASSWORD}' | lightlix --json user add {TEST_USER} --admin --password-stdin",
+        cmd + 30,
+    )
+    require(json_object(created, "account-create").get("name") == TEST_USER, "The account was not created")
+    require(TEST_PASSWORD not in created, "The password must not appear in the command output")
+    listed = console.command("account-list", "lightlix --json user list", cmd)
+    require(TEST_USER in json.dumps(json_object(listed, "account-list")), "The account is missing from the list")
+    console.command("account-passwd-entry", f"getent passwd {TEST_USER} | grep -q ':/home/{TEST_USER}:/bin/bash$'", cmd)
+    console.command("account-shadow-hash", f"sudo -n getent shadow {TEST_USER} | cut -d: -f2 | grep -q '^[$]'", cmd)
+    console.command("account-groups", f"id -nG {TEST_USER} | tr ' ' '\\n' | grep -cxE 'lightlix|video|render|sudo' | grep -qx 4", cmd)
+    console.command("account-home", f"sudo -n test -d /home/{TEST_USER}", cmd)
+    # 같은 이름은 다시 만들 수 없고, 약한 비밀번호는 거절된다.
+    console.command(
+        "account-duplicate",
+        f"printf '%s\\n' '{TEST_PASSWORD}' | lightlix --json user add {TEST_USER} --password-stdin",
+        cmd + 30, expected=1,
+    )
+    console.command(
+        "account-weak-password",
+        "printf '%s\\n' 'short' | lightlix --json user add weakone --password-stdin",
+        cmd + 30, expected=1,
+    )
+
+    # SSH: 켜면 이 계정만 비밀번호로 접속할 수 있고 기본 live 계정은 거절된다.
+    ssh_state = console.command("ssh-on", "lightlix --json ssh on", cmd + 60)
+    state = json_object(ssh_state, "ssh-on")
+    require(state.get("enabled") is True and TEST_USER in (state.get("login_users") or []), "SSH did not list the account")
+    poll_command(console, "ssh-active", "systemctl is-active --quiet ssh.service", cmd)
+    console.command(
+        "ssh-effective-config",
+        f"sudo -n sshd -T -C user={TEST_USER},host=localhost,addr=127.0.0.1 | grep -E '^(passwordauthentication yes|permitrootlogin no|allowusers {TEST_USER})$' | wc -l | grep -qx 3",
+        cmd,
+    )
+    askpass = (
+        'd=$(mktemp -d); printf \'#!/bin/sh\\necho "$LLX_PW"\\n\' > "$d/ask"; chmod 700 "$d/ask"; '
+        'ssh_try() { LLX_PW="$2" SSH_ASKPASS="$d/ask" SSH_ASKPASS_REQUIRE=force '
+        'ssh -o BatchMode=no -o PreferredAuthentications=password -o PubkeyAuthentication=no '
+        '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 '
+        '"$1@127.0.0.1" id -un; }; '
+    )
+    out = console.command("ssh-login-created-account", askpass + f"ssh_try {TEST_USER} {TEST_PASSWORD}", cmd + 40)
+    require(out.strip().splitlines()[-1] == TEST_USER, "SSH password login with the created account failed")
+    console.command("ssh-login-default-account-refused", askpass + "ssh_try user live", cmd + 40, expected=255)
+
     # 서버 모드의 유휴 메모리(참고용 측정). 판정에는 쓰지 않는다.
     console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
 
@@ -223,12 +274,13 @@ def scenario(console, monitor, budgets, logs, workdir):
             f"The login screen looks blank: {greeter}")
 
     # 키 입력으로 로그인해 labwc 세션과 Control Center 를 확인한다.
-    monitor.type_text("user\n")
+    # 방금 만든 계정으로 로그인한다(기본 live 계정이 아니다).
+    monitor.type_text(TEST_USER + "\n")
     time.sleep(1.5)
-    monitor.type_text("live\n")
-    poll_command(console, "labwc-running", "pgrep -u user -x labwc", budgets["START_TIMEOUT"])
-    poll_command(console, "control-center-running", "pgrep -u user -f lightlix-control-center", budgets["START_TIMEOUT"])
-    poll_command(console, "panel-running", "pgrep -u user -x yambar", budgets["START_TIMEOUT"])
+    monitor.type_text(TEST_PASSWORD + "\n")
+    poll_command(console, "labwc-running", f"pgrep -u {TEST_USER} -x labwc", budgets["START_TIMEOUT"])
+    poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
+    poll_command(console, "panel-running", f"pgrep -u {TEST_USER} -x yambar", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
     session = None
@@ -272,6 +324,14 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("default-target-server", "systemctl get-default | grep -x multi-user.target", cmd)
     time.sleep(5)
     console.command("memory-server-after", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+
+    # 계정을 지우면 목록과 passwd 에서 사라지고, SSH 정책에서도 빠진다. 홈 디렉터리는 남는다.
+    poll_command(console, "account-processes-gone", f"! pgrep -u {TEST_USER}", budgets["START_TIMEOUT"])
+    removed = console.command("account-remove", f"lightlix --json user rm {TEST_USER}", cmd + 60)
+    require(json_object(removed, "account-remove").get("home_kept") is True, "Account removal must keep the home directory")
+    console.command("account-gone", f"! getent passwd {TEST_USER}", cmd)
+    console.command("account-home-kept", f"sudo -n test -d /home/{TEST_USER}", cmd)
+    console.command("ssh-policy-removed", "! sudo -n test -e /etc/ssh/sshd_config.d/50-lightlix.conf", cmd)
 
 
 def main():

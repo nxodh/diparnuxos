@@ -174,3 +174,13 @@ func (c *Client) CreateUser(ctx context.Context, req UserCreateRequest) (User, [
 func (c *Client) DeleteUser(ctx context.Context, name string) (UserDeleted, []byte, error) {
 	return call[UserDeleted](ctx, c, http.MethodDelete, "/v1/users/"+escapeID(name), nil, defaultLimit)
 }
+
+// SSH 는 GET /v1/system/ssh 로 SSH 서버 상태를 받는다.
+func (c *Client) SSH(ctx context.Context) (SSH, []byte, error) {
+	return call[SSH](ctx, c, http.MethodGet, "/v1/system/ssh", nil, defaultLimit)
+}
+
+// SetSSH 는 PUT /v1/system/ssh 로 SSH 서버를 켜거나 끈다.
+func (c *Client) SetSSH(ctx context.Context, enabled bool) (SSH, []byte, error) {
+	return call[SSH](ctx, c, http.MethodPut, "/v1/system/ssh", map[string]bool{"enabled": enabled}, defaultLimit)
+}

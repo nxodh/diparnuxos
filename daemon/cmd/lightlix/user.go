@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/nxodh/lightlixos/daemon/internal/client"
 )
@@ -146,5 +147,46 @@ func (c *cli) userRemove(args []string) int {
 		return c.printJSON(raw)
 	}
 	fmt.Fprintf(c.env.stdout, "deleted account %s; its home directory was kept\n", res.Name)
+	return exitOK
+}
+
+// ssh 는 SSH 서버 상태를 보여 주거나 켜고 끈다.
+func (c *cli) ssh(args []string) int {
+	if len(args) > 1 {
+		return c.usage("usage: lightlix ssh [on|off]", "ssh")
+	}
+	var (
+		res client.SSH
+		raw []byte
+		err error
+	)
+	ctx, cancel := c.timeout(metaTimeout)
+	defer cancel()
+	switch {
+	case len(args) == 0:
+		res, raw, err = c.api.SSH(ctx)
+	case args[0] == "on" || args[0] == "off":
+		res, raw, err = c.api.SetSSH(ctx, args[0] == "on")
+	default:
+		return c.usage("usage: lightlix ssh [on|off]", "ssh")
+	}
+	if err != nil {
+		return c.fail(err)
+	}
+	if c.asJSON {
+		return c.printJSON(raw)
+	}
+	kv(c.env.stdout, "ssh", yesNo(res.Enabled))
+	kv(c.env.stdout, "installed", yesNo(res.Installed))
+	kv(c.env.stdout, "running", yesNo(res.Active))
+	kv(c.env.stdout, "password login", orDash(res.PasswordAuth))
+	users := "-"
+	if len(res.LoginUsers) > 0 {
+		users = strings.Join(res.LoginUsers, ", ")
+	}
+	kv(c.env.stdout, "login accounts", users)
+	if res.Warning != "" {
+		fmt.Fprintf(c.env.stdout, "note: %s\n", res.Warning)
+	}
 	return exitOK
 }

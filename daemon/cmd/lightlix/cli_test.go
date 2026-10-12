@@ -803,6 +803,23 @@ func TestUserListAndRemove(t *testing.T) {
 	wantContains(t, "rm", res.stdout, "deleted account alice", "home directory was kept")
 }
 
+func TestSSHShowAndChange(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/system/ssh", 200, `{"enabled":false,"installed":true,"active":false,"password_auth":"no","login_users":[],"port":22}`)
+	res := runCLI(t, f, "ssh")
+	wantCode(t, res, exitOK)
+	wantContains(t, "ssh", res.stdout, "ssh:", "no", "installed:", "yes", "password login:", "no")
+	f.on("PUT /v1/system/ssh", 200, `{"enabled":true,"installed":true,"active":true,"password_auth":"yes","login_users":["alice"],"port":22,"warning":"SSH password login is allowed only for these accounts: alice"}`)
+	res = runCLI(t, f, "ssh", "on")
+	wantCode(t, res, exitOK)
+	wantContains(t, "ssh on", res.stdout, "login accounts:", "alice", "note:")
+	if got := f.bodiesOf("PUT /v1/system/ssh"); len(got) != 1 || got[0] != `{"enabled":true}` {
+		t.Fatalf("body = %v", got)
+	}
+	res = runCLI(t, f, "ssh", "maybe")
+	wantCode(t, res, exitUsage)
+}
+
 // ---- mode, update, report, chat, version, help ----
 
 func TestModeShowAndSet(t *testing.T) {

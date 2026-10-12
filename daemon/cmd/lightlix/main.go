@@ -156,6 +156,8 @@ func execute(e runEnv, args []string) int {
 		return c.apikey(cargs)
 	case "user":
 		return c.user(cargs)
+	case "ssh":
+		return c.ssh(cargs)
 	case "config":
 		return c.config(cargs)
 	case "chat":

@@ -403,3 +403,14 @@ type UserDeleted struct {
 	Deleted  bool   `json:"deleted"`
 	HomeKept bool   `json:"home_kept"`
 }
+
+// SSH 는 GET 이나 PUT /v1/system/ssh 의 응답이다.
+type SSH struct {
+	Enabled      bool     `json:"enabled"`
+	Installed    bool     `json:"installed"`
+	Active       bool     `json:"active"`
+	PasswordAuth string   `json:"password_auth"`
+	LoginUsers   []string `json:"login_users"`
+	Port         int      `json:"port"`
+	Warning      string   `json:"warning,omitempty"`
+}

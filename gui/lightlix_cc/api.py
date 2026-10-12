@@ -189,6 +189,18 @@ class Client:
     def update(self):
         return self._request("POST", "/v1/update")
 
+    # --- 계정 ---
+    def users(self):
+        return self._request("GET", "/v1/users")
+
+    def create_user(self, name, password, admin=False):
+        return self._request(
+            "POST", "/v1/users", {"name": name, "password": password, "admin": bool(admin)}, timeout=60.0
+        )
+
+    def delete_user(self, name):
+        return self._request("DELETE", "/v1/users/" + urllib.parse.quote(name, safe=""), timeout=60.0)
+
     # --- 첫 부팅 ---
     def firstboot(self):
         return self._request("GET", "/v1/firstboot")

@@ -490,6 +490,7 @@ var commandUsage = map[string]string{
 	"apikey create": "Usage: lightlix apikey create [label]\n\nCreate an API key. The key is shown only once.\n",
 	"apikey list":   "Usage: lightlix apikey list\n\nList API keys. Keys are not shown.\n",
 	"apikey rm":     "Usage: lightlix apikey rm <id>\n\nDelete an API key.\n",
+	"ssh":           "Usage: lightlix ssh [on|off]\n\nShow the SSH server state, or turn it on or off.\nTurning it on opens port 22. Password login is allowed only for accounts created with 'lightlix user add'.\n",
 	"user":          "Usage: lightlix user <add|list|rm> [arguments]\n",
 	"user add":      "Usage: lightlix user add <name> [--admin] [--password-stdin]\n\nCreate a login account with your own user name and password.\nThe name starts with a lowercase letter and uses a-z, 0-9, _ and -. The password has 8 to 128 characters.\nWithout --password-stdin the password is asked on the terminal twice, without echo.\n--admin adds the account to the sudo group.\nThe account can log in at the console and, when SSH is on, over SSH.\n",
 	"user list":     "Usage: lightlix user list\n\nList accounts created with Lightlix.\n",

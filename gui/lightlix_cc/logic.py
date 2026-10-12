@@ -173,7 +173,7 @@ def server_advice(status):
 
 # ---------------------------------------------------------------- 첫 부팅 마법사
 
-STEPS = ("gpu", "driver", "secure_boot", "model", "api")
+STEPS = ("gpu", "driver", "secure_boot", "account", "model", "api")
 
 
 class StepResult:
@@ -243,6 +243,57 @@ def evaluate_secure_boot(status):
     if sb == "disabled":
         return StepResult("secure_boot", OK, _("Secure Boot is off"), _("The NVIDIA module can load without a signature."))
     return StepResult("secure_boot", INFO, _("Secure Boot state is unknown"), _("This machine may not use UEFI Secure Boot."))
+
+
+_NAME_FIRST = "abcdefghijklmnopqrstuvwxyz"
+_NAME_REST = _NAME_FIRST + "0123456789_-"
+_RESERVED = {
+    "root", "user", "nobody", "daemon", "bin", "sys", "sync", "games", "man", "lp", "mail", "news", "uucp",
+    "proxy", "www-data", "backup", "list", "irc", "sshd", "messagebus", "polkitd", "greetd", "tuigreet",
+}
+
+
+def check_username(name):
+    """사용자 이름 규칙을 검사한다. 맞으면 None, 아니면 사용자에게 보일 문장을 돌려준다. 데몬의 규칙과 같다."""
+    if not name:
+        return _("Enter a user name.")
+    if len(name) > 32:
+        return _("The user name can have at most 32 characters.")
+    if name[0] not in _NAME_FIRST:
+        return _("The user name must start with a lowercase letter.")
+    if any(ch not in _NAME_REST for ch in name):
+        return _("Use only lowercase letters, digits, _ and - in the user name.")
+    if name in _RESERVED or name.startswith("lightlix") or name.startswith("systemd"):
+        return _("This user name is reserved. Choose another one.")
+    return None
+
+
+def check_password(name, password, confirm):
+    """비밀번호 규칙과 확인 입력을 검사한다. 맞으면 None."""
+    if len(password) < 8:
+        return _("The password must have at least 8 characters.")
+    if len(password) > 128:
+        return _("The password can have at most 128 characters.")
+    if any(ord(ch) < 0x20 or ord(ch) > 0x7E for ch in password):
+        return _("Use only printable ASCII characters in the password.")
+    if password == name:
+        return _("The password must differ from the user name.")
+    if password != confirm:
+        return _("The two passwords do not match.")
+    return None
+
+
+def evaluate_account(users):
+    """users 는 GET /v1/users 의 users 목록이다."""
+    if users:
+        names = ", ".join(u.get("name", "?") for u in users[:3])
+        return StepResult("account", OK, _("A login account exists"), names)
+    return StepResult(
+        "account",
+        INFO,
+        _("Create your own login account"),
+        _("Without one you can only use the default live account. Choose a user name and a password."),
+    )
 
 
 def evaluate_model(recommendations, installed_models):

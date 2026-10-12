@@ -155,6 +155,27 @@ class WizardTests(unittest.TestCase):
         self.assertEqual(logic.evaluate_api({"lan_exposed": True}, 0).level, logic.ERROR)
         self.assertEqual(logic.evaluate_api({"lan_exposed": True}, 1).level, logic.INFO)
 
+    def test_account_step(self):
+        self.assertEqual(logic.evaluate_account([]).level, logic.INFO)
+        r = logic.evaluate_account([{"name": "alice"}])
+        self.assertEqual(r.level, logic.OK)
+        self.assertIn("alice", r.detail)
+        self.assertIn("account", logic.STEPS)
+
+    def test_username_rules(self):
+        self.assertIsNone(logic.check_username("alice"))
+        self.assertIsNone(logic.check_username("a_b-9"))
+        for bad in ("", "Alice", "1abc", "a b", "root", "user", "lightlixd", "x" * 33, "a.b"):
+            self.assertIsNotNone(logic.check_username(bad), bad)
+
+    def test_password_rules(self):
+        self.assertIsNone(logic.check_password("alice", "correct-horse-9", "correct-horse-9"))
+        self.assertIsNotNone(logic.check_password("alice", "short", "short"))
+        self.assertIsNotNone(logic.check_password("alice", "correct-horse-9", "other-horse-9"))
+        self.assertIsNotNone(logic.check_password("alicealice", "alicealice", "alicealice"))
+        self.assertIsNotNone(logic.check_password("alice", "han\uae00password", "han\uae00password"))
+        self.assertIsNotNone(logic.check_password("alice", "x" * 129, "x" * 129))
+
     def test_skipped_steps_collects_problems_only(self):
         results = [
             logic.StepResult("gpu", logic.OK, "a"),
