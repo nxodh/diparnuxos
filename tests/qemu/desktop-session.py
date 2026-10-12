@@ -295,7 +295,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     switched = console.command("mode-desktop-greeter", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
     require(json_object(switched, "mode-desktop-greeter").get("mode") == "desktop", "Mode switch did not report desktop")
     poll_command(console, "lightdm-active-greeter", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
-    poll_command(console, "greeter-running", "pgrep -x lightdm-gtk-greeter", budgets["START_TIMEOUT"])
+    poll_command(console, "greeter-running", "pgrep -f /usr/sbin/lightdm-gtk-greeter", budgets["START_TIMEOUT"])
     console.command("no-autologin-fragment", "! test -e /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf", cmd)
     console.command("no-session-before-login", "! pgrep -x xfce4-session", cmd)
     time.sleep(5)
