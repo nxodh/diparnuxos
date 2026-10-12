@@ -71,7 +71,7 @@ var reserved = map[string]bool{
 	"root": true, "user": true, "nobody": true, "daemon": true, "bin": true, "sys": true, "sync": true,
 	"games": true, "man": true, "lp": true, "mail": true, "news": true, "uucp": true, "proxy": true,
 	"www-data": true, "backup": true, "list": true, "irc": true, "sshd": true, "messagebus": true,
-	"polkitd": true, "greetd": true, "tuigreet": true,
+	"polkitd": true, "greetd": true, "tuigreet": true, "lightdm": true,
 }
 
 // ValidName은 사용자 이름이 규칙에 맞는지 본다. 소문자로 시작하고 소문자, 숫자, 밑줄, 하이픈만 쓰며 32자 이하다.

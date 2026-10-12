@@ -44,7 +44,7 @@ lint:
 		for f in $(SHELL_SCRIPTS); do bash -n "$$f" || exit 1; done; \
 	fi
 
-# 패널(yambar) 설정과 세션 스크립트를 실제 프로그램의 검증으로 확인한다.
+# Xfce 데스크톱 구성(패널 배치, xfconf 기본값, 테마)을 패키지로 설치하고 Xvfb 세션과 lightdm 로그인 화면으로 확인한다.
 test-desktop-config-docker:
 	bash "$(ROOT)/scripts/test-desktop-config-in-docker.sh"
 
@@ -110,7 +110,7 @@ test-qemu-e2e-driver:
 	python3 -B "$(ROOT)/tests/qemu/test_desktop_session.py"
 	python3 -B "$(ROOT)/tests/qemu/test_install.py"
 
-# 완성된 ISO 에서 데스크톱 모드 전환, greetd, labwc 세션, Control Center 를 Docker 의 QEMU 로 확인한다.
+# 완성된 ISO 에서 데스크톱 모드 전환, lightdm 자동 로그인과 로그인 화면, Xfce 세션, Control Center 를 Docker 의 QEMU 로 확인한다.
 test-qemu-desktop-docker:
 	bash "$(ROOT)/scripts/test-qemu-desktop-in-docker.sh" "$(ISO)"
 

@@ -49,7 +49,7 @@ jobs:
       - name: Test Control Center (unit and GTK smoke)
         run: make test-gui
 
-      - name: Test the desktop panel configuration and session scripts (container)
+      - name: Test the Xfce desktop configuration, session and login screen (container)
         run: make test-desktop-config-docker
 
       - name: Test Wi-Fi management against a real busctl and a fake iwd (container)
@@ -149,7 +149,7 @@ jobs:
           E2E_TIMEOUT: '1800'
         run: make test-qemu-e2e-docker
 
-      # 같은 ISO 로 서버 모드에서 데스크톱 모드로 전환하고 greetd, labwc, Control Center 를 확인한다.
+      # 같은 ISO 로 서버 모드에서 데스크톱 모드로 전환하고 lightdm 자동 로그인과 로그인 화면, Xfce 세션, Control Center 를 확인한다.
       - name: Desktop session E2E (UEFI, mode switch, virtual display)
         timeout-minutes: 55
         env:

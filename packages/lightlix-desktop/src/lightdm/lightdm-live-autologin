@@ -4,7 +4,8 @@
 # 조각은 /etc/lightdm/lightdm.conf.d 에 런타임에 쓰므로 squashfs 에 들어가지 않고 설치본으로 복사되지 않는다.
 set -u
 conf=/etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf
-if [ ! -e /run/live ]; then
+# /run/lightlix-no-autologin 이 있으면 라이브에서도 자동 로그인을 끈다(로그인 화면 시험, 진단용).
+if [ ! -e /run/live ] || [ -e /run/lightlix-no-autologin ]; then
     rm -f "$conf"
     exit 0
 fi

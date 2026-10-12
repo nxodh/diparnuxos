@@ -52,7 +52,7 @@ type sysFake struct {
 	journal       string
 	listDevices   string
 	defaultTarget string
-	greetd        bool
+	lightdm       bool
 	nftExit       int
 	nftStderr     string
 	stopCount     int
@@ -164,8 +164,8 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			if f.sshInstalled && len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
 				return out("ssh.service enabled enabled\n")
 			}
-			if f.greetd && len(cmd.Args) > 1 && cmd.Args[1] == "greetd.service" {
-				return out("greetd.service enabled enabled\n")
+			if f.lightdm && len(cmd.Args) > 1 && cmd.Args[1] == "lightdm.service" {
+				return out("lightdm.service enabled enabled\n")
 			}
 			return out("")
 		}
@@ -1639,7 +1639,7 @@ func TestSetModeInvalid(t *testing.T) {
 
 func TestSetModeDesktopWithDisplayManager(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
-	f.sys.greetd = true
+	f.sys.lightdm = true
 	if err := f.sup.SetMode(context.Background(), "desktop"); err != nil {
 		t.Fatalf("SetMode: %v", err)
 	}

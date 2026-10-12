@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UEFI 게스트에서 데스크톱 모드 전환, greetd 로그인 화면, labwc 세션, Control Center 를 검사한다.
+"""UEFI 게스트에서 데스크톱 모드 전환, lightdm 자동 로그인과 로그인 화면, Xfce 세션, Control Center 를 검사한다.
 
 cpu-inference.py 의 Console 과 보조 함수를 그대로 쓴다. 이 드라이버는 QEMU 모니터 소켓으로
 화면을 캡처하고 키 입력을 보낸다. 화면 캡처는 "무엇인가 그려졌다"만 보며 실제 모니터 표시를 대신하지 않는다.
@@ -204,11 +204,17 @@ def scenario(console, monitor, budgets, logs, workdir):
     # 이미지는 서버 모드로 부팅하고 데스크톱 구성 요소를 갖는다.
     mode = console.command("mode-initial", "lightlix --json mode", cmd)
     require(json_object(mode, "mode-initial").get("mode") == "server", "The image must boot in server mode")
-    console.command("greetd-installed", "systemctl cat greetd.service >/dev/null", cmd)
-    unit = console.command("greetd-unit", "systemctl cat greetd.service", cmd)
-    require("--config /etc/greetd/lightlix.toml" in unit, "greetd does not use the Lightlix configuration")
-    console.command("greetd-not-active", "! systemctl is-active --quiet greetd.service", cmd)
-    console.command("desktop-files", "test -x /usr/bin/labwc && test -x /usr/bin/tuigreet && test -x /usr/bin/lightlix-control-center", cmd)
+    console.command("lightdm-installed", "systemctl cat lightdm.service >/dev/null", cmd)
+    unit = console.command("lightdm-unit", "systemctl cat lightdm.service", cmd)
+    require("/usr/lib/lightlix/lightdm-live-autologin" in unit, "lightdm does not run the live autologin helper")
+    console.command("lightdm-not-active", "! systemctl is-active --quiet lightdm.service", cmd)
+    console.command("no-x-server-in-server-mode", "! pgrep -x Xorg && ! pgrep -x lightdm", cmd)
+    console.command(
+        "desktop-files",
+        "test -x /usr/bin/xfce4-session && test -x /usr/bin/xfwm4 && test -x /usr/sbin/lightdm "
+        "&& test -x /usr/bin/lightlix-control-center && test -s /etc/xdg/lightlix/xfce4/panel/default.xml",
+        cmd,
+    )
     console.command("fonts-korean", "fc-list :lang=ko family | head -n 3 | grep .", cmd)
 
     # 사용자가 정한 이름과 비밀번호로 계정을 만든다. 비밀번호는 표준 입력으로만 넘긴다.
@@ -261,40 +267,62 @@ def scenario(console, monitor, budgets, logs, workdir):
     # 서버 모드의 유휴 메모리(참고용 측정). 판정에는 쓰지 않는다.
     console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
 
-    # 데스크톱 모드로 전환한다.
+    # 데스크톱 모드로 전환한다. 라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.
     switched = console.command("mode-desktop", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
     require(json_object(switched, "mode-desktop").get("mode") == "desktop", "Mode switch did not report desktop")
-    poll_command(console, "greetd-active", "systemctl is-active --quiet greetd.service", budgets["START_TIMEOUT"])
-    poll_command(console, "tuigreet-running", "pgrep -x tuigreet", budgets["START_TIMEOUT"])
+    poll_command(console, "lightdm-active", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
     console.command("default-target-desktop", "systemctl get-default | grep -x graphical.target", cmd)
-    time.sleep(3)
+    poll_command(console, "autologin-session", "pgrep -u user -x xfce4-session", budgets["START_TIMEOUT"])
+    poll_command(console, "autologin-panel", "pgrep -u user -x xfce4-panel", budgets["START_TIMEOUT"])
+    time.sleep(8)
+    auto = capture(console, monitor, logs, "autologin", workdir)
+    require(auto["width"] >= SCREEN_SIZE_MIN[0] and auto["height"] >= SCREEN_SIZE_MIN[1], "Screen is too small")
+    require(auto["colors"] >= 3 and auto["lit_fraction"] > 0.0005, f"The autologin desktop looks blank: {auto}")
+    console.command("autologin-fragment", "test -s /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf", cmd)
+    console.command("autologin-live-user-groups", "id -nG user | tr ' ' '\\n' | grep -x nopasswdlogin", cmd)
+    back = console.command("mode-server-after-autologin", "lightlix --json mode server", budgets["START_TIMEOUT"])
+    require(json_object(back, "mode-server-after-autologin").get("mode") == "server", "Mode switch did not report server")
+    poll_command(console, "autologin-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
+
+    # 로그인 화면: 자동 로그인을 끄고 직접 만든 계정으로 로그인한다. 사용자 이름을 직접 입력하는 방식으로 바꿔 둔다.
+    console.command("disable-autologin", "sudo -n touch /run/lightlix-no-autologin", cmd)
+    console.command(
+        "greeter-manual-login",
+        "sudo -n mkdir -p /etc/lightdm/lightdm.conf.d && printf '[Seat:*]\\ngreeter-hide-users=true\\ngreeter-show-manual-login=true\\n' "
+        "| sudo -n tee /etc/lightdm/lightdm.conf.d/70-lightlix-test.conf >/dev/null",
+        cmd,
+    )
+    switched = console.command("mode-desktop-greeter", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
+    require(json_object(switched, "mode-desktop-greeter").get("mode") == "desktop", "Mode switch did not report desktop")
+    poll_command(console, "lightdm-active-greeter", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
+    poll_command(console, "greeter-running", "pgrep -x lightdm-gtk-greeter", budgets["START_TIMEOUT"])
+    console.command("no-autologin-fragment", "! test -e /etc/lightdm/lightdm.conf.d/60-lightlix-live-autologin.conf", cmd)
+    console.command("no-session-before-login", "! pgrep -x xfce4-session", cmd)
+    time.sleep(5)
     greeter = capture(console, monitor, logs, "greeter", workdir)
     require(greeter["width"] >= SCREEN_SIZE_MIN[0] and greeter["height"] >= SCREEN_SIZE_MIN[1], "Screen is too small")
     require(greeter["colors"] >= 3 and greeter["lit_fraction"] > 0.0005,
             f"The login screen looks blank: {greeter}")
 
-    # 키 입력으로 로그인해 labwc 세션과 Control Center 를 확인한다.
+    # 키 입력으로 로그인해 Xfce 세션과 Control Center 를 확인한다.
     # 방금 만든 계정으로 로그인한다(기본 live 계정이 아니다).
     monitor.type_text(TEST_USER + "\n")
-    time.sleep(1.5)
+    time.sleep(2)
     monitor.type_text(TEST_PASSWORD + "\n")
-    poll_command(console, "labwc-running", f"pgrep -u {TEST_USER} -x labwc", budgets["START_TIMEOUT"])
-    # 세션 래퍼: 가상 머신이므로 소프트웨어 렌더러와 소프트웨어 커서를 쓰고, labwc 출력은 파일에 남는다.
-    console.command(
-        "session-wrapper-log",
-        f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/labwc.log | head -n 20'",
-        cmd,
-    )
-    console.command("session-wrapper-journal", "sudo -n journalctl -b -t lightlix-labwc --no-pager | tail -n 10; true", cmd)
+    poll_command(console, "xfce-session-running", f"pgrep -u {TEST_USER} -x xfce4-session", budgets["START_TIMEOUT"])
+    for name in ("xfwm4", "xfce4-panel", "xfdesktop", "xfsettingsd"):
+        poll_command(console, f"{name}-running", f"pgrep -u {TEST_USER} -x {name}", budgets["START_TIMEOUT"])
+    console.command("xorg-running", "pgrep -x Xorg", cmd)
     console.command(
         "session-env",
-        f"sudo -n sh -c 'pid=$(pgrep -u {TEST_USER} -x labwc | head -n 1); tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -E \"^XDG_(SESSION_TYPE|CURRENT_DESKTOP)=\"'",
+        f"sudo -n sh -c 'pid=$(pgrep -u {TEST_USER} -x xfce4-session | head -n 1); tr \"\\0\" \"\\n\" < /proc/$pid/environ "
+        "| grep -E \"^(XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_CONFIG_DIRS|DISPLAY)=\"'",
         cmd,
     )
     console.command(
-        "session-wrapper-env",
-        "sudo -n sh -c 'pid=$(pgrep -u " + TEST_USER + " -x labwc | head -n 1); "
-        "tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -E \"^WLR_(RENDERER|NO_HARDWARE_CURSORS)=\"'",
+        "session-env-check",
+        f"sudo -n sh -c 'pid=$(pgrep -u {TEST_USER} -x xfce4-session | head -n 1); tr \"\\0\" \"\\n\" < /proc/$pid/environ "
+        "| grep -x \"XDG_CURRENT_DESKTOP=XFCE\" && tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -q \"^XDG_CONFIG_DIRS=/etc/xdg/lightlix:\"'",
         cmd,
     )
     poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
@@ -313,40 +341,36 @@ def scenario(console, monitor, budgets, logs, workdir):
     # 진단: 세션 프로세스와 로그, 그리고 같은 세션에서 앱을 직접 실행했을 때의 stderr 를 남긴다.
     console.command(
         "session-processes",
-        "ps -eo pid,etime,rss,stat,args | grep -E 'labwc|control-center|greetd|tuigreet' | grep -v grep; true",
+        "ps -eo pid,etime,rss,stat,args | grep -E 'Xorg|xfce|xfwm|xfdesktop|control-center|lightdm' | grep -v grep; true",
         cmd,
     )
     console.command(
         "session-journal",
-        "sudo -n journalctl -b --no-pager -n 400 | grep -iE 'labwc|control-center|python|gtk|gdk|adw|egl|wlr|greetd|segfault|traceback' | tail -n 100; true",
+        "sudo -n journalctl -b --no-pager -n 400 | grep -iE 'lightdm|xfce|xfwm|control-center|python|gtk|gdk|adw|segfault|traceback' | tail -n 100; true",
         cmd,
     )
+    console.command("lightdm-log", "sudo -n sh -c 'tail -n 40 /var/log/lightdm/lightdm.log /var/log/lightdm/x-0.log 2>&1'; true", cmd)
     console.command(
         "control-center-manual-run",
-        "XDG_RUNTIME_DIR=/run/user/$(id -u) WAYLAND_DISPLAY=wayland-0 timeout 25 lightlix-control-center --wizard 2>&1 | head -n 60; true",
+        f"sudo -n -u {TEST_USER} env DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority timeout 25 lightlix-control-center --wizard 2>&1 | head -n 60; true",
         cmd + 30,
     )
     console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
     console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
-    # 패널: 진단을 남긴 뒤 판정한다.
+    # 패널과 첫 로그인 설정: 진단을 남긴 뒤 판정한다.
     console.command(
-        "panel-log",
-        f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/yambar.log 2>&1 | tail -n 40; ls -la /run/user/$(id -u {TEST_USER}) | head -20'; true",
+        "first-login-setup",
+        f"sudo -n sh -c 'ls -la /home/{TEST_USER}/.config/lightlix /home/{TEST_USER}/.config/xfce4 2>&1 | head -n 20'; "
+        f"sudo -n test -e /home/{TEST_USER}/.config/lightlix/session-setup-done",
         cmd,
     )
-    console.command(
-        "panel-manual-run",
-        f"sudo -n -u {TEST_USER} env XDG_RUNTIME_DIR=/run/user/$(id -u {TEST_USER}) WAYLAND_DISPLAY=wayland-0 "
-        "timeout 8 yambar -c /etc/xdg/yambar/config.yml 2>&1 | head -n 40; true",
-        cmd + 20,
-    )
-    poll_command(console, "panel-running", f"pgrep -u {TEST_USER} -x yambar", 30)
+    console.command("panel-network-text", "lightlix-panel-net | grep -E '^<txt>.+</txt>$'", cmd)
     require(session["colors"] >= 8, f"The desktop session looks blank after {attempt} captures: {session}")
 
     # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
     console.command("daemon-status", "lightlix --json status | grep -q '\"mode\": \"desktop\"'", cmd)
 
-    # 그래픽 설치기(Calamares)를 같은 labwc 세션에서 띄워 창이 그려지는지만 본다. 설치는 하지 않는다.
+    # 그래픽 설치기(Calamares)를 같은 Xfce 세션에서 띄워 창이 그려지는지만 본다. 설치는 하지 않는다.
     console.command(
         "installer-files",
         "test -x /usr/bin/lightlix-installer && test -x /usr/bin/calamares && test -s /etc/calamares/settings.conf "
@@ -356,7 +380,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     uid = console.command("tester-uid", f"id -u {TEST_USER}", cmd).strip().splitlines()[-1]
     console.command(
         "installer-start",
-        f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} WAYLAND_DISPLAY=wayland-0 "
+        f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority "
         "nohup lightlix-installer -d > /tmp/installer.log 2>&1 &'; sleep 2",
         cmd,
     )
@@ -390,8 +414,8 @@ def scenario(console, monitor, budgets, logs, workdir):
         "rss() { pid=$(pgrep -f -o \"$1\" | head -n 1); "
         "[ -n \"$pid\" ] && awk '/VmRSS/ {print $2}' /proc/$pid/status || echo 0; }; "
         "for i in 0 1 2 3 4 5 6 7; do "
-        "echo \"sample=$i lightlixd=$(rss /usr/sbin/lightlixd) cc=$(rss lightlix-control-center) labwc=$(rss labwc) "
-        "yambar=$(rss yambar) swaybg=$(rss swaybg) avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)\"; "
+        "echo \"sample=$i lightlixd=$(rss /usr/sbin/lightlixd) cc=$(rss lightlix-control-center) xorg=$(rss Xorg) "
+        "xfwm4=$(rss xfwm4) panel=$(rss xfce4-panel) desktop=$(rss xfdesktop) avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)\"; "
         "[ $i -lt 7 ] && sleep 60; done"
     )
     soak = console.command("soak", soak_script, 8 * 60 + 90)
@@ -402,7 +426,8 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(len(samples) == 8, f"Expected 8 memory samples, got {len(samples)}: {soak[-400:]}")
     # 첫 표본은 시작 직후의 값이라 워밍업으로 보고 두 번째를 기준으로 삼는다.
     base, last = samples[1], samples[-1]
-    limits_kb = {"lightlixd": 6 * 1024, "cc": 24 * 1024, "labwc": 12 * 1024, "yambar": 6 * 1024, "swaybg": 3 * 1024}
+    # Xfce 구성 요소의 상한은 첫 측정 전의 넉넉한 값이다. 실측을 보고 조인다(램 목표가 아니라 누수 검사다).
+    limits_kb = {"lightlixd": 6 * 1024, "cc": 24 * 1024, "xorg": 48 * 1024, "xfwm4": 16 * 1024, "panel": 32 * 1024, "desktop": 32 * 1024}
     for key, limit in limits_kb.items():
         growth = last[key] - base[key]
         print(f"desktop-session: soak {key}: {base[key]} kB -> {last[key]} kB (+{growth} kB, limit {limit} kB)", flush=True)
@@ -411,35 +436,30 @@ def scenario(console, monitor, budgets, logs, workdir):
     print(f"desktop-session: soak MemAvailable dropped {avail_drop} kB", flush=True)
     require(avail_drop <= 80 * 1024, f"MemAvailable dropped by {avail_drop} kB in 6 minutes")
 
-    # 브라우저 실험: Debian 의 chromium 이 이 세션에서 뜨는지 본다(사용자가 Chrome 이 안 뜬다고 보고했다).
-    # 네트워크나 패키지 문제로 설치하지 못하면 건너뛰고, 설치한 뒤에는 실패를 기록한다. 시험 전체를 실패시키지는 않는다.
+    # 브라우저 실험: 이미지에 들어 있는 firefox-esr 이 이 세션에서 창을 여는지 본다(0.4.0 에서 사용자가 브라우저가 안 뜬다고 보고했다).
+    # 실패해도 시험 전체를 실패시키지 않고 결과를 기록한다.
     try:
-        console.command("browser-install", "sudo -n apt-get update -q >/dev/null && sudo -n apt-get install -y -q --no-install-recommends chromium >/dev/null 2>&1; command -v chromium", cmd + 600)
-        uid_t = uid
-        console.command(
-            "browser-headless",
-            f"sudo -n -u {TEST_USER} env XDG_RUNTIME_DIR=/run/user/{uid_t} timeout 90 chromium --headless=new --disable-gpu --no-sandbox --dump-dom about:blank 2>&1 | tail -n 5",
-            cmd + 120,
-        )
+        console.command("browser-installed", "command -v firefox-esr", cmd)
         console.command(
             "browser-window-start",
-            f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid_t} WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland "
-            f"nohup setpriv --reuid={TEST_USER} --regid={TEST_USER} --init-groups chromium --ozone-platform=wayland --no-first-run "
-            f"about:blank > /tmp/browser.log 2>&1 &'; sleep 25; pgrep -u {TEST_USER} -f chromium | head -n 3",
-            cmd + 60,
+            f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority "
+            f"nohup setpriv --reuid={TEST_USER} --regid={TEST_USER} --init-groups firefox-esr --no-remote about:blank "
+            f"> /tmp/browser.log 2>&1 &'; sleep 40; pgrep -u {TEST_USER} -f firefox | head -n 3",
+            cmd + 90,
         )
         browser = capture(console, monitor, logs, "browser", workdir)
         print(f"desktop-session: browser capture {browser}", flush=True)
         console.command("browser-log", "tail -n 30 /tmp/browser.log; true", cmd)
-        console.command("browser-stop", "sudo -n pkill -f chromium; true", cmd)
+        console.command("browser-stop", "sudo -n pkill -f firefox; true", cmd)
     except Failure as error:
         print(f"desktop-session: browser experiment did not complete: {error.kind}: {str(error)[:300]}", flush=True)
 
     # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
     back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])
     require(json_object(back, "mode-server").get("mode") == "server", "Mode switch did not report server")
-    poll_command(console, "labwc-gone", "! pgrep -x labwc", budgets["START_TIMEOUT"])
-    console.command("greetd-stopped", "! systemctl is-active --quiet greetd.service", cmd)
+    poll_command(console, "xfce-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
+    console.command("lightdm-stopped", "! systemctl is-active --quiet lightdm.service", cmd)
+    console.command("xorg-gone", "! pgrep -x Xorg", cmd)
     console.command("default-target-server", "systemctl get-default | grep -x multi-user.target", cmd)
     time.sleep(5)
     console.command("memory-server-after", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
@@ -517,7 +537,7 @@ def main():
             scenario(console, monitor, budgets, logs, work)
         result.update({"outcome": "succeeded", "kind": "pass", "message": "Desktop session started and stopped"})
         exit_code = 0
-        print("PASS: server mode boot, desktop switch, greetd screen, labwc session, Control Center, back to server", flush=True)
+        print("PASS: server mode boot, autologin, lightdm greeter, Xfce session, Control Center, back to server", flush=True)
     except Failure as error:
         result.update({"kind": error.kind, "message": str(error)})
         exit_code = 2 if error.kind == "usage" else 1

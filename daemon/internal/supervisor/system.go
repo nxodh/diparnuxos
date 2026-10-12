@@ -15,7 +15,7 @@ const (
 	modeDesktop        = "desktop"
 	targetServer       = "multi-user.target"
 	targetDesktop      = "graphical.target"
-	displayManagerUnit = "greetd.service"
+	displayManagerUnit = "lightdm.service"
 )
 
 // Mode는 기본 타깃으로 모드를 돌려준다. graphical.target 이면 desktop, 그 밖은 server 다.
@@ -39,7 +39,7 @@ func (s *Supervisor) Mode(ctx context.Context) (string, error) {
 }
 
 // SetMode는 모드를 바꾼다. 기본 타깃을 바꾼 뒤 isolate 로 바로 전환한다.
-// desktop 은 greetd.service 가 설치되어 있어야 한다. 진행 중인 llama 작업이 있으면 busy 오류다.
+// desktop 은 lightdm.service 가 설치되어 있어야 한다. 진행 중인 llama 작업이 있으면 busy 오류다.
 func (s *Supervisor) SetMode(ctx context.Context, mode string) error {
 	var target string
 	switch mode {
@@ -66,7 +66,7 @@ func (s *Supervisor) SetMode(ctx context.Context, mode string) error {
 			return errorf(CodeModeChangeFailed, "check %s: %v", displayManagerUnit, err)
 		}
 		if !installed {
-			return errorf(CodeDesktopNotInstalled, "%s is not installed; the desktop arrives in a later release", displayManagerUnit)
+			return errorf(CodeDesktopNotInstalled, "%s is not installed; install the lightlix-desktop package", displayManagerUnit)
 		}
 	}
 	steps := [][]string{
