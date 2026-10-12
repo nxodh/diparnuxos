@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nxodh/lightlixos/daemon/internal/accounts"
 	"github.com/nxodh/lightlixos/daemon/internal/api"
 	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
 	"github.com/nxodh/lightlixos/daemon/internal/config"
@@ -152,6 +153,7 @@ func run(args []string) error {
 		Store:         store,
 		Keys:          keys,
 		HF:            hfProxy{cfg: src.get},
+		Accounts:      &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,

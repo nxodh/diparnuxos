@@ -726,6 +726,83 @@ func TestAPIKeyRemove(t *testing.T) {
 	wantContains(t, "rm", res.stdout, "deleted API key k1", "restart the server")
 }
 
+// ---- user accounts ----
+
+func TestUserAddWithPasswordStdin(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/users", 201, `{"name":"alice","admin":true,"created":"2026-10-12T00:00:00Z"}`)
+	res := runCLIWith(t, f, cliOpts{stdin: "correct-horse-9\n"}, "user", "add", "alice", "--admin", "--password-stdin")
+	wantCode(t, res, exitOK)
+	wantContains(t, "user add", res.stdout, "created account alice", "administrator (sudo)")
+	if strings.Contains(res.stdout+res.stderr, "correct-horse") {
+		t.Fatal("the password must never be printed")
+	}
+	bodies := f.bodiesOf("POST /v1/users")
+	if len(bodies) != 1 || bodies[0] != `{"name":"alice","password":"correct-horse-9","admin":true}` {
+		t.Fatalf("body = %v", bodies)
+	}
+}
+
+func TestUserAddPromptsTwiceAndChecksMatch(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/users", 201, `{"name":"bob","admin":false,"created":"2026-10-12T00:00:00Z"}`)
+	var prompts []string
+	answers := []string{"correct-horse-9", "correct-horse-9"}
+	res := runCLIWith(t, f, cliOpts{stdinTTY: true, readPassword: func(p string) (string, error) {
+		prompts = append(prompts, p)
+		a := answers[0]
+		answers = answers[1:]
+		return a, nil
+	}}, "user", "add", "bob")
+	wantCode(t, res, exitOK)
+	if len(prompts) != 2 {
+		t.Fatalf("prompts = %v", prompts)
+	}
+	wantContains(t, "user add", res.stdout, "created account bob", "(standard)")
+}
+
+func TestUserAddRejectsMismatchedPasswords(t *testing.T) {
+	f := newFakeDaemon(t)
+	answers := []string{"correct-horse-9", "different-pass-1"}
+	res := runCLIWith(t, f, cliOpts{stdinTTY: true, readPassword: func(string) (string, error) {
+		a := answers[0]
+		answers = answers[1:]
+		return a, nil
+	}}, "user", "add", "bob")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "mismatch", res.stderr, "do not match")
+	if f.hitsContain("POST /v1/users") {
+		t.Fatal("no request may be sent when the passwords differ")
+	}
+}
+
+func TestUserAddWithoutTerminalNeedsPasswordStdin(t *testing.T) {
+	f := newFakeDaemon(t)
+	res := runCLIWith(t, f, cliOpts{stdin: "pw\n"}, "user", "add", "bob")
+	wantCode(t, res, exitUsage)
+	wantContains(t, "usage", res.stderr, "--password-stdin")
+}
+
+func TestUserAddReportsDaemonError(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/users", 409, `{"error":{"code":"user_exists","message":"the account already exists"}}`)
+	res := runCLIWith(t, f, cliOpts{stdin: "correct-horse-9\n"}, "user", "add", "alice", "--password-stdin")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "exists", res.stderr, "already exists", "(user_exists)")
+}
+
+func TestUserListAndRemove(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/users", 200, `{"users":[{"name":"alice","admin":true,"created":"2026-10-12T00:00:00Z"}]}`)
+	res := runCLI(t, f, "user", "list")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "alice", "yes", "NAME")
+	f.on("DELETE /v1/users/alice", 200, `{"name":"alice","deleted":true,"home_kept":true}`)
+	res = runCLI(t, f, "user", "rm", "alice")
+	wantCode(t, res, exitOK)
+	wantContains(t, "rm", res.stdout, "deleted account alice", "home directory was kept")
+}
+
 // ---- mode, update, report, chat, version, help ----
 
 func TestModeShowAndSet(t *testing.T) {

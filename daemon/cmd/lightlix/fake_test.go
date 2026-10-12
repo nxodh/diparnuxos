@@ -139,6 +139,8 @@ type cliOpts struct {
 	outTTY    bool
 	env       map[string]string
 	cancelCtx context.Context
+	// readPassword 는 터미널 비밀번호 입력을 대신한다.
+	readPassword func(prompt string) (string, error)
 }
 
 // runCLI 는 --socket 을 붙여 명령을 실행한다.
@@ -168,6 +170,7 @@ func runCLIWith(t *testing.T, f *fakeDaemon, opt cliOpts, args ...string) outcom
 		stdinTTY:     opt.stdinTTY,
 		stdoutTTY:    opt.outTTY,
 		pollInterval: 0,
+		readPassword: opt.readPassword,
 	}
 	code := execute(env, full)
 	res := outcome{code: code, stdout: out.String(), stderr: errb.String()}

@@ -20,6 +20,7 @@ var knownSteps = map[string]bool{
 	"gpu":         true,
 	"driver":      true,
 	"secure_boot": true,
+	"account":     true,
 	"model":       true,
 	"api":         true,
 }

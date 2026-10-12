@@ -2,17 +2,18 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/nxodh/lightlixos/daemon/internal/config"
 	"github.com/nxodh/lightlixos/daemon/internal/firstboot"
 	"github.com/nxodh/lightlixos/daemon/internal/recommend"
 )
 
-// SSH 를 켠 상태에서 보여 줄 주의 문구다. 비밀번호 로그인 여부에 따라 고른다.
+// SSH 를 켠 상태에서 보여 줄 안내 문구다.
 const (
-	sshWarnPassword = "SSH accepts password login; set a strong password for the login user before exposing this machine to a network"
-	sshWarnKeyOnly  = "SSH password login is disabled on this image; add your public key to ~/.ssh/authorized_keys of the login user to connect"
-	sshWarnUnknown  = "SSH is open; make sure the login user has a strong password or an authorized public key"
+	sshWarnNoAccount = "No Lightlix account exists, so SSH accepts public keys only; create an account to log in with a password"
+	sshWarnKeyOnly   = "SSH password login is disabled on this image; add your public key to ~/.ssh/authorized_keys of the login user to connect"
+	sshWarnUnknown   = "SSH is open; make sure the login user has a strong password or an authorized public key"
 )
 
 // sshView 는 SSH 상태 응답이다.
@@ -25,8 +26,10 @@ type sshView struct {
 	Active bool `json:"active"`
 	// PasswordAuth 는 sshd 의 비밀번호 로그인 값이다. "yes", "no", "unknown" 이다.
 	PasswordAuth string `json:"password_auth"`
-	Port         int    `json:"port"`
-	Warning      string `json:"warning,omitempty"`
+	// LoginUsers 는 SSH 비밀번호 로그인을 허용하는 계정이다. Lightlix 로 만든 계정만 들어간다.
+	LoginUsers []string `json:"login_users"`
+	Port       int      `json:"port"`
+	Warning    string   `json:"warning,omitempty"`
 }
 
 // sshViewOf 는 설정과 유닛 상태로 응답을 만든다.
@@ -39,13 +42,21 @@ func (s *server) sshViewOf(r *http.Request, cfg config.Config) (sshView, error) 
 	if pw == "" {
 		pw = "unknown"
 	}
-	v := sshView{Enabled: cfg.SSHEnabled, Installed: st.Installed, Active: st.Active, PasswordAuth: pw, Port: 22}
+	users := []string{}
+	if s.d.Accounts != nil {
+		if names, err := accountNames(s.d.Accounts); err == nil {
+			users = names
+		}
+	}
+	v := sshView{Enabled: cfg.SSHEnabled, Installed: st.Installed, Active: st.Active, PasswordAuth: pw, LoginUsers: users, Port: 22}
 	if cfg.SSHEnabled {
-		switch pw {
-		case "yes":
-			v.Warning = sshWarnPassword
-		case "no":
-			v.Warning = sshWarnKeyOnly
+		switch {
+		case len(users) > 0:
+			v.Warning = "SSH password login is allowed only for these accounts: " + strings.Join(users, ", ")
+		case pw == "no":
+			v.Warning = sshWarnNoAccount
+		case pw == "yes":
+			v.Warning = sshWarnUnknown
 		default:
 			v.Warning = sshWarnUnknown
 		}
@@ -92,6 +103,13 @@ func (s *server) putSSH(w http.ResponseWriter, r *http.Request) {
 
 	var unitErr error
 	if *body.Enabled {
+		// 로그인 허용 계정 목록(sshd 드롭인)을 먼저 맞춘다. 계정이 없으면 드롭인을 지워 키 로그인만 남긴다.
+		if s.d.Accounts != nil {
+			if err := s.d.Accounts.SyncSSHPolicy(r.Context()); err != nil {
+				writeErr(w, err)
+				return
+			}
+		}
 		if err := s.d.Supervisor.SetSSHUnit(r.Context(), true); err != nil {
 			writeErr(w, err)
 			return
@@ -190,7 +208,7 @@ func (s *server) deleteFirstBoot(w http.ResponseWriter, r *http.Request) {
 // knownWizardStep 은 마법사 단계 이름인지 본다. firstboot 패키지의 검사와 같은 집합이다.
 func knownWizardStep(name string) bool {
 	switch name {
-	case "gpu", "driver", "secure_boot", "model", "api":
+	case "gpu", "driver", "secure_boot", "account", "model", "api":
 		return true
 	}
 	return false

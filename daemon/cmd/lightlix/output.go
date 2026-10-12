@@ -167,6 +167,9 @@ Commands:
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys
   apikey rm <id>              delete an API key
+  user add <name>             create a login account (prompts for a password)
+  user list                   list accounts created with Lightlix
+  user rm <name>              delete an account (the home directory is kept)
   config show                 show the daemon configuration
   config set <name> <value>   change port, lan, autostart, or hf-token
   chat <prompt...>            send one prompt to the running server

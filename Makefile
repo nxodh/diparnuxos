@@ -52,6 +52,7 @@ test-gui:
 test-gpu-check:
 	bash "$(ROOT)/tests/nvidia/gpu-check.sh"
 	bash "$(ROOT)/tests/nvidia/mok.sh"
+	bash "$(ROOT)/tests/nvidia/user.sh"
 
 # Go 모듈은 vendoring한 의존성만 쓰며 NVML에 필요한 cgo를 켠다.
 test-daemon:

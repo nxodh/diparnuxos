@@ -314,6 +314,7 @@ type Config struct {
 	Port       int       `json:"port"`
 	LANExposed bool      `json:"lan_exposed"`
 	Autostart  bool      `json:"autostart"`
+	SSHEnabled bool      `json:"ssh_enabled"`
 	ModelsDir  string    `json:"models_dir"`
 	HFToken    string    `json:"hf_token"`
 	Overrides  Overrides `json:"overrides"`
@@ -375,4 +376,30 @@ type ModeResult struct {
 type GPUCheckResult struct {
 	ExitCode int     `json:"exit_code"`
 	Status   GPUFile `json:"status"`
+}
+
+// User 는 Lightlix 로 만든 로그인 계정이다.
+type User struct {
+	Name    string `json:"name"`
+	Admin   bool   `json:"admin"`
+	Created string `json:"created"`
+}
+
+// UserList 는 GET /v1/users 의 응답이다.
+type UserList struct {
+	Users []User `json:"users"`
+}
+
+// UserCreateRequest 는 POST /v1/users 의 본문이다. 응답에는 비밀번호가 없다.
+type UserCreateRequest struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Admin    bool   `json:"admin"`
+}
+
+// UserDeleted 는 DELETE /v1/users/{name} 의 응답이다.
+type UserDeleted struct {
+	Name     string `json:"name"`
+	Deleted  bool   `json:"deleted"`
+	HomeKept bool   `json:"home_kept"`
 }

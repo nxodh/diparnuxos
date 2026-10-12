@@ -53,6 +53,8 @@ type runEnv struct {
 	stdoutTTY bool
 	// pollInterval 은 작업과 서버 상태를 다시 읽는 간격이다. 0 이면 기다리지 않는다.
 	pollInterval time.Duration
+	// readPassword 는 터미널에서 에코 없이 한 줄을 읽는다. nil 이면 표준 입력의 termios 를 쓴다. 테스트가 바꾼다.
+	readPassword func(prompt string) (string, error)
 }
 
 func main() {
@@ -152,6 +154,8 @@ func execute(e runEnv, args []string) int {
 		return c.report(cargs)
 	case "apikey":
 		return c.apikey(cargs)
+	case "user":
+		return c.user(cargs)
 	case "config":
 		return c.config(cargs)
 	case "chat":

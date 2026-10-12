@@ -71,6 +71,7 @@ require_path() {
 require_path 'squashfs-root/usr/sbin/lightlixd$' 'lightlixd binary'
 require_path 'squashfs-root/usr/bin/lightlix$' 'lightlix CLI binary'
 require_path 'squashfs-root/usr/lib/lightlix/check-gpu-permissions$' 'GPU permission check'
+require_path 'squashfs-root/usr/lib/lightlix/lightlix-user$' 'account helper (lightlix-user)'
 require_path 'squashfs-root/(usr/)?lib/live/config/1190-lightlix-groups$' 'live user group hook'
 require_path 'squashfs-root/usr/lib/sysusers[.]d/lightlix[.]conf$' 'daemon sysusers configuration'
 require_path 'squashfs-root/usr/lib/tmpfiles[.]d/lightlix-daemon[.]conf$' 'daemon tmpfiles configuration'
