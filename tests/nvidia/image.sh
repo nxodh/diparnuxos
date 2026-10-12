@@ -217,7 +217,7 @@ done
 require_path 'squashfs-root/etc/greetd/lightlix[.]toml$' 'greetd Lightlix configuration'
 require_path 'squashfs-root/(usr/)?lib/systemd/system/greetd[.]service[.]d/lightlix[.]conf$' 'greetd service drop-in'
 require_path 'squashfs-root/etc/xdg/labwc/(autostart|menu[.]xml|environment)( |$)' 'labwc system configuration'
-require_path 'squashfs-root/etc/lightlix/yambar[.]yml$' 'panel configuration (yambar.yml)'
+require_path 'squashfs-root/etc/xdg/yambar/config[.]yml$' 'panel configuration (yambar.yml)'
 unsquashfs -cat "$WORK/rootfs.squashfs" etc/greetd/lightlix.toml > "$WORK/greetd.toml"
 grep -q '^command = "tuigreet ' "$WORK/greetd.toml" || check_fail 'greetd does not start tuigreet'
 unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/greetd.service.d/lightlix.conf > "$WORK/greetd-dropin"

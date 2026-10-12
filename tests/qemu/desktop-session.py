@@ -319,7 +319,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command(
         "panel-manual-run",
         f"sudo -n -u {TEST_USER} env XDG_RUNTIME_DIR=/run/user/$(id -u {TEST_USER}) WAYLAND_DISPLAY=wayland-0 "
-        "timeout 8 yambar -c /etc/lightlix/yambar.yml 2>&1 | head -n 40; true",
+        "timeout 8 yambar -c /etc/xdg/yambar/config.yml 2>&1 | head -n 40; true",
         cmd + 20,
     )
     poll_command(console, "panel-running", f"pgrep -u {TEST_USER} -x yambar", 30)

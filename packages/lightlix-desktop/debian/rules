@@ -13,4 +13,4 @@ override_dh_auto_install:
 	install -D -m 755 src/labwc-autostart.sh debian/lightlix-desktop/etc/xdg/labwc/autostart
 	install -D -m 644 src/labwc-menu.xml debian/lightlix-desktop/etc/xdg/labwc/menu.xml
 	install -D -m 644 src/labwc-environment debian/lightlix-desktop/etc/xdg/labwc/environment
-	install -D -m 644 src/yambar.yml debian/lightlix-desktop/etc/lightlix/yambar.yml
+	install -D -m 644 src/yambar.yml debian/lightlix-desktop/etc/xdg/yambar/config.yml
