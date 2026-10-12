@@ -147,13 +147,14 @@ func run(args []string) error {
 		OSReleasePath: osReleasePath,
 	}
 
+	accountsMgr := &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"}
 	handler := api.New(api.Deps{
 		Supervisor:    sup,
 		Jobs:          jobMgr,
 		Store:         store,
 		Keys:          keys,
 		HF:            hfProxy{cfg: src.get},
-		Accounts:      &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"},
+		Accounts:      accountsMgr,
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
@@ -178,6 +179,7 @@ func run(args []string) error {
 	if err := sup.Initialize(ctx); err != nil {
 		log.Printf("llama startup reconciliation failed: %v", err)
 	}
+	restoreSSH(ctx, *configPath, sup, accountsMgr)
 
 	ln, created, err := socketListener(*socketPath, *socketGroup)
 	if err != nil {
@@ -311,4 +313,21 @@ func chownKeyFile(path string) error {
 		return fmt.Errorf("set group of %s to %s: %w", path, keyGroup, err)
 	}
 	return nil
+}
+
+// restoreSSH 는 설정이 SSH 를 켜 둔 상태이면 부팅 뒤 SSH 서버를 다시 시작한다.
+// 데몬은 /etc 에 쓸 수 없어 systemctl enable 을 못 하므로, 부팅 때의 시작은 설정의 ssh_enabled 가 맡는다.
+// 실패해도 데몬은 계속 뜬다. 방화벽 규칙은 이미 같은 설정으로 적용됐다.
+func restoreSSH(ctx context.Context, configPath string, sup *supervisor.Supervisor, acc *accounts.Manager) {
+	cfg, err := config.Load(configPath)
+	if err != nil || !cfg.SSHEnabled {
+		return
+	}
+	if err := acc.PrepareSSH(ctx); err != nil {
+		log.Printf("ssh was enabled in the config, but its host keys and policy could not be prepared: %v", err)
+		return
+	}
+	if err := sup.SetSSHUnit(ctx, true); err != nil {
+		log.Printf("ssh was enabled in the config, but the server did not start: %v", err)
+	}
 }

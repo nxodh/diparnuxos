@@ -34,6 +34,7 @@ const (
 	CodeUserNotFound    = "user_not_found"
 	CodeAccountFailed   = "account_failed"
 	CodeSSHConfig       = "ssh_config"
+	CodeSSHKeys         = "ssh_keys"
 )
 
 // Error는 코드를 가진 오류다.
@@ -171,9 +172,10 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 	return m.run(ctx, []string{"remove", name}, nil)
 }
 
-// SyncSSHPolicy는 sshd 드롭인을 현재 계정 목록에 맞춘다.
-func (m *Manager) SyncSSHPolicy(ctx context.Context) error {
-	return m.run(ctx, []string{"ssh-policy"}, nil)
+// PrepareSSH는 없는 SSH 호스트 키를 만들고 sshd 드롭인을 현재 계정 목록에 맞춘다.
+// lightlixd 는 /etc 에 쓸 수 없어 이 일도 헬퍼가 한다. SSH 를 켜기 전에 부른다.
+func (m *Manager) PrepareSSH(ctx context.Context) error {
+	return m.run(ctx, []string{"ssh-prepare"}, nil)
 }
 
 func (m *Manager) run(ctx context.Context, helperArgs []string, stdin []byte) error {
@@ -214,7 +216,7 @@ func parseResult(res platform.Result) error {
 	case strings.HasPrefix(last, "error:"):
 		code := strings.TrimPrefix(last, "error:")
 		switch code {
-		case CodeInvalidUsername, CodeInvalidPassword, CodeUserExists, CodeUserNotFound, CodeAccountFailed, CodeSSHConfig:
+		case CodeInvalidUsername, CodeInvalidPassword, CodeUserExists, CodeUserNotFound, CodeAccountFailed, CodeSSHConfig, CodeSSHKeys:
 		default:
 			code = CodeAccountFailed
 		}

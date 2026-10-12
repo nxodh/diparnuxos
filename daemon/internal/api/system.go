@@ -103,9 +103,9 @@ func (s *server) putSSH(w http.ResponseWriter, r *http.Request) {
 
 	var unitErr error
 	if *body.Enabled {
-		// 로그인 허용 계정 목록(sshd 드롭인)을 먼저 맞춘다. 계정이 없으면 드롭인을 지워 키 로그인만 남긴다.
+		// 호스트 키와 로그인 허용 계정 목록(sshd 드롭인)을 먼저 맞춘다. 계정이 없으면 드롭인을 지워 키 로그인만 남긴다.
 		if s.d.Accounts != nil {
-			if err := s.d.Accounts.SyncSSHPolicy(r.Context()); err != nil {
+			if err := s.d.Accounts.PrepareSSH(r.Context()); err != nil {
 				writeErr(w, err)
 				return
 			}

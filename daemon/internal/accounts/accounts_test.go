@@ -130,7 +130,7 @@ func TestHelperErrorCodesAreMapped(t *testing.T) {
 
 func TestRunnerFailureIsAccountFailed(t *testing.T) {
 	r := &fakeRunner{err: errors.New("exec: not found")}
-	err := (&Manager{Runner: r}).SyncSSHPolicy(context.Background())
+	err := (&Manager{Runner: r}).PrepareSSH(context.Background())
 	var e *Error
 	if !errors.As(err, &e) || e.Code != CodeAccountFailed {
 		t.Fatalf("err = %v", err)

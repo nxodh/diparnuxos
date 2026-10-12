@@ -61,12 +61,11 @@ type sysFake struct {
 	startGate     chan struct{}
 	onStart       func(pid int) error
 	// ssh.service 용 값이다.
-	sshInstalled  bool
-	sshActive     string
-	sshExit       int
-	sshKeygenExit int
-	sshdOutput    string
-	sshdExit      int
+	sshInstalled bool
+	sshActive    string
+	sshExit      int
+	sshdOutput   string
+	sshdExit     int
 }
 
 func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Result, error) {
@@ -84,6 +83,12 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 	case "systemctl":
 		switch cmd.Args[0] {
 		case "start":
+			if len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
+				if f.sshExit == 0 {
+					f.sshActive = "active"
+				}
+				return exit(f.sshExit, "ssh unit change failed")
+			}
 			if f.startGate != nil {
 				select {
 				case <-ctx.Done():
@@ -127,6 +132,12 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			}
 			return out(f.active + "\n")
 		case "stop":
+			if len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
+				if f.sshExit == 0 {
+					f.sshActive = "inactive"
+				}
+				return exit(f.sshExit, "ssh unit change failed")
+			}
 			if f.stopExit == 0 {
 				f.active = "inactive"
 				oldPID, _ := strconv.Atoi(f.pid)
@@ -149,15 +160,6 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 			return exit(0, "")
 		case "isolate":
 			return exit(0, "")
-		case "enable", "disable":
-			if f.sshExit == 0 && len(cmd.Args) > 2 && cmd.Args[2] == "ssh.service" {
-				if cmd.Args[0] == "enable" {
-					f.sshActive = "active"
-				} else {
-					f.sshActive = "inactive"
-				}
-			}
-			return exit(f.sshExit, "ssh unit change failed")
 		case "list-unit-files":
 			if f.sshInstalled && len(cmd.Args) > 1 && cmd.Args[1] == "ssh.service" {
 				return out("ssh.service enabled enabled\n")
@@ -171,8 +173,6 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 		return out(f.journal)
 	case "nft":
 		return exit(f.nftExit, f.nftStderr)
-	case "ssh-keygen":
-		return exit(f.sshKeygenExit, "keygen failed")
 	case "sshd":
 		if f.sshdExit != 0 {
 			return exit(f.sshdExit, "no hostkeys available")
@@ -2096,8 +2096,8 @@ func TestSSHStatusInstalledActiveAndInactive(t *testing.T) {
 func TestSetSSHUnitEnableRequiresInstalledUnit(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
 	wantCode(t, f.sup.SetSSHUnit(context.Background(), true), CodeSSHNotInstalled)
-	if f.sys.count("systemctl", "enable") != 0 {
-		t.Fatal("enable must not run when the unit is missing")
+	if f.sys.count("systemctl", "start") != 0 {
+		t.Fatal("start must not run when the unit is missing")
 	}
 }
 
@@ -2107,14 +2107,21 @@ func TestSetSSHUnitEnableAndDisable(t *testing.T) {
 	if err := f.sup.SetSSHUnit(context.Background(), true); err != nil {
 		t.Fatalf("enable: %v", err)
 	}
-	if f.sys.count("systemctl", "enable") != 1 || f.sys.sshActive != "active" {
-		t.Fatalf("enable calls = %d, active = %q", f.sys.count("systemctl", "enable"), f.sys.sshActive)
+	if f.sys.count("systemctl", "start") != 1 || f.sys.sshActive != "active" {
+		t.Fatalf("start calls = %d, active = %q", f.sys.count("systemctl", "start"), f.sys.sshActive)
+	}
+	// 데몬은 /etc 에 쓸 수 없으므로 enable 과 disable 을 부르면 안 된다.
+	if f.sys.count("systemctl", "enable") != 0 {
+		t.Fatal("enable must never be called from the daemon")
 	}
 	if err := f.sup.SetSSHUnit(context.Background(), false); err != nil {
 		t.Fatalf("disable: %v", err)
 	}
-	if f.sys.count("systemctl", "disable") != 1 || f.sys.sshActive != "inactive" {
-		t.Fatalf("disable calls = %d, active = %q", f.sys.count("systemctl", "disable"), f.sys.sshActive)
+	if f.sys.count("systemctl", "stop") != 1 || f.sys.sshActive != "inactive" {
+		t.Fatalf("stop calls = %d, active = %q", f.sys.count("systemctl", "stop"), f.sys.sshActive)
+	}
+	if f.sys.count("systemctl", "disable") != 0 {
+		t.Fatal("disable must never be called from the daemon")
 	}
 }
 
@@ -2122,8 +2129,8 @@ func TestSetSSHUnitDisableRunsEvenWhenNotInstalled(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
 	f.sys.sshExit = 1
 	wantCode(t, f.sup.SetSSHUnit(context.Background(), false), CodeSSHChangeFailed)
-	if f.sys.count("systemctl", "disable") != 1 {
-		t.Fatal("disable must be attempted")
+	if f.sys.count("systemctl", "stop") != 1 {
+		t.Fatal("stop must be attempted")
 	}
 }
 
@@ -2166,22 +2173,5 @@ func TestSSHStatusReadsPasswordAuthentication(t *testing.T) {
 	st, _ = f.sup.SSHStatus(context.Background())
 	if st.PasswordAuth != "unknown" {
 		t.Fatalf("sshd -T failure must give unknown, got %+v", st)
-	}
-}
-
-func TestSetSSHUnitEnableGeneratesMissingHostKeysFirst(t *testing.T) {
-	f := newFixture(t, readyGPU(), "ready")
-	f.sys.sshInstalled = true
-	f.sys.sshKeygenExit = 1
-	wantCode(t, f.sup.SetSSHUnit(context.Background(), true), CodeSSHChangeFailed)
-	if f.sys.count("systemctl", "enable") != 0 {
-		t.Fatal("the unit must not be enabled when host key generation failed")
-	}
-	f.sys.sshKeygenExit = 0
-	if err := f.sup.SetSSHUnit(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	if f.sys.count("ssh-keygen", "-A") != 2 || f.sys.count("systemctl", "enable") != 1 {
-		t.Fatalf("keygen=%d enable=%d", f.sys.count("ssh-keygen", "-A"), f.sys.count("systemctl", "enable"))
 	}
 }

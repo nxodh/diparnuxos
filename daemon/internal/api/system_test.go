@@ -286,7 +286,7 @@ func (f *fakeAccounts) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (f *fakeAccounts) SyncSSHPolicy(ctx context.Context) error {
+func (f *fakeAccounts) PrepareSSH(ctx context.Context) error {
 	f.synced++
 	return f.syncErr
 }

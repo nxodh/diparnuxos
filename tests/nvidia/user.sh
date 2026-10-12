@@ -41,6 +41,12 @@ cat > "$BIN/systemctl" <<'STUB'
 echo "systemctl $*" >> "$STUB_LOG"
 case "$1" in is-active) [ "${STUB_SSH_ACTIVE:-0}" = 1 ] ;; esac
 STUB
+cat > "$BIN/ssh-keygen" <<'STUB'
+#!/bin/sh
+echo "ssh-keygen $*" >> "$STUB_LOG"
+[ "${STUB_KEYGEN_FAIL:-0}" = 1 ] && exit 1
+exit 0
+STUB
 cat > "$BIN/sshd" <<'STUB'
 #!/bin/sh
 echo "sshd $*" >> "$STUB_LOG"
@@ -162,4 +168,15 @@ while read -r u; do
 done <<< "$names"
 [[ ! -e "$WORK/sshd/50-lightlix.conf" ]]
 echo 'PASS: no managed account means no ssh policy'
+# ssh-prepare: 호스트 키를 만들고 정책을 맞춘다.
+: > "$LOG"
+printf 'correct-horse-9\n' | run add grace >/dev/null
+: > "$LOG"
+out="$(run ssh-prepare)"
+[[ "$(last_line "$out")" == 'LIGHTLIX_USER_RESULT=ok' ]]
+grep -q '^ssh-keygen -A$' "$LOG"
+grep -qx 'AllowUsers grace' "$WORK/sshd/50-lightlix.conf"
+out="$(STUB_KEYGEN_FAIL=1 run ssh-prepare 2>/dev/null || true)"
+[[ "$(last_line "$out")" == 'LIGHTLIX_USER_RESULT=error:ssh_keys' ]]
+echo 'PASS: ssh-prepare creates host keys and applies the policy'
 echo 'PASS: lightlix-user'

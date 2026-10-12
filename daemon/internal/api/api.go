@@ -61,7 +61,7 @@ type AccountManager interface {
 	List() ([]accounts.Account, error)
 	Add(ctx context.Context, name, password string, admin bool) error
 	Remove(ctx context.Context, name string) error
-	SyncSSHPolicy(ctx context.Context) error
+	PrepareSSH(ctx context.Context) error
 }
 
 // HFClient 는 검색과 원격 파일 목록에 쓰는 Hugging Face 기능이다. *hf.Client 가 만족한다.

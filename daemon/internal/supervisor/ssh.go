@@ -68,12 +68,17 @@ func (s *Supervisor) sshPasswordAuth(ctx context.Context) string {
 	return "unknown"
 }
 
-// SetSSHUnit은 SSH 유닛을 켜고 끈다. 켜면 부팅 때도 시작되도록 enable 하고, 끄면 disable 한다.
-// 유닛이 설치되어 있지 않으면 켤 수 없다(끄는 것은 항상 시도한다).
+// SetSSHUnit은 SSH 유닛을 시작하거나 멈춘다.
+//
+// enable 과 disable 은 쓰지 않는다. lightlixd 는 ProtectSystem 아래에서 돌아 /etc 에 링크를 만들 수 없고,
+// Debian 의 ssh.service 는 SysV 스크립트 동기화(update-rc.d)까지 하려 해서 실패한다. 부팅 때의 시작은 데몬이 설정의
+// ssh_enabled 를 보고 다시 시작해 주므로 enable 이 필요 없다. 호스트 키 생성과 정책 파일은 헬퍼(PrepareSSH)가 맡는다.
+// 켤 때 유닛이 설치되어 있지 않으면 CodeSSHNotInstalled 다. 끄는 것은 항상 시도한다.
 // 방화벽은 호출한 쪽이 ApplyFirewall 로 따로 맞춘다.
 func (s *Supervisor) SetSSHUnit(ctx context.Context, enable bool) error {
 	// 클라이언트 연결이 끊겨도 상태가 반쯤 바뀐 채 남지 않게 끝까지 간다.
 	ctx = context.WithoutCancel(ctx)
+	verb := "stop"
 	if enable {
 		installed, err := s.unitInstalled(ctx, sshUnit)
 		if err != nil {
@@ -82,35 +87,19 @@ func (s *Supervisor) SetSSHUnit(ctx context.Context, enable bool) error {
 		if !installed {
 			return errorf(CodeSSHNotInstalled, "%s is not installed", sshUnit)
 		}
-	}
-	verb := "disable"
-	if enable {
-		verb = "enable"
-		// 이미지에서 호스트 키를 지워 두므로 켜기 전에 없는 키를 만든다. 이미 있는 키는 바꾸지 않는다.
-		kg, err := s.exec(ctx, platform.Command{
-			Name:      "ssh-keygen",
-			Args:      []string{"-A"},
-			Timeout:   modeChangeTimeout,
-			MaxOutput: maxCommandOutput,
-		})
-		if err != nil {
-			return errorf(CodeSSHChangeFailed, "ssh-keygen -A: %v", err)
-		}
-		if kg.ExitCode != 0 {
-			return errorf(CodeSSHChangeFailed, "ssh-keygen -A exited %d: %s", kg.ExitCode, excerpt(string(kg.Stderr), 512))
-		}
+		verb = "start"
 	}
 	res, err := s.exec(ctx, platform.Command{
 		Name:      "systemctl",
-		Args:      []string{verb, "--now", sshUnit},
+		Args:      []string{verb, sshUnit},
 		Timeout:   modeChangeTimeout,
 		MaxOutput: maxCommandOutput,
 	})
 	if err != nil {
-		return errorf(CodeSSHChangeFailed, "systemctl %s --now %s: %v", verb, sshUnit, err)
+		return errorf(CodeSSHChangeFailed, "systemctl %s %s: %v", verb, sshUnit, err)
 	}
 	if res.ExitCode != 0 {
-		return errorf(CodeSSHChangeFailed, "systemctl %s --now %s exited %d: %s", verb, sshUnit, res.ExitCode, excerpt(string(res.Stderr), 512))
+		return errorf(CodeSSHChangeFailed, "systemctl %s %s exited %d: %s", verb, sshUnit, res.ExitCode, excerpt(string(res.Stderr), 512))
 	}
 	return nil
 }

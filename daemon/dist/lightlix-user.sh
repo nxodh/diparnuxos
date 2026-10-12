@@ -6,7 +6,7 @@
 #
 # 사용법: lightlix-user add NAME [--admin]   (비밀번호를 표준 입력 첫 줄에 준다)
 #         lightlix-user remove NAME
-#         lightlix-user ssh-policy
+#         lightlix-user ssh-prepare   (없는 SSH 호스트 키를 만들고 로그인 허용 정책을 맞춘다)
 # 결과는 표준 출력의 마지막 줄 LIGHTLIX_USER_RESULT=ok 또는 LIGHTLIX_USER_RESULT=error:<코드> 로 알린다.
 # 환경 변수는 테스트용이다: LIGHTLIX_USER_LIST, LIGHTLIX_SSHD_DROPIN, LIGHTLIX_USER_GROUPS.
 set -u
@@ -129,9 +129,20 @@ cmd_remove() {
     result_ok
 }
 
+# lightlixd 는 /etc 에 쓸 수 없으므로 SSH 호스트 키 생성과 정책 파일도 이 헬퍼가 맡는다.
+# 이미 있는 호스트 키는 바꾸지 않는다(ssh-keygen -A 는 없는 키만 만든다).
+cmd_ssh_prepare() {
+    if command -v ssh-keygen >/dev/null 2>&1; then
+        ssh-keygen -A >/dev/null 2>&1 || result_err ssh_keys 'ssh-keygen -A failed'
+    fi
+    write_policy
+    reload_ssh
+    result_ok
+}
+
 case "${1:-}" in
     add) shift; cmd_add "$@" ;;
     remove) shift; cmd_remove "$@" ;;
-    ssh-policy) write_policy; reload_ssh; result_ok ;;
-    *) result_err usage 'usage: lightlix-user add NAME [--admin] | remove NAME | ssh-policy' ;;
+    ssh-prepare) cmd_ssh_prepare ;;
+    *) result_err usage 'usage: lightlix-user add NAME [--admin] | remove NAME | ssh-prepare' ;;
 esac
