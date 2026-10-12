@@ -431,7 +431,15 @@ def scenario(console, monitor, budgets, logs, workdir):
     )
     poll_command(console, "installer-running", "pgrep -x calamares", budgets["START_TIMEOUT"])
     time.sleep(20)
-    console.command("installer-still-running", "pgrep -x calamares", cmd)
+    # 사라졌다면 원인을 가릴 수 있게 설치기 출력과 저널을 오류 메시지에 담는다.
+    console.command(
+        "installer-still-running",
+        "pgrep -x calamares || { echo '-- installer.log'; sudo -n tail -n 80 /tmp/installer.log; "
+        "echo '-- journal'; sudo -n journalctl -b --no-pager | tail -n 40; echo '-- dmesg'; sudo -n dmesg | tail -n 20; "
+        "echo '-- calamares logs'; sudo -n sh -c 'ls -la /root/.cache/calamares /root/.cache/Calamares 2>&1 | head; "
+        "tail -n 40 /root/.cache/calamares/session.log 2>&1'; exit 1; }",
+        cmd,
+    )
     # 창이 뜬 것만으로는 부족하다. 파티션 모듈이 보조 프로그램(KPMCore, polkit 로 권한 확인)을 띄워 장치를 읽어야
     # "Waiting for N modules" 상태를 벗어난다. 보조 프로그램이 뜨지 않으면 진단 정보를 남기고 실패한다.
     console.command("installer-polkit", "dpkg-query -W -f '${db:Status-Status}\\n' polkitd | grep -x installed", cmd)
