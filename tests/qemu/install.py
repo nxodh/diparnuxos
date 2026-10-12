@@ -154,10 +154,10 @@ def scenario_installed(console, budgets, secure_boot):
     console.command(label + "efi-mounted", "findmnt -no SOURCE,FSTYPE /boot/efi | grep -x '/dev/vda1 vfat'", cmd)
     console.command(label + "hostname", f"test \"$(hostname)\" = {HOSTNAME}", cmd)
     # 부트로더 파일. 목록을 먼저 남기고 하나씩 판정한다(어느 파일이 없는지 로그에서 바로 보이게).
-    console.command(label + "esp-listing", "find /boot/efi -type f | sort", cmd)
+    console.command(label + "esp-listing", "sudo -n find /boot/efi -type f | sort", cmd)
     for name, path in (("shim", "/boot/efi/EFI/lightlix/shimx64.efi"), ("grub", "/boot/efi/EFI/lightlix/grubx64.efi"),
                        ("fallback", "/boot/efi/EFI/BOOT/BOOTX64.EFI")):
-        console.command(label + "esp-" + name, f"test -s {path}", cmd)
+        console.command(label + "esp-" + name, f"sudo -n test -s {path}", cmd)
     ids = console.command(label + "identity", "id -nG && id -u", cmd).splitlines()
     groups = ids[0].split()
     require(all(g in groups for g in ("lightlix", "sudo", "video", "render")), f"Missing groups: {groups}")
@@ -183,7 +183,7 @@ def scenario_installed(console, budgets, secure_boot):
     users = json_object(console.command("user-list", "lightlix --json user list | tr -d '\\n'", cmd), "user-list")
     require([u["name"] for u in users.get("users", [])] == [USER], f"Account list: {users}")
     console.command("live-packages-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' live-boot live-config 2>/dev/null | grep -qx installed", cmd)
-    console.command("grub-default", "grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv", cmd)
+    console.command("grub-default", "sudo -n grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv", cmd)
     console.command("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-lightlix.cfg", cmd)
     console.command("nvidia-modules", "modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'", cmd)
     console.command("root-locked", "sudo -n passwd -S root | awk '{exit $2 == \"L\" || $2 == \"LK\" ? 0 : 1}'", cmd)
