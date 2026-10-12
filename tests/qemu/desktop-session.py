@@ -280,7 +280,6 @@ def scenario(console, monitor, budgets, logs, workdir):
     monitor.type_text(TEST_PASSWORD + "\n")
     poll_command(console, "labwc-running", f"pgrep -u {TEST_USER} -x labwc", budgets["START_TIMEOUT"])
     poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
-    poll_command(console, "panel-running", f"pgrep -u {TEST_USER} -x yambar", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
     session = None
@@ -311,6 +310,19 @@ def scenario(console, monitor, budgets, logs, workdir):
     )
     console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
     console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
+    # 패널: 진단을 남긴 뒤 판정한다.
+    console.command(
+        "panel-log",
+        f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/yambar.log 2>&1 | tail -n 40; ls -la /run/user/$(id -u {TEST_USER}) | head -20'; true",
+        cmd,
+    )
+    console.command(
+        "panel-manual-run",
+        f"sudo -n -u {TEST_USER} env XDG_RUNTIME_DIR=/run/user/$(id -u {TEST_USER}) WAYLAND_DISPLAY=wayland-0 "
+        "timeout 8 yambar -c /etc/lightlix/yambar.yml 2>&1 | head -n 40; true",
+        cmd + 20,
+    )
+    poll_command(console, "panel-running", f"pgrep -u {TEST_USER} -x yambar", 30)
     require(session["colors"] >= 8, f"The desktop session looks blank after {attempt} captures: {session}")
 
     # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
