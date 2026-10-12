@@ -41,7 +41,7 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 |---|---|---|---|
 | D1 | 로그인 화면 | greetd + tuigreet | 컴포지터를 하나 덜 띄워 램이 적게 든다. 대안은 gtkgreet + cage |
 | D2 | 자동 로그인 | 끈다 | 라이브 사용자 암호 입력을 유지한다. 설정으로 켤 수 있게 한다 |
-| D3 | 패널 | 넣지 않는다 | yambar는 쓰지 않는 오디오·미디어 모듈 때문에 pipewire, pulse, alsa, flac 등 35개 안팎의 라이브러리를 끌어온다(조회 확인). 이 패키지 집합은 램 목표와 맞지 않는다. 상태는 Control Center가 보여 주고 labwc 루트 메뉴로 실행한다 |
+| D3 | 패널 | yambar | 처음에는 넣지 않기로 했으나 사용자가 패널을 요청했다(2026-10-12). yambar는 쓰지 않는 오디오·미디어 모듈 때문에 pipewire, pulse, alsa, flac 등 35개 안팎의 라이브러리를 끌어온다(조회 확인). 램 목표를 완화했으므로 감수한다. 활성 창 제목, 사용 메모리, 시계를 보이고 시계를 누르면 Control Center가 열린다. 설정은 `yambar -C`로 검증한다 |
 | D4 | 한글 글꼴 | fonts-nanum | noto-cjk보다 58 MB 작다. 글리프 범위와 ISO 크기는 CI에서 확인한다 |
 | D5 | GUI와 데몬의 통신 | 표준 라이브러리 `http.client` + 유닉스 소켓 | `requests` 같은 추가 의존성을 넣지 않는다 |
 | D6 | 첫 부팅 상태 저장 | 데몬이 `/var/lib/lightlix/firstboot.json`에 기록 | 라이브 세션에서는 재부팅하면 사라진다. Phase 4 설치 뒤에는 유지된다 |

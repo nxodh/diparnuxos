@@ -228,6 +228,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     monitor.type_text("live\n")
     poll_command(console, "labwc-running", "pgrep -u user -x labwc", budgets["START_TIMEOUT"])
     poll_command(console, "control-center-running", "pgrep -u user -f lightlix-control-center", budgets["START_TIMEOUT"])
+    poll_command(console, "panel-running", "pgrep -u user -x yambar", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
     session = None

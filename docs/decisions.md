@@ -35,7 +35,7 @@
 | U5 | 버전은 다음과 같이 고정한다. CUDA 13.2.2(드라이버 브랜치 595에 대응), llama.cpp v0.6.0, go-nvml v0.13.4-1, NVIDIA 드라이버 595.91.07(저장소의 595 최신). | 사용자 확정. 근거는 D3, D4, D5 참고. |
 | U6 | llama.cpp는 내장 웹 UI 없이 빌드한다. | 사용자 확정. 웹 UI 자산은 빌드 중 외부에서 내려받는 기본 동작이 있다(D4 참고). |
 | U7 | 프로젝트 자체 라이선스는 아직 정하지 않는다. LICENSE 파일은 만들지 않는다. | 사용자 확정. [licenses.md](licenses.md) 참고. |
-| U8 | 헤드리스 서버 모드 유휴 램 목표를 300 MB에서 400 MB로 완화한다(2026-10-12). | 사용자 확정. 목표와 실측은 MiB 기준으로 비교한다. Phase 3의 QEMU 참고 측정 약 374~384 MiB가 목표 안이지만 여유가 작다. 실기와 장시간 값은 Phase 5에서 다시 잰다([memory.md](memory.md)). 데스크톱 모드 목표 700 MB는 그대로다. |
+| U8 | 램 목표를 완화한다(2026-10-12). 헤드리스 서버 모드 유휴 램은 300 MB에서 600 MB로(처음 400 MB, 이어서 200 MB 더), 데스크톱 모드는 700 MB에서 900 MB로 바꾼다. | 사용자 확정. 목표와 실측은 MiB 기준으로 비교한다. Phase 3의 QEMU 참고 측정은 서버 약 374~384 MiB, 데스크톱 약 618~621 MiB(창을 연 채)로 목표 안이다. 실기와 장시간 값은 Phase 5에서 다시 잰다([memory.md](memory.md)). |
 
 ---
 
@@ -200,7 +200,7 @@
   - trixie의 labwc는 0.8.3-1(wlroots 0.18 기반)이다. labwc 0.9.0(2025-07-11)에서 `drm-syncobj` 프로토콜(explicit sync)이 추가되었는데, 0.8.3 소스에는 관련 코드가 없다. NVIDIA 드라이버의 Wayland 경로는 explicit sync를 쓰므로, RTX 30/40/50에서 깜빡임, 프레임 순서, XWayland 창(Calamares) 표시를 실기로 시험한다. 이것을 수용 기준에 넣는다.
   - 문제가 나오면 labwc 0.9 이상을 자체 백포트하는 대안을 쓴다. 이때 필요한 wlroots 버전은 이번 조사에서 확인하지 않았다.
   - 그리터 greetd는 trixie main의 0.10.3-4다(trixie-backports에 0.10.3-7~bpo13+1). 기본 설정의 사용자는 `_greetd`이고, 그래픽 그리터는 `video` 그룹이 필요할 수 있다는 주석이 있다. 그리터용 컴포지터 설정과 장치 권한을 명시한다.
-  - 패널은 waybar 0.12.0-1을 쓴다. sfwbar는 trixie에 없다.
+  - 패널은 waybar 0.12.0-1을 쓴다. sfwbar는 trixie에 없다. (Phase 3에서 yambar 1.11.0-1로 바꿨다. 아래 phase-3-design D3 참고)
   - 그리터 프로그램은 후보만 확인했다(`gtkgreet` 0.8-1, `tuigreet` 0.9.1-5, `nwg-hello` 0.3.0-1, `wlgreet` 0.5.0-3). 선택은 Phase 3에서 한다.
   - GTK4 4.18.6+ds-2, libadwaita(`gir1.2-adw-1`) 1.7.6-1~deb13u1, `python3-gi` 3.50.0-4+b1이 trixie main에 있다.
 - **근거**:

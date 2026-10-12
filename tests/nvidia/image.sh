@@ -206,16 +206,17 @@ grep -qx mokutil "$WORK/installed" || check_fail 'mokutil is not installed'
 require_path 'squashfs-root/usr/bin/lightlix-control-center$' 'Control Center launcher'
 require_path 'squashfs-root/usr/lib/lightlix/control-center/lightlix_cc/app[.]py$' 'Control Center application'
 require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/lightlix-control-center[.]mo$' 'Control Center Korean catalog'
-for pkg in labwc greetd tuigreet foot fonts-nanum openssh-server; do
+for pkg in labwc greetd tuigreet foot yambar fonts-nanum openssh-server; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
-# Phase 3 이미지에는 램을 쓰는 패널·무거운 데스크톱 구성 요소를 넣지 않는다.
-for pkg in yambar waybar gnome-shell plasma-desktop xfce4-session lightdm gdm3 sddm; do
+# Phase 3 이미지에는 다른 패널과 무거운 데스크톱 구성 요소를 넣지 않는다.
+for pkg in waybar gnome-shell plasma-desktop xfce4-session lightdm gdm3 sddm; do
     grep -qx "$pkg" "$WORK/installed" && check_fail "$pkg must not be installed"
 done
 require_path 'squashfs-root/etc/greetd/lightlix[.]toml$' 'greetd Lightlix configuration'
 require_path 'squashfs-root/(usr/)?lib/systemd/system/greetd[.]service[.]d/lightlix[.]conf$' 'greetd service drop-in'
 require_path 'squashfs-root/etc/xdg/labwc/(autostart|menu[.]xml|environment)( |$)' 'labwc system configuration'
+require_path 'squashfs-root/etc/lightlix/yambar[.]yml$' 'panel configuration (yambar.yml)'
 unsquashfs -cat "$WORK/rootfs.squashfs" etc/greetd/lightlix.toml > "$WORK/greetd.toml"
 grep -q '^command = "tuigreet ' "$WORK/greetd.toml" || check_fail 'greetd does not start tuigreet'
 unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/greetd.service.d/lightlix.conf > "$WORK/greetd-dropin"
@@ -224,7 +225,7 @@ grep -qx 'ExecStart=greetd --config /etc/greetd/lightlix.toml' "$WORK/greetd-dro
 if grep -Eq 'squashfs-root/etc/systemd/system/default[.]target -> .*graphical[.]target$' "$WORK/files"; then
     check_fail 'default.target is graphical.target; the image must boot in server mode'
 fi
-echo 'PASS: desktop packages and greetd configuration found; no panel or heavy desktop installed'
+echo 'PASS: desktop packages, panel and greetd configuration found; no heavy desktop installed'
 
 # SSH 서버는 설치하되 꺼 두고, 호스트 키는 이미지에 없어야 한다.
 if grep -Eq 'squashfs-root/etc/ssh/ssh_host_' "$WORK/files"; then
