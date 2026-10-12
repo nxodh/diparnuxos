@@ -1,3 +1,9 @@
+lightlix-daemon (0.4.0) trixie; urgency=medium
+
+  * lightlix-update(커널과 드라이버 갱신, 부팅 뒤 확인, 롤백), lightlix-install(설치기), /v1/update 와 lightlix update 를 추가한다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Mon, 12 Oct 2026 20:00:00 +0900
+
 lightlix-daemon (0.3.0) trixie; urgency=medium
 
   * 첫 부팅 상태, SSH 제어, 모델 추천 API 를 추가한다.
