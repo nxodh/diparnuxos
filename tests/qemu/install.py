@@ -37,6 +37,11 @@ def load_base():
 base = load_base()
 Failure, require, seconds, qemu_value, Console = base.Failure, base.require, base.seconds, base.qemu_value, base.Console
 
+# 설치된 시스템에서는 sudo 가 비밀번호를 묻는다(라이브 세션의 user 와 달리 NOPASSWD 가 아니다).
+def installed_sudo(command):
+    return command.replace("sudo -n ", "printf '%s\\n' " + shlex.quote(PASSWORD) + " | sudo -S -p '' ")
+
+
 HOSTNAME = "lxtest"
 USER = "tester"
 PASSWORD = "lightlixtest1"
@@ -170,6 +175,7 @@ def scenario_installed(console, budgets, secure_boot):
     soft = Soft()
 
     def check(name, command, timeout=cmd, expected=0):
+        command = installed_sudo(command)
         return soft.run(label + name, lambda: console.command(label + name, command, timeout, expected=expected))
 
     check("os-release", ". /etc/os-release && test \"$ID\" = lightlix && echo \"$PRETTY_NAME\"")
@@ -217,7 +223,7 @@ def scenario_installed(console, budgets, secure_boot):
     check("installer-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' calamares lightlix-installer 2>/dev/null | grep -qx installed")
     check("grub-default", "sudo -n grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv")
     check("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-lightlix.cfg")
-    check("nvidia-modules", "modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'")
+    check("nvidia-modules", "/usr/sbin/modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'")
     check("root-locked", "sudo -n passwd -S root | awk '{exit $2 == \"L\" || $2 == \"LK\" ? 0 : 1}'")
     check("memory-installed-server", "awk '/MemTotal|MemAvailable/' /proc/meminfo")
     check("services", "systemctl --failed --no-legend | cat")
@@ -238,7 +244,7 @@ def scenario_installed(console, budgets, secure_boot):
     # 재부팅 뒤에도 같은 시스템이다.
     check("reboot-marker", "sudo -n sh -c 'echo persisted > /var/lib/lightlix/e2e-marker'")
     soft.finish("the installed system")
-    console.send("sudo -n systemctl reboot")
+    console.send(installed_sudo("sudo -n systemctl reboot"))
 
 
 def main():
@@ -325,7 +331,7 @@ def main():
             console.start()
             login_installed(console, budgets["BOOT_TIMEOUT"])
             console.command("marker-persisted", "test \"$(cat /var/lib/lightlix/e2e-marker)\" = persisted", budgets["COMMAND_TIMEOUT"])
-            console.send("sudo -n systemctl poweroff")
+            console.send(installed_sudo("sudo -n systemctl poweroff"))
             wait_exit(console, 180, "poweroff of the installed system")
             console.close()
             console = None
@@ -343,7 +349,7 @@ def main():
                 console = Console(argv, sub, deadline)
                 console.start()
                 scenario_installed(console, budgets, secure_boot=True)
-                console.send("sudo -n systemctl poweroff")
+                console.send(installed_sudo("sudo -n systemctl poweroff"))
                 wait_exit(console, 180, "poweroff under Secure Boot")
                 console.close()
                 console = None
