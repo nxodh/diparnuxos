@@ -1,7 +1,7 @@
 # Phase 3 설계: 데스크톱, Control Center, 첫 부팅 마법사
 
 - 확인 날짜: 2026-10-12
-- 상태: 구현 중. 묶음 A~E는 구현됐고 CI 검증 대기, 묶음 F(램 실측)는 미실시다. 아래 "확인한 사실"은 Debian 13 컨테이너에서 실제로 조회한 값이다. 실제 결과는 `docs/verification-phase-3.md`에 있다.
+- 상태: 묶음 A~E는 구현되어 CI의 QEMU 검사를 통과했다. 묶음 F는 QEMU 참고 측정만 했고 실기 램 실측은 미실시다. 아래 "확인한 사실"은 Debian 13 컨테이너에서 실제로 조회한 값이다. 실제 결과는 `docs/verification-phase-3.md`에 있다.
 
 범위는 SPEC의 Phase 3다. labwc 데스크톱, Lightlix Control Center(GTK4 + libadwaita, Python), 첫 부팅 마법사, 모드 전환을 만든다. 설치기·업데이트·롤백은 Phase 4다.
 
