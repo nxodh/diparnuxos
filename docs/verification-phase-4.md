@@ -1,7 +1,7 @@
 # Phase 4 검증 기록
 
 - 확인 날짜: 2026-10-12
-- 대상: 브랜치 `phase-4`([PR #6](https://github.com/nxodh/lightlixos/pull/6)), 이미지 버전 0.4.0(위 실행 기록의 실행들은 버전을 올리기 전의 0.3.0 이다. 올린 뒤의 실행은 마지막 줄)
+- 대상: 브랜치 `phase-4`([PR #6](https://github.com/nxodh/lightlixos/pull/6)), 이미지 버전 0.4.0(실행 기록의 앞쪽 실행은 버전을 올리기 전의 0.3.0 이다. 올린 뒤의 실행은 마지막 줄)
 - 결론: 설치기, 업데이트·롤백 엔진, APT 저장소 도구가 컨테이너와 QEMU/KVM 가상 머신에서 확인되었다. **실기 설치, 실제 Debian 커널 갱신, MokManager 화면, VMware 같은 다른 가상화 환경은 확인하지 않았다.**
 
 ## 1. 실행 기록
@@ -14,6 +14,7 @@
 | [38229469272](https://github.com/nxodh/lightlixos/actions/runs/38229469272) | `c71bf67` | 설치 E2E 실패 | 설치된 시스템의 모든 검사와 재부팅 통과. 재부팅 뒤 표식 파일을 일반 사용자가 읽지 못했다(`/var/lib/lightlix` 권한, 시험 수정) |
 | [38231805200](https://github.com/nxodh/lightlixos/actions/runs/38231805200) | `6e864ff` | **전체 성공**(lint, ISO 빌드, 이미지 정책, UEFI CD·USB 부팅, CPU 추론 E2E, 데스크톱 E2E, 설치 E2E) | — |
 | [38233974524](https://github.com/nxodh/lightlixos/actions/runs/38233974524) | `8fcd273` | **전체 성공**. 세션 래퍼 `lightlix-session` 추가 | QEMU 데스크톱 세션이 `WLR_RENDERER=pixman`, `WLR_NO_HARDWARE_CURSORS=1`(래퍼가 `virt=kvm` 으로 판별)로 뜨고 Control Center 와 Calamares 창이 그려진다. labwc 출력은 `/run/user/<uid>/labwc.log` 에 남는다 |
+| [38236899836](https://github.com/nxodh/lightlixos/actions/runs/38236899836) | `6f3dd02` | **전체 성공**(0.4.0, CUDA 전체 컴파일 포함, 2026-10-12 11:16 UTC) | ISO 아티팩트 `lightlix-iso` 약 1.5 GB(0.4.0). 데스크톱 E2E 와 설치 E2E(디스크 부팅, 재부팅, Secure Boot shim 부팅) 모두 통과 |
 
 ## 2. 컨테이너 시험(Mac 호스트에는 설치하지 않았다)
 
