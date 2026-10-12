@@ -142,62 +142,102 @@ def scenario_live(console, budgets):
     wait_exit(console, 180, "poweroff after install")
 
 
+class Soft:
+    """검사 하나가 실패해도 다음 검사를 계속하고, 끝에 실패를 모아 알린다. CI 한 번으로 여러 문제를 보기 위해서다."""
+
+    def __init__(self):
+        self.problems = []
+
+    def run(self, label, fn):
+        try:
+            return fn()
+        except Failure as error:
+            if error.kind in ("command_exit", "assertion", "invalid_json", "command_timeout"):
+                self.problems.append(f"{label}: {error}")
+                print(f"install: soft failure in {label}: {str(error)[:300]}", flush=True)
+                return None
+            raise
+
+    def finish(self, phase):
+        if self.problems:
+            raise Failure("assertion", f"{len(self.problems)} check(s) failed in {phase}: " + " | ".join(p[:400] for p in self.problems))
+
+
 def scenario_installed(console, budgets, secure_boot):
     cmd = budgets["COMMAND_TIMEOUT"]
     login_installed(console, budgets["BOOT_TIMEOUT"])
     label = "sb-" if secure_boot else ""
+    soft = Soft()
 
-    console.command(label + "os-release", ". /etc/os-release && test \"$ID\" = lightlix && echo \"$PRETTY_NAME\"", cmd)
-    console.command(label + "not-live", "! test -e /run/live && ! grep -q boot=live /proc/cmdline", cmd)
-    root = console.command(label + "root-device", "findmnt -no SOURCE,FSTYPE /", cmd)
-    require(root.split()[0] == "/dev/vda2" and root.split()[1] == "ext4", f"Unexpected root file system: {root}")
-    console.command(label + "efi-mounted", "findmnt -no SOURCE,FSTYPE /boot/efi | grep -x '/dev/vda1 vfat'", cmd)
-    console.command(label + "hostname", f"test \"$(hostname)\" = {HOSTNAME}", cmd)
-    # 부트로더 파일. 목록을 먼저 남기고 하나씩 판정한다(어느 파일이 없는지 로그에서 바로 보이게).
-    console.command(label + "esp-listing", "sudo -n find /boot/efi -type f | sort", cmd)
+    def check(name, command, timeout=cmd, expected=0):
+        return soft.run(label + name, lambda: console.command(label + name, command, timeout, expected=expected))
+
+    check("os-release", ". /etc/os-release && test \"$ID\" = lightlix && echo \"$PRETTY_NAME\"")
+    check("not-live", "! test -e /run/live && ! grep -q boot=live /proc/cmdline")
+    root = check("root-device", "findmnt -no SOURCE,FSTYPE /")
+    if root is not None:
+        soft.run(label + "root-device-value", lambda: require(root.split()[:2] == ["/dev/vda2", "ext4"], f"Unexpected root file system: {root}"))
+    check("efi-mounted", "findmnt -no SOURCE,FSTYPE /boot/efi | grep -x '/dev/vda1 vfat'")
+    check("hostname", f"test \"$(hostname)\" = {HOSTNAME}")
+    # 부트로더 파일. 목록을 먼저 남기고 하나씩 판정한다(어느 파일이 없는지 로그에서 바로 보이게). ESP 는 umask 0077 이라 root 만 읽는다.
+    check("esp-listing", "sudo -n find /boot/efi -type f | sort")
     for name, path in (("shim", "/boot/efi/EFI/lightlix/shimx64.efi"), ("grub", "/boot/efi/EFI/lightlix/grubx64.efi"),
                        ("fallback", "/boot/efi/EFI/BOOT/BOOTX64.EFI")):
-        console.command(label + "esp-" + name, f"sudo -n test -s {path}", cmd)
-    ids = console.command(label + "identity", "id -nG && id -u", cmd).splitlines()
-    groups = ids[0].split()
-    require(all(g in groups for g in ("lightlix", "sudo", "video", "render")), f"Missing groups: {groups}")
-    sb = console.command(label + "secure-boot-state", "mokutil --sb-state 2>&1 || true", cmd)
-    if secure_boot:
-        require("SecureBoot enabled" in sb, f"Secure Boot should be enabled: {sb}")
-    else:
-        require("enabled" not in sb.replace("disabled", ""), f"Secure Boot unexpectedly enabled: {sb}")
+        check("esp-" + name, f"sudo -n test -s {path}")
+    ids = check("identity", "id -nG && id -u")
+    if ids is not None:
+        groups = ids.splitlines()[0].split()
+        soft.run(label + "groups", lambda: require(all(g in groups for g in ("lightlix", "sudo", "video", "render")), f"Missing groups: {groups}"))
+    sb = check("secure-boot-state", "mokutil --sb-state 2>&1 || true")
+    if sb is not None:
+        if secure_boot:
+            soft.run(label + "sb-enabled", lambda: require("SecureBoot enabled" in sb, f"Secure Boot should be enabled: {sb}"))
+        else:
+            soft.run(label + "sb-disabled", lambda: require("enabled" not in sb.replace("disabled", ""), f"Secure Boot unexpectedly enabled: {sb}"))
+
+    poll = (f"end=$(( $(date +%s) + {budgets['START_TIMEOUT']} )); until lightlix --json status >/dev/null 2>&1; "
+            "do [ \"$(date +%s)\" -ge \"$end\" ] && exit 1; sleep 2; done")
+    check("daemon-ready", poll, budgets["START_TIMEOUT"] + 20)
 
     if secure_boot:
         # shim 경로로 부팅했고 커널은 잠금 상태다. 서버 상태만 확인하고 끝낸다.
-        console.command("sb-lockdown", "cat /sys/kernel/security/lockdown 2>/dev/null || true", cmd)
-        poll = f"end=$(( $(date +%s) + {budgets['START_TIMEOUT']} )); until lightlix --json status >/dev/null 2>&1; do [ \"$(date +%s)\" -ge \"$end\" ] && exit 1; sleep 2; done"
-        console.command("sb-daemon-ready", poll, budgets["START_TIMEOUT"] + 20)
+        check("sb-lockdown", "cat /sys/kernel/security/lockdown 2>/dev/null || true")
+        soft.finish("the Secure Boot boot")
         return
 
-    # 서비스
-    poll = f"end=$(( $(date +%s) + {budgets['START_TIMEOUT']} )); until lightlix --json status >/dev/null 2>&1; do [ \"$(date +%s)\" -ge \"$end\" ] && exit 1; sleep 2; done"
-    console.command("daemon-ready", poll, budgets["START_TIMEOUT"] + 20)
-    status = json_object(console.command("status", "lightlix --json status | tr -d '\\n'", cmd), "status")
-    require(status.get("mode") == "server", "Installed system must start in server mode")
-    console.command("default-target", "systemctl get-default | grep -x multi-user.target", cmd)
-    users = json_object(console.command("user-list", "lightlix --json user list | tr -d '\\n'", cmd), "user-list")
-    require([u["name"] for u in users.get("users", [])] == [USER], f"Account list: {users}")
-    console.command("live-packages-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' live-boot live-config 2>/dev/null | grep -qx installed", cmd)
-    console.command("grub-default", "sudo -n grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv", cmd)
-    console.command("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-lightlix.cfg", cmd)
-    console.command("nvidia-modules", "modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'", cmd)
-    console.command("root-locked", "sudo -n passwd -S root | awk '{exit $2 == \"L\" || $2 == \"LK\" ? 0 : 1}'", cmd)
-    console.command("memory-installed-server", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    status_text = check("status", "lightlix --json status | tr -d '\\n'")
+    if status_text is not None:
+        soft.run("status-json", lambda: require(json_object(status_text, "status").get("mode") == "server", "Installed system must start in server mode"))
+    check("default-target", "systemctl get-default | grep -x multi-user.target")
+    users_text = check("user-list", "lightlix --json user list | tr -d '\\n'")
+    if users_text is not None:
+        soft.run("user-list-json", lambda: require([u["name"] for u in json_object(users_text, "user-list").get("users", [])] == [USER],
+                                                    f"Account list: {users_text[:200]}"))
+    check("live-packages-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' live-boot live-config 2>/dev/null | grep -qx installed")
+    check("installer-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' calamares lightlix-installer 2>/dev/null | grep -qx installed")
+    check("grub-default", "sudo -n grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv")
+    check("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-lightlix.cfg")
+    check("nvidia-modules", "modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'")
+    check("root-locked", "sudo -n passwd -S root | awk '{exit $2 == \"L\" || $2 == \"LK\" ? 0 : 1}'")
+    check("memory-installed-server", "awk '/MemTotal|MemAvailable/' /proc/meminfo")
+    check("services", "systemctl --failed --no-legend | cat")
 
     # 업데이트 상태. 설치된 시스템이므로 사용할 수 있어야 한다.
-    info = multiline_json(console.command("update-status", "lightlix --json update --status", cmd), "update-status")
-    require(info.get("available") is True and info.get("live") is False, f"Updates should be available: {info}")
-    require(info.get("state", {}).get("phase") == "idle", f"Fresh install must be idle: {info.get('state')}")
-    check = console.command("update-check", "lightlix update --check; echo rc=$?", budgets["UPDATE_TIMEOUT"])
-    require("rc=0" in check or "network" in check, f"update --check neither succeeded nor reported a network problem: {check[-300:]}")
+    info_text = check("update-status", "lightlix --json update --status")
+    if info_text is not None:
+        def judge():
+            info = multiline_json(info_text, "update-status")
+            require(info.get("available") is True and info.get("live") is False, f"Updates should be available: {info}")
+            require(info.get("state", {}).get("phase") == "idle", f"Fresh install must be idle: {info.get('state')}")
+        soft.run("update-status-json", judge)
+    checked = check("update-check", "lightlix update --check; echo rc=$?", budgets["UPDATE_TIMEOUT"])
+    if checked is not None:
+        soft.run("update-check-result", lambda: require("rc=0" in checked or "network" in checked,
+                                                        f"update --check neither succeeded nor reported a network problem: {checked[-300:]}"))
 
     # 재부팅 뒤에도 같은 시스템이다.
-    console.command("reboot-marker", "sudo -n sh -c 'echo persisted > /var/lib/lightlix/e2e-marker'", cmd)
+    check("reboot-marker", "sudo -n sh -c 'echo persisted > /var/lib/lightlix/e2e-marker'")
+    soft.finish("the installed system")
     console.send("sudo -n systemctl reboot")
 
 
