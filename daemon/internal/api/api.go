@@ -32,6 +32,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/hf"
 	"github.com/nxodh/lightlixos/daemon/internal/jobs"
 	"github.com/nxodh/lightlixos/daemon/internal/models"
+	"github.com/nxodh/lightlixos/daemon/internal/network"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
 	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
@@ -92,6 +93,8 @@ type Deps struct {
 	HF HFClient
 	// Accounts 는 로그인 계정 관리다. nil 이면 계정 API 는 오류를 돌려준다.
 	Accounts AccountManager
+	// Network 는 인터넷 연결 상태와 Wi-Fi 다. nil 이면 네트워크 API 는 network_unavailable 을 돌려준다.
+	Network NetworkManager
 	// Updates 는 커널과 드라이버 갱신이다. nil 이면 갱신 API 는 update_unavailable 을 돌려준다.
 	Updates UpdateController
 	// GPU 는 NVML 프로버다. nil 이면 NVML 을 쓸 수 없는 것으로 본다.
@@ -191,6 +194,13 @@ func (s *server) routes() {
 	s.mux.HandleFunc("DELETE /v1/firstboot", s.deleteFirstBoot)
 	s.mux.HandleFunc("GET /v1/recommendations", s.getRecommendations)
 
+	s.mux.HandleFunc("GET /v1/network", s.getNetwork)
+	s.mux.HandleFunc("POST /v1/network/wifi/scan", s.wifiScan)
+	s.mux.HandleFunc("GET /v1/network/wifi/networks", s.wifiNetworks)
+	s.mux.HandleFunc("POST /v1/network/wifi/connect", s.wifiConnect)
+	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
+	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
+	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
 	s.mux.HandleFunc("GET /v1/update", s.getUpdate)
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
@@ -297,6 +307,17 @@ func writeErr(w http.ResponseWriter, err error) {
 	var ae *accounts.Error
 	if errors.As(err, &ae) {
 		writeError(w, accountStatus(ae.Code), ae.Code, "%s", ae.Message)
+		return
+	}
+	var ne *network.Error
+	if errors.As(err, &ne) {
+		status := networkStatus(ne.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: network error: %v", err)
+			writeError(w, status, ne.Code, "network operation failed; see the daemon log")
+			return
+		}
+		writeError(w, status, ne.Code, "%s", ne.Message)
 		return
 	}
 	var ue *updatectl.Error

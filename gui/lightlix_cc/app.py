@@ -38,6 +38,8 @@ class Application(Adw.Application):
         from .window import MainWindow
 
         self.window = MainWindow(self, self.ctx)
+        if getattr(self.options, "page", None):
+            self.window.show_page(self.options.page)
         self.window.present()
         self.ctx.start_polling()
         if wizard:
@@ -69,6 +71,7 @@ def parse_args(argv):
     p = argparse.ArgumentParser(prog="lightlix-control-center")
     p.add_argument("--autostart", action="store_true", help="open only when the first-boot wizard is not done")
     p.add_argument("--wizard", action="store_true", help="open the first-boot wizard")
+    p.add_argument("--page", default=None, help="page to open: dashboard, models, server, chat, network or system")
     p.add_argument("--socket", default=api.DEFAULT_SOCKET, help="path of the lightlixd socket")
     p.add_argument("--localedir", default=None, help="directory with translation catalogs")
     return p.parse_args(argv)

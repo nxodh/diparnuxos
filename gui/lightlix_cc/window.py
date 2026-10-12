@@ -61,6 +61,13 @@ class MainWindow(Adw.ApplicationWindow):
         self.add_breakpoint(bp)
 
         ctx.subscribe(self._on_status)
+        # 활성이 아닌 창은 상태를 천천히 확인한다.
+        self.connect("notify::is-active", lambda w, _p: self.ctx.set_active(w.is_active()))
+
+    def show_page(self, name):
+        """이름으로 페이지를 연다. 모르는 이름은 무시한다."""
+        if self.stack.get_child_by_name(name) is not None:
+            self.stack.set_visible_child_name(name)
 
     def _on_status(self, status, error):
         if error is not None:

@@ -4,7 +4,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gtk  # noqa: E402
+from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -31,6 +31,11 @@ class DashboardPage(Adw.PreferencesPage):
         for row in (self.driver_row, self.module_row, self.cuda_row, self.sb_row):
             self.driver_group.add(row)
 
+        self.live_row = None
+        if logic.live_session():
+            # 라이브 세션은 쓰는 파일(내려받은 모델, 설치한 패키지, 브라우저 캐시)이 램에 쌓인다. 램이 늘어나는 흔한 이유다.
+            self.live_row = action_row(_("Live session storage"), "-")
+            self.system_group.add(self.live_row)
         self.ram_row = action_row(_("Memory"), "-")
         self.ram_bar = Gtk.LevelBar(min_value=0, max_value=1, value=0, valign=Gtk.Align.CENTER)
         self.ram_bar.set_size_request(120, -1)
@@ -52,16 +57,7 @@ class DashboardPage(Adw.PreferencesPage):
             return
         gpu = status.get("gpu") or {}
 
-        clear_group(self.gpu_group, self._gpu_rows)
-        rows = logic.device_rows(status)
-        if not rows:
-            row = action_row(_("No GPU"), _("No NVIDIA GPU was detected."))
-            self.gpu_group.add(row)
-            self._gpu_rows.append(row)
-        for d in rows:
-            row = action_row(d["name"], logic.device_subtitle(d))
-            self.gpu_group.add(row)
-            self._gpu_rows.append(row)
+        self._update_gpu_rows(logic.device_rows(status))
 
         nvml = gpu.get("nvml") or {}
         self.driver_row.set_subtitle(gpu.get("driver_version") or "-")
@@ -83,6 +79,13 @@ class DashboardPage(Adw.PreferencesPage):
         else:
             self.ram_row.set_subtitle("-")
             self.ram_bar.set_value(0)
+        if self.live_row is not None:
+            usage = logic.live_storage_summary("/")
+            if usage:
+                self.live_row.set_subtitle(
+                    _("%(used)s used of %(total)s. Files written in this session are kept in memory and disappear on reboot.")
+                    % {"used": logic.fmt_bytes(usage[0]), "total": logic.fmt_bytes(usage[1])}
+                )
         self.mode_row.set_subtitle(
             {"desktop": _("Desktop mode"), "server": _("Server mode")}.get(status.get("mode"), _("Unknown"))
         )
@@ -96,3 +99,23 @@ class DashboardPage(Adw.PreferencesPage):
         else:
             text = offload.get("note") or "-"
         self.offload_row.set_subtitle(text)
+
+    def _update_gpu_rows(self, rows):
+        """GPU 행을 제자리에서 갱신한다. 행 수가 바뀔 때만 다시 만든다(3초마다 위젯을 새로 만들지 않는다)."""
+        wanted = [(d["name"], logic.device_subtitle(d)) for d in rows]
+        if not wanted:
+            wanted = [(_("No GPU"), _("No NVIDIA GPU was detected."))]
+        if len(wanted) != len(self._gpu_rows):
+            clear_group(self.gpu_group, self._gpu_rows)
+            for title, subtitle in wanted:
+                row = action_row(title, subtitle)
+                self.gpu_group.add(row)
+                self._gpu_rows.append(row)
+            return
+        for row, (title, subtitle) in zip(self._gpu_rows, wanted):
+            esc_title = GLib.markup_escape_text(title)
+            esc_sub = GLib.markup_escape_text(subtitle)
+            if row.get_title() != esc_title:
+                row.set_title(esc_title)
+            if row.get_subtitle() != esc_sub:
+                row.set_subtitle(esc_sub)

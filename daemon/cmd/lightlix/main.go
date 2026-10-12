@@ -149,6 +149,8 @@ func execute(e runEnv, args []string) int {
 		return c.user(cargs)
 	case "ssh":
 		return c.ssh(cargs)
+	case "network":
+		return c.network(cargs)
 	case "config":
 		return c.config(cargs)
 	case "chat":

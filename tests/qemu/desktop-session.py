@@ -285,6 +285,12 @@ def scenario(console, monitor, budgets, logs, workdir):
         f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/labwc.log | head -n 20'",
         cmd,
     )
+    console.command("session-wrapper-journal", "sudo -n journalctl -b -t lightlix-labwc --no-pager | tail -n 10; true", cmd)
+    console.command(
+        "session-env",
+        f"sudo -n sh -c 'pid=$(pgrep -u {TEST_USER} -x labwc | head -n 1); tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -E \"^XDG_(SESSION_TYPE|CURRENT_DESKTOP)=\"'",
+        cmd,
+    )
     console.command(
         "session-wrapper-env",
         "sudo -n sh -c 'pid=$(pgrep -u " + TEST_USER + " -x labwc | head -n 1); "

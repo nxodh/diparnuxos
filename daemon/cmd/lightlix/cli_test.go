@@ -1078,3 +1078,49 @@ func TestDescribeErrorMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestNetworkStatusAndWifiList(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/network", 200, `{"interfaces":[{"name":"enp3s0","kind":"ethernet","state":"down","addresses":[]},{"name":"wlan0","kind":"wifi","state":"up","addresses":["192.168.0.23/24"],"gateway":"192.168.0.1"}],"wifi":{"available":true,"device":"wlan0","powered":true,"state":"connected","scanning":false,"connected_ssid":"HomeWiFi"},"online":true}`)
+	res := runCLI(t, f, "network")
+	wantCode(t, res, exitOK)
+	wantContains(t, "network", res.stdout, "wlan0")
+	wantContains(t, "network", res.stdout, "192.168.0.23/24")
+	wantContains(t, "network", res.stdout, "wifi: connected to HomeWiFi on wlan0")
+
+	f.on("GET /v1/network/wifi/networks", 200, `{"networks":[{"ssid":"HomeWiFi","security":"psk","signal":80,"signal_dbm":-42,"connected":true,"known":true},{"ssid":"CafeFree","security":"open","signal":50,"signal_dbm":-61,"connected":false,"known":false}]}`)
+	res = runCLI(t, f, "network", "wifi", "list")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "* HomeWiFi")
+	wantContains(t, "list", res.stdout, "CafeFree")
+}
+
+func TestWifiConnectSendsThePasswordInTheBodyOnly(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/network/wifi/connect", 200, `{"connected":true,"ssid":"Home"}`)
+	res := runCLIWith(t, f, cliOpts{stdin: "s3cretpassw0rd\n"}, "network", "wifi", "connect", "Home", "--password-stdin")
+	wantCode(t, res, exitOK)
+	if strings.Contains(res.stdout+res.stderr, "s3cretpassw0rd") {
+		t.Fatal("the password appeared in the output")
+	}
+	bodies := f.bodies["POST /v1/network/wifi/connect"]
+	if len(bodies) != 1 || !strings.Contains(bodies[0], `"passphrase":"s3cretpassw0rd"`) || !strings.Contains(bodies[0], `"ssid":"Home"`) {
+		t.Fatalf("bodies = %v", bodies)
+	}
+}
+
+func TestWifiConnectFailureIsReported(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/network/wifi/connect", 502, `{"error":{"code":"connect_failed","message":"could not connect to \"Home\""}}`)
+	res := runCLIWith(t, f, cliOpts{stdin: "wrongpassword1\n"}, "network", "wifi", "connect", "Home", "--password-stdin")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "connect", res.stderr, "connect_failed")
+}
+
+func TestWifiListEscapesNonASCIINames(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/network/wifi/networks", 200, `{"networks":[{"ssid":"카페 WiFi","security":"open","signal":70,"signal_dbm":-50,"connected":false,"known":false}]}`)
+	res := runCLI(t, f, "network", "wifi", "list") // 출력이 ASCII 가 아니면 runCLI 가 실패시킨다
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "WiFi")
+}

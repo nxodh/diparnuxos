@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/nxodh/lightlixos/daemon/internal/network"
 	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
@@ -146,6 +147,46 @@ func (c *Client) Mode(ctx context.Context) (ModeResult, []byte, error) {
 // SetMode 는 POST /v1/mode 로 모드를 바꾼다. mode 는 "server" 나 "desktop" 이다.
 func (c *Client) SetMode(ctx context.Context, mode string) (ModeResult, []byte, error) {
 	return call[ModeResult](ctx, c, http.MethodPost, "/v1/mode", map[string]string{"mode": mode}, defaultLimit)
+}
+
+// Network 는 GET /v1/network 로 인터페이스와 무선 상태를 읽는다.
+func (c *Client) Network(ctx context.Context) (network.Status, []byte, error) {
+	return call[network.Status](ctx, c, http.MethodGet, "/v1/network", nil, defaultLimit)
+}
+
+// WifiNetworksReply 는 GET /v1/network/wifi/networks 의 응답이다.
+type WifiNetworksReply struct {
+	Networks []network.WifiNetwork `json:"networks"`
+}
+
+// WifiNetworks 는 보이는 무선 네트워크를 읽는다.
+func (c *Client) WifiNetworks(ctx context.Context) (WifiNetworksReply, []byte, error) {
+	return call[WifiNetworksReply](ctx, c, http.MethodGet, "/v1/network/wifi/networks", nil, defaultLimit)
+}
+
+// WifiScan 은 무선 검색을 시작한다.
+func (c *Client) WifiScan(ctx context.Context) ([]byte, error) {
+	return c.do(ctx, http.MethodPost, "/v1/network/wifi/scan", nil, defaultLimit)
+}
+
+// WifiConnect 는 SSID 에 연결한다. 비밀번호는 요청 본문에만 실린다.
+func (c *Client) WifiConnect(ctx context.Context, ssid, passphrase string) ([]byte, error) {
+	return c.do(ctx, http.MethodPost, "/v1/network/wifi/connect", map[string]string{"ssid": ssid, "passphrase": passphrase}, defaultLimit)
+}
+
+// WifiDisconnect 는 무선 연결을 끊는다.
+func (c *Client) WifiDisconnect(ctx context.Context) ([]byte, error) {
+	return c.do(ctx, http.MethodPost, "/v1/network/wifi/disconnect", nil, defaultLimit)
+}
+
+// WifiForget 은 저장된 네트워크를 지운다.
+func (c *Client) WifiForget(ctx context.Context, ssid string) ([]byte, error) {
+	return c.do(ctx, http.MethodPost, "/v1/network/wifi/forget", map[string]string{"ssid": ssid}, defaultLimit)
+}
+
+// WifiPower 는 무선 장치를 켜거나 끈다.
+func (c *Client) WifiPower(ctx context.Context, on bool) ([]byte, error) {
+	return c.do(ctx, http.MethodPut, "/v1/network/wifi/power", map[string]bool{"on": on}, defaultLimit)
 }
 
 // UpdateInfo 는 GET /v1/update 로 갱신 상태를 읽는다.

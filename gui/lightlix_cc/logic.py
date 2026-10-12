@@ -423,3 +423,23 @@ def describe_update(info):
             parts.append(_("NVIDIA driver %(old)s to %(new)s") % {"old": plan.get("driver_from") or "?", "new": plan["driver_to"]})
         out["detail"] = " · ".join(parts)
     return out
+
+
+def live_session():
+    """라이브 세션(램에 올린 이미지로 부팅)인지 본다. /run/live 는 live-boot 가 만든다."""
+    import os
+
+    return os.path.exists("/run/live")
+
+
+def live_storage_summary(path="/"):
+    """라이브 세션에서 루트 파일 시스템(램 기반)의 사용량을 돌려준다. (used_bytes, total_bytes) 또는 None."""
+    import shutil
+
+    try:
+        usage = shutil.disk_usage(path)
+    except OSError:
+        return None
+    if usage.total <= 0:
+        return None
+    return usage.used, usage.total

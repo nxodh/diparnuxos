@@ -27,6 +27,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/hf"
 	"github.com/nxodh/lightlixos/daemon/internal/jobs"
 	"github.com/nxodh/lightlixos/daemon/internal/models"
+	"github.com/nxodh/lightlixos/daemon/internal/network"
 	"github.com/nxodh/lightlixos/daemon/internal/nvml"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/report"
@@ -157,6 +158,7 @@ func run(args []string) error {
 		HF:            hfProxy{cfg: src.get},
 		Accounts:      accountsMgr,
 		Updates:       &updatectl.Controller{Runner: cmds},
+		Network:       &network.Manager{Runner: cmds},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
