@@ -330,7 +330,7 @@ def main():
             console = Console(argv_for(qemu, chosen, code, variables, disk, name="lightlix-installed-e2e"), sub, deadline)
             console.start()
             login_installed(console, budgets["BOOT_TIMEOUT"])
-            console.command("marker-persisted", "test \"$(cat /var/lib/lightlix/e2e-marker)\" = persisted", budgets["COMMAND_TIMEOUT"])
+            console.command("marker-persisted", installed_sudo("test \"$(sudo -n cat /var/lib/lightlix/e2e-marker)\" = persisted"), budgets["COMMAND_TIMEOUT"])
             console.send(installed_sudo("sudo -n systemctl poweroff"))
             wait_exit(console, 180, "poweroff of the installed system")
             console.close()
