@@ -279,6 +279,18 @@ def scenario(console, monitor, budgets, logs, workdir):
     time.sleep(1.5)
     monitor.type_text(TEST_PASSWORD + "\n")
     poll_command(console, "labwc-running", f"pgrep -u {TEST_USER} -x labwc", budgets["START_TIMEOUT"])
+    # 세션 래퍼: 가상 머신이므로 소프트웨어 렌더러와 소프트웨어 커서를 쓰고, labwc 출력은 파일에 남는다.
+    console.command(
+        "session-wrapper-log",
+        f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/labwc.log | head -n 20'",
+        cmd,
+    )
+    console.command(
+        "session-wrapper-env",
+        "sudo -n sh -c 'pid=$(pgrep -u " + TEST_USER + " -x labwc | head -n 1); "
+        "tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -E \"^WLR_(RENDERER|NO_HARDWARE_CURSORS)=\"'",
+        cmd,
+    )
     poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.

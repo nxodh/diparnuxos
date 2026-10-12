@@ -1,0 +1,23 @@
+#!/bin/sh
+# greetd 가 로그인 뒤 실행하는 labwc 세션 래퍼다. 설치 경로는 /usr/bin/lightlix-session 이다.
+#
+# - 가상 머신(VMware, VirtualBox, QEMU 등)에서는 GPU 렌더러와 하드웨어 커서가 컴포지터를 시작 직후 끝내는 일이 흔하다.
+#   그래서 소프트웨어 렌더러(pixman)와 소프트웨어 커서를 기본으로 쓴다. 이미 지정된 값은 바꾸지 않는다.
+#   실기에서는 아무것도 바꾸지 않는다.
+# - labwc 의 표준 출력과 오류를 $XDG_RUNTIME_DIR/labwc.log 에 남긴다. 세션이 바로 꺼질 때 원인을 볼 수 있다.
+#   journalctl 이 없는 환경에서도 읽을 수 있는 평문 파일이다.
+set -u
+
+if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --quiet --vm; then
+    : "${WLR_RENDERER:=pixman}"
+    : "${WLR_NO_HARDWARE_CURSORS:=1}"
+    export WLR_RENDERER WLR_NO_HARDWARE_CURSORS
+fi
+
+log="${XDG_RUNTIME_DIR:-/tmp}/labwc.log"
+{
+    echo "lightlix-session: $(date -u +%Y-%m-%dT%H:%M:%SZ) starting labwc"
+    echo "lightlix-session: virt=$(systemd-detect-virt 2>/dev/null || echo unknown) WLR_RENDERER=${WLR_RENDERER:-} WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-}"
+} >> "$log" 2>/dev/null || true
+
+exec labwc "$@" >> "$log" 2>&1
