@@ -11,7 +11,7 @@ Rules-Requires-Root: no
 
 Package: lightlix-installer
 Architecture: all
-Depends: ${misc:Depends}, calamares (>= 3.3), qt6-wayland, qml6-module-qtquick, qml6-module-qtquick-window, sudo, lightlix-daemon, rsync, dosfstools, e2fsprogs, fdisk, parted
+Depends: ${misc:Depends}, calamares (>= 3.3), polkitd, qt6-wayland, qml6-module-qtquick, qml6-module-qtquick-window, sudo, lightlix-daemon, rsync, dosfstools, e2fsprogs, fdisk, parted
 Description: Lightlix 그래픽 설치기 (Calamares 설정)
  Calamares 3.3 의 Lightlix 전용 설정, 브랜딩, 실행기다. Debian 의 기본 설정
  패키지(calamares-settings-debian)는 쓰지 않는다. 그 설정은 설치 중에 네트워크로
@@ -19,3 +19,5 @@ Description: Lightlix 그래픽 설치기 (Calamares 설정)
  라이브 이미지의 시스템을 그대로 복사하고, 대상 시스템의 마무리 단계
  (라이브 패키지와 설치기 제거, 기본 모드, 부트로더)를 lightlix-install 에 맡긴다.
  Wayland(labwc) 데스크톱 세션에서 lightlix-installer 로 실행한다.
+ polkitd 는 파티션 모듈(KPMCore)의 보조 프로그램이 권한을 확인할 때 필요하다. 없으면
+ 설치기가 "Waiting for N modules" 에서 더 나아가지 못한다.

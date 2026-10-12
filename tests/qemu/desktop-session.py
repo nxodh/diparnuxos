@@ -351,12 +351,23 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command(
         "installer-start",
         f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} WAYLAND_DISPLAY=wayland-0 "
-        "nohup lightlix-installer > /tmp/installer.log 2>&1 &'; sleep 2",
+        "nohup lightlix-installer -d > /tmp/installer.log 2>&1 &'; sleep 2",
         cmd,
     )
     poll_command(console, "installer-running", "pgrep -x calamares", budgets["START_TIMEOUT"])
     time.sleep(20)
     console.command("installer-still-running", "pgrep -x calamares", cmd)
+    # 창이 뜬 것만으로는 부족하다. 파티션 모듈이 보조 프로그램(KPMCore, polkit 로 권한 확인)을 띄워 장치를 읽어야
+    # "Waiting for N modules" 상태를 벗어난다. 보조 프로그램이 뜨지 않으면 진단 정보를 남기고 실패한다.
+    console.command("installer-polkit", "dpkg-query -W -f '${db:Status-Status}\\n' polkitd | grep -x installed", cmd)
+    console.command(
+        "installer-diagnostics",
+        "ps -eo pid,etime,args | grep -E 'calamares|kpmcore|polkit' | grep -v grep; "
+        "sudo -n sh -c 'ls -la /root/.cache 2>/dev/null; for f in /root/.cache/calamares/session.log /root/.cache/Calamares/Calamares/Calamares.log; do "
+        "[ -r $f ] && tail -n 60 $f; done'; true",
+        cmd,
+    )
+    poll_command(console, "installer-backend", "pgrep -f kpmcore_externalcommand", budgets["START_TIMEOUT"])
     console.command(
         "installer-log",
         "sudo -n tail -n 60 /tmp/installer.log; "
