@@ -61,9 +61,12 @@ type sysFake struct {
 	startGate     chan struct{}
 	onStart       func(pid int) error
 	// ssh.service 용 값이다.
-	sshInstalled bool
-	sshActive    string
-	sshExit      int
+	sshInstalled  bool
+	sshActive     string
+	sshExit       int
+	sshKeygenExit int
+	sshdOutput    string
+	sshdExit      int
 }
 
 func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Result, error) {
@@ -168,6 +171,13 @@ func (f *sysFake) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 		return out(f.journal)
 	case "nft":
 		return exit(f.nftExit, f.nftStderr)
+	case "ssh-keygen":
+		return exit(f.sshKeygenExit, "keygen failed")
+	case "sshd":
+		if f.sshdExit != 0 {
+			return exit(f.sshdExit, "no hostkeys available")
+		}
+		return out(f.sshdOutput)
 	}
 	return platform.Result{}, errors.New("unexpected command " + cmd.Name)
 }
@@ -2136,5 +2146,42 @@ func TestApplyFirewallOpensSSHOnlyWhenEnabled(t *testing.T) {
 	data, _ = os.ReadFile(f.fwPath)
 	if !strings.Contains(string(data), "tcp dport 22 accept") {
 		t.Fatalf("SSH port is not open: %s", data)
+	}
+}
+
+func TestSSHStatusReadsPasswordAuthentication(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.sshInstalled = true
+	f.sys.sshdOutput = "port 22\npasswordauthentication no\npermitrootlogin prohibit-password\n"
+	st, err := f.sup.SSHStatus(context.Background())
+	if err != nil || st.PasswordAuth != "no" {
+		t.Fatalf("status = %+v, %v", st, err)
+	}
+	f.sys.sshdOutput = "passwordauthentication yes\n"
+	st, _ = f.sup.SSHStatus(context.Background())
+	if st.PasswordAuth != "yes" {
+		t.Fatalf("status = %+v", st)
+	}
+	f.sys.sshdExit = 255
+	st, _ = f.sup.SSHStatus(context.Background())
+	if st.PasswordAuth != "unknown" {
+		t.Fatalf("sshd -T failure must give unknown, got %+v", st)
+	}
+}
+
+func TestSetSSHUnitEnableGeneratesMissingHostKeysFirst(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sys.sshInstalled = true
+	f.sys.sshKeygenExit = 1
+	wantCode(t, f.sup.SetSSHUnit(context.Background(), true), CodeSSHChangeFailed)
+	if f.sys.count("systemctl", "enable") != 0 {
+		t.Fatal("the unit must not be enabled when host key generation failed")
+	}
+	f.sys.sshKeygenExit = 0
+	if err := f.sup.SetSSHUnit(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
+	if f.sys.count("ssh-keygen", "-A") != 2 || f.sys.count("systemctl", "enable") != 1 {
+		t.Fatalf("keygen=%d enable=%d", f.sys.count("ssh-keygen", "-A"), f.sys.count("systemctl", "enable"))
 	}
 }

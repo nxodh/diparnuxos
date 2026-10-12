@@ -8,8 +8,12 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/recommend"
 )
 
-// sshWarning 은 SSH 를 켠 상태에서 보여 줄 주의 문구다.
-const sshWarning = "SSH accepts the password of the live user; set a strong password or use key-only login before exposing this machine to a network"
+// SSH 를 켠 상태에서 보여 줄 주의 문구다. 비밀번호 로그인 여부에 따라 고른다.
+const (
+	sshWarnPassword = "SSH accepts password login; set a strong password for the login user before exposing this machine to a network"
+	sshWarnKeyOnly  = "SSH password login is disabled on this image; add your public key to ~/.ssh/authorized_keys of the login user to connect"
+	sshWarnUnknown  = "SSH is open; make sure the login user has a strong password or an authorized public key"
+)
 
 // sshView 는 SSH 상태 응답이다.
 type sshView struct {
@@ -18,9 +22,11 @@ type sshView struct {
 	// Installed 는 ssh.service 유닛이 이미지에 있다는 뜻이다.
 	Installed bool `json:"installed"`
 	// Active 는 유닛이 지금 실행 중이라는 뜻이다.
-	Active  bool   `json:"active"`
-	Port    int    `json:"port"`
-	Warning string `json:"warning,omitempty"`
+	Active bool `json:"active"`
+	// PasswordAuth 는 sshd 의 비밀번호 로그인 값이다. "yes", "no", "unknown" 이다.
+	PasswordAuth string `json:"password_auth"`
+	Port         int    `json:"port"`
+	Warning      string `json:"warning,omitempty"`
 }
 
 // sshViewOf 는 설정과 유닛 상태로 응답을 만든다.
@@ -29,9 +35,20 @@ func (s *server) sshViewOf(r *http.Request, cfg config.Config) (sshView, error) 
 	if err != nil {
 		return sshView{}, err
 	}
-	v := sshView{Enabled: cfg.SSHEnabled, Installed: st.Installed, Active: st.Active, Port: 22}
+	pw := st.PasswordAuth
+	if pw == "" {
+		pw = "unknown"
+	}
+	v := sshView{Enabled: cfg.SSHEnabled, Installed: st.Installed, Active: st.Active, PasswordAuth: pw, Port: 22}
 	if cfg.SSHEnabled {
-		v.Warning = sshWarning
+		switch pw {
+		case "yes":
+			v.Warning = sshWarnPassword
+		case "no":
+			v.Warning = sshWarnKeyOnly
+		default:
+			v.Warning = sshWarnUnknown
+		}
 	}
 	return v, nil
 }

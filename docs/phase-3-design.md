@@ -25,7 +25,7 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 | tuigreet | 0.9.1-5 | 3,799 KB | 텍스트 greeter. 별도 컴포지터가 필요 없다 |
 | gtkgreet + cage | 0.8-1 / 0.2.0-2 | 92 KB / 80 KB | GUI greeter. cage 컴포지터가 하나 더 든다 |
 | foot | 1.21.0-2 | 766 KB | |
-| waybar / yambar | 0.12.0-1 / 1.11.0-1 | 2,713 KB / 490 KB | sfwbar는 trixie에 없다 |
+| waybar / yambar | 0.12.0-1 / 1.11.0-1 | 2,713 KB / 490 KB | sfwbar는 trixie에 없다. yambar는 오디오·미디어 라이브러리를 끌어온다 |
 | python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1 | 3.50.0 / 4.18.6 / 1.7.6 | 836 / 885 / 179 KB | libadwaita 1.7.6 |
 | mokutil | 0.7.2-1 | 87 KB | |
 | openssh-server | 10.0p1-7 | 3,488 KB | 현재 이미지에는 없다 |
@@ -41,7 +41,7 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 |---|---|---|---|
 | D1 | 로그인 화면 | greetd + tuigreet | 컴포지터를 하나 덜 띄워 램이 적게 든다. 대안은 gtkgreet + cage |
 | D2 | 자동 로그인 | 끈다 | 라이브 사용자 암호 입력을 유지한다. 설정으로 켤 수 있게 한다 |
-| D3 | 패널 | yambar | 크기가 waybar의 1/5이다. 시계와 Control Center 실행, 상태만 표시한다. 실제 램은 측정해서 확정한다 |
+| D3 | 패널 | 넣지 않는다 | yambar는 쓰지 않는 오디오·미디어 모듈 때문에 pipewire, pulse, alsa, flac 등 35개 안팎의 라이브러리를 끌어온다(조회 확인). 이 패키지 집합은 램 목표와 맞지 않는다. 상태는 Control Center가 보여 주고 labwc 루트 메뉴로 실행한다 |
 | D4 | 한글 글꼴 | fonts-nanum | noto-cjk보다 58 MB 작다. 글리프 범위와 ISO 크기는 CI에서 확인한다 |
 | D5 | GUI와 데몬의 통신 | 표준 라이브러리 `http.client` + 유닉스 소켓 | `requests` 같은 추가 의존성을 넣지 않는다 |
 | D6 | 첫 부팅 상태 저장 | 데몬이 `/var/lib/lightlix/firstboot.json`에 기록 | 라이브 세션에서는 재부팅하면 사라진다. Phase 4 설치 뒤에는 유지된다 |

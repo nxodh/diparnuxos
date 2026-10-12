@@ -1,0 +1,8 @@
+# Lightlix greetd 설정. greetd.service 드롭인이 이 파일을 가리킨다.
+# 로그인 화면은 텍스트 greeter 인 tuigreet 이다. 로그인하면 labwc 세션을 시작한다.
+[terminal]
+vt = 7
+
+[default_session]
+command = "tuigreet --time --remember --asterisks --greeting 'Lightlix' --cmd labwc"
+user = "_greetd"

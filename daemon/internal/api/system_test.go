@@ -216,3 +216,32 @@ func writeReadyStatusFile(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func TestSSHWarningDependsOnPasswordAuthentication(t *testing.T) {
+	cases := map[string]string{"yes": sshWarnPassword, "no": sshWarnKeyOnly, "unknown": sshWarnUnknown, "": sshWarnUnknown}
+	for pw, want := range cases {
+		sup := &fakeSup{ssh: supervisor.SSHStatus{Installed: true, Active: true, PasswordAuth: pw}}
+		e := newEnv(t, sup)
+		cfg, _ := config.Load(e.cfgPath)
+		cfg.SSHEnabled = true
+		if err := config.Save(e.cfgPath, cfg); err != nil {
+			t.Fatal(err)
+		}
+		w := e.do("GET", "/v1/system/ssh", "")
+		wantStatus(t, w, http.StatusOK)
+		var v sshView
+		if err := json.Unmarshal(w.Body.Bytes(), &v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Warning != want {
+			t.Fatalf("password_auth=%q: warning = %q, want %q", pw, v.Warning, want)
+		}
+		wantPW := pw
+		if wantPW == "" {
+			wantPW = "unknown"
+		}
+		if v.PasswordAuth != wantPW {
+			t.Fatalf("password_auth=%q: view = %q", pw, v.PasswordAuth)
+		}
+	}
+}

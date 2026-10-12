@@ -17,6 +17,9 @@ type SSHStatus struct {
 	Installed bool `json:"installed"`
 	// Active는 유닛이 지금 실행 중이라는 뜻이다.
 	Active bool `json:"active"`
+	// PasswordAuth는 sshd 유효 설정의 비밀번호 로그인 값이다. "yes", "no", "unknown" 중 하나다.
+	// Debian live 이미지는 live-config가 이 값을 끄므로 키 없이는 접속할 수 없을 수 있다.
+	PasswordAuth string `json:"password_auth"`
 }
 
 // SSHStatus는 SSH 유닛이 설치되어 있는지와 실행 중인지 본다.
@@ -26,7 +29,7 @@ func (s *Supervisor) SSHStatus(ctx context.Context) (SSHStatus, error) {
 		return SSHStatus{}, fmt.Errorf("check %s: %w", sshUnit, err)
 	}
 	if !installed {
-		return SSHStatus{}, nil
+		return SSHStatus{PasswordAuth: "unknown"}, nil
 	}
 	res, err := s.exec(ctx, platform.Command{
 		Name:      "systemctl",
@@ -39,7 +42,30 @@ func (s *Supervisor) SSHStatus(ctx context.Context) (SSHStatus, error) {
 	}
 	// is-active는 active일 때만 종료 코드 0이고 inactive, failed 등은 0이 아니다. 출력도 함께 본다.
 	active := res.ExitCode == 0 && strings.TrimSpace(string(res.Stdout)) == "active"
-	return SSHStatus{Installed: true, Active: active}, nil
+	return SSHStatus{Installed: true, Active: active, PasswordAuth: s.sshPasswordAuth(ctx)}, nil
+}
+
+// sshPasswordAuth는 sshd -T 의 유효 설정에서 비밀번호 로그인 값을 읽는다. 읽지 못하면 "unknown"이다.
+// sshd -T 는 호스트 키가 없으면 실패하므로 아직 키가 없는 이미지에서는 unknown 이 나온다.
+func (s *Supervisor) sshPasswordAuth(ctx context.Context) string {
+	res, err := s.exec(ctx, platform.Command{
+		Name:      "sshd",
+		Args:      []string{"-T"},
+		Timeout:   shortTimeout,
+		MaxOutput: 64 << 10,
+	})
+	if err != nil || res.ExitCode != 0 {
+		return "unknown"
+	}
+	for _, line := range strings.Split(string(res.Stdout), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "passwordauthentication" {
+			if fields[1] == "yes" || fields[1] == "no" {
+				return fields[1]
+			}
+		}
+	}
+	return "unknown"
 }
 
 // SetSSHUnit은 SSH 유닛을 켜고 끈다. 켜면 부팅 때도 시작되도록 enable 하고, 끄면 disable 한다.
@@ -60,6 +86,19 @@ func (s *Supervisor) SetSSHUnit(ctx context.Context, enable bool) error {
 	verb := "disable"
 	if enable {
 		verb = "enable"
+		// 이미지에서 호스트 키를 지워 두므로 켜기 전에 없는 키를 만든다. 이미 있는 키는 바꾸지 않는다.
+		kg, err := s.exec(ctx, platform.Command{
+			Name:      "ssh-keygen",
+			Args:      []string{"-A"},
+			Timeout:   modeChangeTimeout,
+			MaxOutput: maxCommandOutput,
+		})
+		if err != nil {
+			return errorf(CodeSSHChangeFailed, "ssh-keygen -A: %v", err)
+		}
+		if kg.ExitCode != 0 {
+			return errorf(CodeSSHChangeFailed, "ssh-keygen -A exited %d: %s", kg.ExitCode, excerpt(string(kg.Stderr), 512))
+		}
 	}
 	res, err := s.exec(ctx, platform.Command{
 		Name:      "systemctl",
