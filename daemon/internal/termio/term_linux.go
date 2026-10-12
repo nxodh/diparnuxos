@@ -1,6 +1,7 @@
 //go:build linux
 
-package main
+// Package termio 는 터미널 입력(에코 없는 비밀번호)과 터미널 판별을 둔다.
+package termio
 
 import (
 	"errors"
@@ -10,9 +11,9 @@ import (
 	"unsafe"
 )
 
-// readSecret 은 터미널의 에코와 신호 문자를 끄고 한 줄을 읽는다. 한 바이트씩 읽어 줄 뒤의 입력을 가져가지 않는다.
+// ReadSecret 은 터미널의 에코와 신호 문자를 끄고 한 줄을 읽는다. 한 바이트씩 읽어 줄 뒤의 입력을 가져가지 않는다.
 // Ctrl-C(0x03)는 취소로 본다.
-func readSecret(f *os.File) (string, error) {
+func ReadSecret(f *os.File) (string, error) {
 	fd := f.Fd()
 	var old syscall.Termios
 	if _, _, e := syscall.Syscall(syscall.SYS_IOCTL, fd, syscall.TCGETS, uintptr(unsafe.Pointer(&old))); e != 0 {

@@ -347,15 +347,44 @@ func installedKernels(pkgs []pkgInfo) []PkgVersion {
 
 // grubEntry 는 커널 릴리스에 해당하는 GRUB 메뉴 항목 ID 다.
 func (e *Engine) grubEntry(rel string) (string, error) {
-	b, err := os.ReadFile(e.cfg().GrubCfg)
+	id, err := GrubEntryID(e.cfg().GrubCfg, rel)
 	if err != nil {
-		return "", errf(CodeGrub, "cannot read %s: %v", e.cfg().GrubCfg, err)
+		return "", errf(CodeGrub, "%v", err)
+	}
+	return id, nil
+}
+
+// GrubEntryID 는 grub.cfg 에서 커널 릴리스의 메뉴 항목 ID(gnulinux-<릴리스>-advanced-<UUID>)를 찾는다.
+func GrubEntryID(cfgPath, rel string) (string, error) {
+	b, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot read %s: %w", cfgPath, err)
 	}
 	re := regexp.MustCompile(`\$menuentry_id_option '(gnulinux-` + regexp.QuoteMeta(rel) + `-advanced-[^']+)'`)
 	if m := re.FindStringSubmatch(string(b)); m != nil {
 		return m[1], nil
 	}
-	return "", errf(CodeGrub, "no GRUB menu entry for kernel %s in %s", rel, e.cfg().GrubCfg)
+	return "", fmt.Errorf("no GRUB menu entry for kernel %s in %s", rel, cfgPath)
+}
+
+var grubReleaseRE = regexp.MustCompile(`\$menuentry_id_option 'gnulinux-(.+)-advanced-[^']+'`)
+
+// GrubKernelReleases 는 grub.cfg 의 커널 메뉴 항목에 있는 릴리스 목록이다. 버전 오름차순이다.
+func GrubKernelReleases(cfgPath string) ([]string, error) {
+	b, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range grubReleaseRE.FindAllStringSubmatch(string(b), -1) {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			out = append(out, m[1])
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return compareVersions(out[i], out[j]) < 0 })
+	return out, nil
 }
 
 func (e *Engine) savedEntry(ctx context.Context) string {

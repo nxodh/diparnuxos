@@ -14,7 +14,7 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	mkdir -p build
-	set -e; . "$(LIGHTLIX_CONF)"; cd daemon; go build -ldflags "-X main.version=$$LIGHTLIX_VERSION" -o ../build/lightlixd ./cmd/lightlixd; go build -ldflags "-X main.version=$$LIGHTLIX_VERSION" -o ../build/lightlix ./cmd/lightlix; go build -o ../build/lightlix-update ./cmd/lightlix-update
+	set -e; . "$(LIGHTLIX_CONF)"; cd daemon; go build -ldflags "-X main.version=$$LIGHTLIX_VERSION" -o ../build/lightlixd ./cmd/lightlixd; go build -ldflags "-X main.version=$$LIGHTLIX_VERSION" -o ../build/lightlix ./cmd/lightlix; go build -o ../build/lightlix-update ./cmd/lightlix-update; go build -o ../build/lightlix-install ./cmd/lightlix-install
 
 override_dh_auto_test:
 	cd daemon && go test -count=1 ./...
@@ -25,6 +25,7 @@ override_dh_auto_install:
 	install -D -m 755 daemon/dist/lightlix-gpu-permissions.sh debian/lightlix-daemon/usr/lib/lightlix/check-gpu-permissions
 	install -D -m 755 daemon/dist/lightlix-user.sh debian/lightlix-daemon/usr/lib/lightlix/lightlix-user
 	install -D -m 755 build/lightlix-update debian/lightlix-daemon/usr/lib/lightlix/lightlix-update
+	install -D -m 755 build/lightlix-install debian/lightlix-daemon/usr/sbin/lightlix-install
 	install -D -m 644 daemon/dist/grub-lightlix.cfg debian/lightlix-daemon/etc/default/grub.d/20-lightlix.cfg
 	install -D -m 644 daemon/dist/lightlix.sysusers.conf debian/lightlix-daemon/usr/lib/sysusers.d/lightlix.conf
 	install -D -m 644 daemon/dist/lightlix-daemon.tmpfiles.conf debian/lightlix-daemon/usr/lib/tmpfiles.d/lightlix-daemon.conf

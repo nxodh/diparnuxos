@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gui test-gpu-check test-update-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gui test-gpu-check test-update-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
 
 # Docker 안에서 ISO 를 빌드한다. lightlix-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -92,10 +92,15 @@ test-qemu-e2e-docker:
 test-qemu-e2e-driver:
 	python3 -B "$(ROOT)/tests/qemu/test_cpu_inference.py"
 	python3 -B "$(ROOT)/tests/qemu/test_desktop_session.py"
+	python3 -B "$(ROOT)/tests/qemu/test_install.py"
 
 # 완성된 ISO 에서 데스크톱 모드 전환, greetd, labwc 세션, Control Center 를 Docker 의 QEMU 로 확인한다.
 test-qemu-desktop-docker:
 	bash "$(ROOT)/scripts/test-qemu-desktop-in-docker.sh" "$(ISO)"
+
+# ISO 로 빈 가상 디스크에 설치하고 디스크로 부팅해 확인한다(Secure Boot 부팅 포함).
+test-qemu-install-docker:
+	bash "$(ROOT)/scripts/test-qemu-install-in-docker.sh" "$(ISO)"
 
 # 산출물(out/)과 빌드된 .deb 를 지운다. out/llama 는 빌드가 오래 걸리므로 남긴다(clean-llama 로 지운다).
 # 작업 디렉터리(/var/tmp/lightlix-build)는 지우지 않는다.

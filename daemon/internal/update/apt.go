@@ -194,3 +194,6 @@ func isDigit(c byte) bool { return c >= '0' && c <= '9' }
 func sortByVersion(list []PkgVersion) {
 	sort.SliceStable(list, func(i, j int) bool { return compareVersions(list[i].Version, list[j].Version) < 0 })
 }
+
+// CompareVersions 는 dpkg 버전 비교 결과를 돌려준다. 다른 패키지(설치기)가 쓴다.
+func CompareVersions(a, b string) int { return compareVersions(a, b) }

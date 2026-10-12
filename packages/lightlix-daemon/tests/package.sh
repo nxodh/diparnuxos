@@ -21,7 +21,7 @@ done
 for dependency in lightlix-nvidia lightlix-llm; do
     [[ "$depends" == *"$dependency (= $LIGHTLIX_VERSION)"* ]]
 done
-for path in usr/sbin/lightlixd usr/bin/lightlix usr/lib/lightlix/check-gpu-permissions usr/lib/lightlix/lightlix-update; do
+for path in usr/sbin/lightlixd usr/bin/lightlix usr/lib/lightlix/check-gpu-permissions usr/lib/lightlix/lightlix-update usr/sbin/lightlix-install; do
     [[ -x "$WORK/root/$path" ]]
 done
 for path in etc/default/grub.d/20-lightlix.cfg usr/lib/systemd/system/lightlix-update-verify.service usr/lib/sysusers.d/lightlix.conf usr/lib/tmpfiles.d/lightlix-daemon.conf usr/share/lightlix/firewall-default.nft usr/share/doc/lightlix-daemon/go-nvml.LICENSE; do

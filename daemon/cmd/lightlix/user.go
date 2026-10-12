@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nxodh/lightlixos/daemon/internal/client"
+	"github.com/nxodh/lightlixos/daemon/internal/termio"
 )
 
 // user 는 user 명령 묶음이다.
@@ -101,7 +102,7 @@ func (c *cli) promptPassword(prompt string) (string, error) {
 		return "", errors.New("standard input is not a terminal")
 	}
 	fmt.Fprint(c.env.stderr, prompt)
-	s, err := readSecret(f)
+	s, err := termio.ReadSecret(f)
 	fmt.Fprintln(c.env.stderr)
 	return s, err
 }

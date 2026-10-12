@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/nxodh/lightlixos/daemon/internal/client"
+	"github.com/nxodh/lightlixos/daemon/internal/termio"
 )
 
 // version 은 빌드 때 -ldflags "-X main.version=..." 으로 넣는다. 코드는 이 값을 바꾸지 않는다.
@@ -71,20 +72,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		stdout:       stdout,
 		stderr:       stderr,
 		getenv:       getenv,
-		stdinTTY:     isTerminal(stdin),
-		stdoutTTY:    isTerminal(stdout),
+		stdinTTY:     termio.IsTerminal(stdin),
+		stdoutTTY:    termio.IsTerminal(stdout),
 		pollInterval: defaultPoll,
 	}, args)
-}
-
-// isTerminal 은 w 가 문자 장치인지 본다. 터미널이면 진행 표시를 한 줄 갱신 방식으로 쓴다.
-func isTerminal(w any) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	info, err := f.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // cli 는 한 번의 실행 동안 쓰는 상태다.
