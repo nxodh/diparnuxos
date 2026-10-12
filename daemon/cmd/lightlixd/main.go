@@ -33,6 +33,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/runner"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
 	"github.com/nxodh/lightlixos/daemon/internal/sysinfo"
+	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
 // version 은 빌드 때 -ldflags "-X main.version=..." 으로 넣는다.
@@ -155,6 +156,7 @@ func run(args []string) error {
 		Keys:          keys,
 		HF:            hfProxy{cfg: src.get},
 		Accounts:      accountsMgr,
+		Updates:       &updatectl.Controller{Runner: cmds},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,

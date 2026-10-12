@@ -182,7 +182,6 @@ fi
 pass "plain apt keeps the held packages"
 
 LU=/usr/local/bin/lightlix-update
-STATE=/var/lib/lightlix/update
 last_json() { tail -n 1; }
 
 # ---- check ----

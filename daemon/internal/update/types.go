@@ -135,3 +135,10 @@ type Status struct {
 	// Kernels 는 설치된 커널 릴리스다. 오래된 순서다.
 	Kernels []string `json:"kernels,omitempty"`
 }
+
+// CheckResult 는 마지막 check 의 결과다. check.json 에 저장되어 데몬과 GUI 가 읽는다.
+type CheckResult struct {
+	Time  string `json:"time"`
+	Plan  *Plan  `json:"plan,omitempty"`
+	Error *Error `json:"error,omitempty"`
+}

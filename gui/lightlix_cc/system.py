@@ -10,6 +10,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import __version__, api  # noqa: E402
+from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
 from .accounts import CreateAccountDialog  # noqa: E402
 from .widgets import action_row, clear_group, confirm, icon_button, run_async, text_button  # noqa: E402
@@ -91,8 +92,21 @@ class SystemPage(Adw.PreferencesPage):
         look_group.add(self.scheme_combo)
         self.add(look_group)
 
+        upd_group = Adw.PreferencesGroup(title=_("Updates"))
+        self._update_poll = None
+        self._update_row = action_row(_("System updates"), _("Install the kernel, NVIDIA driver and system updates together."))
+        buttons = Gtk.Box(spacing=6, valign=Gtk.Align.CENTER)
+        self._btn_check = text_button(_("Check"), lambda: self.start_update("check"))
+        self._btn_install = text_button(_("Install"), self.install_update, "suggested-action")
+        self._btn_rollback = text_button(_("Roll back"), self.rollback_update)
+        for b in (self._btn_check, self._btn_install, self._btn_rollback):
+            b.set_sensitive(False)
+            buttons.append(b)
+        self._update_row.add_suffix(buttons)
+        upd_group.add(self._update_row)
+        self.add(upd_group)
+
         maint = Adw.PreferencesGroup(title=_("Maintenance"))
-        maint.add(action_row(_("Update"), _("Install system updates."), text_button(_("Check"), self.update)))
         maint.add(
             action_row(_("GPU check"), _("Run the GPU diagnostic again."), text_button(_("Run"), self.gpu_check))
         )
@@ -116,6 +130,7 @@ class SystemPage(Adw.PreferencesPage):
         ctx.subscribe(self._on_status)
         run_async(ctx.client.ssh, self._on_ssh_state, lambda e: None)
         self.load_users()
+        self.refresh_update()
 
     # --- 계정 ---
     def load_users(self):
@@ -245,16 +260,65 @@ class SystemPage(Adw.PreferencesPage):
         data["color_scheme"] = name
         save_settings(data)
 
+    # --- 업데이트 ---
+    def refresh_update(self):
+        run_async(self.ctx.client.update_info, self._on_update_info, lambda e: None)
+
+    def _on_update_info(self, info):
+        d = logic.describe_update(info)
+        text = d["title"] if not d["detail"] else "%s\n%s" % (d["title"], d["detail"])
+        self._update_row.set_subtitle(GLib.markup_escape_text(text))
+        self._btn_check.set_sensitive(d["can_check"])
+        self._btn_install.set_sensitive(d["can_install"])
+        self._btn_rollback.set_sensitive(d["can_rollback"])
+        if d["busy"] and self._update_poll is None:
+            self._update_poll = GLib.timeout_add_seconds(3, self._poll_update)
+
+    def _poll_update(self):
+        def done(info):
+            d = logic.describe_update(info)
+            self._on_update_info(info)
+            if not d["busy"]:
+                self._update_poll = None
+
+        def failed(_exc):
+            self._update_poll = None
+
+        run_async(self.ctx.client.update_info, done, failed)
+        return GLib.SOURCE_CONTINUE if self._update_poll is not None else GLib.SOURCE_REMOVE
+
+    def start_update(self, action):
+        def done(_r):
+            self.ctx.toast(_("Update started"))
+            self._btn_check.set_sensitive(False)
+            self._btn_install.set_sensitive(False)
+            self._btn_rollback.set_sensitive(False)
+            self._update_row.set_subtitle(GLib.markup_escape_text(_("Updating")))
+            if self._update_poll is None:
+                self._update_poll = GLib.timeout_add_seconds(3, self._poll_update)
+
+        run_async(lambda: self.ctx.client.update_start(action), done, self.ctx.toast_error)
+
+    def install_update(self):
+        confirm(
+            self.ctx.window,
+            _("Install updates?"),
+            _("The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."),
+            _("Install"),
+            lambda: self.start_update("apply"),
+        )
+
+    def rollback_update(self):
+        confirm(
+            self.ctx.window,
+            _("Roll back the last update?"),
+            _("The previous kernel and driver are restored. A restart is needed afterwards."),
+            _("Roll back"),
+            lambda: self.start_update("rollback"),
+            destructive=True,
+        )
+
     # --- 유지보수 ---
-    def update(self):
-        def failed(exc):
-            if isinstance(exc, api.DaemonError) and exc.code == "not_implemented":
-                self.ctx.toast(_("Updates are not available in this release yet."))
-            else:
-                self.ctx.toast_error(exc)
-
-        run_async(self.ctx.client.update, lambda _r: self.ctx.toast(_("Update started")), failed)
-
     def gpu_check(self):
         self.ctx.toast(_("Running the GPU check…"))
         run_async(

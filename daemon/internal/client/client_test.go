@@ -158,7 +158,11 @@ func TestEveryMethodUsesItsRoute(t *testing.T) {
 		{"DeleteUser", "DELETE", "/v1/users/alice", func(c *Client) error { _, _, err := c.DeleteUser(ctx, "alice"); return err }},
 		{"Mode", "GET", "/v1/mode", func(c *Client) error { _, _, err := c.Mode(ctx); return err }},
 		{"SetMode", "POST", "/v1/mode", func(c *Client) error { _, _, err := c.SetMode(ctx, "desktop"); return err }},
-		{"Update", "POST", "/v1/update", func(c *Client) error { _, err := c.Update(ctx); return err }},
+		{"UpdateInfo", "GET", "/v1/update", func(c *Client) error { _, _, err := c.UpdateInfo(ctx); return err }},
+		{"UpdateStart", "POST", "/v1/update", func(c *Client) error {
+			_, _, err := c.UpdateStart(ctx, UpdateRequest{Action: "check"})
+			return err
+		}},
 		{"Report", "GET", "/v1/report", func(c *Client) error { _, err := c.Report(ctx); return err }},
 	}
 	for _, tc := range cases {
@@ -244,12 +248,12 @@ func TestAPIErrorFromPlainBody(t *testing.T) {
 	}
 }
 
-func TestUpdateReturnsNotImplemented(t *testing.T) {
-	sock := newSocketServer(t, writeJSONHandler(http.StatusNotImplemented, `{"error":{"code":"not_implemented","message":"update arrives in a later release"}}`))
-	_, err := New(sock).Update(context.Background())
+func TestUpdateStartReportsConflict(t *testing.T) {
+	sock := newSocketServer(t, writeJSONHandler(http.StatusConflict, `{"error":{"code":"busy","message":"an update operation is already running"}}`))
+	_, _, err := New(sock).UpdateStart(context.Background(), UpdateRequest{Action: "apply"})
 	var ae *APIError
-	if !errors.As(err, &ae) || ae.Status != http.StatusNotImplemented || ae.Code != "not_implemented" {
-		t.Fatalf("Update error = %#v", err)
+	if !errors.As(err, &ae) || ae.Status != http.StatusConflict || ae.Code != "busy" {
+		t.Fatalf("UpdateStart error = %#v", err)
 	}
 }
 

@@ -526,11 +526,23 @@ func checkRemovals(p *Plan) error {
 	return nil
 }
 
-// Check 는 인덱스를 새로 받고 갱신 계획만 돌려준다. 설치하지 않는다.
+// Check 는 인덱스를 새로 받고 갱신 계획만 돌려준다. 설치하지 않는다. 결과는 check.json 에도 남긴다.
 func (e *Engine) Check(ctx context.Context) (*Plan, error) {
 	if err := e.preflightCheck(); err != nil {
 		return nil, err
 	}
+	unlock, err := e.lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	plan, cerr := e.check(ctx)
+	e.saveCheck(plan, cerr)
+	return plan, cerr
+}
+
+func (e *Engine) check(ctx context.Context) (*Plan, error) {
+	e.event("refresh", "refreshing package indexes")
 	if err := e.aptUpdate(ctx); err != nil {
 		return nil, err
 	}
@@ -548,6 +560,28 @@ func (e *Engine) Check(ctx context.Context) (*Plan, error) {
 		return nil, err
 	}
 	return p, checkRemovals(p)
+}
+
+func (e *Engine) checkPath() string { return filepath.Join(e.cfg().StateDir, "check.json") }
+
+// saveCheck 는 check 결과를 파일로 남긴다. 쓰지 못해도 check 자체는 실패로 보지 않는다.
+func (e *Engine) saveCheck(plan *Plan, err error) {
+	r := CheckResult{Time: e.stamp(), Plan: plan}
+	if err != nil {
+		var ue *Error
+		if !errors.As(err, &ue) {
+			ue = errf(CodeInternal, "%v", err)
+		}
+		r.Error = ue
+	}
+	b, jerr := json.MarshalIndent(r, "", "  ")
+	if jerr != nil || os.MkdirAll(e.cfg().StateDir, 0o755) != nil {
+		return
+	}
+	tmp := e.checkPath() + ".tmp"
+	if os.WriteFile(tmp, append(b, '\n'), 0o644) == nil {
+		_ = os.Rename(tmp, e.checkPath())
+	}
 }
 
 // preflightCheck 는 점검 전용 사전 검사다. 디스크 여유는 보지 않는다.

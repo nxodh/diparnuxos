@@ -24,6 +24,8 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/models"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/lightlixos/daemon/internal/update"
+	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
 // fakeSup는 Supervisor 의 가짜다. 호출 결과를 필드로 정한다.
@@ -841,13 +843,91 @@ func TestPullReturns202AndJobEndpoints(t *testing.T) {
 	wantStatus(t, w, http.StatusNotFound)
 }
 
-func TestUpdateIsNotImplemented(t *testing.T) {
-	e := newEnv(t, &fakeSup{})
-	w := e.do("POST", "/v1/update", "")
-	wantStatus(t, w, http.StatusNotImplemented)
-	if errCode(t, w) != "not_implemented" {
-		t.Fatalf("code = %s", errCode(t, w))
+// fakeUpdates 는 UpdateController 의 가짜다.
+type fakeUpdates struct {
+	info    updatectl.Info
+	startFn func(action string, reboot bool) error
+	actions []string
+	reboots []bool
+}
+
+func (f *fakeUpdates) Info(context.Context) (updatectl.Info, error) { return f.info, nil }
+
+func (f *fakeUpdates) Start(_ context.Context, action string, reboot bool) error {
+	f.actions = append(f.actions, action)
+	f.reboots = append(f.reboots, reboot)
+	if f.startFn != nil {
+		return f.startFn(action, reboot)
 	}
+	return nil
+}
+
+func TestUpdateWithoutControllerIsUnavailable(t *testing.T) {
+	e := newEnv(t, &fakeSup{})
+	for _, req := range [][2]string{{"GET", ""}, {"POST", ""}} {
+		w := e.do(req[0], "/v1/update", req[1])
+		wantStatus(t, w, http.StatusServiceUnavailable)
+		if errCode(t, w) != "update_unavailable" {
+			t.Fatalf("%s code = %s", req[0], errCode(t, w))
+		}
+	}
+}
+
+func TestUpdateStatusAndStart(t *testing.T) {
+	fu := &fakeUpdates{info: updatectl.Info{Available: true, RunningKernel: "6.12.111+deb13-amd64", State: update.State{Phase: update.PhaseIdle}}}
+	e := newEnvWith(t, &fakeSup{}, func(d *Deps) { d.Updates = fu })
+
+	w := e.do("GET", "/v1/update", "")
+	wantStatus(t, w, http.StatusOK)
+	var got updatectl.Info
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Available || got.RunningKernel != "6.12.111+deb13-amd64" || got.State.Phase != update.PhaseIdle {
+		t.Fatalf("info = %+v", got)
+	}
+
+	// 본문이 없으면 apply 다.
+	w = e.do("POST", "/v1/update", "")
+	wantStatus(t, w, http.StatusAccepted)
+	w = e.do("POST", "/v1/update", `{"action":"check"}`)
+	wantStatus(t, w, http.StatusAccepted)
+	w = e.do("POST", "/v1/update", `{"action":"rollback","reboot":true}`)
+	wantStatus(t, w, http.StatusAccepted)
+	if strings.Join(fu.actions, ",") != "apply,check,rollback" || fu.reboots[2] != true {
+		t.Fatalf("actions = %v reboots = %v", fu.actions, fu.reboots)
+	}
+}
+
+func TestUpdateStartRejections(t *testing.T) {
+	cases := []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{"busy", &updatectl.Error{Code: update.CodeBusy, Message: "running"}, http.StatusConflict, "busy"},
+		{"live", &updatectl.Error{Code: update.CodeLiveSession, Message: "live"}, http.StatusConflict, "live_session"},
+		{"pending", &updatectl.Error{Code: update.CodePendingBoot, Message: "reboot"}, http.StatusConflict, "pending_reboot"},
+		{"invalid", &updatectl.Error{Code: updatectl.CodeInvalidAction, Message: "bad"}, http.StatusBadRequest, "invalid_action"},
+		{"missing helper", &updatectl.Error{Code: updatectl.CodeUnavailable, Message: "no helper"}, http.StatusServiceUnavailable, "update_unavailable"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fu := &fakeUpdates{startFn: func(string, bool) error { return tc.err }}
+			e := newEnvWith(t, &fakeSup{}, func(d *Deps) { d.Updates = fu })
+			w := e.do("POST", "/v1/update", `{"action":"apply"}`)
+			wantStatus(t, w, tc.status)
+			if errCode(t, w) != tc.code {
+				t.Fatalf("code = %s", errCode(t, w))
+			}
+		})
+	}
+	t.Run("unknown field", func(t *testing.T) {
+		e := newEnvWith(t, &fakeSup{}, func(d *Deps) { d.Updates = &fakeUpdates{} })
+		w := e.do("POST", "/v1/update", `{"action":"apply","force":true}`)
+		wantStatus(t, w, http.StatusBadRequest)
+	})
 }
 
 func TestReportIsPlainText(t *testing.T) {

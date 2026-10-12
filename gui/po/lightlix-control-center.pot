@@ -648,12 +648,6 @@ msgstr ""
 msgid "Maintenance"
 msgstr ""
 
-msgid "Update"
-msgstr ""
-
-msgid "Install system updates."
-msgstr ""
-
 msgid "Check"
 msgstr ""
 
@@ -731,9 +725,6 @@ msgid "Opens port 22 in the firewall."
 msgstr ""
 
 msgid "The SSH server is not installed in this image."
-msgstr ""
-
-msgid "Updates are not available in this release yet."
 msgstr ""
 
 msgid "Update started"
@@ -839,4 +830,115 @@ msgid "Who can use the API"
 msgstr ""
 
 msgid "Needs an API key. Leave this off if you only use this machine."
+msgstr ""
+
+msgid "%d package updates are available"
+msgstr ""
+
+msgid "Check for updates to see what is available."
+msgstr ""
+
+msgid "Everything is up to date"
+msgstr ""
+
+msgid "Finishing"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Install the kernel, NVIDIA driver and system updates together."
+msgstr ""
+
+msgid "Install updates?"
+msgstr ""
+
+msgid "Installing and building the new kernel"
+msgstr ""
+
+msgid "Installing the updates"
+msgstr ""
+
+msgid "NVIDIA driver %(old)s to %(new)s"
+msgstr ""
+
+msgid "New kernel %s"
+msgstr ""
+
+msgid "Not checked yet"
+msgstr ""
+
+msgid "Planning the update"
+msgstr ""
+
+msgid "Preparing the boot entry"
+msgstr ""
+
+msgid "Refreshing the package lists"
+msgstr ""
+
+msgid "Removing the failed kernel"
+msgstr ""
+
+msgid "Restart to finish the update"
+msgstr ""
+
+msgid "Restart to use the previous kernel and driver."
+msgstr ""
+
+msgid "Restoring the previous driver"
+msgstr ""
+
+msgid "Restoring the previous versions"
+msgstr ""
+
+msgid "Roll back"
+msgstr ""
+
+msgid "Roll back the last update?"
+msgstr ""
+
+msgid "Rolled back"
+msgstr ""
+
+msgid "System updates"
+msgstr ""
+
+msgid "The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."
+msgstr ""
+
+msgid "The last check failed"
+msgstr ""
+
+msgid "The last update failed"
+msgstr ""
+
+msgid "The new driver is loaded after the restart."
+msgstr ""
+
+msgid "The new kernel %s starts once. It becomes the default only after it passes the boot check."
+msgstr ""
+
+msgid "The previous kernel and driver are restored. A restart is needed afterwards."
+msgstr ""
+
+msgid "The update helper is not installed"
+msgstr ""
+
+msgid "This is a live session. Install Lightlix to receive kernel and driver updates."
+msgstr ""
+
+msgid "Update status is not available"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "Updates are only available on an installed system"
+msgstr ""
+
+msgid "Updating"
+msgstr ""
+
+msgid "Verifying the driver build"
 msgstr ""

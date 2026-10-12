@@ -7,6 +7,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/config"
 	"github.com/nxodh/lightlixos/daemon/internal/firstboot"
 	"github.com/nxodh/lightlixos/daemon/internal/recommend"
+	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
 // SSH 를 켠 상태에서 보여 줄 안내 문구다.
@@ -257,4 +258,57 @@ func (s *server) getRecommendations(w http.ResponseWriter, r *http.Request) {
 		Result:   res,
 		Note:     "heuristic estimate from the file size plus a KV cache and runtime margin; the real plan is computed after the download",
 	})
+}
+
+// updateStatus 는 갱신 시작 거부 코드를 HTTP 상태로 바꾼다.
+func updateStatus(code string) int {
+	switch code {
+	case updatectl.CodeInvalidAction:
+		return http.StatusBadRequest
+	case updatectl.CodeUnavailable:
+		return http.StatusServiceUnavailable
+	}
+	return http.StatusConflict
+}
+
+// getUpdate 는 갱신 상태를 돌려준다. 파일을 읽을 뿐이라 갱신 중에도 바로 답한다.
+func (s *server) getUpdate(w http.ResponseWriter, r *http.Request) {
+	if s.d.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, updatectl.CodeUnavailable, "updates are not configured")
+		return
+	}
+	info, err := s.d.Updates.Info(r.Context())
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
+}
+
+// postUpdate 는 갱신 동작(check, apply, rollback)을 시작한다. 진행은 GET /v1/update 로 본다.
+// 본문이 없으면 apply 다.
+func (s *server) postUpdate(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Action string `json:"action"`
+		Reboot bool   `json:"reboot"`
+	}
+	if r.ContentLength != 0 {
+		if !decodeBody(w, r, &body) {
+			return
+		}
+	}
+	if body.Action == "" {
+		body.Action = updatectl.ActionApply
+	}
+	if s.d.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, updatectl.CodeUnavailable, "updates are not configured")
+		return
+	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	if err := s.d.Updates.Start(r.Context(), body.Action, body.Reboot); err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"started": true, "action": body.Action, "reboot": body.Reboot})
 }
