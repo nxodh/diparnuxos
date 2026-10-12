@@ -153,9 +153,11 @@ def scenario_installed(console, budgets, secure_boot):
     require(root.split()[0] == "/dev/vda2" and root.split()[1] == "ext4", f"Unexpected root file system: {root}")
     console.command(label + "efi-mounted", "findmnt -no SOURCE,FSTYPE /boot/efi | grep -x '/dev/vda1 vfat'", cmd)
     console.command(label + "hostname", f"test \"$(hostname)\" = {HOSTNAME}", cmd)
-    console.command(label + "bootloader-files",
-                    "test -s /boot/efi/EFI/BOOT/BOOTX64.EFI && test -s /boot/efi/EFI/lightlix/shimx64.efi "
-                    "&& test -s /boot/efi/EFI/lightlix/grubx64.efi", cmd)
+    # 부트로더 파일. 목록을 먼저 남기고 하나씩 판정한다(어느 파일이 없는지 로그에서 바로 보이게).
+    console.command(label + "esp-listing", "find /boot/efi -type f | sort", cmd)
+    for name, path in (("shim", "/boot/efi/EFI/lightlix/shimx64.efi"), ("grub", "/boot/efi/EFI/lightlix/grubx64.efi"),
+                       ("fallback", "/boot/efi/EFI/BOOT/BOOTX64.EFI")):
+        console.command(label + "esp-" + name, f"test -s {path}", cmd)
     ids = console.command(label + "identity", "id -nG && id -u", cmd).splitlines()
     groups = ids[0].split()
     require(all(g in groups for g in ("lightlix", "sudo", "video", "render")), f"Missing groups: {groups}")

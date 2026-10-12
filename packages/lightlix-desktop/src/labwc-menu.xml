@@ -17,5 +17,11 @@
     <item label="Log out">
       <action name="Exit" />
     </item>
+    <item label="Restart">
+      <action name="Execute" command="systemctl reboot" />
+    </item>
+    <item label="Power off">
+      <action name="Execute" command="systemctl poweroff" />
+    </item>
   </menu>
 </openbox_menu>
