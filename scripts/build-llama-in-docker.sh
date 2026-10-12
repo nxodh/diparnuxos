@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # llama/Dockerfile 로 빌더 이미지를 만들고, 컨테이너 안에서 llama/build.sh 를 실행해
-# lightlix-llm .deb 를 out/llama/ 에 만든다. 저장소는 읽기 전용으로 마운트하고, 쓰이는 곳은 out/llama/ 뿐이다.
+# diparnux-llm .deb 를 out/llama/ 에 만든다. 저장소는 읽기 전용으로 마운트하고, 쓰이는 곳은 out/llama/ 뿐이다.
 #
 # 환경 변수:
 #   LLAMA_PLATFORM  빌드 플랫폼. 기본 linux/amd64. 스모크 빌드는 linux/arm64 를 준다.
@@ -19,7 +19,7 @@ die() {
 }
 
 # shellcheck source=/dev/null
-. "${ROOT}/lightlix.conf"
+. "${ROOT}/diparnux.conf"
 
 case "${PLATFORM}" in
     linux/amd64) ARCH=amd64 ;;
@@ -46,7 +46,7 @@ sha256_stdin() {
     fi
 }
 
-# 빌드 키: llama/ 아래 파일(README.md 제외), lightlix.conf, 그리고 CUDA 여부와 플랫폼.
+# 빌드 키: llama/ 아래 파일(README.md 제외), diparnux.conf, 그리고 CUDA 여부와 플랫폼.
 # README.md 는 빌드 결과에 영향을 주지 않으므로 뺀다.
 KEY="$(
     {
@@ -54,13 +54,13 @@ KEY="$(
         find llama -type f ! -name README.md | LC_ALL=C sort | while IFS= read -r f; do
             printf '%s  %s\n' "$(sha256_stdin < "${f}")" "${f}"
         done
-        printf '%s  %s\n' "$(sha256_stdin < lightlix.conf)" lightlix.conf
+        printf '%s  %s\n' "$(sha256_stdin < diparnux.conf)" diparnux.conf
         printf 'LLAMA_CUDA=%s\nLLAMA_PLATFORM=%s\n' "${LLAMA_CUDA}" "${PLATFORM}"
     } | sha256_stdin
 )"
 
 OUT="${ROOT}/out/llama"
-DEB="${OUT}/lightlix-llm_${LIGHTLIX_VERSION}_${ARCH}.deb"
+DEB="${OUT}/diparnux-llm_${DIPARNUX_VERSION}_${ARCH}.deb"
 
 if [ -f "${OUT}/BUILD_KEY" ] && [ "$(cat "${OUT}/BUILD_KEY")" = "${KEY}" ] && [ -f "${DEB}" ]; then
     echo "build-llama-in-docker: up to date (BUILD_KEY ${KEY}), skipping: ${DEB}"
@@ -71,7 +71,7 @@ mkdir -p "${OUT}"
 # 이전 키를 먼저 지운다. 빌드가 실패하면 키 파일이 없으므로 다음 실행에서 다시 빌드한다.
 rm -f "${OUT}/BUILD_KEY"
 
-IMAGE_TAG="lightlix-llm-builder:${DEBIAN_SUITE}-${ARCH}-cuda${LLAMA_CUDA}"
+IMAGE_TAG="diparnux-llm-builder:${DEBIAN_SUITE}-${ARCH}-cuda${LLAMA_CUDA}"
 
 docker build \
     --platform "${PLATFORM}" \
@@ -91,8 +91,8 @@ docker run --rm \
     --platform "${PLATFORM}" \
     -v "${ROOT}:/src:ro" \
     -v "${OUT}:/out" \
-    -e LIGHTLIX_SRC=/src \
-    -e LIGHTLIX_OUT=/out \
+    -e DIPARNUX_SRC=/src \
+    -e DIPARNUX_OUT=/out \
     -e LLAMA_WORK=/var/tmp/llama-build \
     -e LLAMA_CUDA="${LLAMA_CUDA}" \
     -e LLAMA_BUILD_KEY="${KEY}" \

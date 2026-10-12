@@ -12,9 +12,9 @@ die() {
 }
 
 # shellcheck source=/dev/null
-. "${ROOT}/lightlix.conf"
+. "${ROOT}/diparnux.conf"
 
-ISO="${1:-${ROOT}/out/lightlix-${LIGHTLIX_VERSION}-amd64.iso}"
+ISO="${1:-${ROOT}/out/diparnux-${DIPARNUX_VERSION}-amd64.iso}"
 [ -f "${ISO}" ] || die "ISO 가 없다: ${ISO} (먼저 make iso 를 실행하라)."
 
 if ! command -v docker >/dev/null 2>&1; then

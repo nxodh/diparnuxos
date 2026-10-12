@@ -378,7 +378,7 @@ type GPUCheckResult struct {
 	Status   GPUFile `json:"status"`
 }
 
-// User 는 Lightlix 로 만든 로그인 계정이다.
+// User 는 Diparnux 로 만든 로그인 계정이다.
 type User struct {
 	Name    string `json:"name"`
 	Admin   bool   `json:"admin"`

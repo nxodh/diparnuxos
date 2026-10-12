@@ -1,0 +1,65 @@
+#!/bin/sh
+# 첫 로그인에서 한 번 실행하는 사용자 세션 설정이다. 설치 경로는 /usr/bin/diparnux-session-setup 이다.
+# /etc/xdg/autostart/diparnux-session-setup.desktop 이 부른다. 표식 파일이 있으면 아무것도 하지 않는다.
+#   - 모든 모니터에 Diparnux 배경 화면을 적용한다(xfdesktop 은 모니터 이름별 속성을 쓴다).
+#   - 한글 입력기(fcitx5)가 있으면 영문 자판과 한글을 넣은 기본 프로필을 만든다(사용자 설정이 있으면 건드리지 않는다).
+#   - xfce4-terminal 의 색 구성을 사용자 설정으로 복사한다(터미널은 시스템 기본값을 읽지 않는다).
+#   - 문서, 다운로드 같은 사용자 폴더를 만든다.
+set -u
+state="${XDG_CONFIG_HOME:-$HOME/.config}/diparnux"
+marker="$state/session-setup-done"
+[ -e "$marker" ] && exit 0
+mkdir -p "$state" || exit 0
+
+wallpaper=/usr/share/diparnux/wallpaper.png
+if [ -r "$wallpaper" ] && command -v xfconf-query >/dev/null 2>&1; then
+    names=''
+    if command -v xrandr >/dev/null 2>&1; then
+        names="$(xrandr --query 2>/dev/null | awk '/ connected/ { print $1 }')"
+    fi
+    for name in $names; do
+        base="/backdrop/screen0/monitor$name/workspace0"
+        xfconf-query -c xfce4-desktop -p "$base/last-image" -n -t string -s "$wallpaper" 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/image-style" -n -t int -s 1 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/color-style" -n -t int -s 0 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/rgba1" -n -a -t double -s 0.050980 -t double -s 0.050980 \
+            -t double -s 0.050980 -t double -s 1.000000 2>/dev/null
+    done
+fi
+
+# xfce4-terminal 은 시스템 기본값을 읽지 않으므로 처음 한 번만 사용자 설정으로 복사한다(흑백 색 구성).
+terminalrc="${XDG_CONFIG_HOME:-$HOME/.config}/xfce4/terminal/terminalrc"
+if [ ! -e "$terminalrc" ] && [ -r /etc/xdg/diparnux/xfce4/terminal/terminalrc ]; then
+    mkdir -p "$(dirname "$terminalrc")"
+    cp /etc/xdg/diparnux/xfce4/terminal/terminalrc "$terminalrc"
+fi
+
+if command -v fcitx5 >/dev/null 2>&1; then
+    profile="${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/profile"
+    if [ ! -e "$profile" ]; then
+        mkdir -p "$(dirname "$profile")"
+        cat > "$profile" <<'PROFILE'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=keyboard-us
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=hangul
+Layout=
+
+[GroupOrder]
+0=Default
+PROFILE
+    fi
+fi
+
+if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+    xdg-user-dirs-update 2>/dev/null
+fi
+
+touch "$marker"

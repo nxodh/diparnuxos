@@ -387,12 +387,12 @@ func TestFileTypeNameMatchesSpecTable(t *testing.T) {
 	}
 }
 
-// TestReadMetaLocalSample reads a real GGUF file named by LIGHTLIX_GGUF_SAMPLE. It is skipped when the variable is unset.
+// TestReadMetaLocalSample reads a real GGUF file named by DIPARNUX_GGUF_SAMPLE. It is skipped when the variable is unset.
 // It does not use the network.
 func TestReadMetaLocalSample(t *testing.T) {
-	path := os.Getenv("LIGHTLIX_GGUF_SAMPLE")
+	path := os.Getenv("DIPARNUX_GGUF_SAMPLE")
 	if path == "" {
-		t.Skip("LIGHTLIX_GGUF_SAMPLE is not set")
+		t.Skip("DIPARNUX_GGUF_SAMPLE is not set")
 	}
 	f, err := os.Open(path)
 	if err != nil {

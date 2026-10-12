@@ -23,11 +23,11 @@ MODEL_REPO = "ggml-org/tiny-llamas"
 MODEL_FILE = "stories260K.gguf"
 # Hugging Face 파일 페이지와 기존 tests/llama/package.sh 의 고정 해시다.
 MODEL_SHA256 = "047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b"
-SOCKET = "/run/lightlix/lightlixd.sock"
+SOCKET = "/run/diparnux/diparnuxd.sock"
 UNITS = (
-    "lightlixd.socket", "lightlixd.service", "lightlix-llama.service",
-    "lightlix-firewall-default.service", "lightlix-firewall.service",
-    "lightlix-gpu-check.service",
+    "diparnuxd.socket", "diparnuxd.service", "diparnux-llama.service",
+    "diparnux-firewall-default.service", "diparnux-firewall.service",
+    "diparnux-gpu-check.service",
 )
 
 
@@ -137,7 +137,7 @@ class Console:
             raise Failure("qemu_exit", "QEMU closed serial input") from None
 
     def login(self, timeout):
-        self.wait(r"lightlix login: *", timeout, "boot/login prompt")
+        self.wait(r"diparnux login: *", timeout, "boot/login prompt")
         self.send("user")
         self.wait(r"Password: *", timeout, "login/password prompt")
         self.send("live")
@@ -176,7 +176,7 @@ class Console:
         return output
 
     def cli(self, label, args, timeout):
-        output = self.command(label, "lightlix --json " + args, timeout)
+        output = self.command(label, "diparnux --json " + args, timeout)
         try:
             result = json.loads(output)
         except ValueError:
@@ -227,12 +227,12 @@ def set_autostart(console, enabled, label, timeout):
 def status_poll_command():
     return (
         "attempt=0; while [ \"$attempt\" -lt 10 ]; do "
-        "if status=$(lightlix --json status 2>&1); then printf '%s\\n' \"$status\"; exit 0; "
+        "if status=$(diparnux --json status 2>&1); then printf '%s\\n' \"$status\"; exit 0; "
         "else rc=$?; case \"$status\" in "
-        "*\"lightlixd is not running (systemctl status lightlixd)\"*) ;; "
+        "*\"diparnuxd is not running (systemctl status diparnuxd)\"*) ;; "
         "*) printf '%s\\n' \"$status\" >&2; exit \"$rc\";; esac; fi; "
         "attempt=$((attempt + 1)); sleep 1; done; "
-        "printf '%s\\n' 'lightlix status remained unavailable after daemon restart' >&2; exit 1"
+        "printf '%s\\n' 'diparnux status remained unavailable after daemon restart' >&2; exit 1"
     )
 
 
@@ -256,36 +256,36 @@ def scenario(console, budgets):
     lines = identity.splitlines()
     require(len(lines) == 4 and lines[0].isdigit() and int(lines[0]) != 0 and lines[1] == "user",
             "Serial session must run as the unprivileged live user")
-    require("lightlix" in lines[2].split() and lines[3] == "x86_64", "Live user group or amd64 UEFI check failed")
+    require("diparnux" in lines[2].split() and lines[3] == "x86_64", "Live user group or amd64 UEFI check failed")
     permission = console.command("socket-permissions", f"test -S {SOCKET} && stat -c '%a %U %G' {SOCKET}", cmd)
-    require(permission == "660 root lightlix", "Daemon socket must be root:lightlix mode 0660")
+    require(permission == "660 root diparnux", "Daemon socket must be root:diparnux mode 0660")
 
     initial = console.cli("status-initial", "status", cmd)
     require(initial.get("gpu", {}).get("status", {}).get("state") == "no_gpu", "Expected no_gpu diagnostic in QEMU")
     require(initial.get("server", {}).get("state") == "stopped", "Fresh ISO server must start stopped")
     require(not initial["server"].get("last_error"), "Fresh ISO contains a server error")
     # 유휴 RSS 목표 판정에 쓸 실제 데몬 값을 로그에 남긴다. GPU 실기 값과 구분한다.
-    console.command("daemon-memory", "pid=$(systemctl show lightlixd.service -p MainPID --value); "
+    console.command("daemon-memory", "pid=$(systemctl show diparnuxd.service -p MainPID --value); "
                     "test \"$pid\" -gt 0 && grep -E '^(Name|VmRSS|VmSize):' /proc/\"$pid\"/status", cmd)
     for unit in UNITS:
         props = unit_properties(console, "unit-initial-" + unit.split(".")[0], unit, cmd)
         require(props.get("LoadState") == "loaded" and props.get("ActiveState") != "failed",
                 f"Unit {unit} is missing or failed")
-        if unit in ("lightlixd.socket", "lightlixd.service", "lightlix-firewall-default.service", "lightlix-gpu-check.service"):
+        if unit in ("diparnuxd.socket", "diparnuxd.service", "diparnux-firewall-default.service", "diparnux-gpu-check.service"):
             require(props.get("ActiveState") == "active", f"Unit {unit} is not active")
-        if unit == "lightlix-llama.service":
+        if unit == "diparnux-llama.service":
             require(props.get("ActiveState") == "inactive", "llama unit unexpectedly started on a fresh ISO")
         # 저장된 규칙 파일이 없는 첫 부팅에서는 saved firewall 유닛이 조건 때문에 inactive 이다.
         require(props.get("Result", "success") == "success", f"Unit {unit} has an error result")
 
     # root 사용은 게스트 안의 읽기 전용 진단과 nobody 전환뿐이다. 정상 CLI 흐름은 user 가 실행한다.
-    denied = console.command("socket-denied", "sudo -n -u nobody env LIGHTLIX_SOCKET=" + SOCKET + " lightlix --json status", cmd, expected=3)
-    require("permission denied" in denied, "A user outside lightlix must be denied socket access")
-    unavailable = console.command("socket-unavailable", "LIGHTLIX_SOCKET=/run/lightlix/e2e-missing.sock lightlix --json status", cmd, expected=3)
+    denied = console.command("socket-denied", "sudo -n -u nobody env DIPARNUX_SOCKET=" + SOCKET + " diparnux --json status", cmd, expected=3)
+    require("permission denied" in denied, "A user outside diparnux must be denied socket access")
+    unavailable = console.command("socket-unavailable", "DIPARNUX_SOCKET=/run/diparnux/e2e-missing.sock diparnux --json status", cmd, expected=3)
     require("not running" in unavailable, "Missing socket must report daemon unavailability")
-    missing = console.command("missing-model", "lightlix --json serve start e2e-missing.gguf", cmd, expected=1)
+    missing = console.command("missing-model", "diparnux --json serve start e2e-missing.gguf", cmd, expected=1)
     require("(no_model)" in missing, "Missing model error code was not reported")
-    stopped_chat = console.command("chat-before-start", "lightlix --json chat --max-tokens 1 hello", cmd, expected=1)
+    stopped_chat = console.command("chat-before-start", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in stopped_chat, "Stopped server must reject chat")
 
     console.command(
@@ -304,7 +304,7 @@ def scenario(console, budgets):
     require(model.get("sha256") == MODEL_SHA256 and model.get("repo") == MODEL_REPO,
             "Downloaded model metadata SHA-256 or repository mismatch")
     require(model.get("incomplete") is False and model.get("size_bytes", 0) > 0, "Downloaded GGUF is incomplete")
-    digest = console.command("model-sha256", f"sudo -n sha256sum /var/lib/lightlix/models/{MODEL_FILE}", cmd)
+    digest = console.command("model-sha256", f"sudo -n sha256sum /var/lib/diparnux/models/{MODEL_FILE}", cmd)
     require(bool(digest.split()) and digest.split()[0] == MODEL_SHA256,
             "Actual GGUF bytes do not match the pinned SHA-256")
     default = console.cli("model-default", "model default " + MODEL_FILE, cmd)
@@ -326,7 +326,7 @@ def scenario(console, budgets):
     initial_context = started["server"]["plan"]["ctx"]
     status = console.cli("status-running", "status", cmd)
     require_runtime(status, MODEL_FILE, started["server"]["pid"], initial_context, "Initial status")
-    props = unit_properties(console, "unit-running-llama", "lightlix-llama.service", cmd)
+    props = unit_properties(console, "unit-running-llama", "diparnux-llama.service", cmd)
     require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and props.get("Result") == "success",
             "llama systemd service did not start cleanly")
     require(props.get("MainPID") == str(status["server"]["pid"]), "Daemon PID differs from systemd MainPID")
@@ -339,13 +339,13 @@ def scenario(console, budgets):
     for enabled, setting in ((False, "off"), (True, "on")):
         set_autostart(console, enabled, "autostart-" + setting, cmd)
         console.command("daemon-restart-autostart-" + setting,
-                        "sudo -n systemctl restart lightlixd.service", budgets["START_TIMEOUT"])
+                        "sudo -n systemctl restart diparnuxd.service", budgets["START_TIMEOUT"])
         recovered = wait_for_status(console, "status-after-daemon-restart-" + setting,
                                     budgets["START_TIMEOUT"])
         require_runtime(recovered, MODEL_FILE, started["server"]["pid"], initial_context,
                         "Daemon restart with autostart " + setting)
         props = unit_properties(console, "unit-after-daemon-restart-" + setting,
-                                "lightlix-llama.service", cmd)
+                                "diparnux-llama.service", cmd)
         require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and
                 props.get("MainPID") == str(started["server"]["pid"]),
                 f"llama-server was not preserved after autostart {setting} daemon restart")
@@ -366,10 +366,10 @@ def scenario(console, budgets):
     require(final.get("server", {}).get("state") == "stopped" and final["server"].get("pid") == 0,
             "Daemon did not clear the stopped server PID")
     require(not final["server"].get("last_error"), "Clean stop left a server error")
-    props = unit_properties(console, "unit-stopped-llama", "lightlix-llama.service", cmd)
+    props = unit_properties(console, "unit-stopped-llama", "diparnux-llama.service", cmd)
     require(props.get("ActiveState") == "inactive" and props.get("MainPID") == "0" and props.get("Result") == "success",
             "llama systemd service did not stop cleanly")
-    after = console.command("chat-after-stop", "lightlix --json chat --max-tokens 1 hello", cmd, expected=1)
+    after = console.command("chat-after-stop", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in after, "Stopped server accepted chat")
     console.command("journal", "sudo -n journalctl --no-pager -b -n 160 " + " ".join("-u " + unit for unit in UNITS), cmd)
 
@@ -385,7 +385,7 @@ def main():
     # 호스트 화면에는 ASCII 만 쓰고, 직렬 원문과 명령 결과 파일은 UTF-8 로 보존한다.
     sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
     sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
-    parser = argparse.ArgumentParser(description="Lightlix UEFI CPU inference E2E")
+    parser = argparse.ArgumentParser(description="Diparnux UEFI CPU inference E2E")
     parser.add_argument("iso", type=Path)
     args = parser.parse_args()
     logs = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-e2e"))
@@ -427,7 +427,7 @@ def main():
         if accel == "kvm" and not kvm:
             raise Failure("usage", "QEMU_ACCEL=kvm requires read/write access to /dev/kvm")
         chosen = "kvm" if accel != "tcg" and kvm else "tcg"
-        with tempfile.TemporaryDirectory(prefix="lightlix-e2e-") as work, ExitStack() as cleanups:
+        with tempfile.TemporaryDirectory(prefix="diparnux-e2e-") as work, ExitStack() as cleanups:
             variables = Path(work) / "OVMF_VARS.fd"
             shutil.copyfile(template, variables)
             while True:
@@ -440,7 +440,7 @@ def main():
                     "CHAT_TIMEOUT": 300 if slow else 180,
                     "E2E_TIMEOUT": 5400 if slow else 1800,
                 }.items()}
-                argv = [qemu, "-name", "lightlix-cpu-e2e", "-machine", "q35", "-accel", chosen,
+                argv = [qemu, "-name", "diparnux-cpu-e2e", "-machine", "q35", "-accel", chosen,
                         "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "4096M",
                         "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
                         "-drive", f"if=pflash,format=raw,unit=1,file={qemu_value(variables)}",

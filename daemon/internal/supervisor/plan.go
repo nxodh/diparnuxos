@@ -7,11 +7,11 @@ import (
 	"math"
 	"os"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/gpustatus"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // PlanResult는 계획 한 번의 결과다. Output 의 Warnings 와 Rationale 에 계산 근거와 주의 사항이 들어 있다.

@@ -1,0 +1,67 @@
+#!/bin/bash
+# 호스트 커널 대신 이미지의 각 커널에 DKMS 를 빌드하고 최종 이미지 정책을 검증한다.
+set -euo pipefail
+export LC_ALL=C
+# shellcheck source=/dev/null
+. /usr/share/diparnux/nvidia.conf
+
+fail() { echo "diparnux-nvidia: $*" >&2; exit 1; }
+for pkg in nvidia-kernel-dkms nvidia-kernel-source cuda-drivers nvidia-open; do
+    if dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null | grep -qx installed; then
+        fail "금지된 패키지가 설치됐다: $pkg"
+    fi
+done
+for pkg in nvidia-kernel-open-dkms nvidia-driver nvidia-driver-cuda firmware-nvidia-gsp nvidia-persistenced; do
+    actual="$(dpkg-query -W -f='${Version}' "$pkg")"
+    [[ "$actual" == "$NVIDIA_DRIVER_DEB_VERSION" ]] || fail "$pkg 버전 불일치: $actual"
+done
+[[ "$(dpkg-query -W -f='${Version}' "$CUDA_CUDART_PACKAGE")" == "$CUDA_CUDART_VERSION" ]] || fail 'cudart 버전 불일치'
+[[ "$(dpkg-query -W -f='${Version}' "$CUDA_CUBLAS_PACKAGE")" == "$CUDA_CUBLAS_VERSION" ]] || fail 'cublas 버전 불일치'
+[[ "$(apt-cache policy dkms | sed -n 's/^  Candidate: //p')" == "$(dpkg-query -W -f='${Version}' dkms)" ]] || fail 'dkms 핀과 설치 버전 불일치'
+
+kernels=0
+for image in /boot/vmlinuz-*; do
+    [[ -f "$image" ]] || continue
+    kernel="${image##*/vmlinuz-}"
+    [[ "$kernel" == 6.12.*-amd64 ]] || fail "trixie 기본 계열이 아닌 커널: $kernel"
+    [[ -e "/lib/modules/$kernel/build/Makefile" ]] || fail "커널 헤더가 없다: $kernel"
+    dkms autoinstall -k "$kernel"
+    depmod -a "$kernel"
+    for module in nvidia nvidia-modeset nvidia-uvm nvidia-drm; do
+        path="$(modinfo -k "$kernel" -F filename "$module")"
+        [[ "$path" == /lib/modules/"$kernel"/updates/dkms/* && -s "$path" ]] || fail "$kernel $module 모듈이 없다: $path"
+        [[ "$(modinfo -k "$kernel" -F license "$module")" == 'Dual MIT/GPL' ]] || fail "$module 라이선스가 오픈 모듈이 아니다"
+        [[ "$(modinfo -k "$kernel" -F version "$module")" == "$NVIDIA_DRIVER_VERSION" ]] || fail "$module 버전 불일치"
+    done
+    update-initramfs -u -k "$kernel"
+    echo "diparnux-nvidia: $kernel 오픈 모듈 검증 통과"
+    kernels=$((kernels + 1))
+done
+(( kernels > 0 )) || fail '이미지에 설치된 커널이 없다'
+
+systemctl enable nvidia-persistenced.service diparnux-gpu-check.service
+systemctl set-default multi-user.target
+for target in sleep suspend hibernate hybrid-sleep suspend-then-hibernate; do
+    [[ "$(readlink "/etc/systemd/system/$target.target")" == /dev/null ]] || fail "$target.target 마스크 누락"
+done
+
+# 자동 업데이트가 커널과 드라이버를 따로 바꾸지 않도록 현재 구성을 보존한다.
+# 갱신 및 롤백 명령은 Phase 4에서 구현한다.
+mapfile -t held < <(dpkg-query -W -f='${binary:Package} ${source:Package}\n' | \
+    awk '$1 ~ /^linux-(image|headers)-/ || $2 ~ /^nvidia-(graphics-drivers|kmod-open|modprobe|persistenced)$/ {print $1}')
+apt-mark hold "${held[@]}" "$CUDA_CUDART_PACKAGE" "$CUDA_CUBLAS_PACKAGE"
+
+# 각 수령자에게 원본 계약서 전문을 제공한다. 패키지 바이너리는 수정하지 않는다.
+licenses=/usr/share/diparnux/licenses
+mkdir -p "$licenses"
+for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp "$CUDA_CUDART_PACKAGE" "$CUDA_CUBLAS_PACKAGE"; do
+    doc="/usr/share/doc/$pkg/copyright"
+    [[ -r "$doc" ]] || fail "라이선스 전문이 없다: $pkg"
+    cp -L "$doc" "$licenses/$pkg.copyright"
+done
+printf '\nDiparnux license texts: /usr/share/diparnux/licenses/\n' >> /etc/issue
+
+# 이 훅 뒤에는 DKMS 나 커널 패키지를 다시 설치하지 않는다.
+rm -f /var/lib/dkms/mok.key /var/lib/dkms/mok.pub
+[[ ! -e /var/lib/dkms/mok.key && ! -e /var/lib/dkms/mok.pub ]] || fail 'DKMS 서명 키 제거 실패'
+echo 'diparnux-nvidia: 이미지 정책 검증 및 서명 키 제거 완료'

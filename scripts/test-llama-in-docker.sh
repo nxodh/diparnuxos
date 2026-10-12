@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# out/llama/ 의 lightlix-llm .deb 를 깨끗한 debian:<suite> 컨테이너에서 검사한다(tests/llama/package.sh).
+# out/llama/ 의 diparnux-llm .deb 를 깨끗한 debian:<suite> 컨테이너에서 검사한다(tests/llama/package.sh).
 # 호스트에는 아무것도 설치하지 않는다. 컨테이너는 실행 뒤 --rm 으로 지워진다.
 #
-# 사용법: scripts/test-llama-in-docker.sh [path/to/lightlix-llm_<version>_<arch>.deb]
-# 인자가 없으면 out/llama/ 에서 현재 LIGHTLIX_VERSION 의 .deb 를 찾는다(하나여야 한다).
+# 사용법: scripts/test-llama-in-docker.sh [path/to/diparnux-llm_<version>_<arch>.deb]
+# 인자가 없으면 out/llama/ 에서 현재 DIPARNUX_VERSION 의 .deb 를 찾는다(하나여야 한다).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,7 +14,7 @@ die() {
 }
 
 # shellcheck source=/dev/null
-. "${ROOT}/lightlix.conf"
+. "${ROOT}/diparnux.conf"
 
 if [ "$#" -gt 1 ]; then
     die "usage: test-llama-in-docker.sh [deb]"
@@ -24,9 +24,9 @@ if [ "$#" -eq 1 ]; then
     DEB="$1"
 else
     shopt -s nullglob
-    CANDIDATES=("${ROOT}/out/llama/lightlix-llm_${LIGHTLIX_VERSION}_"*.deb)
+    CANDIDATES=("${ROOT}/out/llama/diparnux-llm_${DIPARNUX_VERSION}_"*.deb)
     shopt -u nullglob
-    [ "${#CANDIDATES[@]}" -eq 1 ] || die "expected one lightlix-llm .deb in out/llama/, found ${#CANDIDATES[@]}. Run make llama first."
+    [ "${#CANDIDATES[@]}" -eq 1 ] || die "expected one diparnux-llm .deb in out/llama/, found ${#CANDIDATES[@]}. Run make llama first."
     DEB="${CANDIDATES[0]}"
 fi
 [ -f "${DEB}" ] || die "no such file: ${DEB}"

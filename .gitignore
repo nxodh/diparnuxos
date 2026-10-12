@@ -11,8 +11,8 @@ build/cache/
 build/config/packages.chroot/*.deb
 # 빌드 설정에서 생성하는 NVIDIA 초기 저장소 패키지와 핀
 build/config/archives/*.deb
-build/config/archives/00-lightlix-nvidia.pref
-build/config/archives/20-lightlix-dkms.conf.chroot
+build/config/archives/00-diparnux-nvidia.pref
+build/config/archives/20-diparnux-dkms.conf.chroot
 
 # 빌드 결과물과 로그
 build/*.iso
@@ -61,3 +61,7 @@ id_ed25519_sk
 .DS_Store
 .idea/
 .vscode/
+
+# Python 바이트코드
+__pycache__/
+*.pyc

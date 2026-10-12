@@ -1,17 +1,17 @@
-# Lightlix 빌드 진입점. 버전과 저장소 값은 lightlix.conf 에서만 읽는다.
+# Diparnux 빌드 진입점. 버전과 저장소 값은 diparnux.conf 에서만 읽는다.
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-LIGHTLIX_CONF := $(ROOT)/lightlix.conf
-export LIGHTLIX_CONF
+DIPARNUX_CONF := $(ROOT)/diparnux.conf
+export DIPARNUX_CONF
 
-LIGHTLIX_VERSION := $(shell . "$(LIGHTLIX_CONF)" && printf '%s' "$$LIGHTLIX_VERSION")
-ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
+DIPARNUX_VERSION := $(shell . "$(DIPARNUX_CONF)" && printf '%s' "$$DIPARNUX_VERSION")
+ISO ?= $(ROOT)/out/diparnux-$(DIPARNUX_VERSION)-amd64.iso
 
-SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name lightlix-panel-net -o -name lightlix-session-setup -o -name 55lightlix-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
+SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name diparnux-panel-net -o -name diparnux-session-setup -o -name 55diparnux-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name test-daemon test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
 
-# Docker 안에서 ISO 를 빌드한다. lightlix-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
+# Docker 안에서 ISO 를 빌드한다. diparnux-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
 	bash "$(ROOT)/scripts/build-in-docker.sh"
 
@@ -23,7 +23,7 @@ iso-native:
 deb:
 	bash "$(ROOT)/scripts/build-debs.sh"
 
-# llama.cpp 를 Docker 안에서 빌드해 out/llama/ 에 lightlix-llm .deb 를 만든다. 입력이 같으면 건너뛴다.
+# llama.cpp 를 Docker 안에서 빌드해 out/llama/ 에 diparnux-llm .deb 를 만든다. 입력이 같으면 건너뛴다.
 # 로컬 CPU 스모크 빌드: LLAMA_CUDA=OFF LLAMA_PLATFORM=linux/arm64 make llama (산출물은 검사 뒤 지운다. llama/README.md 참고)
 llama:
 	bash "$(ROOT)/scripts/build-llama-in-docker.sh"
@@ -44,6 +44,10 @@ lint:
 		for f in $(SHELL_SCRIPTS); do bash -n "$$f" || exit 1; done; \
 	fi
 
+# 추적 파일의 경로와 내용에 옛 이름이 남아 있지 않은지 검사한다(0.5.1 부터).
+check-legacy-name:
+	bash "$(ROOT)/scripts/check-legacy-name.sh"
+
 # Xfce 데스크톱 구성(패널 배치, xfconf 기본값, 테마)을 패키지로 설치하고 Xvfb 세션과 lightdm 로그인 화면으로 확인한다.
 test-desktop-config-docker:
 	bash "$(ROOT)/scripts/test-desktop-config-in-docker.sh"
@@ -60,7 +64,7 @@ test-apt-repo-docker:
 test-installer-config-docker:
 	bash "$(ROOT)/scripts/test-installer-config-in-docker.sh"
 
-# 실제 apt 와 dpkg 로 lightlix-update 의 갱신, 롤백, 실패 복구를 컨테이너에서 확인한다.
+# 실제 apt 와 dpkg 로 diparnux-update 의 갱신, 롤백, 실패 복구를 컨테이너에서 확인한다.
 test-update-docker:
 	bash "$(ROOT)/scripts/test-update-in-docker.sh"
 
@@ -84,7 +88,7 @@ test-daemon:
 test-nvidia-image-docker:
 	bash "$(ROOT)/scripts/test-nvidia-image-in-docker.sh" "$(ISO)"
 
-# ISO 의 로그인 프롬프트와 GPU 진단 줄(Lightlix GPU [no_gpu]:)을 QEMU 직렬 콘솔에서 확인한다.
+# ISO 의 로그인 프롬프트와 GPU 진단 줄(Diparnux GPU [no_gpu]:)을 QEMU 직렬 콘솔에서 확인한다.
 test-qemu:
 	bash "$(ROOT)/tests/qemu/boot-smoke.sh" "$(ISO)"
 
@@ -119,7 +123,7 @@ test-qemu-install-docker:
 	bash "$(ROOT)/scripts/test-qemu-install-in-docker.sh" "$(ISO)"
 
 # 산출물(out/)과 빌드된 .deb 를 지운다. out/llama 는 빌드가 오래 걸리므로 남긴다(clean-llama 로 지운다).
-# 작업 디렉터리(/var/tmp/lightlix-build)는 지우지 않는다.
+# 작업 디렉터리(/var/tmp/diparnux-build)는 지우지 않는다.
 clean:
 	@if [ -d "$(ROOT)/out" ]; then find "$(ROOT)/out" -mindepth 1 -maxdepth 1 ! -name llama -exec rm -rf {} +; fi
 	find "$(ROOT)/build/config/packages.chroot" -name '*.deb' -delete

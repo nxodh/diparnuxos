@@ -36,7 +36,7 @@ Failure, require, seconds, qemu_value, Console = base.Failure, base.require, bas
 
 # 이 테스트가 만드는 계정이다. 키 입력(sendkey)으로 칠 수 있게 소문자와 숫자만 쓴다.
 TEST_USER = "tester"
-TEST_PASSWORD = "lightlixtest1"
+TEST_PASSWORD = "diparnuxtest1"
 
 # 키 이름은 QEMU 모니터 sendkey 의 이름이다. 로그인 이름과 비밀번호의 문자만 쓴다.
 SPECIAL_KEYS = {"\n": "ret", " ": "spc"}
@@ -216,10 +216,10 @@ def scenario(console, monitor, budgets, logs, workdir):
     monitor.connect()
 
     identity = console.command("identity", "id -un && id -Gn && uname -m", cmd).splitlines()
-    require(identity[0] == "user" and "lightlix" in identity[1].split(), "Serial session must be the live user in group lightlix")
+    require(identity[0] == "user" and "diparnux" in identity[1].split(), "Serial session must be the live user in group diparnux")
 
     # 이미지는 서버 모드로 부팅하고 데스크톱 구성 요소를 갖는다.
-    mode = console.command("mode-initial", "lightlix --json mode", cmd)
+    mode = console.command("mode-initial", "diparnux --json mode", cmd)
     require(json_object(mode, "mode-initial").get("mode") == "server", "The image must boot in server mode")
     console.command("lightdm-installed", "systemctl cat lightdm.service >/dev/null", cmd)
     unit = console.command("lightdm-unit", "systemctl cat lightdm.service", cmd)
@@ -229,39 +229,49 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command(
         "desktop-files",
         "test -x /usr/bin/xfce4-session && test -x /usr/bin/xfwm4 && test -x /usr/sbin/lightdm "
-        "&& test -x /usr/bin/lightlix-control-center && test -s /etc/xdg/lightlix/xfce4/panel/default.xml",
+        "&& test -x /usr/bin/diparnux-control-center && test -s /etc/xdg/diparnux/xfce4/panel/default.xml",
         cmd,
     )
     console.command("fonts-korean", "fc-list :lang=ko family | head -n 3 | grep .", cmd)
+    # 옛 이름의 흔적: 설치된 파일 이름, 유닛, 계정, 환경에 없어야 한다(패턴을 두 조각으로 나누어 이 파일이 걸리지 않게 한다).
+    console.command(
+        "legacy-name-absent",
+        "p=light''lix; "
+        "! find /etc /usr/bin /usr/sbin /usr/lib /usr/share /var/lib /opt -iname \"*$p*\" 2>/dev/null | grep -q . "
+        "&& ! systemctl list-unit-files --no-pager | grep -qi \"$p\" "
+        "&& ! getent group | grep -qi \"$p\" "
+        "&& ! grep -qi \"$p\" /etc/os-release /etc/hostname /etc/issue",
+        cmd,
+    )
 
     # 사용자가 정한 이름과 비밀번호로 계정을 만든다. 비밀번호는 표준 입력으로만 넘긴다.
     created = console.command(
         "account-create",
-        f"printf '%s\\n' '{TEST_PASSWORD}' | lightlix --json user add {TEST_USER} --admin --password-stdin",
+        f"printf '%s\\n' '{TEST_PASSWORD}' | diparnux --json user add {TEST_USER} --admin --password-stdin",
         cmd + 30,
     )
     require(json_object(created, "account-create").get("name") == TEST_USER, "The account was not created")
     require(TEST_PASSWORD not in created, "The password must not appear in the command output")
-    listed = console.command("account-list", "lightlix --json user list", cmd)
+    listed = console.command("account-list", "diparnux --json user list", cmd)
     require(TEST_USER in json.dumps(json_object(listed, "account-list")), "The account is missing from the list")
     console.command("account-passwd-entry", f"getent passwd {TEST_USER} | grep -q ':/home/{TEST_USER}:/bin/bash$'", cmd)
     console.command("account-shadow-hash", f"sudo -n getent shadow {TEST_USER} | cut -d: -f2 | grep -q '^[$]'", cmd)
-    console.command("account-groups", f"id -nG {TEST_USER} | tr ' ' '\\n' | grep -cxE 'lightlix|video|render|sudo' | grep -qx 4", cmd)
+    console.command("account-groups", f"id -nG {TEST_USER} | tr ' ' '\\n' | grep -cxE 'diparnux|video|render|sudo' | grep -qx 4", cmd)
     console.command("account-home", f"sudo -n test -d /home/{TEST_USER}", cmd)
     # 같은 이름은 다시 만들 수 없고, 약한 비밀번호는 거절된다.
     console.command(
         "account-duplicate",
-        f"printf '%s\\n' '{TEST_PASSWORD}' | lightlix --json user add {TEST_USER} --password-stdin",
+        f"printf '%s\\n' '{TEST_PASSWORD}' | diparnux --json user add {TEST_USER} --password-stdin",
         cmd + 30, expected=1,
     )
     console.command(
         "account-weak-password",
-        "printf '%s\\n' 'short' | lightlix --json user add weakone --password-stdin",
+        "printf '%s\\n' 'short' | diparnux --json user add weakone --password-stdin",
         cmd + 30, expected=1,
     )
 
     # SSH: 켜면 이 계정만 비밀번호로 접속할 수 있고 기본 live 계정은 거절된다.
-    ssh_state = console.command("ssh-on", "lightlix --json ssh on", cmd + 60)
+    ssh_state = console.command("ssh-on", "diparnux --json ssh on", cmd + 60)
     state = json_object(ssh_state, "ssh-on")
     require(state.get("enabled") is True and TEST_USER in (state.get("login_users") or []), "SSH did not list the account")
     poll_command(console, "ssh-active", "systemctl is-active --quiet ssh.service", cmd)
@@ -285,7 +295,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
 
     # 데스크톱 모드로 전환한다. 라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.
-    switched = console.command("mode-desktop", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
+    switched = console.command("mode-desktop", "diparnux --json mode desktop", budgets["START_TIMEOUT"])
     require(json_object(switched, "mode-desktop").get("mode") == "desktop", "Mode switch did not report desktop")
     poll_command(console, "lightdm-active", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
     console.command("default-target-desktop", "systemctl get-default | grep -x graphical.target", cmd)
@@ -297,7 +307,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(auto["colors"] >= 3 and auto["lit_fraction"] > 0.0005, f"The autologin desktop looks blank: {auto}")
     # 라이브 자동 로그인은 live-config 가 부팅 때 /etc/lightdm/lightdm.conf 에 쓴다.
     console.command("autologin-config", "grep -x 'autologin-user=user' /etc/lightdm/lightdm.conf", cmd)
-    back = console.command("mode-server-after-autologin", "lightlix --json mode server", budgets["START_TIMEOUT"])
+    back = console.command("mode-server-after-autologin", "diparnux --json mode server", budgets["START_TIMEOUT"])
     require(json_object(back, "mode-server-after-autologin").get("mode") == "server", "Mode switch did not report server")
     poll_command(console, "autologin-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
 
@@ -310,10 +320,10 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command(
         "greeter-manual-login",
         "sudo -n mkdir -p /etc/lightdm/lightdm.conf.d && printf '[Seat:*]\\ngreeter-hide-users=true\\ngreeter-show-manual-login=true\\n' "
-        "| sudo -n tee /etc/lightdm/lightdm.conf.d/70-lightlix-test.conf >/dev/null",
+        "| sudo -n tee /etc/lightdm/lightdm.conf.d/70-diparnux-test.conf >/dev/null",
         cmd,
     )
-    switched = console.command("mode-desktop-greeter", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
+    switched = console.command("mode-desktop-greeter", "diparnux --json mode desktop", budgets["START_TIMEOUT"])
     require(json_object(switched, "mode-desktop-greeter").get("mode") == "desktop", "Mode switch did not report desktop")
     poll_command(console, "lightdm-active-greeter", "systemctl is-active --quiet lightdm.service", budgets["START_TIMEOUT"])
     poll_command(console, "greeter-running", "pgrep -f /usr/sbin/lightdm-gtk-greeter", budgets["START_TIMEOUT"])
@@ -357,10 +367,10 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command(
         "session-env-check",
         f"sudo -n sh -c 'pid=$(pgrep -u {TEST_USER} -x xfce4-session | head -n 1); tr \"\\0\" \"\\n\" < /proc/$pid/environ "
-        "| grep -x \"XDG_CURRENT_DESKTOP=XFCE\" && tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -q \"^XDG_CONFIG_DIRS=/etc/xdg/lightlix:\"'",
+        "| grep -x \"XDG_CURRENT_DESKTOP=XFCE\" && tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -q \"^XDG_CONFIG_DIRS=/etc/xdg/diparnux:\"'",
         cmd,
     )
-    poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
+    poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f diparnux-control-center", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
     session = None
@@ -387,7 +397,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("lightdm-log", "sudo -n sh -c 'tail -n 40 /var/log/lightdm/lightdm.log /var/log/lightdm/x-0.log 2>&1'; true", cmd)
     console.command(
         "control-center-manual-run",
-        f"sudo -n -u {TEST_USER} env DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority timeout 25 lightlix-control-center --wizard 2>&1 | head -n 60; true",
+        f"sudo -n -u {TEST_USER} env DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority timeout 25 diparnux-control-center --wizard 2>&1 | head -n 60; true",
         cmd + 30,
     )
     console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
@@ -395,28 +405,28 @@ def scenario(console, monitor, budgets, logs, workdir):
     # 패널과 첫 로그인 설정: 진단을 남긴 뒤 판정한다.
     console.command(
         "first-login-setup",
-        f"sudo -n sh -c 'ls -la /home/{TEST_USER}/.config/lightlix /home/{TEST_USER}/.config/xfce4 2>&1 | head -n 20'; "
-        f"sudo -n test -e /home/{TEST_USER}/.config/lightlix/session-setup-done",
+        f"sudo -n sh -c 'ls -la /home/{TEST_USER}/.config/diparnux /home/{TEST_USER}/.config/xfce4 2>&1 | head -n 20'; "
+        f"sudo -n test -e /home/{TEST_USER}/.config/diparnux/session-setup-done",
         cmd,
     )
-    console.command("panel-network-text", "lightlix-panel-net | grep -E '^<txt>.+</txt>$'", cmd)
+    console.command("panel-network-text", "diparnux-panel-net | grep -E '^<txt>.+</txt>$'", cmd)
     require(session["colors"] >= 8, f"The desktop session looks blank after {attempt} captures: {session}")
 
     # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
-    console.command("daemon-status", "lightlix --json status | grep -q '\"mode\": \"desktop\"'", cmd)
+    console.command("daemon-status", "diparnux --json status | grep -q '\"mode\": \"desktop\"'", cmd)
 
     # 그래픽 설치기(Calamares)를 같은 Xfce 세션에서 띄워 창이 그려지는지만 본다. 설치는 하지 않는다.
     console.command(
         "installer-files",
-        "test -x /usr/bin/lightlix-installer && test -x /usr/bin/calamares && test -s /etc/calamares/settings.conf "
-        "&& test -s /etc/calamares/branding/lightlix/branding.desc && test -x /usr/sbin/lightlix-install",
+        "test -x /usr/bin/diparnux-installer && test -x /usr/bin/calamares && test -s /etc/calamares/settings.conf "
+        "&& test -s /etc/calamares/branding/diparnux/branding.desc && test -x /usr/sbin/diparnux-install",
         cmd,
     )
     uid = console.command("tester-uid", f"id -u {TEST_USER}", cmd).strip().splitlines()[-1]
     console.command(
         "installer-start",
         f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority "
-        "nohup lightlix-installer -d > /tmp/installer.log 2>&1 &'; sleep 2",
+        "nohup diparnux-installer -d > /tmp/installer.log 2>&1 &'; sleep 2",
         cmd,
     )
     poll_command(console, "installer-running", "pgrep -x calamares", budgets["START_TIMEOUT"])
@@ -449,7 +459,7 @@ def scenario(console, monitor, budgets, logs, workdir):
         "rss() { pid=$(pgrep -f -o \"$1\" | head -n 1); "
         "[ -n \"$pid\" ] && awk '/VmRSS/ {print $2}' /proc/$pid/status || echo 0; }; "
         "for i in 0 1 2 3 4 5 6 7; do "
-        "echo \"sample=$i lightlixd=$(rss /usr/sbin/lightlixd) cc=$(rss lightlix-control-center) xorg=$(rss Xorg) "
+        "echo \"sample=$i diparnuxd=$(rss /usr/sbin/diparnuxd) cc=$(rss diparnux-control-center) xorg=$(rss Xorg) "
         "xfwm4=$(rss xfwm4) panel=$(rss xfce4-panel) desktop=$(rss xfdesktop) avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)\"; "
         "[ $i -lt 7 ] && sleep 60; done; true"
     )
@@ -462,7 +472,7 @@ def scenario(console, monitor, budgets, logs, workdir):
     # 첫 표본은 시작 직후의 값이라 워밍업으로 보고 두 번째를 기준으로 삼는다.
     base, last = samples[1], samples[-1]
     # Xfce 구성 요소의 상한은 첫 측정 전의 넉넉한 값이다. 실측을 보고 조인다(램 목표가 아니라 누수 검사다).
-    limits_kb = {"lightlixd": 6 * 1024, "cc": 24 * 1024, "xorg": 48 * 1024, "xfwm4": 16 * 1024, "panel": 32 * 1024, "desktop": 32 * 1024}
+    limits_kb = {"diparnuxd": 6 * 1024, "cc": 24 * 1024, "xorg": 48 * 1024, "xfwm4": 16 * 1024, "panel": 32 * 1024, "desktop": 32 * 1024}
     for key, limit in limits_kb.items():
         growth = last[key] - base[key]
         print(f"desktop-session: soak {key}: {base[key]} kB -> {last[key]} kB (+{growth} kB, limit {limit} kB)", flush=True)
@@ -477,7 +487,7 @@ def scenario(console, monitor, budgets, logs, workdir):
         console.command("browser-installed", "command -v firefox-esr", cmd)
         console.command(
             "browser-window-start",
-            f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority "
+            f"sudo -n sh -c 'HOME=/home/{TEST_USER} XDG_RUNTIME_DIR=/run/user/{uid} DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority "
             f"nohup setpriv --reuid={TEST_USER} --regid={TEST_USER} --init-groups firefox-esr --no-remote about:blank "
             f"> /tmp/browser.log 2>&1 &'; sleep 40; pgrep -u {TEST_USER} -f firefox | head -n 3",
             cmd + 90,
@@ -490,7 +500,7 @@ def scenario(console, monitor, budgets, logs, workdir):
         print(f"desktop-session: browser experiment did not complete: {error.kind}: {str(error)[:300]}", flush=True)
 
     # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
-    back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])
+    back = console.command("mode-server", "diparnux --json mode server", budgets["START_TIMEOUT"])
     require(json_object(back, "mode-server").get("mode") == "server", "Mode switch did not report server")
     poll_command(console, "xfce-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
     console.command("lightdm-stopped", "! systemctl is-active --quiet lightdm.service", cmd)
@@ -501,17 +511,17 @@ def scenario(console, monitor, budgets, logs, workdir):
 
     # 계정을 지우면 목록과 passwd 에서 사라지고, SSH 정책에서도 빠진다. 홈 디렉터리는 남는다.
     poll_command(console, "account-processes-gone", f"! pgrep -u {TEST_USER}", budgets["START_TIMEOUT"])
-    removed = console.command("account-remove", f"lightlix --json user rm {TEST_USER}", cmd + 60)
+    removed = console.command("account-remove", f"diparnux --json user rm {TEST_USER}", cmd + 60)
     require(json_object(removed, "account-remove").get("home_kept") is True, "Account removal must keep the home directory")
     console.command("account-gone", f"! getent passwd {TEST_USER}", cmd)
     console.command("account-home-kept", f"sudo -n test -d /home/{TEST_USER}", cmd)
-    console.command("ssh-policy-removed", "! sudo -n test -e /etc/ssh/sshd_config.d/50-lightlix.conf", cmd)
+    console.command("ssh-policy-removed", "! sudo -n test -e /etc/ssh/sshd_config.d/50-diparnux.conf", cmd)
 
 
 def main():
     sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
     sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
-    parser = argparse.ArgumentParser(description="Lightlix UEFI desktop session E2E")
+    parser = argparse.ArgumentParser(description="Diparnux UEFI desktop session E2E")
     parser.add_argument("iso", type=Path)
     args = parser.parse_args()
     log_root = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-desktop"))
@@ -552,11 +562,11 @@ def main():
             "START_TIMEOUT": 900 if slow else 240,
             "E2E_TIMEOUT": 5400 if slow else 1200,
         }.items()}
-        with tempfile.TemporaryDirectory(prefix="lightlix-desktop-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-desktop-") as work:
             variables = Path(work) / "OVMF_VARS.fd"
             shutil.copyfile(template, variables)
             mon_path = str(Path(work) / "monitor.sock")
-            argv = [qemu, "-name", "lightlix-desktop-e2e", "-machine", "q35", "-accel", chosen,
+            argv = [qemu, "-name", "diparnux-desktop-e2e", "-machine", "q35", "-accel", chosen,
                     "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "4096M",
                     "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
                     "-drive", f"if=pflash,format=raw,unit=1,file={qemu_value(variables)}",

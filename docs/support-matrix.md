@@ -5,7 +5,7 @@
 
 > 실 하드웨어에서 검증하기 전에는 어떤 GPU에서도 동작을 주장하지 않는다. 이 문서의 행은 대상 범위와 확인 근거를 적는 자리이며, 검증 결과가 아니다. 상태가 바뀌려면 실기 테스트 기록(날짜, 이미지 버전, 드라이버 버전, 결과)이 있어야 한다.
 
-CUDA 모듈을 포함한 패키지의 CPU 추론은 [CI 38131367776](https://github.com/nxodh/lightlixos/actions/runs/38131367776)에서 CUDA 없는 Debian 컨테이너로 확인했다. [CI 38142350756](https://github.com/nxodh/lightlixos/actions/runs/38142350756)(`035dfb4`)에서는 GPU 없는 QEMU/KVM VM의 live ISO가 모델 다운로드, CPU 서버 시작, 채팅, 데몬 재시작 뒤 채택, 정상 중지까지 통과했다. 이 두 결과는 CPU 경로이며 어떤 GPU에서의 동작도 입증하지 않는다. 아래 GPU 행은 모두 실기 미검증이다.
+CUDA 모듈을 포함한 패키지의 CPU 추론은 [CI 38131367776](https://github.com/nxodh/diparnuxos/actions/runs/38131367776)에서 CUDA 없는 Debian 컨테이너로 확인했다. [CI 38142350756](https://github.com/nxodh/diparnuxos/actions/runs/38142350756)(`035dfb4`)에서는 GPU 없는 QEMU/KVM VM의 live ISO가 모델 다운로드, CPU 서버 시작, 채팅, 데몬 재시작 뒤 채택, 정상 중지까지 통과했다. 이 두 결과는 CPU 경로이며 어떤 GPU에서의 동작도 입증하지 않는다. 아래 GPU 행은 모두 실기 미검증이다.
 
 ---
 
@@ -73,9 +73,9 @@ RTX 3060 Laptop GPU도 대상에 포함한다. NVIDIA 595.91.07의 [공식 지�
 
 ## 5. MSI Stealth 15M 실기 확인 계획
 
-사용자가 RTX 3060 노트북으로 MSI Stealth 15M을 제시했다. 정확한 하위 모델과 실제 장치 ID는 아직 확인하지 못했다. MSI 사양에서 [A11UEK](https://kr.msi.com/Laptop/Stealth-15M-A11UX/Specification)와 [B12UE](https://www.msi.com/Laptop/Stealth-15M-B12UX/Specification)는 모두 RTX 3060 Laptop GPU와 VRAM 6GB를 사용한다. GPU 자체는 위 대상 범위에 들어간다. 이 확인은 Lightlix 실기 부팅 성공을 뜻하지 않는다.
+사용자가 RTX 3060 노트북으로 MSI Stealth 15M을 제시했다. 정확한 하위 모델과 실제 장치 ID는 아직 확인하지 못했다. MSI 사양에서 [A11UEK](https://kr.msi.com/Laptop/Stealth-15M-A11UX/Specification)와 [B12UE](https://www.msi.com/Laptop/Stealth-15M-B12UX/Specification)는 모두 RTX 3060 Laptop GPU와 VRAM 6GB를 사용한다. GPU 자체는 위 대상 범위에 들어간다. 이 확인은 Diparnux 실기 부팅 성공을 뜻하지 않는다.
 
-- Phase 1: Secure Boot를 끈 UEFI 부팅, 오픈 모듈 로드, `nvidia-smi`의 이름·버전·8.6 조회, `/run/lightlix/gpu-status`를 확인한다.
+- Phase 1: Secure Boot를 끈 UEFI 부팅, 오픈 모듈 로드, `nvidia-smi`의 이름·버전·8.6 조회, `/run/diparnux/gpu-status`를 확인한다.
 - 현재 ISO에는 Intel Wi-Fi 펌웨어(`firmware-iwlwifi`)와 무선 접속 데몬 iwd를 넣었다. 실기 접속은 미검증이다. 노트북의 실제 Wi-Fi 칩(AX200 추정)은 `lspci`로 확인해야 한다. GPU 드라이버 대상 여부와 노트북의 네트워크 사용 가능 여부를 따로 기록한다.
 - Phase 2: CUDA 실행과 모델 GPU 오프로드를 확인한다. VRAM 6GB는 모델과 KV 캐시가 함께 사용하는 한도이므로 모델 크기만으로 실행 가능성을 판단하지 않는다.
 - Phase 3: 내장 GPU의 내부 화면 출력과 NVIDIA GPU의 추론을 함께 검증한다. USB-C/HDMI 출력은 포트별 배선을 확인한다.

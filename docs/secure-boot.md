@@ -1,11 +1,11 @@
 # Secure Boot와 커널 모듈 서명
 
 - 확인 날짜: 2026-10-11
-- 상태: Phase 1 빌드 키 제거와 텍스트 안내, Phase 3 `lightlix-mok` 보조 도구 구현(실기 미검증)
+- 상태: Phase 1 빌드 키 제거와 텍스트 안내, Phase 3 `diparnux-mok` 보조 도구 구현(실기 미검증)
 
-> Phase 1은 `9900-lightlix-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `lightlix-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 영어 ASCII 텍스트로 콘솔과 로그인 프롬프트 위에 안내한다(실기 화면은 미검증). 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
+> Phase 1은 `9900-diparnux-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `diparnux-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 영어 ASCII 텍스트로 콘솔과 로그인 프롬프트 위에 안내한다(실기 화면은 미검증). 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
 
-Lightlix는 UEFI 전용이다. Secure Boot가 켜진 기기에서 부팅하는 경우를 고려해야 한다. 이 문서는 커널 설정, 서명 키, 기기별 등록 흐름, 대안, 라이브 세션 안내를 정리한다. 방침 중 일부는 사용자가 아직 확정하지 않았다(아래 7절).
+Diparnux는 UEFI 전용이다. Secure Boot가 켜진 기기에서 부팅하는 경우를 고려해야 한다. 이 문서는 커널 설정, 서명 키, 기기별 등록 흐름, 대안, 라이브 세션 안내를 정리한다. 방침 중 일부는 사용자가 아직 확정하지 않았다(아래 7절).
 
 ---
 
@@ -54,14 +54,14 @@ DKMS는 서명 키가 없으면 자동으로 만든다.
 
 MOK(Machine Owner Key)는 기기 소유자가 UEFI에 등록하는 키다. 등록된 키로 서명한 모듈은 Secure Boot가 켜진 상태에서도 로드된다.
 
-`lightlix-mok`(`/usr/sbin/lightlix-mok`, `lightlix-nvidia` 패키지)가 아래 흐름을 맡는다. 설치된 시스템에서 root로 `lightlix-mok enroll`을 실행한다.
+`diparnux-mok`(`/usr/sbin/diparnux-mok`, `diparnux-nvidia` 패키지)가 아래 흐름을 맡는다. 설치된 시스템에서 root로 `diparnux-mok enroll`을 실행한다.
 
 1. **키는 DKMS가 이 기기에서 만든다.** 이미지에서 빌드 키를 지웠으므로 DKMS가 처음 서명할 때 `/var/lib/dkms/mok.key`, `mok.pub`을 새로 만든다(DKMS 3.2.2 `framework.conf`: 파일이 없으면 둘 다 다시 만든다). 키는 기기마다 다르다.
 2. **NVIDIA 모듈을 그 키로 다시 빌드하고 설치한다.** `dkms status`의 `nvidia*` 항목마다 현재 커널용으로 `dkms build --force`와 `dkms install --force`를 실행한다.
 3. **공개키를 MOK로 가져오기 예약한다.** `mokutil --import /var/lib/dkms/mok.pub`. 일회용 비밀번호를 사용자가 정한다.
 4. **재부팅 후 MokManager에서 등록한다.** "Enroll MOK", "Continue", 비밀번호 입력, 재부팅 순서를 안내한다. 도구가 끝에 같은 문구를 출력한다.
 
-`lightlix-mok status`는 `secure_boot`, `machine_key`(`missing`, `enrolled`, `not_enrolled`, `unknown`), `session`(`live`, `installed`)을 한 줄씩 출력한다.
+`diparnux-mok status`는 `secure_boot`, `machine_key`(`missing`, `enrolled`, `not_enrolled`, `unknown`), `session`(`live`, `installed`)을 한 줄씩 출력한다.
 
 **라이브 세션에서는 거절한다.** 라이브 세션은 재부팅하면 만든 키가 사라진다. 펌웨어에 등록된 MOK는 남지만 개인키가 없어 새 모듈을 서명할 수 없다. 따라서 이 흐름은 설치기(Phase 4)가 생긴 뒤의 설치된 시스템에서만 의미가 있다.
 
@@ -95,7 +95,7 @@ MOK(Machine Owner Key)는 기기 소유자가 UEFI에 등록하는 키다. 등�
 - RTX 50은 오픈 커널 모듈만 쓸 수 있다.
 - Secure Boot가 켜진 라이브 세션에서는 NVIDIA 모듈이 서명 검증을 통과하지 못한다.
 - 그러면 RTX 50에서 드라이버가 올라오지 않고 DRM 장치가 생기지 않는다. 6.12 커널에는 simpledrm이 없고 nouveau는 Blackwell을 모른다(decisions.md D8). 그래서 화면이 나오지 않는다.
-- **구현(Phase 1)**: 화면 대신 텍스트로 안내한다. `lightlix-gpu-check`가 진단 결과를 영어 ASCII로 쓰고, 같은 내용을 콘솔(`StandardOutput=journal+console`)과 로그인 프롬프트 위(`/run/issue.d/50-lightlix-gpu.issue`)에 낸다. 로그인 뒤에는 `/run/motd.d/50-lightlix-gpu`에도 나온다.
+- **구현(Phase 1)**: 화면 대신 텍스트로 안내한다. `diparnux-gpu-check`가 진단 결과를 영어 ASCII로 쓰고, 같은 내용을 콘솔(`StandardOutput=journal+console`)과 로그인 프롬프트 위(`/run/issue.d/50-diparnux-gpu.issue`)에 낸다. 로그인 뒤에는 `/run/motd.d/50-diparnux-gpu`에도 나온다.
   - Secure Boot가 켜져 있고 modprobe 오류가 `Key was rejected by service`이면 `secure_boot`(종료 2)이다. 문구는 UEFI 설정에서 Secure Boot를 끄고 다시 부팅하라고 적는다.
   - 그 밖의 모듈 로드 실패는 `module_unloaded`(종료 2)이다. Secure Boot가 켜져 있었다면 메시지에 그 사실을 덧붙인다.
   - 판정 조건과 상태 파일 키는 [drivers.md](drivers.md)의 "GPU 진단 계약" 절에 있다.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/hf"
-	"github.com/nxodh/lightlixos/daemon/internal/jobs"
+	"github.com/nxodh/diparnuxos/daemon/internal/hf"
+	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 )
 
 // TestPullErrors 는 작업 요청의 오류 코드가 원인 오류와 래핑 여부에 관계없이 보존되는지 확인한다.

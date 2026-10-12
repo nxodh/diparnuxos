@@ -1,6 +1,6 @@
-// Package update 는 커널과 NVIDIA 드라이버를 함께 갱신하고 되돌리는 lightlix-update 의 로직이다.
+// Package update 는 커널과 NVIDIA 드라이버를 함께 갱신하고 되돌리는 diparnux-update 의 로직이다.
 //
-// 이 패키지는 root 로 도는 헬퍼(cmd/lightlix-update)가 쓴다. 데몬은 하드닝 때문에 /boot 와 /etc 에 쓸 수 없어 직접 쓰지 않는다.
+// 이 패키지는 root 로 도는 헬퍼(cmd/diparnux-update)가 쓴다. 데몬은 하드닝 때문에 /boot 와 /etc 에 쓸 수 없어 직접 쓰지 않는다.
 // 모든 외부 명령은 platform.Runner 로 실행하므로 실제 apt, dkms, grub 없이 테스트할 수 있다.
 //
 // 흐름은 설계서(docs/phase-4-design.md 5절)와 같다. 새 커널을 먼저 설치해 DKMS 빌드를 확인하고, 통과했을 때만
@@ -84,7 +84,7 @@ type Plan struct {
 	// DriverFrom 과 DriverTo 는 nvidia-kernel-open-dkms 의 설치 버전과 후보 버전이다. 바뀌지 않으면 DriverTo 는 비어 있다.
 	DriverFrom string `json:"driver_from,omitempty"`
 	DriverTo   string `json:"driver_to,omitempty"`
-	// PolicyFrom 과 PolicyTo 는 lightlix-nvidia 의 설치 버전과 후보 버전이다. 드라이버 핀이 이 패키지에 들어 있어서
+	// PolicyFrom 과 PolicyTo 는 diparnux-nvidia 의 설치 버전과 후보 버전이다. 드라이버 핀이 이 패키지에 들어 있어서
 	// 드라이버를 올리려면 먼저 이 패키지를 올려야 한다.
 	PolicyFrom string `json:"policy_from,omitempty"`
 	PolicyTo   string `json:"policy_to,omitempty"`
@@ -92,7 +92,7 @@ type Plan struct {
 	UpToDate bool `json:"up_to_date"`
 }
 
-// State 는 /var/lib/lightlix/update/state.json 의 내용이다.
+// State 는 /var/lib/diparnux/update/state.json 의 내용이다.
 type State struct {
 	Phase     string `json:"phase"`
 	Operation string `json:"operation,omitempty"`

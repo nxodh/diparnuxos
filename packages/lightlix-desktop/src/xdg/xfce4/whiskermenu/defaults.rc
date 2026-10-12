@@ -1,9 +1,0 @@
-favorites=lightlix-control-center.desktop,thunar.desktop,xfce4-terminal-emulator.desktop,firefox-esr.desktop,mousepad.desktop,xfce4-settings-manager.desktop
-button-icon=lightlix
-button-title=Lightlix
-show-button-title=false
-show-button-icon=true
-launcher-show-description=false
-position-search-alternate=true
-position-commands-alternate=true
-position-categories-alternate=true

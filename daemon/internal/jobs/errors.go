@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nxodh/lightlixos/daemon/internal/hf"
+	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 )
 
 // 작업 오류 코드다. Job.ErrorCode 와 PullError.Code 에 들어간다. 값은 API 와 CLI 가 그대로 보여 준다.

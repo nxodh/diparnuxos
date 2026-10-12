@@ -19,10 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
 // 상한과 기본값이다.
@@ -35,7 +35,7 @@ const (
 )
 
 // defaultUnits 는 저널을 함께 보는 유닛 목록이다.
-var defaultUnits = []string{"lightlix-gpu-check.service", "lightlix-llama.service", "lightlixd.service"}
+var defaultUnits = []string{"diparnux-gpu-check.service", "diparnux-llama.service", "diparnuxd.service"}
 
 // 키 형식 정규식이다. 주입된 비밀을 놓쳐도 형식으로 가린다.
 var secretPatterns = []*regexp.Regexp{
@@ -112,7 +112,7 @@ func Build(ctx context.Context, d Deps) string {
 		secrets = d.Secrets()
 	}
 	w := &builder{}
-	w.line("Lightlix diagnostic report")
+	w.line("Diparnux diagnostic report")
 	w.line("generated: " + now().UTC().Format(time.RFC3339))
 	w.line("daemon version: " + nonEmpty(d.Version, "dev"))
 

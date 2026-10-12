@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // 파일과 값의 상한이다.

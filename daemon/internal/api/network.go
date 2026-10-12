@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/nxodh/lightlixos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/network"
 )
 
 // NetworkManager 는 인터넷 연결 상태와 Wi-Fi 연결이다. *network.Manager 가 만족한다.

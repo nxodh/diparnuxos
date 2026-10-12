@@ -3,16 +3,16 @@
 - 확인 날짜: 2026-10-12
 - 상태: 묶음 A~E는 구현되어 CI의 QEMU 검사를 통과했다. 묶음 F는 QEMU 참고 측정만 했고 실기 램 실측은 미실시다. 아래 "확인한 사실"은 Debian 13 컨테이너에서 실제로 조회한 값이다. 실제 결과는 `docs/verification-phase-3.md`에 있다.
 
-범위는 SPEC의 Phase 3다. labwc 데스크톱, Lightlix Control Center(GTK4 + libadwaita, Python), 첫 부팅 마법사, 모드 전환을 만든다. 설치기·업데이트·롤백은 Phase 4다.
+범위는 SPEC의 Phase 3다. labwc 데스크톱, Diparnux Control Center(GTK4 + libadwaita, Python), 첫 부팅 마법사, 모드 전환을 만든다. 설치기·업데이트·롤백은 Phase 4다.
 
 ---
 
 ## 1. 이미 있는 것
 
 - 데몬은 `GET/POST /v1/mode`로 서버/데스크톱 모드를 전환한다. 데스크톱 전환은 `greetd.service`가 설치되어 있어야 하며, 없으면 `desktop_not_installed`를 돌려준다(`daemon/internal/supervisor/system.go`).
-- `lightlix-gpu-check`와 `/v1/status`가 GPU, 드라이버, Secure Boot 상태를 이미 돌려준다. 값은 `enabled`, `disabled`, `unknown` 중 하나다.
+- `diparnux-gpu-check`와 `/v1/status`가 GPU, 드라이버, Secure Boot 상태를 이미 돌려준다. 값은 `enabled`, `disabled`, `unknown` 중 하나다.
 - 모델 검색·다운로드·기본 모델, 서버 시작·중지·로그·채팅, API 키, 설정, 리포트 API가 있다. `POST /v1/update`는 `not_implemented`다.
-- GUI가 쓸 수 있는 인증 방식은 유닉스 소켓의 `lightlix` 그룹 권한이다. 라이브 사용자는 이미 이 그룹에 들어 있다.
+- GUI가 쓸 수 있는 인증 방식은 유닉스 소켓의 `diparnux` 그룹 권한이다. 라이브 사용자는 이미 이 그룹에 들어 있다.
 
 ## 2. 확인한 사실
 
@@ -44,8 +44,8 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 | D3 | 패널 | yambar | 처음에는 넣지 않기로 했으나 사용자가 패널을 요청했다(2026-10-12). yambar는 쓰지 않는 오디오·미디어 모듈 때문에 pipewire, pulse, alsa, flac 등 35개 안팎의 라이브러리를 끌어온다(조회 확인). 램 목표를 완화했으므로 감수한다. 활성 창 제목, 사용 메모리, 시계를 보이고 시계를 누르면 Control Center가 열린다. 설정은 `yambar -C`로 검증한다 |
 | D4 | 한글 글꼴 | fonts-nanum | noto-cjk보다 58 MB 작다. 글리프 범위와 ISO 크기는 CI에서 확인한다 |
 | D5 | GUI와 데몬의 통신 | 표준 라이브러리 `http.client` + 유닉스 소켓 | `requests` 같은 추가 의존성을 넣지 않는다 |
-| D6 | 첫 부팅 상태 저장 | 데몬이 `/var/lib/lightlix/firstboot.json`에 기록 | 라이브 세션에서는 재부팅하면 사라진다. Phase 4 설치 뒤에는 유지된다 |
-| D7 | Secure Boot MOK | 감지와 안내 + `lightlix-mok` 보조 스크립트 | 라이브 ISO에서는 키가 재부팅 때 사라져 흐름이 끝까지 이어지지 않는다. 실제 검증은 설치 뒤에 가능하다 |
+| D6 | 첫 부팅 상태 저장 | 데몬이 `/var/lib/diparnux/firstboot.json`에 기록 | 라이브 세션에서는 재부팅하면 사라진다. Phase 4 설치 뒤에는 유지된다 |
+| D7 | Secure Boot MOK | 감지와 안내 + `diparnux-mok` 보조 스크립트 | 라이브 ISO에서는 키가 재부팅 때 사라져 흐름이 끝까지 이어지지 않는다. 실제 검증은 설치 뒤에 가능하다 |
 
 ## 4. 작업 묶음
 
@@ -54,11 +54,11 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 | 묶음 | 내용 | 소유 파일 | 검증 |
 |---|---|---|---|
 | A. 데몬 확장 | 첫 부팅 상태 API, VRAM별 추천 모델, SSH 켜기/끄기와 방화벽 연동, 모드 전환 안내 조건 | `daemon/internal/{api,supervisor,config,...}` | Debian 컨테이너의 `go vet`, `go test -race` |
-| B. 데스크톱 기반 | labwc, greetd, foot, 패널 패키지와 설정, 한글 글꼴, 모드 전환 시 greetd 시작, SSH 패키지(기본 비활성) | `packages/lightlix-desktop`, `build/config/package-lists`, `tests/` | 이미지 정책 검사, QEMU에서 greetd 기동과 화면 캡처 |
-| C. Control Center 뼈대 | `gui/` Python 패키지, 데몬 클라이언트, 대시보드·모델·서버·채팅·시스템 화면, gettext(ko/en), 다크/라이트 | `gui/**`, `packages/lightlix-control-center` | 컨테이너의 Python 단위 테스트(클라이언트·뷰 모델), 번역 카탈로그 검사 |
+| B. 데스크톱 기반 | labwc, greetd, foot, 패널 패키지와 설정, 한글 글꼴, 모드 전환 시 greetd 시작, SSH 패키지(기본 비활성) | `packages/diparnux-desktop`, `build/config/package-lists`, `tests/` | 이미지 정책 검사, QEMU에서 greetd 기동과 화면 캡처 |
+| C. Control Center 뼈대 | `gui/` Python 패키지, 데몬 클라이언트, 대시보드·모델·서버·채팅·시스템 화면, gettext(ko/en), 다크/라이트 | `gui/**`, `packages/diparnux-control-center` | 컨테이너의 Python 단위 테스트(클라이언트·뷰 모델), 번역 카탈로그 검사 |
 | D. 첫 부팅 마법사 | GPU 감지, 드라이버 검증, Secure Boot 처리, 추천 모델, API 공개 범위 설정 | `gui/**`(C 이후) | 데몬 목(fake)으로 단계 전이 테스트 |
-| E. Secure Boot 보조 | 키 생성, DKMS 서명 설정, 모듈 재빌드, `mokutil --import` | `packages/lightlix-nvidia`, `docs/secure-boot.md` | 쉘 단위 검사, 스텁 테스트 |
-| G. 계정 | 사용자 이름과 비밀번호로 로그인 계정 만들기(API, CLI, GUI, 마법사 단계), SSH를 그 계정에 맞춤 | `daemon/internal/accounts`, `daemon/dist/lightlix-user.sh`, `gui/**` | Go 단위 테스트, 헬퍼 스텁 테스트, QEMU E2E(계정 생성, SSH 로그인, 데스크톱 로그인) |
+| E. Secure Boot 보조 | 키 생성, DKMS 서명 설정, 모듈 재빌드, `mokutil --import` | `packages/diparnux-nvidia`, `docs/secure-boot.md` | 쉘 단위 검사, 스텁 테스트 |
+| G. 계정 | 사용자 이름과 비밀번호로 로그인 계정 만들기(API, CLI, GUI, 마법사 단계), SSH를 그 계정에 맞춤 | `daemon/internal/accounts`, `daemon/dist/diparnux-user.sh`, `gui/**` | Go 단위 테스트, 헬퍼 스텁 테스트, QEMU E2E(계정 생성, SSH 로그인, 데스크톱 로그인) |
 | F. 측정과 문서 | 서버/데스크톱 모드 유휴 램 측정, `docs/memory.md`, 지원 표 갱신 | `docs/**` | QEMU 실측(실기 값이 아님을 명시) |
 
 의존 순서: A와 B와 C는 동시에 시작한다. D는 A와 C 뒤, E는 독립이며, F는 B가 끝난 뒤다.
@@ -67,10 +67,10 @@ Debian 13 컨테이너(arm64)의 `apt-cache`로 조회했다. amd64 크기는 �
 
 사용자가 기본 live 계정(`user`/`live`) 대신 Mac이나 다른 Linux 터미널처럼 **자기 이름과 비밀번호로 계정을 만들 수 있게** 해 달라고 요청했고, SSH도 그 계정에 맞추라고 했다.
 
-- **왜 헬퍼를 쓰나.** `lightlixd`는 `ProtectSystem=full`과 `ProtectHome=yes`로 돌아 `/etc`와 `/home`에 쓸 수 없다. 데몬의 하드닝을 풀지 않으려고 `systemd-run --pipe`로 하드닝 없는 헬퍼(`/usr/lib/lightlix/lightlix-user`)를 부른다. 비밀번호는 표준 입력으로만 넘어가며 인자, 환경, 파일, 로그에 남지 않는다.
-- **계정 규칙.** 이름은 소문자로 시작하고 소문자, 숫자, `_`, `-`만 쓰며 32자 이하다. `root`, `user`, `lightlix*` 등 예약어는 거절한다. 비밀번호는 8~128자의 출력 가능한 ASCII이고 이름과 달라야 한다. 계정은 `lightlix`, `video`, `render` 그룹에 들어가고, 관리자면 `sudo`도 더한다.
-- **SSH.** 켜면 이 방식으로 만든 계정만 비밀번호로 접속할 수 있다. 헬퍼가 sshd 드롭인(`/etc/ssh/sshd_config.d/50-lightlix.conf`)에 `PasswordAuthentication yes`, `PermitRootLogin no`, `AllowUsers <만든 계정>`을 쓴다. sshd는 첫 값을 쓰므로 live-config가 꺼 둔 비밀번호 로그인을 이 드롭인이 덮는다. 기본 live 계정은 `AllowUsers`에 없어 SSH로 접속할 수 없다. 만든 계정이 없으면 드롭인이 없고 공개키 로그인만 된다.
-- **신뢰 경계.** `lightlix` 그룹 사용자는 관리자 계정을 만들 수 있다. 라이브 세션의 기본 사용자는 이미 비밀번호 없이 sudo를 쓰므로 새로운 권한 상승은 아니지만, 설치된 시스템(Phase 4)에서는 `lightlix` 그룹이 사실상 관리자 권한과 같다는 점을 문서화해 둔다.
+- **왜 헬퍼를 쓰나.** `diparnuxd`는 `ProtectSystem=full`과 `ProtectHome=yes`로 돌아 `/etc`와 `/home`에 쓸 수 없다. 데몬의 하드닝을 풀지 않으려고 `systemd-run --pipe`로 하드닝 없는 헬퍼(`/usr/lib/diparnux/diparnux-user`)를 부른다. 비밀번호는 표준 입력으로만 넘어가며 인자, 환경, 파일, 로그에 남지 않는다.
+- **계정 규칙.** 이름은 소문자로 시작하고 소문자, 숫자, `_`, `-`만 쓰며 32자 이하다. `root`, `user`, `diparnux*` 등 예약어는 거절한다. 비밀번호는 8~128자의 출력 가능한 ASCII이고 이름과 달라야 한다. 계정은 `diparnux`, `video`, `render` 그룹에 들어가고, 관리자면 `sudo`도 더한다.
+- **SSH.** 켜면 이 방식으로 만든 계정만 비밀번호로 접속할 수 있다. 헬퍼가 sshd 드롭인(`/etc/ssh/sshd_config.d/50-diparnux.conf`)에 `PasswordAuthentication yes`, `PermitRootLogin no`, `AllowUsers <만든 계정>`을 쓴다. sshd는 첫 값을 쓰므로 live-config가 꺼 둔 비밀번호 로그인을 이 드롭인이 덮는다. 기본 live 계정은 `AllowUsers`에 없어 SSH로 접속할 수 없다. 만든 계정이 없으면 드롭인이 없고 공개키 로그인만 된다.
+- **신뢰 경계.** `diparnux` 그룹 사용자는 관리자 계정을 만들 수 있다. 라이브 세션의 기본 사용자는 이미 비밀번호 없이 sudo를 쓰므로 새로운 권한 상승은 아니지만, 설치된 시스템(Phase 4)에서는 `diparnux` 그룹이 사실상 관리자 권한과 같다는 점을 문서화해 둔다.
 - **지우기.** 계정을 지워도 홈 디렉터리는 남긴다. 데이터를 잃지 않기 위해서다.
 
 ## 5. 위험

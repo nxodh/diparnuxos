@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Lightlix ISO UEFI 부팅 스모크 테스트.
+# Diparnux ISO UEFI 부팅 스모크 테스트.
 #
 # 사용법: tests/qemu/boot-smoke.sh <iso경로>
 #
 # 동작
 #   QEMU + OVMF(UEFI 펌웨어) 로 ISO 를 부팅하고 직렬 콘솔 출력을 로그 파일로 받는다.
-#   제한 시간 안에 "lightlix login:" 과 "Lightlix GPU [no_gpu]:" 가 직렬 로그에 나오면 성공(0).
-#   "Lightlix GPU [no_gpu]:" 줄은 /run/issue.d/*.issue 를 agetty 가 로그인 프롬프트 위에 출력한 것이다.
+#   제한 시간 안에 "diparnux login:" 과 "Diparnux GPU [no_gpu]:" 가 직렬 로그에 나오면 성공(0).
+#   "Diparnux GPU [no_gpu]:" 줄은 /run/issue.d/*.issue 를 agetty 가 로그인 프롬프트 위에 출력한 것이다.
 #   그렇지 않으면 로그 끝부분을 출력하고 실패(1).
 #   사용법이 잘못되었거나 ISO/펌웨어/QEMU 를 찾지 못하면 2 로 끝난다.
 #
@@ -23,22 +23,22 @@
 #   - KVM: /dev/kvm 에 쓸 수 있으면 -enable-kvm 을 쓴다. 아니면 TCG(소프트웨어 에뮬레이션)로
 #     돌리고 제한 시간을 늘린다.
 #   - GRUB 메뉴 대기: 이 스크립트는 키 입력을 보내지 않는다. 빌드가 GRUB 메뉴에 timeout=5 를
-#     넣으므로(build/config/hooks/normal/9500-lightlix-grub-timeout.hook.binary) 5초 뒤 기본
+#     넣으므로(build/config/hooks/normal/9500-diparnux-grub-timeout.hook.binary) 5초 뒤 기본
 #     항목으로 부팅한다. 이 훅이 빠지면 메뉴에서 멈춰 제한 시간 뒤 실패한다.
 #   - 기본 OVMF_VARS 템플릿(Debian/Ubuntu 의 OVMF_VARS_4M.fd)에는 Secure Boot 키가
 #     등록되어 있지 않으므로 Secure Boot 가 꺼진 상태로 부팅한다. Secure Boot 검증은 이
 #     테스트의 범위가 아니다.
 #   - 네트워크와 디스플레이는 없다(-nic none, -display none).
-#   - 직렬 로그에 "Lightlix" 를 포함하고 ASCII 가 아닌 바이트가 있는 줄이 있으면 실패한다. 실기 텍스트 콘솔은
-#     한글을 표시하지 못하므로 화면에 나오는 Lightlix 문구는 ASCII 여야 한다.
+#   - 직렬 로그에 "Diparnux" 를 포함하고 ASCII 가 아닌 바이트가 있는 줄이 있으면 실패한다. 실기 텍스트 콘솔은
+#     한글을 표시하지 못하므로 화면에 나오는 Diparnux 문구는 ASCII 여야 한다.
 #   - 이 테스트는 직렬 로그만 본다. 모니터(VGA) 표시는 검사하지 않는다. 모니터 표시는 자동 검사 범위 밖이며 미검증이다.
 #
 # 의존성: qemu-system-x86 (QEMU), ovmf (OVMF 펌웨어). Debian 13 과 Ubuntu 24.04 에서 확인한 경로만 후보로 둔다.
 
 set -euo pipefail
 
-readonly PROMPT='lightlix login:'
-readonly GPU_WARNING='Lightlix GPU [no_gpu]:'
+readonly PROMPT='diparnux login:'
+readonly GPU_WARNING='Diparnux GPU [no_gpu]:'
 readonly BOOT_MEDIA="${BOOT_MEDIA:-cdrom}"
 readonly QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 readonly MEMORY='2G'
@@ -79,7 +79,7 @@ if ! command -v "$QEMU_BIN" >/dev/null 2>&1; then
   exit 2
 fi
 
-WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/lightlix-boot-smoke.XXXXXX")"
+WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/diparnux-boot-smoke.XXXXXX")"
 LOG="$WORKDIR/serial.log"
 QEMU_OUT="$WORKDIR/qemu.out"
 QEMU_PID=""
@@ -164,7 +164,7 @@ fi
 # -no-reboot: 커널 패닉 등으로 재부팅하면 QEMU 가 바로 끝나 실패로 판정된다.
 # -serial file: 직렬 콘솔을 로그 파일로 받는다. 사람용 모니터는 끈다.
 QEMU_ARGS=(
-  -name lightlix-boot-smoke
+  -name diparnux-boot-smoke
   -machine q35
   "${ACCEL_ARGS[@]}"
   -m "$MEMORY"
@@ -184,10 +184,10 @@ echo "boot-smoke: firmware=$OVMF_CODE vars-template=$OVMF_VARS_TEMPLATE"
 "$QEMU_BIN" "${QEMU_ARGS[@]}" >"$QEMU_OUT" 2>&1 &
 QEMU_PID=$!
 
-# 직렬 로그에서 "Lightlix" 를 포함하는 줄 중 ASCII 가 아닌 바이트가 있는지 본다. tr 로 ASCII 를 지운 뒤 남는 것이 있는지 확인한다.
-has_non_ascii_lightlix_line() {
-  local lines="$WORKDIR/lightlix-lines"
-  grep -a 'Lightlix' "$LOG" > "$lines" 2>/dev/null || true
+# 직렬 로그에서 "Diparnux" 를 포함하는 줄 중 ASCII 가 아닌 바이트가 있는지 본다. tr 로 ASCII 를 지운 뒤 남는 것이 있는지 확인한다.
+has_non_ascii_diparnux_line() {
+  local lines="$WORKDIR/diparnux-lines"
+  grep -a 'Diparnux' "$LOG" > "$lines" 2>/dev/null || true
   [[ -s "$lines" ]] || return 1
   LC_ALL=C tr -d '\000-\177' < "$lines" | LC_ALL=C grep -q .
 }
@@ -196,8 +196,8 @@ start=$SECONDS
 while :; do
   # 프롬프트를 먼저 확인한다. QEMU 가 프롬프트를 쓰고 바로 끝나는 경우도 성공으로 본다.
   if grep -q -F "$PROMPT" "$LOG" 2>/dev/null && grep -q -F "$GPU_WARNING" "$LOG" 2>/dev/null; then
-    if has_non_ascii_lightlix_line; then
-      fail "직렬 로그의 Lightlix 줄에 ASCII 가 아닌 바이트가 있다(실기 텍스트 콘솔은 표시하지 못한다)"
+    if has_non_ascii_diparnux_line; then
+      fail "직렬 로그의 Diparnux 줄에 ASCII 가 아닌 바이트가 있다(실기 텍스트 콘솔은 표시하지 못한다)"
     fi
     echo "PASS: found '$PROMPT' and '$GPU_WARNING' after $((SECONDS - start))s (media=$BOOT_MEDIA)"
     exit 0

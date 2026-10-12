@@ -1,4 +1,4 @@
-// Package updatectl 은 데몬이 lightlix-update 헬퍼를 시작하고 그 상태를 읽는 얇은 계층이다.
+// Package updatectl 은 데몬이 diparnux-update 헬퍼를 시작하고 그 상태를 읽는 얇은 계층이다.
 //
 // 갱신은 데몬의 하드닝 밖에서, 데몬이 다시 시작되어도 이어지는 별도 transient 유닛으로 돈다.
 // 데몬은 유닛을 띄우고(Start) 헬퍼가 남긴 state.json 과 check.json 을 읽기만 한다(Info).
@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/update"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/update"
 )
 
 // 기본값이다.
 const (
-	DefaultHelper   = "/usr/lib/lightlix/lightlix-update"
-	DefaultUnit     = "lightlix-update-run.service"
+	DefaultHelper   = "/usr/lib/diparnux/diparnux-update"
+	DefaultUnit     = "diparnux-update-run.service"
 	DefaultLiveDir  = "/run/live"
 	DefaultKernelRe = "/proc/sys/kernel/osrelease"
 )
@@ -205,7 +205,7 @@ func (c *Controller) Start(ctx context.Context, action string, reboot bool) erro
 		}
 	}
 	args := []string{"--unit=" + strings.TrimSuffix(c.unit(), ".service"), "--collect", "--service-type=exec", "--quiet",
-		"--description=Lightlix update (" + action + ")", c.helper(), action, "--json"}
+		"--description=Diparnux update (" + action + ")", c.helper(), action, "--json"}
 	if reboot && action != ActionCheck {
 		args = append(args, "--reboot")
 	}

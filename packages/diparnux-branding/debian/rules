@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# 이미지는 저장소 루트의 assets/brand/generated 에서 가져온다. build-debs.sh 가 이 디렉터리를 임시 사본의 assets/ 로 복사한다.
+DEST = debian/diparnux-branding
+G = assets/generated
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	set -e; for n in 16 24 32 48 64 96 128 256 512; do \
+	  install -D -m 644 $(G)/diparnux-$$n.png $(DEST)/usr/share/icons/hicolor/$${n}x$${n}/apps/diparnux.png; \
+	done
+	install -D -m 644 $(G)/diparnux-128.png $(DEST)/usr/share/pixmaps/diparnux.png
+	install -D -m 644 $(G)/diparnux-mark-white.png $(DEST)/usr/share/diparnux/brand/diparnux-mark-white.png
+	install -D -m 644 $(G)/diparnux-mark-black.png $(DEST)/usr/share/diparnux/brand/diparnux-mark-black.png
+	install -D -m 644 $(G)/diparnux-512.png $(DEST)/usr/share/diparnux/brand/diparnux-logo-512.png
+	install -D -m 644 $(G)/wallpaper.png $(DEST)/usr/share/diparnux/wallpaper.png
+	install -D -m 644 src/diparnux-live-hint.sh $(DEST)/etc/profile.d/diparnux-live-hint.sh
+	install -D -m 644 src/10-diparnux-colors.cfg $(DEST)/etc/default/grub.d/10-diparnux-colors.cfg

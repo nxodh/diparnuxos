@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
 // 채팅 프록시의 상한과 시간 제한이다.

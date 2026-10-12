@@ -2,11 +2,11 @@
 
 - 확인 날짜: 2026-10-11
 - 상태: 구현과 CI 자동 검증 완료. NVIDIA 실 하드웨어는 미검증
-- 저장소: https://github.com/nxodh/lightlixos
+- 저장소: https://github.com/nxodh/diparnuxos
 
 ## 패키지 확인
 
-NVIDIA 공식 debian13/x86_64 저장소의 `Packages.gz`를 직접 내려받아 버전과 SHA-256을 확인했다. 고정 값은 `lightlix.conf`에 정의한다.
+NVIDIA 공식 debian13/x86_64 저장소의 `Packages.gz`를 직접 내려받아 버전과 SHA-256을 확인했다. 고정 값은 `diparnux.conf`에 정의한다.
 
 | 패키지 | 확인한 버전 |
 |---|---|
@@ -19,7 +19,7 @@ NVIDIA 공식 debian13/x86_64 저장소의 `Packages.gz`를 직접 내려받아 
 | Debian dkms | 3.2.2-1~deb13u1 |
 | linux-image-amd64 / linux-headers-amd64 | 6.12.111-1 |
 
-검사 컨테이너에서 `apt-cache policy`와 `apt-get -s --no-install-recommends install`을 실행했다. Lightlix 핀 적용 후 DKMS는 Debian 버전(1001), 오픈 모듈은 지정된 버전(1001)이 후보였다. 독점 모듈은 모든 버전이 -1이며 후보가 없었다. 세 드라이버와 CUDA 런타임의 단일 트랜잭션 의존성 해석은 성공했다.
+검사 컨테이너에서 `apt-cache policy`와 `apt-get -s --no-install-recommends install`을 실행했다. Diparnux 핀 적용 후 DKMS는 Debian 버전(1001), 오픈 모듈은 지정된 버전(1001)이 후보였다. 독점 모듈은 모든 버전이 -1이며 후보가 없었다. 세 드라이버와 CUDA 런타임의 단일 트랜잭션 의존성 해석은 성공했다.
 
 Debian main과 security의 Origin은 `Debian`, NVIDIA 저장소는 `NVIDIA`였다. Debian DKMS의 의존성에서 `dpkg-dev`와 `make | build-essential`을 확인했다. 실제 DKMS 스크립트가 `/etc/dkms/framework.conf.d/*.conf`의 `parallel_jobs`를 읽는 것도 확인했다.
 
@@ -44,9 +44,9 @@ Debian main과 security의 Origin은 `Debian`, NVIDIA 저장소는 `NVIDIA`였�
 | QEMU/OVMF 로그인 및 GPU 없는 CPU 폴백 안내 | KVM에서 24초 만에 통과. 실제 로그인과 추론은 시험하지 않음 |
 | phase-1 브랜치의 GitHub Actions | 실행 38069210093 성공. ISO 잡 13분 53초, lint 잡 4초 |
 
-1차 CI 실행 [38068362474](https://github.com/nxodh/lightlixos/actions/runs/38068362474)는 전체 ISO 빌드와 이미지 커널의 오픈 모듈·버전·라이선스 검증, DKMS 키 제거에 성공했다. 이후 ISO 검사에서 `VERSION_ID="0.1.0"`의 따옴표를 허용하지 않은 테스트 코드가 실패했다. 검사 코드를 고쳤고, 재실행은 전체 검사를 통과했다.
+1차 CI 실행 [38068362474](https://github.com/nxodh/diparnuxos/actions/runs/38068362474)는 전체 ISO 빌드와 이미지 커널의 오픈 모듈·버전·라이선스 검증, DKMS 키 제거에 성공했다. 이후 ISO 검사에서 `VERSION_ID="0.1.0"`의 따옴표를 허용하지 않은 테스트 코드가 실패했다. 검사 코드를 고쳤고, 재실행은 전체 검사를 통과했다.
 
-최종 코드 검증은 커밋 `d5f150c3469e8271cdd2964070c60f34e6787b9f`의 [CI 실행 38069210093](https://github.com/nxodh/lightlixos/actions/runs/38069210093)이다. 이미지 커널 `6.12.111+deb13-amd64`의 모듈을 검증했다. [lightlix-iso 아티팩트](https://github.com/nxodh/lightlixos/actions/runs/38069210093/artifacts/11676512602)에 `lightlix-0.1.0-amd64.iso`와 SHA-256 파일을 업로드했다. 압축 아티팩트 크기는 1,277,375,757바이트이며 보존 기간은 7일이다. 이 뒤의 결과 기록 커밋은 문서만 변경한다.
+최종 코드 검증은 커밋 `d5f150c3469e8271cdd2964070c60f34e6787b9f`의 [CI 실행 38069210093](https://github.com/nxodh/diparnuxos/actions/runs/38069210093)이다. 이미지 커널 `6.12.111+deb13-amd64`의 모듈을 검증했다. [diparnux-iso 아티팩트](https://github.com/nxodh/diparnuxos/actions/runs/38069210093/artifacts/11676512602)에 `diparnux-0.1.0-amd64.iso`와 SHA-256 파일을 업로드했다. 압축 아티팩트 크기는 1,277,375,757바이트이며 보존 기간은 7일이다. 이 뒤의 결과 기록 커밋은 문서만 변경한다.
 
 ## 남은 검증과 위험
 

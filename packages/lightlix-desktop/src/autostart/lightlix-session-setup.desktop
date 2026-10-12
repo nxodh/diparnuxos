@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Lightlix session setup
-Comment=First-login defaults (wallpaper on every monitor, input method profile, user folders)
-Exec=lightlix-session-setup
-OnlyShowIn=XFCE;
-NoDisplay=true
-X-GNOME-Autostart-Phase=Initialization

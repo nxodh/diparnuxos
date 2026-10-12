@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lightlix_cc import logic  # noqa: E402
+from diparnux_cc import logic  # noqa: E402
 
 
 def status(state="ready", **gpu_extra):
@@ -165,7 +165,7 @@ class WizardTests(unittest.TestCase):
     def test_username_rules(self):
         self.assertIsNone(logic.check_username("alice"))
         self.assertIsNone(logic.check_username("a_b-9"))
-        for bad in ("", "Alice", "1abc", "a b", "root", "user", "lightlixd", "x" * 33, "a.b"):
+        for bad in ("", "Alice", "1abc", "a b", "root", "user", "diparnuxd", "x" * 33, "a.b"):
             self.assertIsNotNone(logic.check_username(bad), bad)
 
     def test_password_rules(self):

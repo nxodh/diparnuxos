@@ -77,9 +77,9 @@
 | 3. NVIDIA 저장소 추가 방식 | should_change | `main` + `non-free-firmware`, dkms 핀 | D3-3, D3-4 |
 | 3. Production Branch 고정 | clarify | 브랜치 595, 실제 버전은 저장소 최신 | D3-5 |
 | 7. `nvidia-drm.modeset=1` | should_change | 삭제 | D7 |
-| 2. 설치기는 Calamares | should_change | Lightlix 전용 설정 | D2 |
+| 2. 설치기는 Calamares | should_change | Diparnux 전용 설정 | D2 |
 | 6. GUI는 labwc + greetd + GTK4 | clarify | labwc explicit sync 시험 | D6, [drivers.md](drivers.md) 13절 |
-| 5. lightlixd는 Go 단일 바이너리 | clarify | 동적 링크, NVML 없이 기동 | D5 |
+| 5. diparnuxd는 Go 단일 바이너리 | clarify | 동적 링크, NVML 없이 기동 | D5 |
 | 1. 베이스 Debian 13, 커널 6.12 | clarify | 헤더, trixie-security | D1 |
 
 ---
@@ -102,7 +102,7 @@
 - `libcublas-13-4` 패키지에 `libcublasLt`가 들어 있다.
 - sfwbar가 공식 Debian 아카이브(sid 포함)에 있는지는 확정하지 못했다. trixie에는 없다는 것만 확인했다.
 - `snapshot.debian.org` 기반 `live-build` 전체 빌드는 실행하지 않았다. URL 형식과 리다이렉트만 확인했다.
-- GitHub 계정 `lightlix`의 주체와 활동은 조회하지 않았다.
+- GitHub 계정 `diparnux`의 주체와 활동은 조회하지 않았다.
 - `tracker.debian.org`는 직접 조회하지 않았다.
 - trixie-updates와 trixie-backports의 대부분 패키지는 개별 확인하지 않았다. trixie-security는 main의 `binary-amd64`만 확인했다.
 - arm64 저장소, Debian 12 저장소, Debian non-free 저장소의 `nvidia-driver` 대안은 조사 범위 밖이다.
@@ -118,7 +118,7 @@
 - 현재도 동작한다는 조사 결과다. `.../archive/debian/20260912T000000Z/dists/trixie/Release`가 302로 리다이렉트된 뒤 200을 준다(curl에 `-L` 필요).
 - 주의: 타임스탬프는 그 시점 이전의 가장 가까운 스냅샷을 가리킨다. `20260912T000000Z`는 Debian 13.7 릴리스(2026-09-12 07:55 UTC) 직전의 13.6 상태다.
 - 스냅샷의 Release에는 `Valid-Until`이 남아 있다. 기한이 지나면 apt가 `Release file expired`로 거부한다. 해결책은 `[check-valid-until=no]` 또는 `apt -o Acquire::Check-Valid-Until=false`다.
-- 이 값은 `lightlix.conf`의 `DEBIAN_SNAPSHOT`으로 받는다(형식 `YYYYMMDDTHHMMSSZ`, 비어 있으면 미러 사용). 이 문서는 값을 정의하지 않는다.
+- 이 값은 `diparnux.conf`의 `DEBIAN_SNAPSHOT`으로 받는다(형식 `YYYYMMDDTHHMMSSZ`, 비어 있으면 미러 사용). 이 문서는 값을 정의하지 않는다.
 - 출처: https://snapshot.debian.org/ . 조사 기록에 따르면 trixie 본 저장소 Release에는 `Valid-Until`이 없고, trixie-updates, trixie-backports, trixie-security에만 있다.
 
 ---
@@ -128,4 +128,4 @@
 1. 모든 실기 동작(35번). 드라이버 빌드, 부팅, labwc 화면, CUDA 실행.
 2. snapshot.debian.org 사용법(34번과 4절).
 3. Debian 상표 정책 해석(34번). 조사자 한 명의 결과이며 검증자가 재확인하지 않았다. 자세한 내용은 [licenses.md](licenses.md) 5절.
-4. GitHub 이름 관련 조사(34번). 조사 시점에 원래 사양의 조직 이름 후보는 HTTP 404였고, 같은 이름의 `lightlix` 계정은 HTTP 200이다. 현재 저장소 결정으로 대체되어 이 조직 이름은 쓰지 않는다.
+4. GitHub 이름 관련 조사(34번). 조사 시점에 원래 사양의 조직 이름 후보는 HTTP 404였고, 같은 이름의 `diparnux` 계정은 HTTP 200이다. 현재 저장소 결정으로 대체되어 이 조직 이름은 쓰지 않는다.

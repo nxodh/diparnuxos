@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nxodh/lightlixos/daemon/internal/hf"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/hf"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
 // 검색과 목록의 상한이다.

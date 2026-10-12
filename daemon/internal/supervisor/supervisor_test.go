@@ -22,17 +22,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/llamaargs"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 const (
 	testServerBinary = "/fake/llama-server"
-	testUnit         = "lightlix-llama.service"
+	testUnit         = "diparnux-llama.service"
 	offloadOK        = "load_tensors: offloaded 33/33 layers to GPU\n"
 	deviceOK         = "Available devices:\n  CUDA0: NVIDIA GeForce RTX 4090 (24564 MiB, 23000 MiB free)\n"
 	testPID          = 4242
@@ -460,14 +460,14 @@ func writeStatus(t *testing.T, path, state string) {
 	t.Helper()
 	var b strings.Builder
 	if state == "ready" {
-		b.WriteString("LIGHTLIX_GPU_STATUS=ready\nLIGHTLIX_GPU_PRESENT=1\nLIGHTLIX_GPU_PCI_COUNT=1\nLIGHTLIX_GPU_COUNT=1\n")
-		b.WriteString("LIGHTLIX_GPU_USABLE_COUNT=1\nLIGHTLIX_GPU_USABLE_INDEXES=0\nLIGHTLIX_SECURE_BOOT=disabled\n")
-		b.WriteString("LIGHTLIX_DRIVER_VERSION=595.91.07\nLIGHTLIX_GPU_MESSAGE=\"GPU ready\"\n")
-		b.WriteString("LIGHTLIX_GPU_0_NAME=\"GeForce RTX 4090\"\nLIGHTLIX_GPU_0_COMPUTE_CAP=8.9\nLIGHTLIX_GPU_0_SUPPORTED=1\nLIGHTLIX_GPU_0_REASON=ok\n")
+		b.WriteString("DIPARNUX_GPU_STATUS=ready\nDIPARNUX_GPU_PRESENT=1\nDIPARNUX_GPU_PCI_COUNT=1\nDIPARNUX_GPU_COUNT=1\n")
+		b.WriteString("DIPARNUX_GPU_USABLE_COUNT=1\nDIPARNUX_GPU_USABLE_INDEXES=0\nDIPARNUX_SECURE_BOOT=disabled\n")
+		b.WriteString("DIPARNUX_DRIVER_VERSION=595.91.07\nDIPARNUX_GPU_MESSAGE=\"GPU ready\"\n")
+		b.WriteString("DIPARNUX_GPU_0_NAME=\"GeForce RTX 4090\"\nDIPARNUX_GPU_0_COMPUTE_CAP=8.9\nDIPARNUX_GPU_0_SUPPORTED=1\nDIPARNUX_GPU_0_REASON=ok\n")
 	} else {
-		b.WriteString("LIGHTLIX_GPU_STATUS=no_gpu\nLIGHTLIX_GPU_PRESENT=0\nLIGHTLIX_GPU_PCI_COUNT=0\nLIGHTLIX_GPU_COUNT=0\n")
-		b.WriteString("LIGHTLIX_GPU_USABLE_COUNT=0\nLIGHTLIX_GPU_USABLE_INDEXES=\nLIGHTLIX_SECURE_BOOT=unknown\n")
-		b.WriteString("LIGHTLIX_DRIVER_VERSION=\nLIGHTLIX_GPU_MESSAGE=\"no NVIDIA GPU\"\n")
+		b.WriteString("DIPARNUX_GPU_STATUS=no_gpu\nDIPARNUX_GPU_PRESENT=0\nDIPARNUX_GPU_PCI_COUNT=0\nDIPARNUX_GPU_COUNT=0\n")
+		b.WriteString("DIPARNUX_GPU_USABLE_COUNT=0\nDIPARNUX_GPU_USABLE_INDEXES=\nDIPARNUX_SECURE_BOOT=unknown\n")
+		b.WriteString("DIPARNUX_DRIVER_VERSION=\nDIPARNUX_GPU_MESSAGE=\"no NVIDIA GPU\"\n")
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)

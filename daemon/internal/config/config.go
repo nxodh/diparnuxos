@@ -1,4 +1,4 @@
-// Package config는 관리자 설정 파일(/etc/lightlix/lightlixd.json)을 읽고 쓴다.
+// Package config는 관리자 설정 파일(/etc/diparnux/diparnuxd.json)을 읽고 쓴다.
 //
 // 알 수 없는 필드는 오류로 한다. 오타가 조용히 무시되어 기본값으로 도는 일을 막기 위해서다.
 // 저장은 같은 디렉터리에 임시 파일을 만들고 fsync 후 rename한다. 토큰이 들어가므로 모드는 0600이다.
@@ -14,7 +14,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 )
 
 // Config는 관리자가 정하는 데몬 설정이다.
@@ -23,7 +23,7 @@ type Config struct {
 	LANExposed bool      `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
 	Autostart  bool      `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
 	SSHEnabled bool      `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
-	ModelsDir  string    `json:"models_dir"`  // 절대 경로, 기본 /var/lib/lightlix/models
+	ModelsDir  string    `json:"models_dir"`  // 절대 경로, 기본 /var/lib/diparnux/models
 	HFToken    string    `json:"hf_token"`    // Hugging Face 토큰, 진단 리포트에서는 가린다
 	Overrides  Overrides `json:"overrides"`   // 자동 계획을 덮어쓰는 수동 값
 }
@@ -42,7 +42,7 @@ func Default() Config {
 	return Config{
 		Port:      8080,
 		Autostart: true,
-		ModelsDir: "/var/lib/lightlix/models",
+		ModelsDir: "/var/lib/diparnux/models",
 	}
 }
 

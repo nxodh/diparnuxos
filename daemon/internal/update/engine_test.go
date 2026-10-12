@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 func TestCompareVersions(t *testing.T) {
@@ -249,12 +249,12 @@ func (m *modulesDropper) Run(ctx context.Context, cmd platform.Command) (platfor
 
 func TestApplyDriverUpdateThroughPolicyPackage(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["lightlix-nvidia"] = "0.4.0"
+	f.cand["diparnux-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()
 	// 핀 파일이 있어도 임시 preferences 에서는 빠져야 한다.
-	if err := os.WriteFile(f.path("etc/apt/preferences.d/00-lightlix-nvidia.pref"), []byte("Package: x\n"), 0o644); err != nil {
+	if err := os.WriteFile(f.path("etc/apt/preferences.d/00-diparnux-nvidia.pref"), []byte("Package: x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(f.path("etc/apt/preferences.d/nvidia-driver-pinning-595"), []byte("Package: y\n"), 0o644); err != nil {
@@ -283,7 +283,7 @@ func TestApplyDriverUpdateThroughPolicyPackage(t *testing.T) {
 func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 	f := newFakeSys(t)
 	e := f.engine()
-	for name, body := range map[string]string{"00-lightlix-nvidia.pref": "a", "nvidia-driver-pinning-595": "b", "other.pref": "c"} {
+	for name, body := range map[string]string{"00-diparnux-nvidia.pref": "a", "nvidia-driver-pinning-595": "b", "other.pref": "c"} {
 		if err := os.WriteFile(f.path("etc/apt/preferences.d/"+name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -293,7 +293,7 @@ func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	if _, err := os.Stat(dir + "/00-lightlix-nvidia.pref"); err == nil {
+	if _, err := os.Stat(dir + "/00-diparnux-nvidia.pref"); err == nil {
 		t.Error("the exact driver pin must be left out")
 	}
 	for _, n := range []string{"nvidia-driver-pinning-595", "other.pref"} {
@@ -305,7 +305,7 @@ func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 
 func TestApplyDriverUpgradeFailureRestoresPreviousVersions(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["lightlix-nvidia"] = "0.4.0"
+	f.cand["diparnux-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	f.upgradeFail = true
@@ -328,7 +328,7 @@ func TestApplyDriverUpgradeFailureRestoresPreviousVersions(t *testing.T) {
 func TestApplyUnexpectedRemovalIsRefusedBeforeInstalling(t *testing.T) {
 	f := newFakeSys(t)
 	newKernelUpdate(f)
-	f.removeOnUpg = []string{"lightlix-nvidia"}
+	f.removeOnUpg = []string{"diparnux-nvidia"}
 	e := f.engine()
 	st, err := e.Apply(context.Background(), ApplyOptions{})
 	if codeOf(err) != CodeUnexpectedRemoval {
@@ -479,7 +479,7 @@ func TestVerifyWithoutPendingUpdate(t *testing.T) {
 func TestRollbackAfterDriverAndKernelUpdate(t *testing.T) {
 	f := newFakeSys(t)
 	rel := newKernelUpdate(f)
-	f.cand["lightlix-nvidia"] = "0.4.0"
+	f.cand["diparnux-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()
@@ -520,7 +520,7 @@ func TestRollbackAfterDriverAndKernelUpdate(t *testing.T) {
 
 func TestRollbackUnavailableWhenOldVersionIsGone(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["lightlix-nvidia"] = "0.4.0"
+	f.cand["diparnux-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()

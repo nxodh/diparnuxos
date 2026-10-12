@@ -64,7 +64,7 @@ def result(command):
     if command.startswith("attempt=0; while [ \"$attempt\" -lt 10 ]; do"):
         return json.dumps(status()), 0
     if command.startswith("id -u"):
-        return "1000\nuser\nuser lightlix\nx86_64", 1 if mode == "efi-check-failure" else 0
+        return "1000\nuser\nuser diparnux\nx86_64", 1 if mode == "efi-check-failure" else 0
     if command.startswith("df -B1 -P /"):
         return (
             "Filesystem 1-blocks Used Available Capacity Mounted on\n"
@@ -77,38 +77,38 @@ def result(command):
             "overlay overlay rw,relatime\n"
         ), 0
     if command.startswith("test -S"):
-        return ("666 root root" if mode == "bad-permissions" else "660 root lightlix"), 0
-    if command.startswith("pid=$(systemctl show lightlixd.service"):
-        return "Name:\tlightlixd\nVmSize:\t1200000 kB\nVmRSS:\t14000 kB", 0
+        return ("666 root root" if mode == "bad-permissions" else "660 root diparnux"), 0
+    if command.startswith("pid=$(systemctl show diparnuxd.service"):
+        return "Name:\tdiparnuxd\nVmSize:\t1200000 kB\nVmRSS:\t14000 kB", 0
     if command.startswith("systemctl show"):
         unit = command.split()[2]
-        active = "inactive" if unit == "lightlix-firewall.service" or (unit == "lightlix-llama.service" and stopped) else "active"
-        sub = "running" if unit == "lightlix-llama.service" and not stopped else "dead"
-        pid = "42" if unit == "lightlix-llama.service" and not stopped else "0"
-        if mode == "failed-unit" and unit == "lightlixd.service":
+        active = "inactive" if unit == "diparnux-firewall.service" or (unit == "diparnux-llama.service" and stopped) else "active"
+        sub = "running" if unit == "diparnux-llama.service" and not stopped else "dead"
+        pid = "42" if unit == "diparnux-llama.service" and not stopped else "0"
+        if mode == "failed-unit" and unit == "diparnuxd.service":
             active = "failed"
         return f"LoadState=loaded\nActiveState={active}\nSubState={sub}\nResult=success\nMainPID={pid}", 0
-    if command == "sudo -n systemctl restart lightlixd.service":
+    if command == "sudo -n systemctl restart diparnuxd.service":
         daemon_restarts += 1
         if mode == "no-adoption" and daemon_restarts == 1:
             stopped = True
         return "", 0
     if command.startswith("sudo -n -u nobody"):
-        return "lightlix: permission denied: add your user to the 'lightlix' group or run with sudo", 3
-    if command.startswith("LIGHTLIX_SOCKET="):
-        return "lightlix: lightlixd is not running (systemctl status lightlixd)", 3
+        return "diparnux: permission denied: add your user to the 'diparnux' group or run with sudo", 3
+    if command.startswith("DIPARNUX_SOCKET="):
+        return "diparnux: diparnuxd is not running (systemctl status diparnuxd)", 3
     if command.startswith("sudo -n sha256sum"):
-        return ("0" * 64 if mode == "bad-sha" else sha) + "  /var/lib/lightlix/models/" + model, 0
+        return ("0" * 64 if mode == "bad-sha" else sha) + "  /var/lib/diparnux/models/" + model, 0
     if command.startswith("sudo -n journalctl"):
-        return "Lightlix test journal", 0
-    args = command.removeprefix("lightlix --json ")
+        return "Diparnux test journal", 0
+    args = command.removeprefix("diparnux --json ")
     if args.startswith("config set autostart "):
         autostart = args.rsplit(" ", 1)[1] == "on"
         return json.dumps({"config": {"autostart": autostart}, "restart_required": False}), 0
     if args == "status":
         return json.dumps(status()), 0
     if args == "serve start e2e-missing.gguf":
-        return "lightlix: model was not found (no_model)", 1
+        return "diparnux: model was not found (no_model)", 1
     if args.startswith("model pull "):
         if mode == "guest-timeout":
             return "", 124
@@ -140,7 +140,7 @@ def result(command):
         return json.dumps(status()), 0
     if args.startswith("chat "):
         if stopped:
-            return "lightlix: the server is not running (server_not_running)", 1
+            return "diparnux: the server is not running (server_not_running)", 1
         if mode == "bad-json":
             return "not JSON", 0
         return json.dumps({"content": " " if mode == "empty-chat" else "Once there was a little dog.",
@@ -162,22 +162,22 @@ if mode == "kvm-fallback" and sys.argv[sys.argv.index("-accel") + 1] == "kvm":
 if mode in ("boot-timeout", "total-timeout"):
     time.sleep(60)
 if mode == "signal":
-    emit("lightlix login: ")
+    emit("diparnux login: ")
     time.sleep(60)
-emit("Lightlix GPU [no_gpu]: No GPU found\nlightlix login: ")
+emit("Diparnux GPU [no_gpu]: No GPU found\ndiparnux login: ")
 if sys.stdin.readline().strip() != "user":
     sys.exit(98)
 emit("Password: ")
 if sys.stdin.readline().strip() != "live":
     sys.exit(99)
-emit("\nuser@lightlix:~$ ")
+emit("\nuser@diparnux:~$ ")
 for line in sys.stdin:
     # 입력 에코도 일부러 보내 마커 파서가 명령 텍스트를 응답으로 보지 않는지 확인한다.
     emit(line)
     token = re.search(r"'([0-9a-f]+)_BEGIN__'", line).group(1)
     parts = shlex.split(line)
     command = parts[parts.index("-c") + 1].removesuffix(";")
-    if mode == "serial-timeout" and command.startswith("lightlix --json model pull"):
+    if mode == "serial-timeout" and command.startswith("diparnux --json model pull"):
         time.sleep(60)
     output, rc = result(command)
     emit(f"\n__LLX_{token}_BEGIN__\n{output}\n__LLX_{token}_END__:{rc}\n")

@@ -4,15 +4,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/firstboot"
-	"github.com/nxodh/lightlixos/daemon/internal/recommend"
-	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/firstboot"
+	"github.com/nxodh/diparnuxos/daemon/internal/recommend"
+	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
 // SSH 를 켠 상태에서 보여 줄 안내 문구다.
 const (
-	sshWarnNoAccount = "No Lightlix account exists, so SSH accepts public keys only; create an account to log in with a password"
+	sshWarnNoAccount = "No Diparnux account exists, so SSH accepts public keys only; create an account to log in with a password"
 	sshWarnKeyOnly   = "SSH password login is disabled on this image; add your public key to ~/.ssh/authorized_keys of the login user to connect"
 	sshWarnUnknown   = "SSH is open; make sure the login user has a strong password or an authorized public key"
 )
@@ -27,7 +27,7 @@ type sshView struct {
 	Active bool `json:"active"`
 	// PasswordAuth 는 sshd 의 비밀번호 로그인 값이다. "yes", "no", "unknown" 이다.
 	PasswordAuth string `json:"password_auth"`
-	// LoginUsers 는 SSH 비밀번호 로그인을 허용하는 계정이다. Lightlix 로 만든 계정만 들어간다.
+	// LoginUsers 는 SSH 비밀번호 로그인을 허용하는 계정이다. Diparnux 로 만든 계정만 들어간다.
 	LoginUsers []string `json:"login_users"`
 	Port       int      `json:"port"`
 	Warning    string   `json:"warning,omitempty"`
