@@ -48,7 +48,8 @@ for pkgdir in "${ROOT}"/packages/*/; do
         cp -a "${ROOT}/keys" "${src}/keys"
     fi
     # 브랜딩 패키지는 저장소 루트의 브랜드 이미지(assets/brand)를 쓴다.
-    if [ "${name}" = lightlix-branding ]; then
+    # 데스크톱 패키지는 생성된 xfwm4 테마 이미지를 쓴다.
+    if [ "${name}" = lightlix-branding ] || [ "${name}" = lightlix-desktop ]; then
         cp -a "${ROOT}/assets/brand" "${src}/assets"
     fi
     # Control Center 소스도 패키지의 임시 사본에만 넣는다.

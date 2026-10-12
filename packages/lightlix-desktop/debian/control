@@ -11,9 +11,17 @@ Rules-Requires-Root: no
 
 Package: lightlix-desktop
 Architecture: all
-Depends: ${misc:Depends}, lightlix-branding, labwc, greetd, tuigreet, foot, yambar, swaybg, dbus-user-session, xwayland, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
-Description: Lightlix 데스크톱 세션 (labwc, greetd, tuigreet)
+Depends: ${misc:Depends}, lightlix-branding,
+ xfce4-session, xfwm4, xfce4-panel, xfdesktop4, xfce4-settings, xfconf, libxfce4ui-utils, xfce4-appfinder,
+ xfce4-whiskermenu-plugin, xfce4-genmon-plugin, xfce4-pulseaudio-plugin, xfce4-notifyd, xfce4-power-manager, xfce4-power-manager-plugins,
+ thunar, thunar-volman, tumbler, gvfs, udisks2, xfce4-terminal, xfce4-screenshooter, xfce4-taskmanager,
+ mousepad, ristretto, xarchiver, mate-polkit-bin, light-locker,
+ lightdm, lightdm-gtk-greeter, xserver-xorg-core, xserver-xorg-input-libinput, x11-xserver-utils, xdg-utils, xdg-user-dirs,
+ pipewire, wireplumber, pipewire-pulse, pavucontrol,
+ adwaita-icon-theme, dbus-user-session, dbus-x11, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
+Description: Lightlix 데스크톱 세션 (Xfce, lightdm)
  서버 모드의 기본 부팅 대상(multi-user.target)을 바꾸지 않고 데스크톱 모드에
- 필요한 구성 요소와 설정만 설치한다. greetd 의 기본 설정 파일은 건드리지 않고
- systemd 드롭인으로 Lightlix 설정을 가리킨다. 패널은 yambar 이며 설정은
- /etc/xdg/yambar/config.yml 이다.
+ 필요한 구성 요소와 설정만 설치한다. 설정은 Debian 의 /etc/xdg 파일을 건드리지
+ 않고 /etc/xdg/lightlix 에 두며, /etc/X11/Xsession.d/55lightlix-xdg 가 이
+ 디렉터리를 XDG_CONFIG_DIRS 맨 앞에 둔다. 로그인 화면은 lightdm 과
+ lightdm-gtk-greeter 이고, 라이브 세션에서만 자동 로그인한다.

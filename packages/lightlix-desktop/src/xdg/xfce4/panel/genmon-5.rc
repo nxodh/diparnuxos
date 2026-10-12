@@ -1,0 +1,5 @@
+Command=/usr/bin/lightlix-panel-net
+UseLabel=0
+Text=
+UpdatePeriod=10000
+Font=Sans 10

@@ -1,0 +1,9 @@
+[Configuration]
+FontName=Monospace 11
+MiscAlwaysShowTabs=FALSE
+MiscMenubarDefault=FALSE
+ScrollingBar=TERMINAL_SCROLLBAR_NONE
+ColorForeground=#ebebeb
+ColorBackground=#0d0d0d
+ColorCursor=#ebebeb
+ColorPalette=#1a1a1a;#c86464;#78a078;#c8b478;#7896b4;#a082b4;#78aab4;#c8c8c8;#3a3a3a;#e07878;#8cb88c;#e0c88c;#8cabc8;#b496c8;#8cc0c8;#ffffff
