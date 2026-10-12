@@ -230,8 +230,8 @@ msgstr "NVIDIA GPU가 없습니다."
 msgid "Secure Boot is on and blocks the driver"
 msgstr "보안 부팅이 켜져 있고 드라이버를 막고 있습니다"
 
-msgid "Turn Secure Boot off in the firmware settings and reboot. Enrolling a machine key is possible on an installed system; see the documentation."
-msgstr "펌웨어 설정에서 보안 부팅을 끄고 재부팅하세요. 설치된 시스템에서는 기기 키를 등록할 수도 있습니다. 문서를 참고하세요."
+msgid "Turn Secure Boot off in the firmware settings and reboot. On an installed system you can enroll a machine key instead: run 'sudo lightlix-mok enroll' in a terminal."
+msgstr "펌웨어 설정에서 보안 부팅을 끄고 재부팅하세요. 설치된 시스템에서는 대신 기기 키를 등록할 수 있습니다. 터미널에서 'sudo lightlix-mok enroll'을 실행하세요."
 
 msgid "Secure Boot is on"
 msgstr "보안 부팅이 켜져 있습니다"

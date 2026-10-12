@@ -32,3 +32,5 @@ lightlix-desktop
 openssh-server
 # Control Center(GTK4, libadwaita). 데스크톱 모드에서 쓰며 서버 모드에서는 실행되지 않는다.
 lightlix-control-center
+# Secure Boot 기기 키 등록 도구(lightlix-mok)가 쓴다. 설치된 시스템에서만 쓰며 서비스는 없다.
+mokutil

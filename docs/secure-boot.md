@@ -1,7 +1,7 @@
 # Secure Boot와 커널 모듈 서명
 
 - 확인 날짜: 2026-10-11
-- 상태: Phase 1 빌드 키 제거와 텍스트 안내 구현. 기기별 MOK 등록은 미구현
+- 상태: Phase 1 빌드 키 제거와 텍스트 안내, Phase 3 `lightlix-mok` 보조 도구 구현(실기 미검증)
 
 > Phase 1은 `9900-lightlix-nvidia.hook.chroot`에서 빌드 키를 제거하고 완성된 ISO를 다시 검사한다. `lightlix-gpu-check`가 Secure Boot 상태와 모듈 로드 실패를 영어 ASCII 텍스트로 콘솔과 로그인 프롬프트 위에 안내한다(실기 화면은 미검증). 현재 라이브 ISO에서 NVIDIA를 사용하려면 Secure Boot를 끈다. 기기별 키 생성·재서명·등록 화면은 후속 단계에서 구현한다.
 
@@ -50,23 +50,26 @@ DKMS는 서명 키가 없으면 자동으로 만든다.
 
 ---
 
-## 3. 기기별 MOK 키 생성과 등록 흐름 (Phase 3 예정)
+## 3. 기기별 MOK 키 생성과 등록 흐름 (Phase 3 구현, 실기 미검증)
 
 MOK(Machine Owner Key)는 기기 소유자가 UEFI에 등록하는 키다. 등록된 키로 서명한 모듈은 Secure Boot가 켜진 상태에서도 로드된다.
 
-흐름 (초안):
+`lightlix-mok`(`/usr/sbin/lightlix-mok`, `lightlix-nvidia` 패키지)가 아래 흐름을 맡는다. 설치된 시스템에서 root로 `lightlix-mok enroll`을 실행한다.
 
-1. **설치 시 또는 첫 부팅 시 기기별 키를 만든다.** 키는 그 기기 안에서만 만들고 이미지에 넣지 않는다.
-2. **DKMS로 NVIDIA 모듈을 그 키로 다시 서명한다.** DKMS가 그 키를 쓰도록 설정한다. 설정 방식은 Phase 3에서 확인한다.
-3. **공개키를 MOK 목록에 등록한다.** 검증자는 `mokutil --import`로 등록하는 흐름을 제안했다(검증 기록 decision_changes 2). 등록하려면 재부팅 후 UEFI 화면에서 등록 요청을 확인해야 한다. 이 확인 절차를 사용자에게 안내한다.
-4. **재부팅 후 등록을 확인하고 모듈을 로드한다.**
+1. **키는 DKMS가 이 기기에서 만든다.** 이미지에서 빌드 키를 지웠으므로 DKMS가 처음 서명할 때 `/var/lib/dkms/mok.key`, `mok.pub`을 새로 만든다(DKMS 3.2.2 `framework.conf`: 파일이 없으면 둘 다 다시 만든다). 키는 기기마다 다르다.
+2. **NVIDIA 모듈을 그 키로 다시 빌드하고 설치한다.** `dkms status`의 `nvidia*` 항목마다 현재 커널용으로 `dkms build --force`와 `dkms install --force`를 실행한다.
+3. **공개키를 MOK로 가져오기 예약한다.** `mokutil --import /var/lib/dkms/mok.pub`. 일회용 비밀번호를 사용자가 정한다.
+4. **재부팅 후 MokManager에서 등록한다.** "Enroll MOK", "Continue", 비밀번호 입력, 재부팅 순서를 안내한다. 도구가 끝에 같은 문구를 출력한다.
 
-조사 기록: NVIDIA 드라이버 README는 "a module signed by a newly generated key cannot be loaded into a kernel that requires signed modules until its key is trusted"라고 적는다. 즉 새 키로 서명한 모듈은 그 키를 신뢰하기 전까지 로드되지 않는다(검증 기록 check 29가 인용, URL은 검증 기록에 없음).
+`lightlix-mok status`는 `secure_boot`, `machine_key`(`missing`, `enrolled`, `not_enrolled`, `unknown`), `session`(`live`, `installed`)을 한 줄씩 출력한다.
 
-### 확인이 필요한 것
+**라이브 세션에서는 거절한다.** 라이브 세션은 재부팅하면 만든 키가 사라진다. 펌웨어에 등록된 MOK는 남지만 개인키가 없어 새 모듈을 서명할 수 없다. 따라서 이 흐름은 설치기(Phase 4)가 생긴 뒤의 설치된 시스템에서만 의미가 있다.
 
-- `mokutil`의 명령 옵션과 등록 화면 동작은 이번 조사에서 확인하지 않았다. `mokutil` 패키지는 trixie main 0.7.2-1로 있다(https://api.ftp-master.debian.org/madison?package=mokutil&s=trixie,trixie-updates,trixie-backports,trixie-security&text=on ). man 페이지로 옵션을 확인한 뒤 Phase 3에서 쓴다.
-- 등록 절차 중 기기 제조사별 UEFI 차이는 확인하지 않았다.
+### 확인한 것과 하지 못한 것
+
+- 확인: 도구의 분기(라이브 거절, root 요구, Secure Boot 꺼짐, 이미 등록됨, 빌드·설치·가져오기 순서, 빌드 실패, 키 없음, NVIDIA 모듈 없음)를 명령 스텁으로 검사한다(`tests/nvidia/mok.sh`).
+- 확인하지 못함: 실제 `mokutil --import`와 MokManager 화면 동작, 제조사별 UEFI 차이, 재부팅 뒤 모듈 로드. QEMU의 OVMF로 Secure Boot 켜짐 부팅은 만들 수 있으나 MokManager 상호작용 자동화는 이번에 하지 않았다. 실기 또는 설치기가 있는 환경에서 확인해야 한다.
+- 조사 기록: NVIDIA 드라이버 README는 "a module signed by a newly generated key cannot be loaded into a kernel that requires signed modules until its key is trusted"라고 적는다(검증 기록 check 29가 인용).
 
 ---
 

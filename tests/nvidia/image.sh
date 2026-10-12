@@ -201,6 +201,8 @@ check_package lightlix-control-center "$LIGHTLIX_VERSION"
 for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
+require_path 'squashfs-root/usr/sbin/lightlix-mok$' 'Secure Boot machine key helper (lightlix-mok)'
+grep -qx mokutil "$WORK/installed" || check_fail 'mokutil is not installed'
 require_path 'squashfs-root/usr/bin/lightlix-control-center$' 'Control Center launcher'
 require_path 'squashfs-root/usr/lib/lightlix/control-center/lightlix_cc/app[.]py$' 'Control Center application'
 require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/lightlix-control-center[.]mo$' 'Control Center Korean catalog'

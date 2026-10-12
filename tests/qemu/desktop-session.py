@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""UEFI 게스트에서 데스크톱 모드 전환, greetd 로그인 화면, labwc 세션, Control Center 를 검사한다.
+
+cpu-inference.py 의 Console 과 보조 함수를 그대로 쓴다. 이 드라이버는 QEMU 모니터 소켓으로
+화면을 캡처하고 키 입력을 보낸다. 화면 캡처는 "무엇인가 그려졌다"만 보며 실제 모니터 표시를 대신하지 않는다.
+"""
+
+import argparse
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import shutil
+import signal
+import socket
+import struct
+import sys
+import tempfile
+import time
+import zlib
+
+HERE = Path(__file__).resolve().parent
+
+
+def load_base():
+    spec = importlib.util.spec_from_file_location("cpu_inference_base", HERE / "cpu-inference.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+base = load_base()
+Failure, require, seconds, qemu_value, Console = base.Failure, base.require, base.seconds, base.qemu_value, base.Console
+
+# 키 이름은 QEMU 모니터 sendkey 의 이름이다. 로그인 이름과 비밀번호의 문자만 쓴다.
+SPECIAL_KEYS = {"\n": "ret", " ": "spc"}
+SCREEN_SIZE_MIN = (320, 200)
+
+
+class Monitor:
+    """QEMU 모니터(HMP) 유닉스 소켓. 명령 하나를 보내고 프롬프트까지 읽는다."""
+
+    def __init__(self, path, timeout=10):
+        self.path = path
+        self.timeout = timeout
+        self.sock = None
+
+    def connect(self, wait=30):
+        end = time.monotonic() + wait
+        while True:
+            try:
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s.settimeout(self.timeout)
+                s.connect(self.path)
+                self.sock = s
+                self._read_prompt()
+                return
+            except (FileNotFoundError, ConnectionRefusedError):
+                s.close()
+                if time.monotonic() > end:
+                    raise Failure("monitor", f"QEMU monitor socket did not appear: {self.path}") from None
+                time.sleep(0.2)
+
+    def _read_prompt(self):
+        data = b""
+        while not data.endswith(b"(qemu) "):
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise Failure("monitor", "QEMU monitor closed the connection")
+            data += chunk
+        return data.decode("utf-8", errors="replace")
+
+    def command(self, line):
+        self.sock.sendall((line + "\n").encode("ascii"))
+        return self._read_prompt()
+
+    def close(self):
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+
+    def type_text(self, text, delay=0.12):
+        for ch in text:
+            if ch in SPECIAL_KEYS:
+                key = SPECIAL_KEYS[ch]
+            elif re.fullmatch(r"[a-z0-9]", ch):
+                key = ch
+            else:
+                raise Failure("usage", f"Unsupported character for sendkey: {ch!r}")
+            self.command(f"sendkey {key}")
+            time.sleep(delay)
+
+    def screendump(self, path):
+        self.command(f"screendump {path}")
+        end = time.monotonic() + 10
+        while time.monotonic() < end:
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                time.sleep(0.2)
+                return
+            time.sleep(0.1)
+        raise Failure("screenshot", f"screendump did not write {path}")
+
+
+def read_ppm(path):
+    data = Path(path).read_bytes()
+    match = re.match(rb"P6\s+(\d+)\s+(\d+)\s+(\d+)\s", data)
+    if not match:
+        raise Failure("screenshot", "Screen dump is not a binary PPM")
+    width, height, maxval = (int(g) for g in match.groups())
+    if maxval != 255:
+        raise Failure("screenshot", f"Unsupported PPM depth {maxval}")
+    pixels = data[match.end():]
+    if len(pixels) < width * height * 3:
+        raise Failure("screenshot", "Screen dump is truncated")
+    return width, height, pixels[: width * height * 3]
+
+
+def describe_image(width, height, pixels):
+    """색 종류와 어두운 화소가 아닌 비율을 센다. 균일한 화면(검은 화면)을 거른다."""
+    step = max(1, (width * height) // 20000)
+    colors = set()
+    lit = 0
+    samples = 0
+    for i in range(0, width * height, step):
+        r, g, b = pixels[3 * i], pixels[3 * i + 1], pixels[3 * i + 2]
+        colors.add((r >> 3, g >> 3, b >> 3))
+        if r + g + b > 96:
+            lit += 1
+        samples += 1
+    return {"width": width, "height": height, "colors": len(colors), "lit_fraction": round(lit / max(samples, 1), 4)}
+
+
+def write_png(path, width, height, pixels):
+    """작은 PNG 로 저장한다(표준 라이브러리만 사용). 아티팩트 크기를 줄이려고 반으로 줄인다."""
+    sw, sh = max(width // 2, 1), max(height // 2, 1)
+    rows = []
+    for y in range(sh):
+        row = bytearray(b"\x00")
+        base_y = (y * 2) * width
+        for x in range(sw):
+            i = 3 * (base_y + x * 2)
+            row += pixels[i:i + 3]
+        rows.append(bytes(row))
+    raw = b"".join(rows)
+
+    def chunk(tag, body):
+        c = struct.pack(">I", len(body)) + tag + body
+        return c + struct.pack(">I", zlib.crc32(tag + body) & 0xFFFFFFFF)
+
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", sw, sh, 8, 2, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b"")
+    Path(path).write_bytes(png)
+
+
+def poll_command(console, label, command, timeout, attempts_sleep=2):
+    """command 가 종료 코드 0 이 될 때까지 timeout 안에서 다시 시도한다. 마지막 출력은 로그에 남는다."""
+    script = (
+        f"end=$(( $(date +%s) + {timeout} )); "
+        f"while :; do if out=$({command} 2>&1); then printf '%s\\n' \"$out\"; exit 0; fi; "
+        f"[ \"$(date +%s)\" -ge \"$end\" ] && {{ printf '%s\\n' \"$out\" >&2; exit 1; }}; sleep {attempts_sleep}; done"
+    )
+    return console.command(label, script, timeout + 20)
+
+
+def capture(console, monitor, logs, name, workdir):
+    shot = os.path.join(workdir, name + ".ppm")
+    monitor.screendump(shot)
+    width, height, pixels = read_ppm(shot)
+    info = describe_image(width, height, pixels)
+    write_png(logs / f"{name}.png", width, height, pixels)
+    (logs / f"{name}.json").write_text(json.dumps(info) + "\n", encoding="ascii")
+    print(f"desktop-session: screenshot {name}: {info}", flush=True)
+    return info
+
+
+def scenario(console, monitor, budgets, logs, workdir):
+    cmd = budgets["COMMAND_TIMEOUT"]
+    console.login(budgets["BOOT_TIMEOUT"])
+    monitor.connect()
+
+    identity = console.command("identity", "id -un && id -Gn && uname -m", cmd).splitlines()
+    require(identity[0] == "user" and "lightlix" in identity[1].split(), "Serial session must be the live user in group lightlix")
+
+    # 이미지는 서버 모드로 부팅하고 데스크톱 구성 요소를 갖는다.
+    mode = console.command("mode-initial", "lightlix --json mode", cmd)
+    require(json.loads(mode).get("mode") == "server", "The image must boot in server mode")
+    console.command("greetd-installed", "systemctl cat greetd.service >/dev/null", cmd)
+    unit = console.command("greetd-unit", "systemctl cat greetd.service", cmd)
+    require("--config /etc/greetd/lightlix.toml" in unit, "greetd does not use the Lightlix configuration")
+    console.command("greetd-not-active", "! systemctl is-active --quiet greetd.service", cmd)
+    console.command("desktop-files", "test -x /usr/bin/labwc && test -x /usr/bin/tuigreet && test -x /usr/bin/lightlix-control-center", cmd)
+    console.command("fonts-korean", "fc-list :lang=ko family | head -n 3 | grep .", cmd)
+
+    # 서버 모드의 유휴 메모리(참고용 측정). 판정에는 쓰지 않는다.
+    console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+
+    # 데스크톱 모드로 전환한다.
+    switched = console.command("mode-desktop", "lightlix --json mode desktop", budgets["START_TIMEOUT"])
+    require(json.loads(switched).get("mode") == "desktop", "Mode switch did not report desktop")
+    poll_command(console, "greetd-active", "systemctl is-active --quiet greetd.service", budgets["START_TIMEOUT"])
+    poll_command(console, "tuigreet-running", "pgrep -x tuigreet", budgets["START_TIMEOUT"])
+    console.command("default-target-desktop", "systemctl get-default | grep -x graphical.target", cmd)
+    time.sleep(3)
+    greeter = capture(console, monitor, logs, "greeter", workdir)
+    require(greeter["width"] >= SCREEN_SIZE_MIN[0] and greeter["height"] >= SCREEN_SIZE_MIN[1], "Screen is too small")
+    require(greeter["colors"] >= 3 and greeter["lit_fraction"] > 0.0005,
+            f"The login screen looks blank: {greeter}")
+
+    # 키 입력으로 로그인해 labwc 세션과 Control Center 를 확인한다.
+    monitor.type_text("user\n")
+    time.sleep(1.5)
+    monitor.type_text("live\n")
+    poll_command(console, "labwc-running", "pgrep -u user -x labwc", budgets["START_TIMEOUT"])
+    poll_command(console, "control-center-running", "pgrep -u user -f lightlix-control-center", budgets["START_TIMEOUT"])
+    time.sleep(5)
+    session = capture(console, monitor, logs, "session", workdir)
+    require(session["colors"] >= 8, f"The desktop session looks blank: {session}")
+    console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
+
+    # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
+    console.command("daemon-status", "lightlix --json status | grep -q '\"mode\": \"desktop\"'", cmd)
+
+    # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
+    back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])
+    require(json.loads(back).get("mode") == "server", "Mode switch did not report server")
+    poll_command(console, "labwc-gone", "! pgrep -x labwc", budgets["START_TIMEOUT"])
+    console.command("greetd-stopped", "! systemctl is-active --quiet greetd.service", cmd)
+    console.command("default-target-server", "systemctl get-default | grep -x multi-user.target", cmd)
+    time.sleep(5)
+    console.command("memory-server-after", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+
+
+def main():
+    sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
+    sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
+    parser = argparse.ArgumentParser(description="Lightlix UEFI desktop session E2E")
+    parser.add_argument("iso", type=Path)
+    args = parser.parse_args()
+    log_root = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-desktop"))
+    os.umask(0o022)
+    log_root.mkdir(parents=True, exist_ok=True)
+    logs = log_root / f"run-{secrets.token_hex(4)}"
+    logs.mkdir(mode=0o755)
+    print(f"desktop-session: logs={logs}", flush=True)
+
+    result = {"outcome": "failed", "kind": "internal", "message": "Driver did not finish"}
+    console = None
+    monitor = None
+    exit_code = 1
+    start = time.monotonic()
+
+    def interrupted(signum, _frame):
+        raise Failure("signal", f"Interrupted by signal {signum}")
+
+    signal.signal(signal.SIGTERM, interrupted)
+    signal.signal(signal.SIGINT, interrupted)
+    try:
+        if not args.iso.is_file():
+            raise Failure("usage", f"ISO not found: {args.iso}")
+        qemu = os.environ.get("QEMU_BIN", "qemu-system-x86_64")
+        if not shutil.which(qemu):
+            raise Failure("usage", f"QEMU not found: {qemu}")
+        code = base.firmware("OVMF_CODE", "/usr/share/OVMF/OVMF_CODE_4M.fd")
+        template = base.firmware("OVMF_VARS_TEMPLATE", "/usr/share/OVMF/OVMF_VARS_4M.fd")
+        accel = os.environ.get("QEMU_ACCEL", "auto")
+        kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
+        if accel == "kvm" and not kvm:
+            raise Failure("usage", "QEMU_ACCEL=kvm requires read/write access to /dev/kvm")
+        chosen = "kvm" if accel != "tcg" and kvm else "tcg"
+        slow = chosen == "tcg"
+        budgets = {name: seconds(name, value) for name, value in {
+            "BOOT_TIMEOUT": 1800 if slow else 240,
+            "COMMAND_TIMEOUT": 180 if slow else 60,
+            "START_TIMEOUT": 900 if slow else 240,
+            "E2E_TIMEOUT": 5400 if slow else 1200,
+        }.items()}
+        with tempfile.TemporaryDirectory(prefix="lightlix-desktop-") as work:
+            variables = Path(work) / "OVMF_VARS.fd"
+            shutil.copyfile(template, variables)
+            mon_path = str(Path(work) / "monitor.sock")
+            argv = [qemu, "-name", "lightlix-desktop-e2e", "-machine", "q35", "-accel", chosen,
+                    "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "4096M",
+                    "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
+                    "-drive", f"if=pflash,format=raw,unit=1,file={qemu_value(variables)}",
+                    "-cdrom", str(args.iso), "-nic", "user,model=virtio-net-pci,ipv6=off",
+                    "-vga", "virtio", "-display", "none",
+                    "-monitor", f"unix:{qemu_value(mon_path)},server=on,wait=off",
+                    "-serial", "stdio", "-no-reboot"]
+            result.update({"accel": chosen, "budgets": budgets})
+            print(f"desktop-session: accel={chosen} total_timeout={budgets['E2E_TIMEOUT']}s", flush=True)
+            console = Console(argv, logs, start + budgets["E2E_TIMEOUT"])
+            console.start()
+            monitor = Monitor(mon_path)
+            scenario(console, monitor, budgets, logs, work)
+        result.update({"outcome": "succeeded", "kind": "pass", "message": "Desktop session started and stopped"})
+        exit_code = 0
+        print("PASS: server mode boot, desktop switch, greetd screen, labwc session, Control Center, back to server", flush=True)
+    except Failure as error:
+        result.update({"kind": error.kind, "message": str(error)})
+        exit_code = 2 if error.kind == "usage" else 1
+        if error.kind == "signal":
+            exit_code = 128 + int(str(error).split()[-1])
+        print(f"FAIL: {error.kind}: {error}", file=sys.stderr)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        result.update({"kind": "driver_error", "message": str(error)})
+        print(f"FAIL: driver_error: {error}", file=sys.stderr)
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if monitor:
+            monitor.close()
+        if console:
+            console.close()
+        result["elapsed_seconds"] = round(time.monotonic() - start, 3)
+        (logs / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="ascii")
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

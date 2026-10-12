@@ -133,12 +133,24 @@ jobs:
           E2E_TIMEOUT: '1800'
         run: make test-qemu-e2e-docker
 
+      # 같은 ISO 로 서버 모드에서 데스크톱 모드로 전환하고 greetd, labwc, Control Center 를 확인한다.
+      - name: Desktop session E2E (UEFI, mode switch, virtual display)
+        timeout-minutes: 25
+        env:
+          BOOT_TIMEOUT: '900'
+          COMMAND_TIMEOUT: '120'
+          START_TIMEOUT: '300'
+          E2E_TIMEOUT: '1200'
+        run: make test-qemu-desktop-docker
+
       - name: Upload QEMU E2E logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lightlix-qemu-e2e-logs
-          path: out/qemu-e2e/
+          path: |
+            out/qemu-e2e/
+            out/qemu-desktop/
           if-no-files-found: warn
           retention-days: 7
 

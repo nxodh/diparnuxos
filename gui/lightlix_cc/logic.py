@@ -237,7 +237,7 @@ def evaluate_secure_boot(status):
                 "secure_boot",
                 WARN,
                 _("Secure Boot is on and blocks the driver"),
-                _("Turn Secure Boot off in the firmware settings and reboot. Enrolling a machine key is possible on an installed system; see the documentation."),
+                _("Turn Secure Boot off in the firmware settings and reboot. On an installed system you can enroll a machine key instead: run 'sudo lightlix-mok enroll' in a terminal."),
             )
         return StepResult("secure_boot", INFO, _("Secure Boot is on"), _("The NVIDIA driver loaded, so no action is needed."))
     if sb == "disabled":
