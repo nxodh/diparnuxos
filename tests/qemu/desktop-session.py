@@ -228,11 +228,37 @@ def scenario(console, monitor, budgets, logs, workdir):
     monitor.type_text("live\n")
     poll_command(console, "labwc-running", "pgrep -u user -x labwc", budgets["START_TIMEOUT"])
     poll_command(console, "control-center-running", "pgrep -u user -f lightlix-control-center", budgets["START_TIMEOUT"])
-    time.sleep(5)
-    session = capture(console, monitor, logs, "session", workdir)
-    require(session["colors"] >= 8, f"The desktop session looks blank: {session}")
+
+    # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
+    session = None
+    deadline = time.monotonic() + budgets["START_TIMEOUT"] / 2
+    attempt = 0
+    while True:
+        attempt += 1
+        time.sleep(5)
+        session = capture(console, monitor, logs, "session", workdir)
+        if session["colors"] >= 8 or time.monotonic() > deadline:
+            break
+
+    # 진단: 세션 프로세스와 로그, 그리고 같은 세션에서 앱을 직접 실행했을 때의 stderr 를 남긴다.
+    console.command(
+        "session-processes",
+        "ps -eo pid,etime,rss,stat,args | grep -E 'labwc|control-center|greetd|tuigreet' | grep -v grep; true",
+        cmd,
+    )
+    console.command(
+        "session-journal",
+        "sudo -n journalctl -b --no-pager -n 400 | grep -iE 'labwc|control-center|python|gtk|gdk|adw|egl|wlr|greetd|segfault|traceback' | tail -n 100; true",
+        cmd,
+    )
+    console.command(
+        "control-center-manual-run",
+        "XDG_RUNTIME_DIR=/run/user/$(id -u) WAYLAND_DISPLAY=wayland-0 timeout 25 lightlix-control-center --wizard 2>&1 | head -n 60; true",
+        cmd + 30,
+    )
     console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
     console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
+    require(session["colors"] >= 8, f"The desktop session looks blank after {attempt} captures: {session}")
 
     # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
     console.command("daemon-status", "lightlix --json status | grep -q '\"mode\": \"desktop\"'", cmd)
