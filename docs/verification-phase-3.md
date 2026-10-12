@@ -24,6 +24,22 @@
 - 38187565545: 모드 전환은 성공했지만 직렬 콘솔에 섞인 systemd 로그 줄 때문에 드라이버가 JSON 파싱에 실패했다. 드라이버를 고쳤다.
 - 38188676327: 로그인 직후 5초 시점의 화면이 검은색(커서만)이어서 실패했다. 창이 더 늦게 그려졌으며, 창이 뜰 때까지 기다리게 드라이버를 고친 뒤 통과했다.
 
+## 계정, SSH, 패널 추가 후 CI (2026-10-12)
+
+사용자 요청으로 패널, 계정 만들기, 계정에 맞춘 SSH를 추가한 뒤 [CI 38207947881](https://github.com/nxodh/lightlixos/actions/runs/38207947881)이 전체 성공했다. 데스크톱 세션 E2E는 실제 ISO에서 아래를 추가로 확인했다.
+
+- `lightlix user add tester --admin --password-stdin`으로 계정을 만들면 `passwd` 항목(`/home/tester`, `/bin/bash`), 비밀번호 해시, `lightlix`·`video`·`render`·`sudo` 그룹, 홈 디렉터리가 생긴다. 같은 이름은 `user_exists`, 짧은 비밀번호는 `invalid_password`로 거절된다.
+- `lightlix ssh on`이 `enabled`, `active`, 비밀번호 로그인 `yes`, 허용 계정 `tester`를 돌려준다. `ssh`로 `tester`의 비밀번호 로그인이 성공하고, 기본 `user`/`live`는 `Permission denied`다(`AllowUsers`).
+- 방금 만든 `tester`로 greetd 화면에서 키 입력 로그인하면 labwc, yambar 패널, Control Center가 같은 사용자로 실행된다. 화면 캡처에 패널(왼쪽 창 제목, 오른쪽 메모리와 시계)과 대시보드가 그려진다.
+- `lightlix user rm tester`가 `home_kept: true`를 돌려주고 계정은 사라지며 홈 디렉터리와 `50-lightlix.conf` 정책 파일의 처리가 기대대로다(홈 유지, 정책 파일 삭제).
+
+이 과정에서 실제 ISO가 드러낸 결함을 고쳤다. 스텁 테스트로는 보이지 않던 것들이다.
+
+- `systemctl enable --now ssh.service`가 데몬의 `ProtectSystem` 때문에 `Read-only file system`으로 실패했다. 데몬은 `start`/`stop`만 하고 호스트 키 생성과 정책 파일은 헬퍼가 맡으며, 부팅 뒤의 시작은 설정의 `ssh_enabled`를 보고 데몬이 한다.
+- 패널 설정을 `/etc/lightlix`(데몬 설정과 토큰이 있어 일반 사용자가 읽을 수 없음)에 두어 `Permission denied`로 패널이 뜨지 않았다. `/etc/xdg/yambar/config.yml`로 옮겼다.
+
+참고용 메모리 값(같은 QEMU 조건, 부팅 직후): 서버 모드 약 358 MiB, 데스크톱 모드(Control Center 창과 패널 포함) 약 634 MiB, 서버 모드 복귀 후 약 400 MiB. 목표는 서버 600 MB, 데스크톱 900 MB로 완화되어 모두 안이다. 프로세스 RSS는 Control Center 약 287 MiB, labwc 약 167 MiB, yambar 약 12 MiB다.
+
 ## 데스크톱 세션 E2E가 확인한 것
 
 QEMU 10, KVM, UEFI, virtio-vga, 직렬 콘솔과 모니터 소켓으로 실행한다. 로그와 화면 캡처는 CI 아티팩트 `lightlix-qemu-e2e-logs`의 `qemu-desktop/`에 있다.
@@ -64,4 +80,6 @@ QEMU 10, KVM, UEFI, virtio-vga, 직렬 콘솔과 모니터 소켓으로 실행�
 - **첫 부팅 마법사의 영속성**: 라이브 세션에서는 재부팅하면 완료 기록이 사라진다. 설치 뒤 유지되는지는 Phase 4에서 확인한다.
 - **SSH**: 켜기와 끄기의 실제 접속, 호스트 키 생성. 명령 스텁 수준만 확인했다.
 - 모델 내려받기 진행률과 채팅 화면의 사용성은 가짜 데몬으로만 확인했다.
+- 계정 생성 화면(대화상자)과 마법사의 계정 단계는 가짜 데몬과 xvfb에서 입력 검증과 요청 본문만 확인했다. 실제 화면에서 눌러 만들어 보는 흐름은 사람이 확인하지 않았다.
+- 라이브 세션이라 재부팅하면 만든 계정과 `ssh_enabled` 설정이 사라진다. 설치 뒤의 유지와 재부팅 후 SSH 복구(`restoreSSH`)는 설치기가 생긴 뒤 확인해야 한다.
 - 화면 캡처 판정은 "무언가 그려졌다"만 본다. 레이아웃과 글꼴 품질은 사람이 캡처를 봐야 한다.
