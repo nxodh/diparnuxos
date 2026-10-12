@@ -1,0 +1,33 @@
+# Lightlix 의 Calamares 브랜딩이다. Debian 의 이름과 로고는 쓰지 않는다.
+---
+componentName: lightlix
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 900px,560px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+strings:
+    productName: "Lightlix"
+    shortProductName: "Lightlix"
+    version: "@VERSION@"
+    shortVersion: "@VERSION@"
+    versionedName: "Lightlix @VERSION@"
+    shortVersionedName: "Lightlix @VERSION@"
+    bootloaderEntryName: "Lightlix"
+    productUrl: "https://github.com/nxodh/lightlixos"
+    supportUrl: "https://github.com/nxodh/lightlixos/issues"
+    knownIssuesUrl: "https://github.com/nxodh/lightlixos/issues"
+    releaseNotesUrl: "https://github.com/nxodh/lightlixos"
+images:
+    productLogo: "logo.png"
+    productIcon: "icon.png"
+    productWelcome: "welcome.png"
+style:
+    SidebarBackground: "#182036"
+    SidebarText: "#E8EEF8"
+    SidebarTextCurrent: "#182036"
+    SidebarBackgroundCurrent: "#40C4B4"
+slideshow: "show.qml"
+slideshowAPI: 2

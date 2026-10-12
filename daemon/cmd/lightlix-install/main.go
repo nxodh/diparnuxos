@@ -5,6 +5,7 @@
 //	                     [--console serial] [--yes] [--reboot] [--json]
 //	lightlix-install target-prepare --root DIR [--mode M] [--register-user NAME] [--admin]
 //	lightlix-install boot-default --root DIR
+//	lightlix-install target-bootloader --root DIR [--console serial]
 //
 // run 은 디스크 전체를 지운다. 터미널에서 값을 빼고 실행하면 물어본다. 비대화 환경에서는 --yes 가 있어야 한다.
 // 비밀번호는 표준 입력의 첫 줄이나 터미널 입력으로만 받고 인자, 환경 변수, 파일, 로그에 남기지 않는다.
@@ -37,7 +38,7 @@ func main() {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: lightlix-install run [options] | target-prepare --root DIR [options] | boot-default --root DIR")
+	fmt.Fprintln(w, "usage: lightlix-install run [options] | target-prepare --root DIR [options] | target-bootloader --root DIR | boot-default --root DIR")
 }
 
 func run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
@@ -54,6 +55,8 @@ func run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 		return cmdTargetPrepare(ctx, args[1:], stdout, stderr)
 	case "boot-default":
 		return cmdBootDefault(ctx, args[1:], stdout, stderr)
+	case "target-bootloader":
+		return cmdTargetBootloader(ctx, args[1:], stdout, stderr)
 	}
 	usage(stderr)
 	return 2
@@ -293,6 +296,26 @@ func cmdBootDefault(ctx context.Context, args []string, stdout, stderr io.Writer
 	}
 	in := newInstaller(stdout, *asJSON)
 	if err := in.BootDefault(ctx, *root); err != nil {
+		return fail(stdout, *asJSON, err)
+	}
+	return 0
+}
+
+func cmdTargetBootloader(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("target-bootloader", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("root", "/", "target root (use / inside the target chroot)")
+	console := fs.String("console", "", "set to serial to also use ttyS0")
+	asJSON := fs.Bool("json", false, "print JSON lines")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *console != "" && *console != "serial" {
+		fmt.Fprintln(stderr, "lightlix-install: --console must be empty or serial")
+		return 2
+	}
+	in := newInstaller(stdout, *asJSON)
+	if err := in.InstallBootloader(ctx, *root, *console); err != nil {
 		return fail(stdout, *asJSON, err)
 	}
 	return 0

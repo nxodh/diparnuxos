@@ -58,7 +58,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	e := &update.Engine{Cfg: update.Config{StateDir: *stateDir}, Run: runner.Exec{}}
+	// 시험용 환경 변수다. 실제 시스템에서는 설정하지 않는다.
+	cfg := update.Config{StateDir: *stateDir, ProcCmdline: os.Getenv("LIGHTLIX_UPDATE_PROC_CMDLINE")}
+	e := &update.Engine{Cfg: cfg, Run: runner.Exec{}}
 	if *asJSON {
 		e.Out = stdout
 	} else {

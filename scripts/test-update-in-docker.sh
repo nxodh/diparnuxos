@@ -5,10 +5,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="${LIGHTLIX_UPDATE_TEST_IMAGE:-debian:trixie}"
+PLATFORM_ARGS=()
+if [[ -n "${LIGHTLIX_UPDATE_TEST_PLATFORM:-}" ]]; then
+    PLATFORM_ARGS=(--platform "${LIGHTLIX_UPDATE_TEST_PLATFORM}")
+fi
 
 command -v docker >/dev/null 2>&1 || { echo "test-update: docker is required" >&2; exit 2; }
 
-docker run --rm --init -v "${ROOT}:/src:ro" -e DEBIAN_FRONTEND=noninteractive -e DEBUG_APT="${DEBUG_APT:-}" "${IMAGE}" bash -euc '
+docker run --rm --init ${PLATFORM_ARGS[@]+"${PLATFORM_ARGS[@]}"} -v "${ROOT}:/src:ro" -e DEBIAN_FRONTEND=noninteractive -e DEBUG_APT="${DEBUG_APT:-}" "${IMAGE}" bash -euc '
 apt-get update -qq >/dev/null
 apt-get install -y -qq --no-install-recommends golang-go gcc libc6-dev ca-certificates apt-utils dpkg-dev jq >/dev/null
 mkdir /work

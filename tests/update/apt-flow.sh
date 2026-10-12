@@ -22,6 +22,13 @@ pass() { echo "ok: $*"; }
 die() { echo "FAIL: $*" >&2; exit 1; }
 expect_eq() { [[ "$1" == "$2" ]] || die "$3: got '$1', want '$2'"; pass "$3"; }
 
+# 부팅된 커널을 흉내 낸다. 실제 /proc/cmdline 은 이 컨테이너를 띄운 호스트의 값이라 쓰지 않는다.
+export LIGHTLIX_UPDATE_PROC_CMDLINE="$FAKE/cmdline"
+set_running() {
+    echo "$1" > "$FAKE/running"
+    echo "BOOT_IMAGE=/boot/vmlinuz-$1 root=/dev/fake ro quiet" > "$FAKE/cmdline"
+}
+
 # ---- 도구 스텁 ----
 install -m 0755 /dev/stdin /usr/local/bin/uname <<'EOF'
 #!/bin/sh
@@ -161,7 +168,7 @@ mkdeb fake-tool 1.0-1 fake-tool ""
 reindex
 
 # ---- 초기 설치 ----
-echo "$OLD" > "$FAKE/running"
+set_running "$OLD"
 apt-get install -y -q --no-install-recommends lightlix-nvidia linux-image-amd64 linux-headers-amd64 fake-tool
 mapfile -t managed < <(dpkg-query -W -f '${binary:Package}\n' | grep -E '^(linux-(image|headers)-|nvidia-)')
 apt-mark hold "${managed[@]}" > /dev/null
@@ -183,15 +190,25 @@ pass "plain apt keeps the held packages"
 
 LU=/usr/local/bin/lightlix-update
 last_json() { tail -n 1; }
+# run_json LABEL ARGS... : lightlix-update 를 실행해 마지막 JSON 줄을 돌려준다. 종료 코드와 상관없이 출력 전체를 실패 때 보여 준다.
+run_json() {
+    local out rc=0
+    out="$("$LU" "$@" --json 2>&1)" || rc=$?
+    LAST_RC=$rc
+    LAST_OUT="$out"
+    printf '%s\n' "$out" | tail -n 1
+}
+dump_last() { echo "--- last output (exit $LAST_RC):" >&2; printf '%s\n' "$LAST_OUT" | tail -n 40 >&2; }
 
 # ---- check ----
-plan="$("$LU" check --json | last_json)"
+plan="$(run_json check)"
 expect_eq "$(jq -r .ok <<<"$plan")" true "check ok"
 expect_eq "$(jq -r '.plan.kernels[0]' <<<"$plan")" "$NEW" "check plans the new kernel"
 expect_eq "$(jq -r .plan.driver_to <<<"$plan")" 595.100.01-1 "check plans the new driver"
 
 # ---- apply ----
-res="$("$LU" apply --json | last_json)"
+res="$(run_json apply)"
+[[ "$(jq -r .ok <<<"$res")" == true ]] || dump_last
 expect_eq "$(jq -r .ok <<<"$res")" true "apply ok"
 expect_eq "$(jq -r .state.phase <<<"$res")" pending_boot "apply phase"
 expect_eq "$(dpkg-query -W -f '${Version}' nvidia-kernel-open-dkms)" 595.100.01-1 "driver upgraded"
@@ -208,15 +225,15 @@ pass "holds restored"
 if [[ -e /usr/bin/needrestart ]]; then die "unexpected needrestart"; fi
 
 # ---- 재부팅 뒤 검증 ----
-echo "$NEW" > "$FAKE/running"
-res="$("$LU" verify --json | last_json)"
+set_running "$NEW"
+res="$(run_json verify)"
 expect_eq "$(jq -r .state.phase <<<"$res")" committed "verify commits"
 grep -qx "saved_entry=$ID_PREFIX-$NEW-advanced-$UUID" "$FAKE/grubenv" || die "the saved default was not switched"
 pass "saved default switched after verification"
 
 # ---- 롤백 ----
-echo "$OLD" > "$FAKE/running"
-res="$("$LU" rollback --json | last_json)"
+set_running "$OLD"
+res="$(run_json rollback)"
 expect_eq "$(jq -r .ok <<<"$res")" true "rollback ok"
 expect_eq "$(jq -r .state.phase <<<"$res")" rolled_back "rollback phase"
 expect_eq "$(dpkg-query -W -f '${Version}' nvidia-kernel-open-dkms)" 595.91.07-1 "driver restored"
@@ -227,7 +244,7 @@ pass "rollback"
 
 # ---- 드라이버 갱신이 실패하면 이전 버전으로 복구한다 ----
 echo 595.100.01-1 > "$FAKE/driver-fail"
-res="$("$LU" apply --json | last_json)" || true
+res="$(run_json apply)"
 expect_eq "$(jq -r .ok <<<"$res")" false "driver failure is reported"
 expect_eq "$(jq -r .error.code <<<"$res")" dkms_failed "driver failure code"
 expect_eq "$(dpkg-query -W -f '${Version}' nvidia-kernel-open-dkms)" 595.91.07-1 "driver restored after failure"
@@ -245,7 +262,7 @@ if [[ -n "${DEBUG_APT:-}" ]]; then
         apt-get -s -y -q --no-install-recommends $flags install "linux-headers-$NEWER" "linux-image-$NEWER" | grep -E '^Inst'
     done
 fi
-res="$("$LU" apply --json | last_json)" || true
+res="$(run_json apply)"
 expect_eq "$(jq -r .ok <<<"$res")" false "kernel failure is reported"
 expect_eq "$(jq -r .error.code <<<"$res")" dkms_failed "kernel failure code"
 if dpkg-query -W -f '${db:Status-Status}' "linux-image-$NEWER" 2>/dev/null | grep -q .; then

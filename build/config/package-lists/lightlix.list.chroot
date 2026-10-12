@@ -46,3 +46,10 @@ fdisk
 dosfstools
 e2fsprogs
 rsync
+
+# Calamares 그래픽 설치기(Lightlix 전용 설정). 라이브 데스크톱 세션에서 lightlix-installer 로 실행한다.
+# 설치된 시스템에서는 설치 마무리 단계(lightlix-install target-prepare)가 이 패키지와 Calamares 를 지운다.
+lightlix-installer
+
+# Lightlix 자체 저장소의 공개 키와 소스 설정. 저장소 주소와 키가 정해지기 전에는 소스가 꺼진 채로 설치된다.
+lightlix-archive-keyring

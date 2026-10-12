@@ -113,6 +113,9 @@ type State struct {
 	// DriverFrom 과 DriverTo 는 갱신 전과 후의 드라이버 버전이다.
 	DriverFrom string `json:"driver_from,omitempty"`
 	DriverTo   string `json:"driver_to,omitempty"`
+	// GPUBefore 는 갱신 전 GPU 진단의 종료 코드다(0 사용 가능, 1 GPU 없음, 2 GPU 는 있으나 못 씀, 3 진단 오류).
+	// 갱신 전부터 못 쓰던 GPU(예: Secure Boot 가 모듈을 막음)는 재부팅 뒤 확인에서 갱신의 실패로 보지 않는다.
+	GPUBefore *int `json:"gpu_before,omitempty"`
 	// Before 는 갱신 전에 설치되어 있던 관리 대상 패키지와 버전이다. 롤백이 읽는다.
 	Before []PkgVersion `json:"before,omitempty"`
 	// Events 는 마지막 작업의 진행 기록이다.

@@ -1,0 +1,19 @@
+Source: lightlix-archive-keyring
+Section: misc
+Priority: optional
+Maintainer: Lightlix Developers <noreply@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.2
+Homepage: https://github.com/nxodh/lightlixos
+Vcs-Git: https://github.com/nxodh/lightlixos.git
+Vcs-Browser: https://github.com/nxodh/lightlixos
+Rules-Requires-Root: no
+
+Package: lightlix-archive-keyring
+Architecture: all
+Depends: ${misc:Depends}
+Description: Lightlix APT 저장소의 서명 키와 소스 설정
+ Lightlix 자체 저장소(lightlix-* 패키지)의 공개 서명 키, deb822 소스 파일,
+ 우선순위 설정을 설치한다. 저장소 주소나 서명 키가 정해지지 않은 빌드에서는
+ 소스 파일이 Enabled: no 로 설치되어 apt 가 이 저장소를 쓰지 않는다.
+ 우선순위 설정은 이 저장소가 lightlix-* 외의 패키지를 덮어쓰지 못하게 한다.

@@ -453,9 +453,10 @@ func TestVerifyNewKernelDidNotBoot(t *testing.T) {
 func TestVerifyGPUDiagnosticsFailure(t *testing.T) {
 	f := newFakeSys(t)
 	rel := newKernelUpdate(f)
-	f.gpuExit = 2
+	f.gpuExit = 0 // 갱신 전에는 GPU 를 쓸 수 있었다.
 	e := f.engine()
 	mustApply(t, e)
+	f.gpuExit = 2 // 새 커널에서는 못 쓴다.
 	f.running = rel
 	f.writeCmdline()
 	st, err := e.Verify(context.Background())
@@ -565,5 +566,19 @@ func TestApplyRebootFlag(t *testing.T) {
 	}
 	if !f.rebooted {
 		t.Error("systemctl reboot was not called")
+	}
+}
+
+func TestVerifyIgnoresAGPUThatWasAlreadyUnusable(t *testing.T) {
+	f := newFakeSys(t)
+	rel := newKernelUpdate(f)
+	f.gpuExit = 2 // 갱신 전부터 못 쓴다(예: Secure Boot 가 모듈을 막는다).
+	e := f.engine()
+	mustApply(t, e)
+	f.running = rel
+	f.writeCmdline()
+	st, err := e.Verify(context.Background())
+	if err != nil || st.Phase != PhaseCommitted {
+		t.Fatalf("verify = %+v, %v", st, err)
 	}
 }

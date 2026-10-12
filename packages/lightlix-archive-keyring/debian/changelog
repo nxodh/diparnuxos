@@ -1,0 +1,5 @@
+lightlix-archive-keyring (0.3.0) trixie; urgency=medium
+
+  * Phase 4 APT 저장소 클라이언트 설정(키링, 소스, 우선순위)을 추가한다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Mon, 12 Oct 2026 18:30:00 +0900

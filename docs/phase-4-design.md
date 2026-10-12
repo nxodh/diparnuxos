@@ -1,7 +1,7 @@
 # Phase 4 설계: 설치기, 업데이트와 롤백, 자체 APT 저장소
 
 - 확인 날짜: 2026-10-12
-- 상태: 설계. 구현은 아직 시작하지 않았다. 아래 "확인한 사실"은 Debian 13 amd64 컨테이너와 공식 저장소 원문에서 조회한 값이다. 구현이 끝나면 결과를 `docs/verification-phase-4.md`에 적는다.
+- 상태: 묶음 A~E 는 구현되어 컨테이너 시험을 통과했다. QEMU 설치 E2E 와 이미지 시험의 결과는 [검증 기록](verification-phase-4.md)에 있다. 아래 "확인한 사실"은 Debian 13 amd64 컨테이너와 공식 저장소 원문에서 조회한 값이다. 구현이 끝나면 결과를 `docs/verification-phase-4.md`에 적는다.
 
 범위는 SPEC의 Phase 4다: Calamares 설치기, `lightlix-update`(커널·드라이버 동시 갱신과 롤백), 자체 APT 저장소. 램 실측과 튜닝, 보안 점검, 사용자 문서는 Phase 5다.
 

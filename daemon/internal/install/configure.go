@@ -94,38 +94,7 @@ func (in *Installer) configure(ctx context.Context, o *Options, espDev, rootDev 
 		return err
 	}
 
-	if o.Console == "serial" {
-		cfg := "# Written by lightlix-install (--console serial).\n" +
-			"GRUB_CMDLINE_LINUX=\"console=tty0 console=ttyS0,115200\"\n" +
-			"GRUB_TERMINAL=\"console serial\"\n" +
-			"GRUB_SERIAL_COMMAND=\"serial --speed=115200\"\n"
-		if err := writeFile(target, "etc/default/grub.d/30-lightlix-console.cfg", cfg, 0o644); err != nil {
-			return err
-		}
-	}
-
-	in.event("initramfs", "rebuilding the initramfs for all kernels")
-	if _, err := in.chroot(ctx, CodeBootloader, 20*time.Minute, nil, "update-initramfs", "-u", "-k", "all"); err != nil {
-		return err
-	}
-
-	in.event("bootloader", "installing GRUB for UEFI with Secure Boot support")
-	grub := []string{"--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=lightlix", "--uefi-secure-boot"}
-	if _, err := in.chroot(ctx, CodeBootloader, 5*time.Minute, nil, "grub-install", grub...); err != nil {
-		// 펌웨어가 NVRAM 쓰기를 거부하면(efibootmgr 실패) 항목 등록 없이 파일만 설치한다. 아래 대체 경로가 부팅을 맡는다.
-		in.event("bootloader", "registering the boot entry failed (%v); installing the files without it", err)
-		if _, err := in.chroot(ctx, CodeBootloader, 5*time.Minute, nil, "grub-install", append(grub, "--no-nvram")...); err != nil {
-			return err
-		}
-	}
-	// 펌웨어가 부팅 항목을 잃어도 부팅되도록 대체 경로(EFI/BOOT/BOOTX64.EFI)에도 설치한다.
-	if _, err := in.chroot(ctx, CodeBootloader, 5*time.Minute, nil, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--removable", "--uefi-secure-boot"); err != nil {
-		return err
-	}
-	if _, err := in.chroot(ctx, CodeBootloader, 5*time.Minute, nil, "update-grub"); err != nil {
-		return err
-	}
-	if err := in.BootDefault(ctx, target); err != nil {
+	if err := in.InstallBootloader(ctx, target, o.Console); err != nil {
 		return err
 	}
 	in.event("done", "installed; remove the installation medium and reboot")
@@ -326,4 +295,41 @@ func (in *Installer) BootDefault(ctx context.Context, root string) error {
 	}
 	in.event("bootloader", "the saved default boot entry is %s", id)
 	return nil
+}
+
+// InstallBootloader 는 initramfs 를 다시 만들고 GRUB 을 설치한다. 대상 루트 root 에서 쓴다(Calamares 의 chroot 안에서는 "/").
+// console 이 serial 이면 커널과 GRUB 콘솔을 ttyS0 에도 둔다.
+func (in *Installer) InstallBootloader(ctx context.Context, root, console string) error {
+	if console == "serial" {
+		cfg := "# Written by lightlix-install (--console serial).\n" +
+			"GRUB_CMDLINE_LINUX=\"console=tty0 console=ttyS0,115200\"\n" +
+			"GRUB_TERMINAL=\"console serial\"\n" +
+			"GRUB_SERIAL_COMMAND=\"serial --speed=115200\"\n"
+		if err := writeFile(rootOr(root), "etc/default/grub.d/30-lightlix-console.cfg", cfg, 0o644); err != nil {
+			return err
+		}
+	}
+
+	in.event("initramfs", "rebuilding the initramfs for all kernels")
+	if _, err := in.exec(ctx, root, CodeBootloader, 20*time.Minute, "update-initramfs", "-u", "-k", "all"); err != nil {
+		return err
+	}
+
+	in.event("bootloader", "installing GRUB for UEFI with Secure Boot support")
+	grub := []string{"--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=lightlix", "--uefi-secure-boot"}
+	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", grub...); err != nil {
+		// 펌웨어가 NVRAM 쓰기를 거부하면(efibootmgr 실패) 항목 등록 없이 파일만 설치한다. 아래 대체 경로가 부팅을 맡는다.
+		in.event("bootloader", "registering the boot entry failed (%v); installing the files without it", err)
+		if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", append(grub, "--no-nvram")...); err != nil {
+			return err
+		}
+	}
+	// 펌웨어가 부팅 항목을 잃어도 부팅되도록 대체 경로(EFI/BOOT/BOOTX64.EFI)에도 설치한다.
+	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--removable", "--uefi-secure-boot"); err != nil {
+		return err
+	}
+	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "update-grub"); err != nil {
+		return err
+	}
+	return in.BootDefault(ctx, root)
 }

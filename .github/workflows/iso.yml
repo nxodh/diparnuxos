@@ -49,6 +49,12 @@ jobs:
       - name: Test Control Center (unit and GTK smoke)
         run: make test-gui
 
+      - name: Test the signed APT repository tooling (container)
+        run: make test-apt-repo-docker
+
+      - name: Test the Calamares configuration against the Calamares package
+        run: make test-installer-config-docker
+
       # 가짜 저장소에서 실제 apt 와 dpkg 로 커널과 드라이버 갱신, 롤백, 실패 복구를 확인한다.
       - name: Test lightlix-update with real apt (container)
         run: make test-update-docker

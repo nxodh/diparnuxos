@@ -799,6 +799,10 @@ func (e *Engine) Apply(ctx context.Context, opt ApplyOptions) (*State, error) {
 	st.DriverTo = plan.DriverTo
 	prevKernel := e.runningKernel(ctx)
 	st.PreviousKernel = prevKernel
+	if res, gerr := e.sh(ctx, shortTimeout, nil, e.cfg().GPUCheck); gerr == nil {
+		code := res.ExitCode
+		st.GPUBefore = &code
+	}
 	if plan.UpToDate {
 		// 바뀐 것이 없으므로 이전 상태와 되돌리기 정보를 그대로 둔다.
 		e.event("done", "the system is up to date")
@@ -1010,7 +1014,11 @@ func (e *Engine) Verify(ctx context.Context) (*State, error) {
 		}
 		res, gerr := e.sh(ctx, shortTimeout, nil, e.cfg().GPUCheck)
 		if gerr == nil && (res.ExitCode == 2 || res.ExitCode == 3) {
-			return st, e.failVerify(errf(CodeVerify, "the GPU diagnostics report a problem (exit %d)", res.ExitCode))
+			// 갱신 전에도 못 쓰던 GPU 라면 이번 갱신 탓이 아니다. 갱신 전에 쓸 수 있었던 GPU 가 못 쓰게 되었을 때만 실패로 본다.
+			if st.GPUBefore != nil && *st.GPUBefore == 0 {
+				return st, e.failVerify(errf(CodeVerify, "the GPU worked before the update but the diagnostics now report a problem (exit %d)", res.ExitCode))
+			}
+			e.event("verify", "the GPU diagnostics report a problem (exit %d), as before the update", res.ExitCode)
 		}
 	}
 	if st.NewKernel != "" {

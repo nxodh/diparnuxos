@@ -55,7 +55,9 @@ exit 0
 STUB
 chmod 755 "$BIN"/*
 export PATH="$BIN:$PATH"
-export LIGHTLIX_USER_LIST="$WORK/users.list" LIGHTLIX_SSHD_DROPIN="$WORK/sshd/50-lightlix.conf"
+# systemd 가 부팅한 시스템처럼 보이게 한다. chroot 흉내는 아래에서 이 디렉터리를 없앤다.
+mkdir -p "$WORK/systemd-system"
+export LIGHTLIX_USER_LIST="$WORK/users.list" LIGHTLIX_SSHD_DROPIN="$WORK/sshd/50-lightlix.conf" LIGHTLIX_SYSTEMD_DIR="$WORK/systemd-system"
 
 run() { sh "$SCRIPT" "$@"; }
 last_line() { tail -n 1 <<< "$1"; }
@@ -145,6 +147,15 @@ out="$(printf 'correct-horse-9\n' | STUB_SSH_ACTIVE=1 STUB_SSHD_FAIL=1 run add f
 [[ "$(last_line "$out")" == 'LIGHTLIX_USER_RESULT=error:ssh_config' ]]
 [[ ! -e "$WORK/sshd/50-lightlix.conf" ]]
 echo 'PASS: a rejected ssh configuration is removed'
+
+# 설치기의 chroot 처럼 systemd 가 부팅하지 않은 환경에서는 sshd 검증과 reload 를 하지 않는다.
+# ssh.service 가 active 로 보이는 스텁이어도 건너뛰고, 거부하는 sshd 스텁이어도 드롭인을 지우지 않는다.
+: > "$LOG"
+out="$(printf 'correct-horse-9\n' | LIGHTLIX_SYSTEMD_DIR="$WORK/no-such-dir" STUB_SSH_ACTIVE=1 STUB_SSHD_FAIL=1 run add gina)"
+[[ "$(last_line "$out")" == 'LIGHTLIX_USER_RESULT=ok' ]]
+[[ -z "$(grep -E '^(systemctl|sshd)' "$LOG" || true)" ]]
+grep -qx 'AllowUsers .*gina' "$WORK/sshd/50-lightlix.conf"
+echo 'PASS: the ssh server is left alone outside a booted systemd'
 
 # 제거
 : > "$LOG"
