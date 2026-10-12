@@ -1,3 +1,9 @@
+lightlix-daemon (0.3.0) trixie; urgency=medium
+
+  * 첫 부팅 상태, SSH 제어, 모델 추천 API 를 추가한다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Mon, 12 Oct 2026 11:00:00 +0900
+
 lightlix-daemon (0.2.0) trixie; urgency=medium
 
   * 데몬, CLI, systemd 유닛과 기본 방화벽을 패키징한다.

@@ -49,7 +49,7 @@ QEMU 10, KVM, UEFI, virtio-vga, 직렬 콘솔과 모니터 소켓으로 실행�
 ## 로컬에서 확인한 것
 
 - Debian 13 컨테이너의 Go `gofmt`, `go vet`, `go test -race`: api, supervisor, config, firstboot, recommend, cmd 통과.
-- `make test-gui`: API 클라이언트 9개, 표시 논리 15개, 번역 카탈로그 4개, GTK 스모크 3개(가짜 데몬에 대한 세 창과 마법사 전 단계).
+- `make test-gui`: API 클라이언트 9개, 표시 논리 17개, 번역 카탈로그 4개, GTK 스모크 3개(가짜 데몬에 대한 세 창과 마법사 전 단계).
 - `tests/nvidia/mok.sh`: `lightlix-mok`의 분기를 명령 스텁으로 검사.
 - 패키지 빌드: `lightlix-desktop`, `lightlix-control-center`(.mo 포함). `greetd` 드롭인은 systemd 257.13의 `systemd-analyze verify`를 통과했다.
 - shellcheck 0.9.0, actionlint.

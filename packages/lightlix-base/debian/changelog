@@ -1,3 +1,9 @@
+lightlix-base (0.3.0) trixie; urgency=medium
+
+  * Phase 3 데스크톱 이미지와 패키지 버전을 맞춘다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Mon, 12 Oct 2026 11:00:00 +0900
+
 lightlix-base (0.2.0) trixie; urgency=medium
 
   * 데몬과 CLI, llama-server를 포함한 Phase 2 이미지 버전을 맞춘다.

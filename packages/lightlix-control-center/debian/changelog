@@ -1,3 +1,9 @@
+lightlix-control-center (0.3.0) trixie; urgency=medium
+
+  * Phase 3 이미지와 패키지 버전을 맞춘다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Mon, 12 Oct 2026 11:00:00 +0900
+
 lightlix-control-center (0.2.0) trixie; urgency=medium
 
   * Phase 3 Control Center(대시보드, 모델, 서버, 채팅, 시스템, 첫 부팅 마법사)를 추가한다.
