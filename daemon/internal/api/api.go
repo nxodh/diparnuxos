@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nxodh/lightlixos/daemon/internal/accounts"
 	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
 	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
 	"github.com/nxodh/lightlixos/daemon/internal/gpustatus"
@@ -51,6 +52,16 @@ type Supervisor interface {
 	ApplyFirewall(ctx context.Context) error
 	Mode(ctx context.Context) (string, error)
 	SetMode(ctx context.Context, mode string) error
+	SSHStatus(ctx context.Context) (supervisor.SSHStatus, error)
+	SetSSHUnit(ctx context.Context, enable bool) error
+}
+
+// AccountManager 는 로그인 계정 관리다. *accounts.Manager 가 만족한다.
+type AccountManager interface {
+	List() ([]accounts.Account, error)
+	Add(ctx context.Context, name, password string, admin bool) error
+	Remove(ctx context.Context, name string) error
+	PrepareSSH(ctx context.Context) error
 }
 
 // HFClient 는 검색과 원격 파일 목록에 쓰는 Hugging Face 기능이다. *hf.Client 가 만족한다.
@@ -72,12 +83,16 @@ type Deps struct {
 	Keys *apikeys.Store
 	// HF 는 Hugging Face 조회다.
 	HF HFClient
+	// Accounts 는 로그인 계정 관리다. nil 이면 계정 API 는 오류를 돌려준다.
+	Accounts AccountManager
 	// GPU 는 NVML 프로버다. nil 이면 NVML 을 쓸 수 없는 것으로 본다.
 	GPU platform.GPUProber
 	// Runner 는 외부 명령 실행기다. GPU 진단 실행에 쓴다.
 	Runner platform.Runner
 	// ConfigPath 는 설정 파일 경로다.
 	ConfigPath string
+	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/lightlix/firstboot.json 이다.
+	FirstBootPath string
 	// GPUStatusPath 는 GPU 진단 상태 파일 경로다.
 	GPUStatusPath string
 	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/lightlix-gpu-check.
@@ -117,6 +132,9 @@ func New(d Deps) http.Handler {
 	if d.GPUStatusPath == "" {
 		d.GPUStatusPath = "/run/lightlix/gpu-status"
 	}
+	if d.FirstBootPath == "" {
+		d.FirstBootPath = "/var/lib/lightlix/firstboot.json"
+	}
 	s := &server{d: d, mux: http.NewServeMux()}
 	s.routes()
 	return jsonErrors{next: s.mux}
@@ -153,6 +171,16 @@ func (s *server) routes() {
 
 	s.mux.HandleFunc("GET /v1/mode", s.getMode)
 	s.mux.HandleFunc("POST /v1/mode", s.postMode)
+
+	s.mux.HandleFunc("GET /v1/system/ssh", s.getSSH)
+	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
+	s.mux.HandleFunc("GET /v1/users", s.listUsers)
+	s.mux.HandleFunc("POST /v1/users", s.createUser)
+	s.mux.HandleFunc("DELETE /v1/users/{name}", s.deleteUser)
+	s.mux.HandleFunc("GET /v1/firstboot", s.getFirstBoot)
+	s.mux.HandleFunc("PUT /v1/firstboot", s.putFirstBoot)
+	s.mux.HandleFunc("DELETE /v1/firstboot", s.deleteFirstBoot)
+	s.mux.HandleFunc("GET /v1/recommendations", s.getRecommendations)
 
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
@@ -231,7 +259,7 @@ func supervisorStatus(code string) int {
 	switch code {
 	case supervisor.CodeNoModel:
 		return http.StatusNotFound
-	case supervisor.CodeAPIKeyRequired, supervisor.CodeBusy, supervisor.CodeDesktopNotInstalled:
+	case supervisor.CodeAPIKeyRequired, supervisor.CodeBusy, supervisor.CodeDesktopNotInstalled, supervisor.CodeSSHNotInstalled:
 		return http.StatusConflict
 	case supervisor.CodeInvalidOverrides, supervisor.CodeInvalidLines, supervisor.CodeInvalidMode:
 		return http.StatusBadRequest
@@ -254,6 +282,11 @@ func writeErr(w http.ResponseWriter, err error) {
 		}
 		log.Printf("api: internal pull error: %v", err)
 		writeError(w, status, "internal", "internal error; see the daemon log")
+		return
+	}
+	var ae *accounts.Error
+	if errors.As(err, &ae) {
+		writeError(w, accountStatus(ae.Code), ae.Code, "%s", ae.Message)
 		return
 	}
 	var se *supervisor.Error

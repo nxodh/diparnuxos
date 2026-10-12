@@ -125,7 +125,7 @@ out/             빌드 산출물(git 제외)
 | 0 | 저장소 뼈대, 최소 Debian 13 ISO, CI, 문서 초안 | 완료. main의 CI 빌드와 QEMU 부팅 통과 |
 | 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 CI 검증 완료. NVIDIA 실기 검증 대기 |
 | 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 구현 및 CI 검증 완료(CUDA 패키지, ISO, UEFI CD/USB, live CPU E2E). 실 GPU 오프로드는 실기 검증 대기 |
-| 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 계획 |
+| 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 구현 및 CI 검증 완료(QEMU 가상 화면에서 모드 전환, greetd, labwc, Control Center). 실기 모니터·입력·Secure Boot MOK 검증 대기 |
 | 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |
 | 5 | 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
 

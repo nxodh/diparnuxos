@@ -37,7 +37,7 @@ if [ "${host_id}" != "debian" ] || [ "${host_version}" != "${DEBIAN_VERSION}" ];
     die "Debian ${DEBIAN_VERSION} 호스트에서만 빌드한다 (현재 ID=${host_id} VERSION_ID=${host_version})."
 fi
 
-for cmd in lb dpkg-buildpackage dpkg-parsechangelog sha256sum awk xorriso sfdisk mdir cmp; do
+for cmd in lb dpkg-buildpackage dpkg-parsechangelog sha256sum awk xorriso sfdisk mdir cmp msgfmt python3; do
     command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} 가 없다 (build/README.md 의 빌더 도구 목록을 확인하라)."
 done
 

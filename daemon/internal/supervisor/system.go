@@ -114,13 +114,13 @@ func (s *Supervisor) unitInstalled(ctx context.Context, unit string) (bool, erro
 }
 
 // ApplyFirewall은 현재 설정으로 nftables 규칙을 만들어 파일에 쓰고 nft -f 로 적용한다.
-// API 포트는 설정의 port 다. LAN 공개를 켰을 때만 그 포트가 열린다. SSH 는 Phase 3에서 다룬다.
+// API 포트는 설정의 port 다. LAN 공개를 켰을 때만 그 포트가 열린다. SSH 포트는 설정의 ssh_enabled 일 때만 열린다.
 func (s *Supervisor) ApplyFirewall(ctx context.Context) error {
 	s.firewallMu.Lock()
 	defer s.firewallMu.Unlock()
 
 	cfg := s.opts.Config()
-	rules, err := firewall.Ruleset(firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: false})
+	rules, err := firewall.Ruleset(firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled})
 	if err != nil {
 		return errorf(CodeFirewallFailed, "build rules: %v", err)
 	}

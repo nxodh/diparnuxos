@@ -1,0 +1,19 @@
+Source: lightlix-desktop
+Section: x11
+Priority: optional
+Maintainer: Lightlix Developers <noreply@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.2
+Homepage: https://github.com/nxodh/lightlixos
+Vcs-Git: https://github.com/nxodh/lightlixos.git
+Vcs-Browser: https://github.com/nxodh/lightlixos
+Rules-Requires-Root: no
+
+Package: lightlix-desktop
+Architecture: all
+Depends: ${misc:Depends}, labwc, greetd, tuigreet, foot, yambar, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
+Description: Lightlix 데스크톱 세션 (labwc, greetd, tuigreet)
+ 서버 모드의 기본 부팅 대상(multi-user.target)을 바꾸지 않고 데스크톱 모드에
+ 필요한 구성 요소와 설정만 설치한다. greetd 의 기본 설정 파일은 건드리지 않고
+ systemd 드롭인으로 Lightlix 설정을 가리킨다. 패널은 yambar 이며 설정은
+ /etc/xdg/yambar/config.yml 이다.

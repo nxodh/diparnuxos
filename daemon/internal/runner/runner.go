@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -61,6 +62,9 @@ func (Exec) Run(ctx context.Context, cmd platform.Command) (platform.Result, err
 		return syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
 	}
 	c.WaitDelay = waitDelay
+	if len(cmd.Stdin) > 0 {
+		c.Stdin = bytes.NewReader(cmd.Stdin)
+	}
 
 	limit := cmd.MaxOutput
 	if limit <= 0 {

@@ -1,0 +1,29 @@
+# Lightlix 패널(yambar). labwc 의 autostart 가 이 파일로 실행한다.
+# 왼쪽: Control Center 실행 버튼과 활성 창 제목, 오른쪽: 사용 중인 메모리와 시계.
+# 시계를 누르면 Control Center 가 열린다. 설정은 `yambar -C -c` 로 검증한다.
+bar:
+  height: 26
+  location: top
+  background: 20232aff
+  foreground: e6e6e6ff
+  font: NanumGothic:pixelsize=13, DejaVu Sans:pixelsize=13
+  left:
+    - foreign-toplevel:
+        content:
+          map:
+            conditions:
+              ~activated: {empty: {}}
+              activated:
+                - string: {text: " {title} ", max: 40}
+  right:
+    - mem:
+        poll-interval: 3000
+        content:
+          string: {text: " RAM {used:mb} MB "}
+    - clock:
+        time-format: "%H:%M"
+        date-format: "%m/%d"
+        content:
+          string:
+            text: " {date} {time} "
+            on-click: lightlix-control-center

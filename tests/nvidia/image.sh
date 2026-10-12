@@ -71,6 +71,7 @@ require_path() {
 require_path 'squashfs-root/usr/sbin/lightlixd$' 'lightlixd binary'
 require_path 'squashfs-root/usr/bin/lightlix$' 'lightlix CLI binary'
 require_path 'squashfs-root/usr/lib/lightlix/check-gpu-permissions$' 'GPU permission check'
+require_path 'squashfs-root/usr/lib/lightlix/lightlix-user$' 'account helper (lightlix-user)'
 require_path 'squashfs-root/(usr/)?lib/live/config/1190-lightlix-groups$' 'live user group hook'
 require_path 'squashfs-root/usr/lib/sysusers[.]d/lightlix[.]conf$' 'daemon sysusers configuration'
 require_path 'squashfs-root/usr/lib/tmpfiles[.]d/lightlix-daemon[.]conf$' 'daemon tmpfiles configuration'
@@ -195,4 +196,46 @@ sfdisk -d "$1" > "$WORK/ptable" 2>/dev/null || check_fail 'sfdisk could not read
 grep -qx 'label: gpt' "$WORK/ptable" || check_fail 'GPT is missing from the ISO'
 grep -qi 'type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B' "$WORK/ptable" || check_fail 'EFI System partition is missing from GPT'
 echo 'PASS: GPT and EFI System partition found'
+# Phase 3: 데스크톱 구성 요소는 설치하되 기본 부팅 대상은 서버 모드(multi-user.target)로 둔다.
+check_package lightlix-desktop "$LIGHTLIX_VERSION"
+check_package lightlix-control-center "$LIGHTLIX_VERSION"
+for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
+    grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
+done
+require_path 'squashfs-root/usr/sbin/lightlix-mok$' 'Secure Boot machine key helper (lightlix-mok)'
+grep -qx mokutil "$WORK/installed" || check_fail 'mokutil is not installed'
+require_path 'squashfs-root/usr/bin/lightlix-control-center$' 'Control Center launcher'
+require_path 'squashfs-root/usr/lib/lightlix/control-center/lightlix_cc/app[.]py$' 'Control Center application'
+require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/lightlix-control-center[.]mo$' 'Control Center Korean catalog'
+for pkg in labwc greetd tuigreet foot yambar fonts-nanum openssh-server; do
+    grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
+done
+# Phase 3 이미지에는 다른 패널과 무거운 데스크톱 구성 요소를 넣지 않는다.
+for pkg in waybar gnome-shell plasma-desktop xfce4-session lightdm gdm3 sddm; do
+    grep -qx "$pkg" "$WORK/installed" && check_fail "$pkg must not be installed"
+done
+require_path 'squashfs-root/etc/greetd/lightlix[.]toml$' 'greetd Lightlix configuration'
+require_path 'squashfs-root/(usr/)?lib/systemd/system/greetd[.]service[.]d/lightlix[.]conf$' 'greetd service drop-in'
+require_path 'squashfs-root/etc/xdg/labwc/(autostart|menu[.]xml|environment)( |$)' 'labwc system configuration'
+require_path 'squashfs-root/etc/xdg/yambar/config[.]yml$' 'panel configuration (yambar.yml)'
+unsquashfs -cat "$WORK/rootfs.squashfs" etc/greetd/lightlix.toml > "$WORK/greetd.toml"
+grep -q '^command = "tuigreet ' "$WORK/greetd.toml" || check_fail 'greetd does not start tuigreet'
+unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/greetd.service.d/lightlix.conf > "$WORK/greetd-dropin"
+grep -qx 'ExecStart=greetd --config /etc/greetd/lightlix.toml' "$WORK/greetd-dropin" || check_fail 'greetd drop-in does not point at lightlix.toml'
+# 기본 부팅 대상이 graphical.target 이면 부팅하자마자 데스크톱이 떠서 서버 모드의 램 목표를 깨뜨린다.
+if grep -Eq 'squashfs-root/etc/systemd/system/default[.]target -> .*graphical[.]target$' "$WORK/files"; then
+    check_fail 'default.target is graphical.target; the image must boot in server mode'
+fi
+echo 'PASS: desktop packages, panel and greetd configuration found; no heavy desktop installed'
+
+# SSH 서버는 설치하되 꺼 두고, 호스트 키는 이미지에 없어야 한다.
+if grep -Eq 'squashfs-root/etc/ssh/ssh_host_' "$WORK/files"; then
+    check_fail 'SSH host keys are baked into the image'
+fi
+for unit in ssh.service ssh.socket; do
+    if grep -Eq "squashfs-root/etc/systemd/system/(multi-user|sockets)[.]target[.]wants/${unit//./[.]}( |\$)" "$WORK/files"; then
+        check_fail "$unit is enabled in the image"
+    fi
+done
+echo 'PASS: SSH server is installed but disabled, and no host keys are baked into the image'
 echo 'PASS: open modules, licenses and GPU diagnostics found; proprietary modules and build signing keys absent'

@@ -1,0 +1,781 @@
+# Korean translation for lightlix-control-center.
+msgid ""
+msgstr ""
+"Project-Id-Version: lightlix-control-center 0.2.0\n"
+"PO-Revision-Date: 2026-10-12 10:00+0900\n"
+"Last-Translator: Lightlix Developers\n"
+"Language-Team: Korean\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Create account"
+msgstr "계정 만들기"
+
+msgid "Cancel"
+msgstr "취소"
+
+msgid "Create"
+msgstr "만들기"
+
+msgid "This account works at the console, at the login screen and, when SSH is on, over the network."
+msgstr "이 계정은 콘솔과 로그인 화면에서 쓸 수 있고, SSH를 켜면 네트워크로도 접속할 수 있습니다."
+
+msgid "User name"
+msgstr "사용자 이름"
+
+msgid "Password"
+msgstr "비밀번호"
+
+msgid "Repeat the password"
+msgstr "비밀번호 확인"
+
+msgid "Administrator"
+msgstr "관리자"
+
+msgid "Allow this account to use sudo."
+msgstr "이 계정이 sudo를 쓸 수 있게 합니다."
+
+msgid "Account %s created"
+msgstr "계정 %s을(를) 만들었습니다"
+
+msgid "Type a message"
+msgstr "메시지를 입력하세요"
+
+msgid "Send"
+msgstr "보내기"
+
+msgid "Clear"
+msgstr "지우기"
+
+msgid "You"
+msgstr "나"
+
+msgid "Waiting for the model…"
+msgstr "모델의 응답을 기다리는 중…"
+
+msgid "Model"
+msgstr "모델"
+
+msgid "%(tokens)d tokens · %(speed).1f tokens/s"
+msgstr "%(tokens)d 토큰 · 초당 %(speed).1f 토큰"
+
+msgid "Dashboard"
+msgstr "대시보드"
+
+msgid "Graphics cards"
+msgstr "그래픽 카드"
+
+msgid "Driver"
+msgstr "드라이버"
+
+msgid "System"
+msgstr "시스템"
+
+msgid "LLM server"
+msgstr "LLM 서버"
+
+msgid "Driver version"
+msgstr "드라이버 버전"
+
+msgid "Kernel module"
+msgstr "커널 모듈"
+
+msgid "CUDA version"
+msgstr "CUDA 버전"
+
+msgid "Secure Boot"
+msgstr "보안 부팅"
+
+msgid "Memory"
+msgstr "메모리"
+
+msgid "Session mode"
+msgstr "세션 모드"
+
+msgid "State"
+msgstr "상태"
+
+msgid "GPU offload"
+msgstr "GPU 오프로드"
+
+msgid "No GPU"
+msgstr "GPU 없음"
+
+msgid "No NVIDIA GPU was detected."
+msgstr "NVIDIA GPU가 감지되지 않았습니다."
+
+msgid "NVIDIA open kernel module"
+msgstr "NVIDIA 오픈 커널 모듈"
+
+msgid "Proprietary module"
+msgstr "독점 모듈"
+
+msgid "Unknown"
+msgstr "알 수 없음"
+
+msgid "On"
+msgstr "켜짐"
+
+msgid "Off"
+msgstr "꺼짐"
+
+msgid "%(used)s used of %(total)s"
+msgstr "%(total)s 중 %(used)s 사용"
+
+msgid "Desktop mode"
+msgstr "데스크톱 모드"
+
+msgid "Server mode"
+msgstr "서버 모드"
+
+msgid "%(n)d of %(total)d layers on the GPU"
+msgstr "레이어 %(total)d개 중 %(n)d개가 GPU에 있음"
+
+msgid "No NVIDIA GPU found"
+msgstr "NVIDIA GPU를 찾지 못했습니다"
+
+msgid "The model will run on the CPU. Inference is slower without a GPU."
+msgstr "모델은 CPU에서 실행됩니다. GPU가 없으면 추론이 느립니다."
+
+msgid "The NVIDIA driver is not loaded"
+msgstr "NVIDIA 드라이버가 로드되지 않았습니다"
+
+msgid "The GPU is present but the kernel module did not load. Check the driver report in the System page."
+msgstr "GPU는 있지만 커널 모듈이 로드되지 않았습니다. 시스템 페이지의 드라이버 리포트를 확인하세요."
+
+msgid "Secure Boot blocks the NVIDIA driver"
+msgstr "보안 부팅이 NVIDIA 드라이버를 막고 있습니다"
+
+msgid "Secure Boot is on, so the unsigned NVIDIA module cannot load. Turn Secure Boot off in the firmware settings, or enroll a key (see the Secure Boot step)."
+msgstr "보안 부팅이 켜져 있어 서명되지 않은 NVIDIA 모듈을 로드할 수 없습니다. 펌웨어 설정에서 보안 부팅을 끄거나 키를 등록하세요(보안 부팅 단계 참고)."
+
+msgid "A proprietary NVIDIA module is loaded"
+msgstr "독점 NVIDIA 모듈이 로드되어 있습니다"
+
+msgid "Lightlix needs the open kernel modules. Reinstall the image or remove the proprietary driver."
+msgstr "Lightlix는 오픈 커널 모듈이 필요합니다. 이미지를 다시 설치하거나 독점 드라이버를 제거하세요."
+
+msgid "Driver and library versions differ"
+msgstr "드라이버와 라이브러리 버전이 다릅니다"
+
+msgid "Reboot so the loaded kernel module matches the installed driver libraries."
+msgstr "로드된 커널 모듈이 설치된 드라이버 라이브러리와 맞도록 재부팅하세요."
+
+msgid "The NVIDIA driver is missing"
+msgstr "NVIDIA 드라이버가 없습니다"
+
+msgid "The driver packages are not installed in this image."
+msgstr "이 이미지에 드라이버 패키지가 설치되어 있지 않습니다."
+
+msgid "The GPU did not answer"
+msgstr "GPU가 응답하지 않습니다"
+
+msgid "The driver is loaded but querying the GPU failed. Run the check again after a reboot."
+msgstr "드라이버는 로드되었지만 GPU 조회에 실패했습니다. 재부팅한 뒤 검사를 다시 실행하세요."
+
+msgid "This GPU is not supported"
+msgstr "지원하지 않는 GPU입니다"
+
+msgid "Only RTX 30, 40 and 50 series GPUs are supported. The model will run on the CPU."
+msgstr "RTX 30, 40, 50 시리즈만 지원합니다. 모델은 CPU에서 실행됩니다."
+
+msgid "The diagnostic configuration is missing"
+msgstr "진단 설정이 없습니다"
+
+msgid "The GPU check could not read its configuration. Reinstall the image."
+msgstr "GPU 검사가 설정을 읽지 못했습니다. 이미지를 다시 설치하세요."
+
+msgid "The GPU check failed"
+msgstr "GPU 검사에 실패했습니다"
+
+msgid "The diagnostic script hit an internal error. Export the report from the System page."
+msgstr "진단 스크립트에서 내부 오류가 났습니다. 시스템 페이지에서 리포트를 내보내세요."
+
+msgid "Stopped"
+msgstr "중지됨"
+
+msgid "Starting"
+msgstr "시작하는 중"
+
+msgid "Running on GPU"
+msgstr "GPU에서 실행 중"
+
+msgid "Running on CPU"
+msgstr "CPU에서 실행 중"
+
+msgid "Failed"
+msgstr "실패"
+
+msgid "Unknown architecture"
+msgstr "알 수 없는 아키텍처"
+
+msgid "GPU status is not available yet"
+msgstr "GPU 상태를 아직 알 수 없습니다"
+
+msgid "The GPU check has not produced a result: %s"
+msgstr "GPU 검사가 결과를 내지 않았습니다: %s"
+
+msgid "The GPU check has not run."
+msgstr "GPU 검사가 아직 실행되지 않았습니다."
+
+msgid "Unknown GPU state: %s"
+msgstr "알 수 없는 GPU 상태: %s"
+
+msgid "Run the GPU check to detect your GPU."
+msgstr "GPU 검사를 실행해 GPU를 감지하세요."
+
+msgid "You can still use Lightlix on the CPU."
+msgstr "GPU가 없어도 CPU로 Lightlix를 쓸 수 있습니다."
+
+msgid "GPU detected"
+msgstr "GPU를 감지했습니다"
+
+msgid "%(names)s (%(usable)d of %(total)d usable)"
+msgstr "%(names)s (%(total)d개 중 %(usable)d개 사용 가능)"
+
+msgid "GPU detected but not usable"
+msgstr "GPU를 감지했지만 사용할 수 없습니다"
+
+msgid "Driver status is not available yet"
+msgstr "드라이버 상태를 아직 알 수 없습니다"
+
+msgid "Driver %s"
+msgstr "드라이버 %s"
+
+msgid "open kernel module"
+msgstr "오픈 커널 모듈"
+
+msgid "The NVIDIA driver works"
+msgstr "NVIDIA 드라이버가 정상 동작합니다"
+
+msgid "No driver check needed"
+msgstr "드라이버 검사가 필요 없습니다"
+
+msgid "There is no NVIDIA GPU."
+msgstr "NVIDIA GPU가 없습니다."
+
+msgid "Secure Boot is on and blocks the driver"
+msgstr "보안 부팅이 켜져 있고 드라이버를 막고 있습니다"
+
+msgid "Turn Secure Boot off in the firmware settings and reboot. On an installed system you can enroll a machine key instead: run 'sudo lightlix-mok enroll' in a terminal."
+msgstr "펌웨어 설정에서 보안 부팅을 끄고 재부팅하세요. 설치된 시스템에서는 대신 기기 키를 등록할 수 있습니다. 터미널에서 'sudo lightlix-mok enroll'을 실행하세요."
+
+msgid "Secure Boot is on"
+msgstr "보안 부팅이 켜져 있습니다"
+
+msgid "The NVIDIA driver loaded, so no action is needed."
+msgstr "NVIDIA 드라이버가 로드되었으므로 할 일이 없습니다."
+
+msgid "Secure Boot is off"
+msgstr "보안 부팅이 꺼져 있습니다"
+
+msgid "The NVIDIA module can load without a signature."
+msgstr "NVIDIA 모듈을 서명 없이 로드할 수 있습니다."
+
+msgid "Secure Boot state is unknown"
+msgstr "보안 부팅 상태를 알 수 없습니다"
+
+msgid "This machine may not use UEFI Secure Boot."
+msgstr "이 기기는 UEFI 보안 부팅을 쓰지 않을 수 있습니다."
+
+msgid "Enter a user name."
+msgstr "사용자 이름을 입력하세요."
+
+msgid "The user name can have at most 32 characters."
+msgstr "사용자 이름은 32자 이하여야 합니다."
+
+msgid "The user name must start with a lowercase letter."
+msgstr "사용자 이름은 영문 소문자로 시작해야 합니다."
+
+msgid "Use only lowercase letters, digits, _ and - in the user name."
+msgstr "사용자 이름에는 영문 소문자, 숫자, _ 와 - 만 쓸 수 있습니다."
+
+msgid "This user name is reserved. Choose another one."
+msgstr "예약된 사용자 이름입니다. 다른 이름을 고르세요."
+
+msgid "The password must have at least 8 characters."
+msgstr "비밀번호는 8자 이상이어야 합니다."
+
+msgid "The password can have at most 128 characters."
+msgstr "비밀번호는 128자 이하여야 합니다."
+
+msgid "Use only printable ASCII characters in the password."
+msgstr "비밀번호에는 출력 가능한 ASCII 문자만 쓸 수 있습니다."
+
+msgid "The password must differ from the user name."
+msgstr "비밀번호는 사용자 이름과 달라야 합니다."
+
+msgid "The two passwords do not match."
+msgstr "두 비밀번호가 서로 다릅니다."
+
+msgid "A login account exists"
+msgstr "로그인 계정이 있습니다"
+
+msgid "Create your own login account"
+msgstr "나만의 로그인 계정을 만드세요"
+
+msgid "Without one you can only use the default live account. Choose a user name and a password."
+msgstr "없으면 기본 live 계정만 쓸 수 있습니다. 사용자 이름과 비밀번호를 정하세요."
+
+msgid "A model is already installed"
+msgstr "이미 설치된 모델이 있습니다"
+
+msgid "Recommended model: %s"
+msgstr "추천 모델: %s"
+
+msgid "No recommended model fits this machine"
+msgstr "이 기기에 맞는 추천 모델이 없습니다"
+
+msgid "Search Hugging Face for a smaller model."
+msgstr "Hugging Face에서 더 작은 모델을 검색하세요."
+
+msgid "The API is open to your network"
+msgstr "API가 네트워크에 공개되어 있습니다"
+
+msgid "An API key is required to connect."
+msgstr "접속하려면 API 키가 필요합니다."
+
+msgid "The API is open without a key"
+msgstr "API 키 없이 공개되어 있습니다"
+
+msgid "Create an API key before opening the API to the network."
+msgstr "API를 네트워크에 공개하기 전에 API 키를 만드세요."
+
+msgid "The API is available on this machine only"
+msgstr "API는 이 기기에서만 쓸 수 있습니다"
+
+msgid "Other computers cannot connect."
+msgstr "다른 컴퓨터는 접속할 수 없습니다."
+
+msgid "Models"
+msgstr "모델"
+
+msgid "Recommended for this machine"
+msgstr "이 기기에 추천하는 모델"
+
+msgid "An estimate from the file size; the real plan is computed after the download."
+msgstr "파일 크기로 어림한 값입니다. 실제 계획은 내려받은 뒤 계산합니다."
+
+msgid "Installed models"
+msgstr "설치된 모델"
+
+msgid "Downloads"
+msgstr "내려받기"
+
+msgid "Search Hugging Face"
+msgstr "Hugging Face 검색"
+
+msgid "Hugging Face access"
+msgstr "Hugging Face 접근"
+
+msgid "Search GGUF models"
+msgstr "GGUF 모델 검색"
+
+msgid "Access token (for gated models)"
+msgstr "접근 토큰(제한된 모델용)"
+
+msgid "The token is stored by the daemon. Restart lightlixd for it to take effect."
+msgstr "토큰은 데몬이 저장합니다. 적용하려면 lightlixd를 다시 시작하세요."
+
+msgid "No models installed"
+msgstr "설치된 모델이 없습니다"
+
+msgid "Download one from the recommendations or search below."
+msgstr "추천 목록에서 내려받거나 아래에서 검색하세요."
+
+msgid "incomplete"
+msgstr "불완전"
+
+msgid "Default"
+msgstr "기본"
+
+msgid "Set default"
+msgstr "기본으로 지정"
+
+msgid "Delete"
+msgstr "삭제"
+
+msgid "Based on %s of GPU memory"
+msgstr "GPU 메모리 %s 기준"
+
+msgid "No usable GPU: based on %s of system memory"
+msgstr "사용할 수 있는 GPU가 없어 시스템 메모리 %s 기준"
+
+msgid "Hardware could not be read"
+msgstr "하드웨어 정보를 읽지 못했습니다"
+
+msgid "fits"
+msgstr "맞음"
+
+msgid "too large"
+msgstr "너무 큼"
+
+msgid "Download"
+msgstr "내려받기"
+
+msgid "Default model set"
+msgstr "기본 모델을 지정했습니다"
+
+msgid "Model deleted"
+msgstr "모델을 삭제했습니다"
+
+msgid "Delete this model?"
+msgstr "이 모델을 삭제할까요?"
+
+msgid "Download started"
+msgstr "내려받기를 시작했습니다"
+
+msgid "Token saved. Restart lightlixd to use it."
+msgstr "토큰을 저장했습니다. 쓰려면 lightlixd를 다시 시작하세요."
+
+msgid "Token saved"
+msgstr "토큰을 저장했습니다"
+
+msgid "Downloaded %s"
+msgstr "%s을(를) 내려받았습니다"
+
+msgid "Download failed: %s"
+msgstr "내려받기 실패: %s"
+
+msgid "Download canceled"
+msgstr "내려받기를 취소했습니다"
+
+msgid "No results"
+msgstr "결과가 없습니다"
+
+msgid "%d downloads"
+msgstr "내려받기 %d회"
+
+msgid "gated"
+msgstr "제한됨"
+
+msgid "Back to results"
+msgstr "결과로 돌아가기"
+
+msgid "This repository is gated"
+msgstr "이 저장소는 접근이 제한되어 있습니다"
+
+msgid "Accept its terms on Hugging Face and save an access token above before downloading."
+msgstr "Hugging Face에서 약관에 동의하고 위에 접근 토큰을 저장한 뒤 내려받으세요."
+
+msgid "No GGUF files in this repository"
+msgstr "이 저장소에는 GGUF 파일이 없습니다"
+
+msgid "Server"
+msgstr "서버"
+
+msgid "Notes"
+msgstr "참고"
+
+msgid "Run a model"
+msgstr "모델 실행"
+
+msgid "Show plan"
+msgstr "계획 보기"
+
+msgid "Start"
+msgstr "시작"
+
+msgid "Stop"
+msgstr "중지"
+
+msgid "Plan"
+msgstr "계획"
+
+msgid "Network"
+msgstr "네트워크"
+
+msgid "Allow other computers to connect"
+msgstr "다른 컴퓨터의 접속 허용"
+
+msgid "Requires an API key. The firewall opens the server port only while this is on."
+msgstr "API 키가 필요합니다. 방화벽은 이 설정을 켠 동안에만 서버 포트를 엽니다."
+
+msgid "API keys"
+msgstr "API 키"
+
+msgid "New key label"
+msgstr "새 키 이름"
+
+msgid "Server log"
+msgstr "서버 로그"
+
+msgid "Refresh"
+msgstr "새로 고침"
+
+msgid "CPU only"
+msgstr "CPU만 사용"
+
+msgid "Estimated VRAM %(vram)s · RAM %(ram)s"
+msgstr "예상 VRAM %(vram)s · RAM %(ram)s"
+
+msgid "Why"
+msgstr "이유"
+
+msgid "Warnings"
+msgstr "경고"
+
+msgid "Advice"
+msgstr "권장 사항"
+
+msgid "This model is large for desktop mode. Consider switching to server mode."
+msgstr "이 모델은 데스크톱 모드에서는 큽니다. 서버 모드로 바꾸는 것을 권장합니다."
+
+msgid "Download a model first."
+msgstr "먼저 모델을 내려받으세요."
+
+msgid "Server is starting"
+msgstr "서버를 시작하는 중입니다"
+
+msgid "Server stopped"
+msgstr "서버를 중지했습니다"
+
+msgid "Restart the server for the network setting to take effect."
+msgstr "네트워크 설정을 적용하려면 서버를 다시 시작하세요."
+
+msgid "Network setting saved"
+msgstr "네트워크 설정을 저장했습니다"
+
+msgid "No API keys"
+msgstr "API 키가 없습니다"
+
+msgid "Your new API key"
+msgstr "새 API 키"
+
+msgid "Copy it now. It is shown only once."
+msgstr "지금 복사하세요. 한 번만 표시됩니다."
+
+msgid "Delete this API key?"
+msgstr "이 API 키를 삭제할까요?"
+
+msgid "Clients using it will stop working."
+msgstr "이 키를 쓰는 클라이언트는 동작하지 않게 됩니다."
+
+msgid "Server mode runs without the desktop and leaves more memory for the model."
+msgstr "서버 모드는 데스크톱 없이 실행되어 모델에 더 많은 메모리를 남깁니다."
+
+msgid "Mode"
+msgstr "모드"
+
+msgid "Server mode (no desktop)"
+msgstr "서버 모드(데스크톱 없음)"
+
+msgid "Accounts"
+msgstr "계정"
+
+msgid "Create your own account with a user name and a password. It replaces the default live account for daily use."
+msgstr "사용자 이름과 비밀번호로 나만의 계정을 만드세요. 평소에는 기본 live 계정 대신 이 계정을 씁니다."
+
+msgid "Remote access"
+msgstr "원격 접속"
+
+msgid "SSH server"
+msgstr "SSH 서버"
+
+msgid "Note"
+msgstr "참고"
+
+msgid "Appearance"
+msgstr "화면"
+
+msgid "Color scheme"
+msgstr "색상 테마"
+
+msgid "Follow the system"
+msgstr "시스템 설정 따르기"
+
+msgid "Light"
+msgstr "밝게"
+
+msgid "Dark"
+msgstr "어둡게"
+
+msgid "Maintenance"
+msgstr "유지 관리"
+
+msgid "Update"
+msgstr "업데이트"
+
+msgid "Install system updates."
+msgstr "시스템 업데이트를 설치합니다."
+
+msgid "Check"
+msgstr "확인"
+
+msgid "GPU check"
+msgstr "GPU 검사"
+
+msgid "Run the GPU diagnostic again."
+msgstr "GPU 진단을 다시 실행합니다."
+
+msgid "Run"
+msgstr "실행"
+
+msgid "Diagnostic report"
+msgstr "진단 리포트"
+
+msgid "Save a report with GPU, driver and server details. Tokens are removed."
+msgstr "GPU, 드라이버, 서버 정보가 담긴 리포트를 저장합니다. 토큰은 제거됩니다."
+
+msgid "Export"
+msgstr "내보내기"
+
+msgid "Setup wizard"
+msgstr "설정 마법사"
+
+msgid "Walk through the first-boot checks again."
+msgstr "첫 부팅 점검을 다시 진행합니다."
+
+msgid "Open"
+msgstr "열기"
+
+msgid "About"
+msgstr "정보"
+
+msgid "Version"
+msgstr "버전"
+
+msgid "No accounts created yet"
+msgstr "만든 계정이 아직 없습니다"
+
+msgid "Only the default live account exists."
+msgstr "기본 live 계정만 있습니다."
+
+msgid "Standard account"
+msgstr "일반 계정"
+
+msgid "Delete account"
+msgstr "계정 삭제"
+
+msgid "Account deleted"
+msgstr "계정을 삭제했습니다"
+
+msgid "Delete this account?"
+msgstr "이 계정을 삭제할까요?"
+
+msgid "The account %s is removed. Its home directory and files are kept."
+msgstr "계정 %s을(를) 삭제합니다. 홈 디렉터리와 파일은 남습니다."
+
+msgid "Switching to server mode closes the desktop session and this window."
+msgstr "서버 모드로 바꾸면 데스크톱 세션과 이 창이 닫힙니다."
+
+msgid "Switching to desktop mode starts the graphical login."
+msgstr "데스크톱 모드로 바꾸면 그래픽 로그인이 시작됩니다."
+
+msgid "Mode changed"
+msgstr "모드를 바꿨습니다"
+
+msgid "Change the session mode?"
+msgstr "세션 모드를 바꿀까요?"
+
+msgid "Change"
+msgstr "바꾸기"
+
+msgid "Opens port 22 in the firewall."
+msgstr "방화벽에서 22번 포트를 엽니다."
+
+msgid "The SSH server is not installed in this image."
+msgstr "이 이미지에는 SSH 서버가 설치되어 있지 않습니다."
+
+msgid "Updates are not available in this release yet."
+msgstr "이번 릴리스에서는 아직 업데이트를 쓸 수 없습니다."
+
+msgid "Update started"
+msgstr "업데이트를 시작했습니다"
+
+msgid "Running the GPU check…"
+msgstr "GPU 검사를 실행하는 중…"
+
+msgid "GPU check finished (exit code %d)"
+msgstr "GPU 검사를 마쳤습니다(종료 코드 %d)"
+
+msgid "Save diagnostic report"
+msgstr "진단 리포트 저장"
+
+msgid "Report saved to %s"
+msgstr "리포트를 %s에 저장했습니다"
+
+msgid "Permission denied. Add your user to the 'lightlix' group and log in again."
+msgstr "권한이 없습니다. 사용자를 'lightlix' 그룹에 추가하고 다시 로그인하세요."
+
+msgid "The Lightlix daemon is not running."
+msgstr "Lightlix 데몬이 실행 중이 아닙니다."
+
+msgid "OK"
+msgstr "확인"
+
+msgid "Lightlix Control Center"
+msgstr "Lightlix 제어 센터"
+
+msgid "Chat"
+msgstr "채팅"
+
+msgid "Graphics card"
+msgstr "그래픽 카드"
+
+msgid "NVIDIA driver"
+msgstr "NVIDIA 드라이버"
+
+msgid "Account"
+msgstr "계정"
+
+msgid "Network access"
+msgstr "네트워크 접근"
+
+msgid "Lightlix setup"
+msgstr "Lightlix 설정"
+
+msgid "Back"
+msgstr "이전"
+
+msgid "Next"
+msgstr "다음"
+
+msgid "Cannot reach the Lightlix daemon"
+msgstr "Lightlix 데몬에 연결할 수 없습니다"
+
+msgid "Close this window and try again later."
+msgstr "이 창을 닫고 나중에 다시 시도하세요."
+
+msgid "Close"
+msgstr "닫기"
+
+msgid "Checking this machine…"
+msgstr "이 기기를 점검하는 중…"
+
+msgid "Step %(n)d of %(total)d"
+msgstr "%(total)d단계 중 %(n)d단계"
+
+msgid "Check again"
+msgstr "다시 확인"
+
+msgid "Run the GPU diagnostic once more."
+msgstr "GPU 진단을 한 번 더 실행합니다."
+
+msgid "Finish"
+msgstr "완료"
+
+msgid "Create an account"
+msgstr "계정 만들기"
+
+msgid "Choose your own user name and password for the console, the login screen and SSH."
+msgstr "콘솔, 로그인 화면, SSH에서 쓸 사용자 이름과 비밀번호를 정하세요."
+
+msgid "Download %s now"
+msgstr "%s 지금 내려받기"
+
+msgid "%(size)s from Hugging Face. You can also do this later in the Models page."
+msgstr "Hugging Face에서 %(size)s를 내려받습니다. 나중에 모델 페이지에서 해도 됩니다."
+
+msgid "Download started. You can follow it in the Models page."
+msgstr "내려받기를 시작했습니다. 모델 페이지에서 진행 상황을 볼 수 있습니다."
+
+msgid "Who can use the API"
+msgstr "API를 쓸 수 있는 대상"
+
+msgid "Needs an API key. Leave this off if you only use this machine."
+msgstr "API 키가 필요합니다. 이 기기에서만 쓴다면 꺼 두세요."
+

@@ -113,3 +113,18 @@ func TestCanceledContextIsReported(t *testing.T) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
 }
+
+// TestStdinIsPassedToTheCommand 는 Command.Stdin 이 표준 입력으로 전달되는지 확인한다.
+func TestStdinIsPassedToTheCommand(t *testing.T) {
+	res, err := Exec{}.Run(context.Background(), platform.Command{
+		Name:  "sh",
+		Args:  []string{"-c", "read line; printf 'got:%s' \"$line\""},
+		Stdin: []byte("secret value\n"),
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if string(res.Stdout) != "got:secret value" || res.ExitCode != 0 {
+		t.Fatalf("result = %q %d", res.Stdout, res.ExitCode)
+	}
+}

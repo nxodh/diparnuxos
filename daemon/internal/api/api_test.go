@@ -42,6 +42,10 @@ type fakeSup struct {
 	mode        string
 	modeErr     error
 	setModeErr  error
+	ssh         supervisor.SSHStatus
+	sshErr      error
+	sshUnitErr  error
+	sshUnitSet  []bool
 	lastStart   supervisor.StartRequest
 	startCalled bool
 }
@@ -77,6 +81,15 @@ func (f *fakeSup) ApplyFirewall(ctx context.Context) error {
 func (f *fakeSup) Mode(ctx context.Context) (string, error) { return f.mode, f.modeErr }
 
 func (f *fakeSup) SetMode(ctx context.Context, mode string) error { return f.setModeErr }
+
+func (f *fakeSup) SSHStatus(ctx context.Context) (supervisor.SSHStatus, error) {
+	return f.ssh, f.sshErr
+}
+
+func (f *fakeSup) SetSSHUnit(ctx context.Context, enable bool) error {
+	f.sshUnitSet = append(f.sshUnitSet, enable)
+	return f.sshUnitErr
+}
 
 // fakeHF는 HFClient 의 가짜다.
 type fakeHF struct {
@@ -149,6 +162,12 @@ type env struct {
 // newEnv는 설정 파일, 키 저장소, 모델 디렉터리를 가진 API 를 만든다.
 func newEnv(t *testing.T, sup *fakeSup) *env {
 	t.Helper()
+	return newEnvWith(t, sup, nil)
+}
+
+// newEnvWith는 newEnv 와 같되 mutate 로 의존성을 바꿀 수 있다.
+func newEnvWith(t *testing.T, sup *fakeSup, mutate func(*Deps)) *env {
+	t.Helper()
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "lightlixd.json")
 	cfg := config.Default()
@@ -166,7 +185,8 @@ func newEnv(t *testing.T, sup *fakeSup) *env {
 		keys:    &apikeys.Store{KeyFile: filepath.Join(dir, "api-keys"), MetaFile: filepath.Join(dir, "api-keys.json")},
 		store:   models.Store{Dir: dir},
 	}
-	e.h = New(Deps{
+	deps := Deps{
+		FirstBootPath: filepath.Join(dir, "firstboot.json"),
 		Supervisor:    sup,
 		Jobs:          &fakeJobs{},
 		Store:         e.store,
@@ -183,7 +203,11 @@ func newEnv(t *testing.T, sup *fakeSup) *env {
 			return nil
 		},
 		Report: func(ctx context.Context) string { return "report text\n" },
-	})
+	}
+	if mutate != nil {
+		mutate(&deps)
+	}
+	e.h = New(deps)
 	return e
 }
 

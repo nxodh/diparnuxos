@@ -148,6 +148,14 @@ func TestEveryMethodUsesItsRoute(t *testing.T) {
 		{"APIKeys", "GET", "/v1/apikeys", func(c *Client) error { _, _, err := c.APIKeys(ctx); return err }},
 		{"CreateAPIKey", "POST", "/v1/apikeys", func(c *Client) error { _, _, err := c.CreateAPIKey(ctx, "cli"); return err }},
 		{"DeleteAPIKey", "DELETE", "/v1/apikeys/k1", func(c *Client) error { _, _, err := c.DeleteAPIKey(ctx, "k1"); return err }},
+		{"SSH", "GET", "/v1/system/ssh", func(c *Client) error { _, _, err := c.SSH(ctx); return err }},
+		{"SetSSH", "PUT", "/v1/system/ssh", func(c *Client) error { _, _, err := c.SetSSH(ctx, true); return err }},
+		{"Users", "GET", "/v1/users", func(c *Client) error { _, _, err := c.Users(ctx); return err }},
+		{"CreateUser", "POST", "/v1/users", func(c *Client) error {
+			_, _, err := c.CreateUser(ctx, UserCreateRequest{Name: "alice", Password: "correct-horse-9"})
+			return err
+		}},
+		{"DeleteUser", "DELETE", "/v1/users/alice", func(c *Client) error { _, _, err := c.DeleteUser(ctx, "alice"); return err }},
 		{"Mode", "GET", "/v1/mode", func(c *Client) error { _, _, err := c.Mode(ctx); return err }},
 		{"SetMode", "POST", "/v1/mode", func(c *Client) error { _, _, err := c.SetMode(ctx, "desktop"); return err }},
 		{"Update", "POST", "/v1/update", func(c *Client) error { _, err := c.Update(ctx); return err }},

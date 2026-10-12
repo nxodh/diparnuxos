@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+# 파일 복사만 한다. 서비스 유닛은 greetd 패키지가 소유하며 이 패키지는 드롭인만 넣는다.
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	install -D -m 644 src/greetd-lightlix.toml debian/lightlix-desktop/etc/greetd/lightlix.toml
+	install -D -m 644 src/greetd-override.conf debian/lightlix-desktop/usr/lib/systemd/system/greetd.service.d/lightlix.conf
+	install -D -m 755 src/labwc-autostart.sh debian/lightlix-desktop/etc/xdg/labwc/autostart
+	install -D -m 644 src/labwc-menu.xml debian/lightlix-desktop/etc/xdg/labwc/menu.xml
+	install -D -m 644 src/labwc-environment debian/lightlix-desktop/etc/xdg/labwc/environment
+	install -D -m 644 src/yambar.yml debian/lightlix-desktop/etc/xdg/yambar/config.yml

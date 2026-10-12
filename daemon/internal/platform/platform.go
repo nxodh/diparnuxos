@@ -18,6 +18,8 @@ type Command struct {
 	Args []string
 	// Env 는 추가할 환경 변수("KEY=VALUE")다. 비어 있으면 데몬의 환경을 그대로 쓴다.
 	Env []string
+	// Stdin 은 표준 입력으로 넘길 바이트다. 비어 있으면 표준 입력은 비어 있다. 비밀번호처럼 인자로 넘기면 안 되는 값에 쓴다.
+	Stdin []byte
 	// Timeout 이 0 보다 크면 그 시간이 지났을 때 프로세스를 끝낸다.
 	Timeout time.Duration
 	// MaxOutput 은 stdout 과 stderr 각각에서 읽어 둘 최대 바이트 수다. 0 이면 구현의 기본 상한을 쓴다.

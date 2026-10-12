@@ -159,3 +159,28 @@ func (c *Client) Report(ctx context.Context) (string, error) {
 	}
 	return string(raw), nil
 }
+
+// Users 는 GET /v1/users 로 Lightlix 계정 목록을 받는다.
+func (c *Client) Users(ctx context.Context) (UserList, []byte, error) {
+	return call[UserList](ctx, c, http.MethodGet, "/v1/users", nil, defaultLimit)
+}
+
+// CreateUser 는 POST /v1/users 로 계정을 만든다. 비밀번호는 요청 본문에만 실린다.
+func (c *Client) CreateUser(ctx context.Context, req UserCreateRequest) (User, []byte, error) {
+	return call[User](ctx, c, http.MethodPost, "/v1/users", req, defaultLimit)
+}
+
+// DeleteUser 는 DELETE /v1/users/{name} 로 계정을 지운다. 홈 디렉터리는 남는다.
+func (c *Client) DeleteUser(ctx context.Context, name string) (UserDeleted, []byte, error) {
+	return call[UserDeleted](ctx, c, http.MethodDelete, "/v1/users/"+escapeID(name), nil, defaultLimit)
+}
+
+// SSH 는 GET /v1/system/ssh 로 SSH 서버 상태를 받는다.
+func (c *Client) SSH(ctx context.Context) (SSH, []byte, error) {
+	return call[SSH](ctx, c, http.MethodGet, "/v1/system/ssh", nil, defaultLimit)
+}
+
+// SetSSH 는 PUT /v1/system/ssh 로 SSH 서버를 켜거나 끈다.
+func (c *Client) SetSSH(ctx context.Context, enabled bool) (SSH, []byte, error) {
+	return call[SSH](ctx, c, http.MethodPut, "/v1/system/ssh", map[string]bool{"enabled": enabled}, defaultLimit)
+}
