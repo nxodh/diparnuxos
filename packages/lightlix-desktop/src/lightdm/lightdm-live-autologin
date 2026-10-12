@@ -10,7 +10,8 @@ if [ ! -e /run/live ] || [ -e /run/lightlix-no-autologin ]; then
     exit 0
 fi
 user=user
-for parameter in $(cat /proc/cmdline 2>/dev/null); do
+cmdline="$(cat /proc/cmdline 2>/dev/null)"
+for parameter in $cmdline; do
     case "$parameter" in
         live-config.username=*|username=*) user="${parameter#*username=}" ;;
     esac

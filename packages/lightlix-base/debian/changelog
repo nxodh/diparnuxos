@@ -1,3 +1,9 @@
+lightlix-base (0.5.0) trixie; urgency=medium
+
+  * 버전을 0.5.0 으로 맞춘다. 내용은 바뀌지 않았다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Tue, 13 Oct 2026 12:00:00 +0900
+
 lightlix-base (0.4.1) trixie; urgency=medium
 
   * os-release 에 LOGO 와 ANSI_COLOR 를 추가한다.

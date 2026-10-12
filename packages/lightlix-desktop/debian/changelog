@@ -1,3 +1,9 @@
+lightlix-desktop (0.5.0) trixie; urgency=medium
+
+  * Xfce(xfwm4, xfce4-panel, xfdesktop, Thunar), lightdm, Xorg, PipeWire 로 데스크톱을 교체한다. Lightlix GTK3 와 xfwm4 테마, 패널 배치, xfconf 기본값(/etc/xdg/lightlix), 라이브 자동 로그인을 추가하고 labwc, greetd, tuigreet, foot, yambar, swaybg 의존을 뺀다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Tue, 13 Oct 2026 12:00:00 +0900
+
 lightlix-desktop (0.4.1) trixie; urgency=medium
 
   * 세션 환경 변수(XDG_SESSION_TYPE=wayland 등), labwc 출력을 저널로 보내 램 파일이 커지지 않게 한다, 흑백 labwc 테마와 패널, swaybg 배경 화면, 패널 네트워크 표시, dbus-user-session 과 xwayland 의존.
