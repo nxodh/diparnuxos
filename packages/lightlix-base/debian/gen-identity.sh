@@ -25,6 +25,8 @@ mkdir -p "$dest/usr/lib" "$dest/etc/dpkg/origins"
 cat > "$dest/usr/lib/os-release" <<EOF
 PRETTY_NAME="$LIGHTLIX_NAME $LIGHTLIX_VERSION"
 NAME="$LIGHTLIX_NAME"
+LOGO=lightlix
+ANSI_COLOR="1;37"
 VERSION_ID="$LIGHTLIX_VERSION"
 VERSION="$LIGHTLIX_VERSION ($DEBIAN_SUITE)"
 ID=$LIGHTLIX_ID

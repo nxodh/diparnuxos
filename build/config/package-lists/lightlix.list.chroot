@@ -53,3 +53,6 @@ lightlix-installer
 
 # Lightlix 자체 저장소의 공개 키와 소스 설정. 저장소 주소와 키가 정해지기 전에는 소스가 꺼진 채로 설치된다.
 lightlix-archive-keyring
+
+# 로고, 아이콘, 배경 화면, GRUB 색. 데스크톱과 Control Center 와 설치기가 이 패키지의 아이콘을 쓴다.
+lightlix-branding

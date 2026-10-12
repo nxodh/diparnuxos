@@ -11,7 +11,7 @@ Rules-Requires-Root: no
 
 Package: lightlix-desktop
 Architecture: all
-Depends: ${misc:Depends}, labwc, greetd, tuigreet, foot, yambar, swaybg, dbus-user-session, xwayland, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
+Depends: ${misc:Depends}, lightlix-branding, labwc, greetd, tuigreet, foot, yambar, swaybg, dbus-user-session, xwayland, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
 Description: Lightlix 데스크톱 세션 (labwc, greetd, tuigreet)
  서버 모드의 기본 부팅 대상(multi-user.target)을 바꾸지 않고 데스크톱 모드에
  필요한 구성 요소와 설정만 설치한다. greetd 의 기본 설정 파일은 건드리지 않고

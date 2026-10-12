@@ -15,3 +15,6 @@ override_dh_auto_install:
 	install -D -m 644 src/labwc-menu.xml debian/lightlix-desktop/etc/xdg/labwc/menu.xml
 	install -D -m 644 src/labwc-environment debian/lightlix-desktop/etc/xdg/labwc/environment
 	install -D -m 644 src/yambar.yml debian/lightlix-desktop/etc/xdg/yambar/config.yml
+	install -D -m 755 src/lightlix-panel-net debian/lightlix-desktop/usr/bin/lightlix-panel-net
+	install -D -m 644 src/labwc-rc.xml debian/lightlix-desktop/etc/xdg/labwc/rc.xml
+	install -D -m 644 src/labwc-themerc debian/lightlix-desktop/usr/share/themes/Lightlix/openbox-3/themerc

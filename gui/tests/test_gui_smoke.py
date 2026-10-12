@@ -52,6 +52,15 @@ ROUTES = {
         "license": "gemma", "fits": True, "placement": "gpu", "need_mib": 3400}]}),
     ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "overrides": {}}),
     ("GET", "/v1/apikeys"): (200, {"keys": []}),
+    ("GET", "/v1/network"): (200, {
+        "interfaces": [{"name": "wlan0", "kind": "wifi", "state": "up", "addresses": ["192.168.0.23/24"], "gateway": "192.168.0.1"}],
+        "wifi": {"available": True, "device": "wlan0", "powered": True, "state": "connected", "scanning": False, "connected_ssid": "HomeWiFi"},
+        "online": True}),
+    ("GET", "/v1/network/wifi/networks"): (200, {"networks": [
+        {"ssid": "HomeWiFi", "security": "psk", "signal": 80, "signal_dbm": -42, "connected": True, "known": True},
+        {"ssid": "CafeFree", "security": "open", "signal": 50, "signal_dbm": -61, "connected": False, "known": False},
+        {"ssid": "Office 5G", "security": "psk", "signal": 30, "signal_dbm": -73, "connected": False, "known": False}]}),
+    ("POST", "/v1/network/wifi/scan"): (202, {"scanning": True}),
     ("GET", "/v1/server/logs"): (200, {"lines": 1, "log": "server log line\n"}),
     ("GET", "/v1/system/ssh"): (200, {"enabled": False, "installed": True, "active": False, "password_auth": "no", "port": 22}),
     ("GET", "/v1/users"): (200, {"users": [{"name": "alice", "admin": True, "created": "2026-10-12T00:00:00Z"}]}),
@@ -141,6 +150,34 @@ class SmokeTests(unittest.TestCase):
         posts = [c for c in self.daemon.calls if c[0] == "POST" and c[1] == "/v1/users"]
         self.assertEqual(posts[0][2], {"name": "bob", "password": "correct-horse-9", "admin": True})
         win.destroy()
+
+    def test_network_page_lists_wifi_and_asks_for_the_password(self):
+        from lightlix_cc.network import NetworkPage, WifiPasswordDialog
+
+        page = NetworkPage(self.ctx)
+        page.refresh()
+        self.assertTrue(pump(5, until=lambda: len(page._wifi_rows) == 3), "the Wi-Fi list was not shown")
+        titles = [r.get_title() for r in page._wifi_rows]
+        self.assertEqual(titles, ["HomeWiFi", "CafeFree", "Office 5G"])
+        self.assertIn("HomeWiFi", page.summary_row.get_subtitle())
+        self.assertTrue(page.power_row.get_active())
+        self.assertEqual(len(page._iface_rows), 1)
+
+        # 새 보안 네트워크는 비밀번호를 받는다. 규칙에 맞지 않으면 연결 버튼이 꺼져 있다.
+        dialog = WifiPasswordDialog(self.ctx, "Office 5G")
+        self.assertFalse(dialog.connect_btn.get_sensitive())
+        dialog.pw_row.set_text("short")
+        self.assertFalse(dialog.connect_btn.get_sensitive())
+        self.assertIn("8 characters", dialog.message.get_text())
+        dialog.pw_row.set_text("correct horse battery")
+        self.assertTrue(dialog.connect_btn.get_sensitive())
+        self.daemon.routes[("POST", "/v1/network/wifi/connect")] = (200, {"connected": True, "ssid": "Office 5G"})
+        done = []
+        dialog._on_connected = lambda: done.append(True)
+        dialog._submit()
+        self.assertTrue(pump(5, until=lambda: bool(done)))
+        posts = [c for c in self.daemon.calls if c[0] == "POST" and c[1] == "/v1/network/wifi/connect"]
+        self.assertEqual(posts[0][2], {"ssid": "Office 5G", "passphrase": "correct horse battery"})
 
     def test_daemon_down_shows_banner(self):
         from lightlix_cc import api

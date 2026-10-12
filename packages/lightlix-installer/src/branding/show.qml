@@ -15,13 +15,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#182036"
+            color: "#0D0D0D"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#E8EEF8"
+                color: "#EBEBEB"
                 font.pixelSize: 26
                 text: "Lightlix\nA small Debian-based system for running local language models."
             }
@@ -31,13 +31,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#182036"
+            color: "#0D0D0D"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#E8EEF8"
+                color: "#EBEBEB"
                 font.pixelSize: 22
                 text: "Server mode keeps memory use low.\nThe desktop is optional and can be turned off with 'lightlix mode server'."
             }
@@ -47,13 +47,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#182036"
+            color: "#0D0D0D"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#E8EEF8"
+                color: "#EBEBEB"
                 font.pixelSize: 22
                 text: "Updates install the kernel and the NVIDIA driver together.\nThe previous kernel stays available as a fallback."
             }

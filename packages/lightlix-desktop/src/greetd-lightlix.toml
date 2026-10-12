@@ -4,5 +4,5 @@
 vt = 7
 
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Lightlix' --cmd lightlix-session"
+command = "tuigreet --time --remember --asterisks --greeting 'LIGHTLIX' --theme 'text=white;time=white;container=black;border=white;title=white;greet=white;prompt=white;input=white;action=white;button=white' --cmd lightlix-session"
 user = "_greetd"

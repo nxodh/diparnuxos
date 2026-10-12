@@ -1,0 +1,23 @@
+#!/bin/sh
+# yambar 의 script 모듈이 읽는 네트워크 상태 표시기다. 설치 경로는 /usr/bin/lightlix-panel-net 이다.
+# 10초마다 "net|string|<문구>" 한 블록(빈 줄로 끝)을 출력한다. 연결 문구는 짧게 한다.
+#   Wi-Fi <SSID>   무선으로 연결됨
+#   Wired          유선으로 연결됨
+#   Offline        기본 경로가 없음
+# lightlix CLI 를 부르므로 데몬이 없으면 "Offline" 이다.
+while :; do
+    json="$(lightlix --json network 2>/dev/null | tr -d '\n')"
+    text="Offline"
+    case "$json" in
+        *'"online":true'*)
+            ssid="$(printf '%s' "$json" | sed -n 's/.*"connected_ssid":"\([^"]*\)".*/\1/p')"
+            if [ -n "$ssid" ]; then
+                text="Wi-Fi $ssid"
+            else
+                text="Wired"
+            fi
+            ;;
+    esac
+    printf 'net|string|%s\n\n' "$text"
+    sleep 10
+done

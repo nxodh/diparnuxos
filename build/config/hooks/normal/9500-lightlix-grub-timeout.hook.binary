@@ -4,3 +4,5 @@
 set -e
 
 printf '\nset timeout=5\n' >> boot/grub/config.cfg
+# 로고의 흑백 두 색에 맞춘 메뉴 색이다(설치된 시스템은 lightlix-branding 의 grub.d 조각이 같은 값을 쓴다).
+printf 'set color_normal=light-gray/black\nset color_highlight=black/light-gray\nset menu_color_normal=light-gray/black\nset menu_color_highlight=black/light-gray\n' >> boot/grub/config.cfg

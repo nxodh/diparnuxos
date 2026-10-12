@@ -1,3 +1,9 @@
+lightlix-control-center (0.4.1) trixie; urgency=medium
+
+  * 네트워크 페이지(Wi-Fi 목록과 연결), 로고의 흑백 색과 아이콘, 대시보드를 제자리에서 갱신하고 창이 비활성이면 천천히 확인한다. 라이브 세션 저장 공간 표시.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Tue, 13 Oct 2026 09:00:00 +0900
+
 lightlix-control-center (0.4.0) trixie; urgency=medium
 
   * 시스템 페이지에 업데이트 확인, 설치, 되돌리기를 추가한다.

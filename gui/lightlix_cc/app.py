@@ -11,6 +11,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib  # noqa: E402
 
 from . import api, i18n  # noqa: E402
+from . import theme  # noqa: E402
 from .context import Context  # noqa: E402
 
 APP_ID = "io.github.nxodh.lightlixos.ControlCenter"
@@ -24,6 +25,11 @@ class Application(Adw.Application):
         self.client = api.Client(options.socket)
         self.ctx = Context(self.client)
         self.window = None
+
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+        # 아이콘 이름과 로고의 흑백 색을 적용한다.
+        theme.apply()
 
     def do_activate(self):
         if self.window is not None:

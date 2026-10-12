@@ -11,7 +11,7 @@ Rules-Requires-Root: no
 
 Package: lightlix-installer
 Architecture: all
-Depends: ${misc:Depends}, calamares (>= 3.3), polkitd, qt6-wayland, qml6-module-qtquick, qml6-module-qtquick-window, sudo, lightlix-daemon, rsync, dosfstools, e2fsprogs, fdisk, parted
+Depends: ${misc:Depends}, lightlix-branding, calamares (>= 3.3), polkitd, qt6-wayland, qml6-module-qtquick, qml6-module-qtquick-window, sudo, lightlix-daemon, rsync, dosfstools, e2fsprogs, fdisk, parted
 Description: Lightlix 그래픽 설치기 (Calamares 설정)
  Calamares 3.3 의 Lightlix 전용 설정, 브랜딩, 실행기다. Debian 의 기본 설정
  패키지(calamares-settings-debian)는 쓰지 않는다. 그 설정은 설치 중에 네트워크로

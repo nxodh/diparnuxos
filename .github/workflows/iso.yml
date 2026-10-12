@@ -49,6 +49,12 @@ jobs:
       - name: Test Control Center (unit and GTK smoke)
         run: make test-gui
 
+      - name: Test the desktop panel configuration and session scripts (container)
+        run: make test-desktop-config-docker
+
+      - name: Test Wi-Fi management against a real busctl and a fake iwd (container)
+        run: make test-network-docker
+
       - name: Test the signed APT repository tooling (container)
         run: make test-apt-repo-docker
 
@@ -145,12 +151,12 @@ jobs:
 
       # 같은 ISO 로 서버 모드에서 데스크톱 모드로 전환하고 greetd, labwc, Control Center 를 확인한다.
       - name: Desktop session E2E (UEFI, mode switch, virtual display)
-        timeout-minutes: 25
+        timeout-minutes: 55
         env:
           BOOT_TIMEOUT: '900'
           COMMAND_TIMEOUT: '120'
           START_TIMEOUT: '300'
-          E2E_TIMEOUT: '1200'
+          E2E_TIMEOUT: '3000'
         run: make test-qemu-desktop-docker
 
       # 같은 ISO 로 빈 가상 디스크에 헤드리스 설치하고, 디스크 부팅과 Secure Boot(shim) 부팅까지 확인한다.

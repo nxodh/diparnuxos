@@ -1,23 +1,36 @@
 # Lightlix 패널(yambar). labwc 의 autostart 가 이 파일로 실행한다.
-# 왼쪽: Control Center 실행 버튼과 활성 창 제목, 오른쪽: 사용 중인 메모리와 시계.
-# 시계를 누르면 Control Center 가 열린다. 설정은 `yambar -C -c` 로 검증한다.
+# 왼쪽: 로고 글자와 활성 창 제목. 오른쪽: 네트워크, 사용 중인 메모리, 시계.
+# 로고 글자를 누르면 Control Center 가 열리고, 네트워크를 누르면 네트워크 페이지가 열린다.
+# 색은 로고의 흑백 두 가지다. 설정은 `yambar -C -c` 로 검증한다.
 bar:
   height: 26
   location: top
-  background: 20232aff
-  foreground: e6e6e6ff
+  background: 0d0d0dff
+  foreground: ebebebff
   font: NanumGothic:pixelsize=13, DejaVu Sans:pixelsize=13
   left:
+    - label:
+        content:
+          string:
+            text: " LIGHTLIX "
+            font: NanumGothic:pixelsize=13:style=bold
+            on-click: lightlix-control-center
     - foreign-toplevel:
         content:
           map:
             conditions:
               ~activated: {empty: {}}
               activated:
-                - string: {text: " {title} ", max: 40}
+                - string: {text: " {title} ", max: 40, foreground: 8e8e8eff}
   right:
+    - script:
+        path: /usr/bin/lightlix-panel-net
+        content:
+          string:
+            text: " {net} "
+            on-click: lightlix-control-center --page network
     - mem:
-        poll-interval: 3000
+        poll-interval: 5000
         content:
           string: {text: " RAM {used:mb} MB "}
     - clock:

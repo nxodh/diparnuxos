@@ -25,9 +25,9 @@ images:
     productIcon: "icon.png"
     productWelcome: "welcome.png"
 style:
-    SidebarBackground: "#182036"
-    SidebarText: "#E8EEF8"
-    SidebarTextCurrent: "#182036"
-    SidebarBackgroundCurrent: "#40C4B4"
+    SidebarBackground: "#0D0D0D"
+    SidebarText: "#EBEBEB"
+    SidebarTextCurrent: "#000000"
+    SidebarBackgroundCurrent: "#EBEBEB"
 slideshow: "show.qml"
 slideshowAPI: 2

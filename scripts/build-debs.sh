@@ -47,6 +47,10 @@ for pkgdir in "${ROOT}"/packages/*/; do
     if [ "${name}" = lightlix-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
         cp -a "${ROOT}/keys" "${src}/keys"
     fi
+    # 브랜딩 패키지는 저장소 루트의 브랜드 이미지(assets/brand)를 쓴다.
+    if [ "${name}" = lightlix-branding ]; then
+        cp -a "${ROOT}/assets/brand" "${src}/assets"
+    fi
     # Control Center 소스도 패키지의 임시 사본에만 넣는다.
     if [ "${name}" = lightlix-control-center ]; then
         cp -a "${ROOT}/gui" "${src}/gui"

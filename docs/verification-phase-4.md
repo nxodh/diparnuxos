@@ -62,3 +62,17 @@ ESP 구성: `EFI/lightlix/{shimx64.efi,grubx64.efi,mmx64.efi,fbx64.efi,grub.cfg,
 ## 6. 설치 후 알려진 문제와 조치
 
 - **VMware 에서 데스크톱 세션이 로그인 직후 꺼진다는 보고**(사용자, 0.3.0 ISO, 2026-10-12). QEMU(virtio-gpu)에서는 통과했으므로 가상 GPU 에 따른 컴포지터 시작 문제로 본다. 원인은 사용자 로그 확인 전이라 확정하지 않았다. 대응으로 가상 머신에서는 소프트웨어 렌더러(`WLR_RENDERER=pixman`)와 소프트웨어 커서를 기본으로 쓰고 labwc 출력을 `$XDG_RUNTIME_DIR/labwc.log` 에 남기는 세션 래퍼(`lightlix-session`)를 넣었다. VMware 에서의 해결 여부는 확인하지 못했다.
+
+## 7. 0.4.1 (2026-10-13)
+
+사용자가 MSI Stealth 15M(RTX 3060 Laptop)에서 0.4.0 을 USB 로 부팅해 보고한 문제와 그 조치다. 아래 "확인" 열은 이 저장소의 시험 결과이고 실기 확인은 아니다.
+
+| 보고 | 원인 | 조치 | 확인 |
+|---|---|---|---|
+| 설치 마법사가 "Waiting for N modules" 에서 멈춘다 | `libkpmcore12` 는 polkit 라이브러리에만 의존하고 `polkitd` 는 추천 패키지라서 이미지에 없다. 파티션 모듈의 보조 프로그램이 권한을 확인하지 못한다 | `lightlix-installer` 가 `polkitd` 에 의존. 시험이 `kpmcore_externalcommand` 가 떠야 통과하도록 바뀜 | CI 38252133624: 보조 프로그램과 `polkitd` 가 뜨고 요구 사항 검사가 끝남 |
+| 램 사용량이 계속 늘어남 | 확정하지 못했다. 후보: (1) 라이브 세션은 쓰는 파일이 램(overlay)에 쌓인다, (2) 0.4.0 의 `labwc.log` 가 램(tmpfs) 파일이라 오류가 반복되면 무한히 커진다, (3) 대시보드가 3초마다 행 위젯을 새로 만든다 | (2) labwc 출력을 저널로 보냄(크기와 속도 제한), (3) 행을 제자리에서 갱신하고 창이 비활성이면 15초 간격, (1) 대시보드에 라이브 저장 공간 표시와 로그인 안내 | 데스크톱 E2E 에 8분 소크 시험(프로세스별 RSS 증가 상한)을 추가. 실기 값은 미확인 |
+| 인터넷 연결 GUI 가 없다 | 없었다 | `/v1/network` API, Control Center 네트워크 페이지, `lightlix network wifi ...`, 패널 표시 | 실제 `busctl` + 가짜 iwd 서비스(`make test-network-docker`), 단위·화면 시험. 실제 칩은 미검증 |
+| Chrome 이 실행되지 않고 `XDG_SESSION_TYPE` 이 비어 있다 | tuigreet 의 `--cmd` 로 세션을 시작하면 `XDG_SESSION_TYPE` 등이 비어 있다. 라이브 세션은 apt 목록이 없어 `dpkg -i` 나 `apt install` 이 의존성을 찾지 못한다 | 세션 래퍼가 `XDG_SESSION_TYPE=wayland`, `XDG_CURRENT_DESKTOP`, 브라우저용 변수를 정하고, `xwayland`, `dbus-user-session` 에 의존. 로그인 안내와 설치 방법 문서 | 데스크톱 E2E 에 `XDG_SESSION_TYPE` 확인과 chromium 설치·실행 실험(실패해도 시험은 계속한다) |
+| 로고 반영, 전체 디자인 통일 | — | `lightlix-branding` 패키지(아이콘, 마크, 배경), 흑백 팔레트의 labwc 테마, 패널, 로그인 화면, 설치기, Control Center, GRUB 색 | 이미지 생성 스크립트, 패널 설정 `yambar -C` 검증, 패키지 내용 확인. 화면 캡처는 CI 로그 |
+
+그 밖에 고친 것: `ctx override` 경고의 범위 표기(`256-128`)가 모델이 지원하는 최대값만 말하도록 수정, 기본 apt 안내(`apt-get update` 먼저).

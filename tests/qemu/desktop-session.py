@@ -384,6 +384,57 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(installer["colors"] >= 8, f"The installer window looks blank: {installer}")
     console.command("installer-stop", "sudo -n pkill -x calamares; sleep 2; ! pgrep -x calamares", cmd)
 
+    # 램 증가 시험: 세션이 떠 있는 채로 8분 동안 1분마다 주요 프로세스의 RSS 와 MemAvailable 을 잰다.
+    # Control Center 가 3초마다 상태를 읽는 동안 위젯이나 연결이 새면 여기서 드러난다.
+    soak_script = (
+        "rss() { pid=$(pgrep -f -o \"$1\" | head -n 1); "
+        "[ -n \"$pid\" ] && awk '/VmRSS/ {print $2}' /proc/$pid/status || echo 0; }; "
+        "for i in 0 1 2 3 4 5 6 7; do "
+        "echo \"sample=$i lightlixd=$(rss /usr/sbin/lightlixd) cc=$(rss lightlix-control-center) labwc=$(rss labwc) "
+        "yambar=$(rss yambar) swaybg=$(rss swaybg) avail=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)\"; "
+        "[ $i -lt 7 ] && sleep 60; done"
+    )
+    soak = console.command("soak", soak_script, 8 * 60 + 90)
+    samples = []
+    for line in soak.splitlines():
+        if line.startswith("sample="):
+            samples.append({k: int(v) for k, v in (kv.split("=") for kv in line.split())})
+    require(len(samples) == 8, f"Expected 8 memory samples, got {len(samples)}: {soak[-400:]}")
+    # 첫 표본은 시작 직후의 값이라 워밍업으로 보고 두 번째를 기준으로 삼는다.
+    base, last = samples[1], samples[-1]
+    limits_kb = {"lightlixd": 6 * 1024, "cc": 24 * 1024, "labwc": 12 * 1024, "yambar": 6 * 1024, "swaybg": 3 * 1024}
+    for key, limit in limits_kb.items():
+        growth = last[key] - base[key]
+        print(f"desktop-session: soak {key}: {base[key]} kB -> {last[key]} kB (+{growth} kB, limit {limit} kB)", flush=True)
+        require(growth <= limit, f"{key} grew by {growth} kB in 6 minutes (limit {limit} kB)")
+    avail_drop = base["avail"] - last["avail"]
+    print(f"desktop-session: soak MemAvailable dropped {avail_drop} kB", flush=True)
+    require(avail_drop <= 80 * 1024, f"MemAvailable dropped by {avail_drop} kB in 6 minutes")
+
+    # 브라우저 실험: Debian 의 chromium 이 이 세션에서 뜨는지 본다(사용자가 Chrome 이 안 뜬다고 보고했다).
+    # 네트워크나 패키지 문제로 설치하지 못하면 건너뛰고, 설치한 뒤에는 실패를 기록한다. 시험 전체를 실패시키지는 않는다.
+    try:
+        console.command("browser-install", "sudo -n apt-get update -q >/dev/null && sudo -n apt-get install -y -q --no-install-recommends chromium >/dev/null 2>&1; command -v chromium", cmd + 600)
+        uid_t = uid
+        console.command(
+            "browser-headless",
+            f"sudo -n -u {TEST_USER} env XDG_RUNTIME_DIR=/run/user/{uid_t} timeout 90 chromium --headless=new --disable-gpu --no-sandbox --dump-dom about:blank 2>&1 | tail -n 5",
+            cmd + 120,
+        )
+        console.command(
+            "browser-window-start",
+            f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid_t} WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland "
+            f"nohup setpriv --reuid={TEST_USER} --regid={TEST_USER} --init-groups chromium --ozone-platform=wayland --no-first-run "
+            f"about:blank > /tmp/browser.log 2>&1 &'; sleep 25; pgrep -u {TEST_USER} -f chromium | head -n 3",
+            cmd + 60,
+        )
+        browser = capture(console, monitor, logs, "browser", workdir)
+        print(f"desktop-session: browser capture {browser}", flush=True)
+        console.command("browser-log", "tail -n 30 /tmp/browser.log; true", cmd)
+        console.command("browser-stop", "sudo -n pkill -f chromium; true", cmd)
+    except Failure as error:
+        print(f"desktop-session: browser experiment did not complete: {error.kind}: {str(error)[:300]}", flush=True)
+
     # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
     back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])
     require(json_object(back, "mode-server").get("mode") == "server", "Mode switch did not report server")

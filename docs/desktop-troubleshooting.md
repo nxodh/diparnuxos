@@ -7,10 +7,11 @@
 
 ## 로그인 직후 세션이 꺼진다
 
-1. 세션 래퍼의 로그를 본다. labwc 의 출력이 여기에 남는다(저널이 없어도 읽을 수 있다).
+1. labwc 의 출력은 저널(`lightlix-labwc` 식별자)에 있다. 세션이 꺼진 뒤 다른 가상 터미널에서 로그인해 본다.
 
    ```sh
-   cat /run/user/$(id -u)/labwc.log          # 세션이 꺼진 뒤 다른 가상 터미널에서 같은 계정으로 로그인해 본다
+   sudo journalctl -b -t lightlix-labwc --no-pager | tail -50
+   cat /run/user/$(id -u)/labwc.log          # 가상화 종류와 렌더러 값(짧은 시작 기록)
    ```
 2. 직접 실행해 오류를 화면에서 본다.
 
@@ -30,6 +31,23 @@
 ## `EFI loader partition unknown`
 
 systemd 의 `systemd-gpt-auto-generator` 가 GRUB 로 부팅한 시스템에서 내는 안내 문구다. 서비스 단위가 다시 읽힐 때 콘솔에 나올 수 있으며 데스크톱 문제의 원인이 아니다.
+
+## 웹 브라우저(Chrome, Chromium)를 설치하려면
+
+라이브 세션은 apt 목록이 없어서 먼저 목록을 받아야 한다. 의존 패키지까지 한 번에 설치되게 `apt` 로 설치한다.
+
+```sh
+sudo apt-get update
+sudo apt-get install -y chromium                              # Debian 의 Chromium
+# Google Chrome:
+curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt-get install -y ./google-chrome-stable_current_amd64.deb   # dpkg -i 가 아니라 apt 로 설치해야 의존성이 해결된다
+```
+
+- 데스크톱 세션(`lightlix mode desktop` 뒤 로그인)의 터미널(`foot`)에서 실행한다. 텍스트 콘솔(tty)에서는 `WAYLAND_DISPLAY` 가 없어 창을 열 수 없다.
+- 세션 래퍼가 `XDG_SESSION_TYPE=wayland` 를 정한다(0.4.1 이전에는 비어 있었다). 확인: `echo $XDG_SESSION_TYPE $WAYLAND_DISPLAY`.
+- Wayland 로 띄우려면 `chromium --ozone-platform=wayland`, XWayland 로 띄우면 `DISPLAY` 가 필요하다.
+- 라이브 세션에서는 설치한 패키지와 내려받은 파일이 램에 쌓인다. 브라우저는 수백 MB 를 쓴다.
 
 ## 로그 명령
 
