@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
 // Status 는 GET /v1/status 를 부른다. 응답과 원본 본문을 돌려준다.
@@ -146,9 +148,28 @@ func (c *Client) SetMode(ctx context.Context, mode string) (ModeResult, []byte, 
 	return call[ModeResult](ctx, c, http.MethodPost, "/v1/mode", map[string]string{"mode": mode}, defaultLimit)
 }
 
-// Update 는 POST /v1/update 를 부른다. 데몬은 아직 501 을 돌려주므로 성공 응답은 없다.
-func (c *Client) Update(ctx context.Context) ([]byte, error) {
-	return c.do(ctx, http.MethodPost, "/v1/update", nil, defaultLimit)
+// UpdateInfo 는 GET /v1/update 로 갱신 상태를 읽는다.
+func (c *Client) UpdateInfo(ctx context.Context) (updatectl.Info, []byte, error) {
+	return call[updatectl.Info](ctx, c, http.MethodGet, "/v1/update", nil, defaultLimit)
+}
+
+// UpdateRequest 는 POST /v1/update 의 본문이다.
+type UpdateRequest struct {
+	// Action 은 check, apply, rollback 이다.
+	Action string `json:"action"`
+	Reboot bool   `json:"reboot,omitempty"`
+}
+
+// UpdateStarted 는 POST /v1/update 의 응답이다.
+type UpdateStarted struct {
+	Started bool   `json:"started"`
+	Action  string `json:"action"`
+	Reboot  bool   `json:"reboot"`
+}
+
+// UpdateStart 는 POST /v1/update 로 갱신 동작을 시작한다. 진행은 UpdateInfo 로 본다.
+func (c *Client) UpdateStart(ctx context.Context, req UpdateRequest) (UpdateStarted, []byte, error) {
+	return call[UpdateStarted](ctx, c, http.MethodPost, "/v1/update", req, defaultLimit)
 }
 
 // Report 는 GET /v1/report 로 진단 리포트 텍스트를 받는다. 상한은 8MiB 다.

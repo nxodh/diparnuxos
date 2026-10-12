@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -52,29 +51,6 @@ func (c *cli) mode(args []string) int {
 	}
 	fmt.Fprintf(c.env.stdout, "mode set to %s\n", res.Mode)
 	return exitOK
-}
-
-// update 는 POST /v1/update 를 부른다. 데몬이 501 을 돌려주므로 아직 실행되지 않는다.
-func (c *cli) update(args []string) int {
-	if len(args) != 0 {
-		return c.usage("update takes no arguments", "update")
-	}
-	ctx, cancel := c.timeout(shortTimeout)
-	defer cancel()
-	raw, err := c.api.Update(ctx)
-	if err == nil {
-		if c.asJSON {
-			return c.printJSON(raw)
-		}
-		fmt.Fprintln(c.env.stdout, "update finished")
-		return exitOK
-	}
-	var ae *client.APIError
-	if errors.As(err, &ae) && (ae.Status == http.StatusNotImplemented || ae.Code == "not_implemented") {
-		c.errorLine("update is not implemented yet")
-		return exitUsage
-	}
-	return c.fail(err)
 }
 
 // report 는 진단 리포트를 표준 출력이나 파일로 쓴다. 파일은 모드 0600 이다.
@@ -484,7 +460,7 @@ var commandUsage = map[string]string{
 	"serve plan":    "Usage: lightlix serve plan [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M]\n\nShow the plan and its rationale without starting the server.\n",
 	"serve logs":    "Usage: lightlix serve logs [-n N]\n\nShow the last N llama-server log lines (1-2000, default 200).\n",
 	"mode":          "Usage: lightlix mode [server|desktop]\n\nShow the current mode, or set it.\n",
-	"update":        "Usage: lightlix update\n\nUpdate Lightlix. Not implemented yet.\n",
+	"update":        "Usage: lightlix update [--check] [--rollback] [--status] [--reboot]\n\nInstall the kernel, NVIDIA driver and system updates together. The new kernel boots once and becomes the default only after it passes the boot check.\n\n  --check     show what would change and install nothing\n  --rollback  return to the kernel and driver from before the last update\n  --status    show the state of the last update\n  --reboot    reboot when the update succeeds\n",
 	"report":        "Usage: lightlix report [-o FILE]\n\nWrite the diagnostic report to standard output, or to FILE (mode 0600).\n",
 	"apikey":        "Usage: lightlix apikey <create|list|rm> [arguments]\n",
 	"apikey create": "Usage: lightlix apikey create [label]\n\nCreate an API key. The key is shown only once.\n",

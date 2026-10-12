@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nxodh/lightlixos/daemon/internal/client"
 )
@@ -850,12 +851,93 @@ func TestModeInvalidArgumentIsUsage(t *testing.T) {
 	wantCode(t, res, exitUsage)
 }
 
-func TestUpdateNotImplementedExit2(t *testing.T) {
+// updateInfoJSON 은 GET /v1/update 의 가짜 응답이다. 시각은 호출 시점이라 CLI 의 "이번 요청 이후" 판정을 통과한다.
+func updateInfoJSON(running bool, phase, extra string) string {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return fmt.Sprintf(`{"available":true,"live":false,"running":%v,"running_kernel":"6.12.111+deb13-amd64","state":{"phase":%q,"started":%q,"reboot_required":false%s}}`,
+		running, phase, now, extra)
+}
+
+func TestUpdateCheckShowsPlan(t *testing.T) {
 	f := newFakeDaemon(t)
-	f.on("POST /v1/update", 501, `{"error":{"code":"not_implemented","message":"update arrives in a later release"}}`)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"check","reboot":false}`)
+	now := time.Now().UTC().Format(time.RFC3339)
+	f.on("GET /v1/update", 200, fmt.Sprintf(`{"available":true,"running":false,"state":{"phase":"idle"},"last_check":{"time":%q,"plan":{"up_to_date":false,"changes":[{"name":"linux-image-amd64","from":"6.12.111-1","to":"6.12.112-1"}],"kernels":["6.12.112+deb13-amd64"],"driver_from":"595.91.07-1","driver_to":"595.100.01-1"}}}`, now))
+	res := runCLI(t, f, "update", "--check")
+	wantCode(t, res, exitOK)
+	wantContains(t, "check", res.stdout, "1 package changes")
+	wantContains(t, "check", res.stdout, "new kernel: 6.12.112+deb13-amd64")
+	wantContains(t, "check", res.stdout, "driver: 595.91.07-1 -> 595.100.01-1")
+	if got := f.bodies["POST /v1/update"]; len(got) != 1 || !strings.Contains(got[0], `"action":"check"`) {
+		t.Fatalf("request bodies = %v", got)
+	}
+}
+
+func TestUpdateApplyFollowsEventsAndAsksForReboot(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"apply","reboot":false}`)
+	calls := 0
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UTC().Format(time.RFC3339)
+		events := fmt.Sprintf(`,"events":[{"time":%q,"step":"plan","message":"7 package changes"}]`, now)
+		if calls == 1 {
+			_, _ = fmt.Fprint(w, updateInfoJSON(true, "running", events))
+			return
+		}
+		done := fmt.Sprintf(`,"new_kernel":"6.12.112+deb13-amd64","driver_from":"595.91.07-1","driver_to":"595.100.01-1","events":[{"time":%q,"step":"plan","message":"7 package changes"},{"time":%q,"step":"done","message":"installed; reboot to finish"}]`, now, now)
+		_, _ = fmt.Fprint(w, strings.Replace(updateInfoJSON(false, "pending_boot", done), `"reboot_required":false`, `"reboot_required":true`, 1))
+	})
 	res := runCLI(t, f, "update")
-	wantCode(t, res, exitUsage)
-	wantContains(t, "update", res.stderr, "update is not implemented yet")
+	wantCode(t, res, exitOK)
+	wantContains(t, "apply", res.stdout, "[plan] 7 package changes")
+	wantContains(t, "apply", res.stdout, "reboot to try the new kernel 6.12.112+deb13-amd64")
+}
+
+func TestUpdateFailureIsReported(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"apply"}`)
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, updateInfoJSON(false, "failed", `,"code":"dkms_failed","message":"kernel 6.12.112: nvidia: module not found"`))
+	})
+	res := runCLI(t, f, "update")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "failure", res.stderr, "dkms_failed")
+}
+
+func TestUpdateStartRejectionsAreExplained(t *testing.T) {
+	cases := []struct {
+		status     int
+		code, want string
+	}{
+		{409, "busy", "already running"},
+		{409, "pending_reboot", "waiting for a reboot"},
+		{409, "live_session", "live session"},
+		{503, "update_unavailable", "not available"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.code, func(t *testing.T) {
+			f := newFakeDaemon(t)
+			f.on("POST /v1/update", tc.status, fmt.Sprintf(`{"error":{"code":%q,"message":"x"}}`, tc.code))
+			res := runCLI(t, f, "update")
+			wantCode(t, res, exitFailure)
+			wantContains(t, tc.code, res.stderr, tc.want)
+		})
+	}
+}
+
+func TestUpdateStatusAndFlagChecks(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/update", 200, `{"available":true,"running":false,"running_kernel":"6.12.111+deb13-amd64","state":{"phase":"committed","reboot_required":false}}`)
+	res := runCLI(t, f, "update", "--status")
+	wantCode(t, res, exitOK)
+	wantContains(t, "status", res.stdout, "state: committed")
+	wantContains(t, "status", res.stdout, "running kernel: 6.12.111+deb13-amd64")
+
+	wantCode(t, runCLI(t, nil, "update", "--check", "--rollback"), exitUsage)
+	wantCode(t, runCLI(t, nil, "update", "extra"), exitUsage)
 }
 
 func TestReportToStdout(t *testing.T) {

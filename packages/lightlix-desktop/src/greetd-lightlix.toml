@@ -4,5 +4,5 @@
 vt = 7
 
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Lightlix' --cmd labwc"
+command = "tuigreet --time --remember --asterisks --greeting 'Lightlix' --cmd lightlix-session"
 user = "_greetd"

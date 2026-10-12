@@ -279,6 +279,18 @@ def scenario(console, monitor, budgets, logs, workdir):
     time.sleep(1.5)
     monitor.type_text(TEST_PASSWORD + "\n")
     poll_command(console, "labwc-running", f"pgrep -u {TEST_USER} -x labwc", budgets["START_TIMEOUT"])
+    # 세션 래퍼: 가상 머신이므로 소프트웨어 렌더러와 소프트웨어 커서를 쓰고, labwc 출력은 파일에 남는다.
+    console.command(
+        "session-wrapper-log",
+        f"sudo -n sh -c 'cat /run/user/$(id -u {TEST_USER})/labwc.log | head -n 20'",
+        cmd,
+    )
+    console.command(
+        "session-wrapper-env",
+        "sudo -n sh -c 'pid=$(pgrep -u " + TEST_USER + " -x labwc | head -n 1); "
+        "tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -E \"^WLR_(RENDERER|NO_HARDWARE_CURSORS)=\"'",
+        cmd,
+    )
     poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f lightlix-control-center", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.
@@ -327,6 +339,33 @@ def scenario(console, monitor, budgets, logs, workdir):
 
     # Control Center 가 데몬과 통신하는지: 프로세스가 살아 있고 오류 없이 상태를 받는다.
     console.command("daemon-status", "lightlix --json status | grep -q '\"mode\": \"desktop\"'", cmd)
+
+    # 그래픽 설치기(Calamares)를 같은 labwc 세션에서 띄워 창이 그려지는지만 본다. 설치는 하지 않는다.
+    console.command(
+        "installer-files",
+        "test -x /usr/bin/lightlix-installer && test -x /usr/bin/calamares && test -s /etc/calamares/settings.conf "
+        "&& test -s /etc/calamares/branding/lightlix/branding.desc && test -x /usr/sbin/lightlix-install",
+        cmd,
+    )
+    uid = console.command("tester-uid", f"id -u {TEST_USER}", cmd).strip().splitlines()[-1]
+    console.command(
+        "installer-start",
+        f"sudo -n sh -c 'XDG_RUNTIME_DIR=/run/user/{uid} WAYLAND_DISPLAY=wayland-0 "
+        "nohup lightlix-installer > /tmp/installer.log 2>&1 &'; sleep 2",
+        cmd,
+    )
+    poll_command(console, "installer-running", "pgrep -x calamares", budgets["START_TIMEOUT"])
+    time.sleep(20)
+    console.command("installer-still-running", "pgrep -x calamares", cmd)
+    console.command(
+        "installer-log",
+        "sudo -n tail -n 60 /tmp/installer.log; "
+        "! sudo -n grep -qiE 'could not load the qt platform plugin|failed to create wl_display|cannot connect to' /tmp/installer.log",
+        cmd,
+    )
+    installer = capture(console, monitor, logs, "installer", workdir)
+    require(installer["colors"] >= 8, f"The installer window looks blank: {installer}")
+    console.command("installer-stop", "sudo -n pkill -x calamares; sleep 2; ! pgrep -x calamares", cmd)
 
     # 서버 모드로 돌아가면 데스크톱이 완전히 내려간다.
     back = console.command("mode-server", "lightlix --json mode server", budgets["START_TIMEOUT"])

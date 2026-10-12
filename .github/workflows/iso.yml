@@ -49,6 +49,16 @@ jobs:
       - name: Test Control Center (unit and GTK smoke)
         run: make test-gui
 
+      - name: Test the signed APT repository tooling (container)
+        run: make test-apt-repo-docker
+
+      - name: Test the Calamares configuration against the Calamares package
+        run: make test-installer-config-docker
+
+      # 가짜 저장소에서 실제 apt 와 dpkg 로 커널과 드라이버 갱신, 롤백, 실패 복구를 확인한다.
+      - name: Test lightlix-update with real apt (container)
+        run: make test-update-docker
+
       # Debian의 Go와 gcc를 쓰고 저장소는 읽기 전용으로 복사한다. 모듈 내려받기는 막는다.
       - name: Build and test daemon and CLI
         run: |
@@ -143,6 +153,18 @@ jobs:
           E2E_TIMEOUT: '1200'
         run: make test-qemu-desktop-docker
 
+      # 같은 ISO 로 빈 가상 디스크에 헤드리스 설치하고, 디스크 부팅과 Secure Boot(shim) 부팅까지 확인한다.
+      - name: Installer E2E (UEFI, install to disk, boot from disk, Secure Boot)
+        timeout-minutes: 45
+        env:
+          BOOT_TIMEOUT: '900'
+          COMMAND_TIMEOUT: '120'
+          START_TIMEOUT: '300'
+          INSTALL_TIMEOUT: '1500'
+          UPDATE_TIMEOUT: '400'
+          E2E_TIMEOUT: '3000'
+        run: make test-qemu-install-docker
+
       - name: Upload QEMU E2E logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -151,6 +173,7 @@ jobs:
           path: |
             out/qemu-e2e/
             out/qemu-desktop/
+            out/qemu-install/
           if-no-files-found: warn
           retention-days: 7
 

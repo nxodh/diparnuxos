@@ -34,3 +34,22 @@ openssh-server
 lightlix-control-center
 # Secure Boot 기기 키 등록 도구(lightlix-mok)가 쓴다. 설치된 시스템에서만 쓰며 서비스는 없다.
 mokutil
+
+# Phase 4 설치기 구성 요소. 설치된 시스템의 부트로더(Secure Boot 용 서명된 shim 과 GRUB)와 디스크 도구를 라이브 이미지에 미리 넣어
+# 오프라인으로 설치할 수 있게 한다. grub-efi-amd64 메타 패키지는 postinst 가 grub-install 을 시도하므로 쓰지 않는다.
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+grub2-common
+shim-signed
+efibootmgr
+fdisk
+dosfstools
+e2fsprogs
+rsync
+
+# Calamares 그래픽 설치기(Lightlix 전용 설정). 라이브 데스크톱 세션에서 lightlix-installer 로 실행한다.
+# 설치된 시스템에서는 설치 마무리 단계(lightlix-install target-prepare)가 이 패키지와 Calamares 를 지운다.
+lightlix-installer
+
+# Lightlix 자체 저장소의 공개 키와 소스 설정. 저장소 주소와 키가 정해지기 전에는 소스가 꺼진 채로 설치된다.
+lightlix-archive-keyring

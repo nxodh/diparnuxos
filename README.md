@@ -86,6 +86,10 @@ RTX 50은 오픈 커널 모듈만 지원한다. Secure Boot가 켜진 상태에�
 | `make test-qemu-usb-docker` | ISO를 USB 저장 장치로 붙여 같은 부팅 확인을 한다. 광학 드라이브가 없는 실기와 가깝다. |
 | `make test-qemu-e2e-docker` | 라이브 사용자로 로그인해 실제 모델 다운로드·SHA-256·CPU 추론·중지를 검사한다. |
 | `make test-qemu-e2e-driver` | ISO 없이 E2E 드라이버의 오류 판정과 정리를 검사한다. |
+| `make test-update-docker` | 가짜 저장소에서 실제 apt/dpkg 로 `lightlix-update` 의 갱신, 롤백, 실패 복구를 확인한다([docs/updates.md](docs/updates.md)). |
+| `make test-apt-repo-docker` | 서명된 자체 APT 저장소를 만들고 apt 의 서명 검증과 변조 거절을 확인한다([docs/apt-repository.md](docs/apt-repository.md)). |
+| `make test-installer-config-docker` | Calamares 설정이 실제 Calamares 패키지의 모듈과 스키마에 맞는지 확인한다. |
+| `make test-qemu-install-docker` | ISO 로 빈 가상 디스크에 설치하고 디스크 부팅과 Secure Boot(shim) 부팅까지 확인한다([docs/installation.md](docs/installation.md)). |
 | `make clean` | 빌드 산출물을 지운다. `out/llama/`는 남긴다. |
 | `make clean-llama` | `out/llama/`(llama.cpp 빌드 산출물)를 지운다. |
 
@@ -126,7 +130,7 @@ out/             빌드 산출물(git 제외)
 | 1 | 헤드리스 ISO, NVIDIA 오픈 모듈, CUDA 런타임, 부팅 진단, DKMS 키 제거 | 구현 및 CI 검증 완료. NVIDIA 실기 검증 대기 |
 | 2 | llama.cpp CUDA/CPU 소스 빌드, `lightlixd`, CLI, 추론 서버 | 구현 및 CI 검증 완료(CUDA 패키지, ISO, UEFI CD/USB, live CPU E2E). 실 GPU 오프로드는 실기 검증 대기 |
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 구현 및 CI 검증 완료(QEMU 가상 화면에서 모드 전환, greetd, labwc, Control Center). 실기 모니터·입력·Secure Boot MOK 검증 대기 |
-| 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 계획 |
+| 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 구현 중([PR #6](https://github.com/nxodh/lightlixos/pull/6)). 컨테이너 시험 통과, QEMU 설치 E2E 는 [검증 기록](docs/verification-phase-4.md). 실기 설치·실제 커널 갱신 검증 대기. 저장소 호스팅과 서명 키는 사용자 결정 대기 |
 | 5 | 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
 
 ---
@@ -136,6 +140,10 @@ out/             빌드 산출물(git 제외)
 | 문서 | 내용 |
 |---|---|
 | [docs/decisions.md](docs/decisions.md) | 기술 결정 기록. 원래 결정, 2026-10-10 변경, 근거와 출처 |
+| [docs/installation.md](docs/installation.md) | 설치(그래픽, 콘솔), 디스크 구성, 설치 뒤, 한계 |
+| [docs/updates.md](docs/updates.md) | 커널·드라이버 업데이트, 부팅 뒤 확인, 롤백, 오류 코드 |
+| [docs/apt-repository.md](docs/apt-repository.md) | 자체 APT 저장소 구조, 키 생성 절차, 클라이언트 설정 |
+| [docs/phase-4-design.md](docs/phase-4-design.md) | Phase 4 설계 |
 | [docs/drivers.md](docs/drivers.md) | NVIDIA 드라이버 구성과 Phase 1 검증 |
 | [docs/verification-phase-1.md](docs/verification-phase-1.md) | 이번 단계에서 실제로 확인한 내용과 남은 한계 |
 | [docs/verification-phase-2.md](docs/verification-phase-2.md) | Phase 2 CI 실행별 결과, 패키지/fixture/ISO 검증 범위와 미검증 항목 |

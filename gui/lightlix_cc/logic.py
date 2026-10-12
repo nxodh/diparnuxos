@@ -322,3 +322,104 @@ def evaluate_api(config, key_count):
 def skipped_steps(results):
     """ERROR 나 WARN 으로 끝난 단계는 건너뜀으로 기록한다."""
     return [r.step for r in results if r.level in (WARN, ERROR)]
+
+
+# 갱신 단계 이름(lightlix-update 의 이벤트 step)을 사용자 말로 바꾼다.
+_UPDATE_STEPS = {
+    "refresh": lambda: _("Refreshing the package lists"),
+    "plan": lambda: _("Planning the update"),
+    "grub": lambda: _("Preparing the boot entry"),
+    "kernel": lambda: _("Installing and building the new kernel"),
+    "upgrade": lambda: _("Installing the updates"),
+    "verify": lambda: _("Verifying the driver build"),
+    "cleanup": lambda: _("Removing the failed kernel"),
+    "recover": lambda: _("Restoring the previous versions"),
+    "driver": lambda: _("Restoring the previous driver"),
+    "done": lambda: _("Finishing"),
+}
+
+
+def describe_update(info):
+    """GET /v1/update 응답을 표시용 값으로 바꾼다.
+
+    돌려주는 사전: level, title, detail, busy, reboot, can_check, can_install, can_rollback.
+    """
+    out = {
+        "level": INFO,
+        "title": _("Update status is not available"),
+        "detail": "",
+        "busy": False,
+        "reboot": False,
+        "can_check": False,
+        "can_install": False,
+        "can_rollback": False,
+    }
+    if not isinstance(info, dict):
+        return out
+    state = info.get("state") or {}
+    phase = state.get("phase") or "idle"
+    if info.get("live"):
+        out["title"] = _("Updates are only available on an installed system")
+        out["detail"] = _("This is a live session. Install Lightlix to receive kernel and driver updates.")
+        return out
+    if not info.get("available"):
+        out["level"] = WARN
+        out["title"] = _("The update helper is not installed")
+        return out
+
+    if info.get("running") or phase == "running":
+        step = state.get("step") or ""
+        fn = _UPDATE_STEPS.get(step)
+        out["busy"] = True
+        out["title"] = _("Updating")
+        out["detail"] = fn() if fn else step
+        return out
+
+    out["can_check"] = True
+    out["can_install"] = phase != "pending_boot"
+    out["can_rollback"] = bool(info.get("rollback_available")) and phase != "pending_boot"
+
+    if phase == "pending_boot":
+        out["level"] = WARN
+        out["reboot"] = True
+        out["title"] = _("Restart to finish the update")
+        if state.get("new_kernel"):
+            out["detail"] = _("The new kernel %s starts once. It becomes the default only after it passes the boot check.") % state["new_kernel"]
+        else:
+            out["detail"] = _("The new driver is loaded after the restart.")
+        return out
+    if phase == "failed":
+        out["level"] = ERROR
+        out["title"] = _("The last update failed")
+        out["detail"] = state.get("message") or state.get("code") or ""
+        return out
+    if phase == "rolled_back":
+        out["level"] = WARN
+        out["reboot"] = True
+        out["title"] = _("Rolled back")
+        out["detail"] = _("Restart to use the previous kernel and driver.")
+        return out
+
+    check = info.get("last_check") or {}
+    plan = check.get("plan")
+    if check.get("error"):
+        out["level"] = WARN
+        out["title"] = _("The last check failed")
+        out["detail"] = check["error"].get("message") or check["error"].get("code") or ""
+    elif plan is None:
+        out["title"] = _("Not checked yet")
+        out["detail"] = _("Check for updates to see what is available.")
+    elif plan.get("up_to_date"):
+        out["level"] = OK
+        out["title"] = _("Everything is up to date")
+    else:
+        count = len(plan.get("changes") or [])
+        out["title"] = _("%d package updates are available") % count
+        parts = []
+        kernels = plan.get("kernels") or []
+        if kernels:
+            parts.append(_("New kernel %s") % kernels[-1])
+        if plan.get("driver_to"):
+            parts.append(_("NVIDIA driver %(old)s to %(new)s") % {"old": plan.get("driver_from") or "?", "new": plan["driver_to"]})
+        out["detail"] = " · ".join(parts)
+    return out

@@ -186,8 +186,11 @@ class Client:
     def set_ssh(self, enabled):
         return self._request("PUT", "/v1/system/ssh", {"enabled": bool(enabled)}, timeout=60.0)
 
-    def update(self):
-        return self._request("POST", "/v1/update")
+    def update_info(self):
+        return self._request("GET", "/v1/update")
+
+    def update_start(self, action, reboot=False):
+        return self._request("POST", "/v1/update", {"action": action, "reboot": bool(reboot)})
 
     # --- 계정 ---
     def users(self):

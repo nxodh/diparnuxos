@@ -188,5 +188,72 @@ class WizardTests(unittest.TestCase):
             self.assertIn(step, logic.STEPS)
 
 
+
+
+class DescribeUpdateTests(unittest.TestCase):
+    def info(self, **kw):
+        base = {"available": True, "live": False, "running": False, "state": {"phase": "idle"}, "rollback_available": False}
+        base.update(kw)
+        return base
+
+    def test_live_session_blocks_everything(self):
+        d = logic.describe_update(self.info(live=True, available=False))
+        self.assertFalse(d["can_check"] or d["can_install"] or d["can_rollback"])
+
+    def test_missing_helper(self):
+        d = logic.describe_update(self.info(available=False))
+        self.assertEqual(d["level"], logic.WARN)
+        self.assertFalse(d["can_check"])
+
+    def test_running_is_busy_and_names_the_step(self):
+        d = logic.describe_update(self.info(running=True, state={"phase": "running", "step": "kernel"}))
+        self.assertTrue(d["busy"])
+        self.assertFalse(d["can_check"] or d["can_install"])
+        self.assertEqual(d["detail"], "Installing and building the new kernel")
+
+    def test_pending_boot_asks_for_restart_and_blocks_install(self):
+        d = logic.describe_update(self.info(state={"phase": "pending_boot", "new_kernel": "6.12.112+deb13-amd64"}, rollback_available=True))
+        self.assertTrue(d["reboot"])
+        self.assertTrue(d["can_check"])
+        self.assertFalse(d["can_install"] or d["can_rollback"])
+        self.assertIn("6.12.112+deb13-amd64", d["detail"])
+
+    def test_failed_shows_the_message(self):
+        d = logic.describe_update(self.info(state={"phase": "failed", "code": "dkms_failed", "message": "module not found"}))
+        self.assertEqual(d["level"], logic.ERROR)
+        self.assertEqual(d["detail"], "module not found")
+
+    def test_up_to_date_and_available(self):
+        d = logic.describe_update(self.info(last_check={"time": "t", "plan": {"up_to_date": True, "changes": []}}))
+        self.assertEqual(d["level"], logic.OK)
+        d = logic.describe_update(
+            self.info(
+                last_check={
+                    "time": "t",
+                    "plan": {
+                        "up_to_date": False,
+                        "changes": [{"name": "a"}, {"name": "b"}],
+                        "kernels": ["6.12.112+deb13-amd64"],
+                        "driver_from": "595.91.07-1",
+                        "driver_to": "595.100.01-1",
+                    },
+                },
+                rollback_available=True,
+            )
+        )
+        self.assertIn("2", d["title"])
+        self.assertIn("6.12.112+deb13-amd64", d["detail"])
+        self.assertIn("595.100.01-1", d["detail"])
+        self.assertTrue(d["can_install"] and d["can_rollback"])
+
+    def test_check_error_is_shown(self):
+        d = logic.describe_update(self.info(last_check={"time": "t", "error": {"code": "network", "message": "no route"}}))
+        self.assertEqual(d["level"], logic.WARN)
+        self.assertEqual(d["detail"], "no route")
+
+    def test_garbage_input(self):
+        self.assertFalse(logic.describe_update(None)["can_check"])
+
+
 if __name__ == "__main__":
     unittest.main()

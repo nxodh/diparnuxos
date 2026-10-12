@@ -8,7 +8,7 @@
 #         lightlix-user remove NAME
 #         lightlix-user ssh-prepare   (없는 SSH 호스트 키를 만들고 로그인 허용 정책을 맞춘다)
 # 결과는 표준 출력의 마지막 줄 LIGHTLIX_USER_RESULT=ok 또는 LIGHTLIX_USER_RESULT=error:<코드> 로 알린다.
-# 환경 변수는 테스트용이다: LIGHTLIX_USER_LIST, LIGHTLIX_SSHD_DROPIN, LIGHTLIX_USER_GROUPS.
+# 환경 변수는 테스트용이다: LIGHTLIX_USER_LIST, LIGHTLIX_SSHD_DROPIN, LIGHTLIX_USER_GROUPS, LIGHTLIX_SYSTEMD_DIR.
 set -u
 # 문자 범위가 로케일에 따라 달라지지 않게 고정한다.
 LC_ALL=C
@@ -17,6 +17,8 @@ export LC_ALL
 LIST="${LIGHTLIX_USER_LIST:-/var/lib/lightlix/users.list}"
 DROPIN="${LIGHTLIX_SSHD_DROPIN:-/etc/ssh/sshd_config.d/50-lightlix.conf}"
 GROUPS_BASE="${LIGHTLIX_USER_GROUPS:-lightlix,video,render}"
+# systemd 가 실제로 부팅한 시스템에만 있는 디렉터리다. 설치기의 chroot 에는 없다.
+SYSTEMD_DIR="${LIGHTLIX_SYSTEMD_DIR:-/run/systemd/system}"
 
 result_ok() { echo 'LIGHTLIX_USER_RESULT=ok'; exit 0; }
 result_err() {
@@ -76,6 +78,8 @@ write_policy() {
 }
 
 reload_ssh() {
+    # 설치기가 대상 시스템의 chroot 안에서 부를 때는 서비스도 호스트 키도 없다. 그때는 검증과 다시 읽기를 건너뛴다.
+    [ -d "$SYSTEMD_DIR" ] || return 0
     command -v systemctl >/dev/null 2>&1 || return 0
     if systemctl is-active --quiet ssh.service 2>/dev/null; then
         if command -v sshd >/dev/null 2>&1 && ! sshd -t 2>/dev/null; then

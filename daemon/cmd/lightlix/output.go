@@ -162,7 +162,7 @@ Commands:
   serve plan [model]          show the plan without starting
   serve logs                  show recent llama-server log lines
   mode [server|desktop]       show or set the mode
-  update                      update Lightlix (not implemented yet)
+  update [--check|--rollback] update the kernel, driver and system packages
   report                      write a diagnostic report
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys

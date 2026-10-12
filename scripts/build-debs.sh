@@ -43,6 +43,10 @@ for pkgdir in "${ROOT}"/packages/*/; do
     if [ "${name}" = lightlix-daemon ]; then
         cp -a "${ROOT}/daemon" "${src}/daemon"
     fi
+    # 키링 패키지는 저장소 루트의 공개 키 디렉터리를 쓴다.
+    if [ "${name}" = lightlix-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
+        cp -a "${ROOT}/keys" "${src}/keys"
+    fi
     # Control Center 소스도 패키지의 임시 사본에만 넣는다.
     if [ "${name}" = lightlix-control-center ]; then
         cp -a "${ROOT}/gui" "${src}/gui"

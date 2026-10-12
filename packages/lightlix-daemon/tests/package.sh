@@ -21,10 +21,10 @@ done
 for dependency in lightlix-nvidia lightlix-llm; do
     [[ "$depends" == *"$dependency (= $LIGHTLIX_VERSION)"* ]]
 done
-for path in usr/sbin/lightlixd usr/bin/lightlix usr/lib/lightlix/check-gpu-permissions; do
+for path in usr/sbin/lightlixd usr/bin/lightlix usr/lib/lightlix/check-gpu-permissions usr/lib/lightlix/lightlix-update usr/sbin/lightlix-install; do
     [[ -x "$WORK/root/$path" ]]
 done
-for path in usr/lib/sysusers.d/lightlix.conf usr/lib/tmpfiles.d/lightlix-daemon.conf usr/share/lightlix/firewall-default.nft usr/share/doc/lightlix-daemon/go-nvml.LICENSE; do
+for path in etc/default/grub.d/20-lightlix.cfg usr/lib/systemd/system/lightlix-update-verify.service usr/lib/sysusers.d/lightlix.conf usr/lib/tmpfiles.d/lightlix-daemon.conf usr/share/lightlix/firewall-default.nft usr/share/doc/lightlix-daemon/go-nvml.LICENSE; do
     [[ -s "$WORK/root/$path" ]]
 done
 [[ "$("$WORK/root/usr/sbin/lightlixd" --version)" == "lightlixd $LIGHTLIX_VERSION" ]]
@@ -45,7 +45,7 @@ done
 grep -q systemd-sysusers "$WORK/control/postinst"
 grep -q systemd-tmpfiles "$WORK/control/postinst"
 awk '/systemd-sysusers/ { users=NR } /systemd-tmpfiles/ { if (!users || users>=NR) exit 1; checked=1 } END { if (!checked) exit 1 }' "$WORK/control/postinst"
-for unit in lightlixd.service lightlixd.socket lightlix-firewall-default.service lightlix-firewall.service; do
+for unit in lightlixd.service lightlixd.socket lightlix-firewall-default.service lightlix-firewall.service lightlix-update-verify.service; do
     grep -Fq "$unit" "$WORK/control/postinst"
 done
 mkdir -p "$WORK/root/etc" "$WORK/root/run"

@@ -34,6 +34,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/models"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
 )
 
 // 요청과 응답의 크기 상한이다.
@@ -64,6 +65,12 @@ type AccountManager interface {
 	PrepareSSH(ctx context.Context) error
 }
 
+// UpdateController 는 커널과 드라이버 갱신을 시작하고 상태를 읽는다. *updatectl.Controller 가 만족한다.
+type UpdateController interface {
+	Info(ctx context.Context) (updatectl.Info, error)
+	Start(ctx context.Context, action string, reboot bool) error
+}
+
 // HFClient 는 검색과 원격 파일 목록에 쓰는 Hugging Face 기능이다. *hf.Client 가 만족한다.
 type HFClient interface {
 	Search(ctx context.Context, query string, limit int) ([]hf.SearchResult, error)
@@ -85,6 +92,8 @@ type Deps struct {
 	HF HFClient
 	// Accounts 는 로그인 계정 관리다. nil 이면 계정 API 는 오류를 돌려준다.
 	Accounts AccountManager
+	// Updates 는 커널과 드라이버 갱신이다. nil 이면 갱신 API 는 update_unavailable 을 돌려준다.
+	Updates UpdateController
 	// GPU 는 NVML 프로버다. nil 이면 NVML 을 쓸 수 없는 것으로 본다.
 	GPU platform.GPUProber
 	// Runner 는 외부 명령 실행기다. GPU 진단 실행에 쓴다.
@@ -182,6 +191,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("DELETE /v1/firstboot", s.deleteFirstBoot)
 	s.mux.HandleFunc("GET /v1/recommendations", s.getRecommendations)
 
+	s.mux.HandleFunc("GET /v1/update", s.getUpdate)
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
 }
@@ -287,6 +297,11 @@ func writeErr(w http.ResponseWriter, err error) {
 	var ae *accounts.Error
 	if errors.As(err, &ae) {
 		writeError(w, accountStatus(ae.Code), ae.Code, "%s", ae.Message)
+		return
+	}
+	var ue *updatectl.Error
+	if errors.As(err, &ue) {
+		writeError(w, updateStatus(ue.Code), ue.Code, "%s", ue.Message)
 		return
 	}
 	var se *supervisor.Error
@@ -554,11 +569,6 @@ func (s *server) postMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"mode": body.Mode})
-}
-
-// postUpdate 는 업데이트 기능이 아직 없다.
-func (s *server) postUpdate(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "not_implemented", "update arrives in a later release")
 }
 
 // getReport 는 진단 리포트를 평문으로 돌려준다.

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+# GRUB 설정 조각(/etc/default/grub.d/20-lightlix.cfg)을 grub.cfg 에 반영한다.
+# 설치된 시스템에서만 의미가 있다. 이미지 빌드(grub.cfg 없음)와 라이브 세션에서는 건너뛴다.
+if [ "$1" = configure ] && [ -f /boot/grub/grub.cfg ] && [ ! -e /run/live ] && command -v update-grub >/dev/null 2>&1; then
+    update-grub || echo "lightlix-daemon: update-grub failed; run it manually" >&2
+fi
+
+exit 0
