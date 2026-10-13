@@ -420,3 +420,51 @@ func TestBusyAnswerAsksToRetry(t *testing.T) {
 		t.Fatalf("busy = %d %v", w.Code, w.Header())
 	}
 }
+
+// 코딩 에이전트는 SSE 로 토큰을 받아 화면에 바로 쓴다. 게이트웨이가 청크를 모아 두었다 내보내면 안 된다.
+func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
+	release := make(chan struct{})
+	be := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fl := w.(http.Flusher)
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n")
+		fl.Flush()
+		<-release // 두 번째 청크는 클라이언트가 첫 청크를 받은 뒤에야 나간다.
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}],\"usage\":{\"completion_tokens\":2}}\n\ndata: [DONE]\n\n")
+		fl.Flush()
+	}))
+	defer be.Close()
+	u, _ := url.Parse(be.URL)
+	g := &Gateway{Keys: &fakeKeys{}, LANExposed: func() bool { return false }, Version: "0.5.3"}
+	front := httptest.NewServer(g.Handler(u))
+	defer front.Close()
+
+	req, _ := http.NewRequest("POST", front.URL+"/v1/chat/completions", strings.NewReader(`{"stream":true}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") || resp.Header.Get("X-Diparnux") != "0.5.3" {
+		t.Fatalf("headers = %v", resp.Header)
+	}
+	first := make([]byte, 64)
+	got := make(chan string, 1)
+	go func() {
+		n, _ := resp.Body.Read(first)
+		got <- string(first[:n])
+	}()
+	select {
+	case s := <-got:
+		if !strings.Contains(s, `"content":"a"`) {
+			t.Fatalf("first chunk = %q", s)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the first chunk did not arrive before the stream ended: the gateway buffers the stream")
+	}
+	close(release)
+	rest, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(rest), "[DONE]") || !strings.Contains(string(rest), "completion_tokens") {
+		t.Fatalf("rest = %q", rest)
+	}
+}
