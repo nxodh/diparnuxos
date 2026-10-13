@@ -12,7 +12,7 @@ import (
 // serve 는 serve 명령 묶음이다.
 func (c *cli) serve(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux serve <start|stop|plan|logs|stats>", "serve")
+		return c.usage("usage: diparnux serve <start|stop|plan|logs|stats|toolcheck>", "serve")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -26,6 +26,8 @@ func (c *cli) serve(args []string) int {
 		return c.serveLogs(rest)
 	case "stats":
 		return c.serveStats(rest)
+	case "toolcheck":
+		return c.serveToolCheck(rest)
 	}
 	return c.usage(fmt.Sprintf("unknown serve command %q", sub), "serve")
 }
@@ -384,6 +386,35 @@ func (c *cli) serveStats(args []string) int {
 	if st.Gateway != nil {
 		kv(w, "gateway", fmt.Sprintf("%d requests, %d errors, %d refused, %d in flight",
 			st.Gateway.Requests, st.Gateway.Errors, st.Gateway.Unauthorized, st.Gateway.InFlight))
+	}
+	return exitOK
+}
+
+// serveToolCheck 는 서버가 도구 호출을 제대로 돌려주는지 작은 요청으로 확인한다.
+// 코딩 에이전트(Vedecaps 같은 도구)는 이 기능이 있어야 파일을 읽고 고칠 수 있다.
+func (c *cli) serveToolCheck(args []string) int {
+	if len(args) != 0 {
+		return c.usage("serve toolcheck takes no arguments", "serve toolcheck")
+	}
+	ctx, cancel := c.timeout(chatTimeout)
+	defer cancel()
+	res, raw, err := c.api.ToolCheck(ctx)
+	if err != nil {
+		return c.fail(err)
+	}
+	if c.asJSON {
+		if c.printJSON(raw) != exitOK {
+			return exitFailure
+		}
+	} else {
+		w := c.env.stdout
+		kv(w, "tool calls", map[bool]string{true: "working", false: "not working"}[res.OK])
+		kv(w, "result", res.Message)
+		kv(w, "finish reason", orDash(res.FinishReason))
+		kv(w, "time", fmt.Sprintf("%d ms", res.LatencyMS))
+	}
+	if !res.OK {
+		return exitFailure
 	}
 	return exitOK
 }

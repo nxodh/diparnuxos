@@ -455,6 +455,15 @@ type Connection struct {
 	Examples    map[string]string   `json:"examples"`
 }
 
+// ToolCheck 는 POST /v1/server/toolcheck 의 응답이다.
+type ToolCheck struct {
+	OK           bool   `json:"ok"`
+	Code         string `json:"code"`
+	Message      string `json:"message"`
+	FinishReason string `json:"finish_reason"`
+	LatencyMS    int64  `json:"latency_ms"`
+}
+
 // ServerStats 는 GET /v1/server/stats 의 응답이다.
 type ServerStats struct {
 	Running       bool   `json:"running"`

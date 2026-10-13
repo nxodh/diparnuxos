@@ -1597,3 +1597,6 @@ msgstr "이 컴퓨터의 Vedecaps 같은 프로그램은 API 키 없이 연결�
 
 msgid "Restart the server for the new use to take effect."
 msgstr "새 용도를 적용하려면 서버를 다시 시작하세요."
+
+msgid "for coding agents"
+msgstr "코딩 에이전트용"

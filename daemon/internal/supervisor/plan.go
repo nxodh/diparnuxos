@@ -139,6 +139,7 @@ func (s *Supervisor) buildPlan(ctx context.Context, m models.Model, ov autoconf.
 		in.RAMAvailMiB = unknownRAMMiB
 	} else {
 		in.RAMAvailMiB = mem.AvailableMiB
+		in.RAMTotalMiB = mem.TotalMiB
 		summary.RAMTotalMiB = mem.TotalMiB
 	}
 	summary.RAMAvailMiB = in.RAMAvailMiB

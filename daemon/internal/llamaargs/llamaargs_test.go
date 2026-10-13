@@ -330,3 +330,22 @@ func TestEnvParallelSlots(t *testing.T) {
 		t.Fatalf("env = %v", env)
 	}
 }
+
+func TestEnvCacheReuseAndCacheRAMOnlyWhenPlanned(t *testing.T) {
+	p := autoconf.Plan(autoconf.Input{ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, RAMAvailMiB: 8000, RAMTotalMiB: 16000})
+	env, err := Env(p, ServerSettings{ModelPath: "/m/a.gguf", Host: "127.0.0.1", Port: 8080})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := env["LLAMA_ARG_CACHE_REUSE"]; ok {
+		t.Fatal("cache reuse must stay off for the chat profile")
+	}
+	if env["LLAMA_ARG_CACHE_RAM"] != "2000" {
+		t.Fatalf("LLAMA_ARG_CACHE_RAM = %q", env["LLAMA_ARG_CACHE_RAM"])
+	}
+	p.CacheReuse = 256
+	env, _ = Env(p, ServerSettings{ModelPath: "/m/a.gguf", Host: "127.0.0.1", Port: 8080})
+	if env["LLAMA_ARG_CACHE_REUSE"] != "256" {
+		t.Fatalf("LLAMA_ARG_CACHE_REUSE = %q", env["LLAMA_ARG_CACHE_REUSE"])
+	}
+}

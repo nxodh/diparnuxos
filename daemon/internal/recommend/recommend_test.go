@@ -74,3 +74,21 @@ func TestRecommendUnknownHardware(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentModelsSupportToolsAndAreAtLeast8B(t *testing.T) {
+	agents := 0
+	for _, m := range Catalog {
+		if m.Agent && !m.Tools {
+			t.Fatalf("%s is marked for agents without tool support", m.Name)
+		}
+		if m.Agent {
+			agents++
+			if m.SizeMiB < 4000 {
+				t.Fatalf("%s is marked for agents but is smaller than 8B", m.Name)
+			}
+		}
+	}
+	if agents == 0 {
+		t.Fatal("no model is marked for coding agents")
+	}
+}

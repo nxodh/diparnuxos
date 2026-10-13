@@ -98,6 +98,8 @@ class ModelsPage(Adw.PreferencesPage):
             fits = m.get("fits")
             tags = [m.get("params", ""), logic.fmt_mib(m.get("size_mib", -1)), m.get("license", "")]
             tags.append(_("fits") if fits else _("too large"))
+            if m.get("agent"):
+                tags.append(_("for coding agents"))
             title = m.get("name", m.get("repo", "?"))
             if i == best:
                 title += "  ★"

@@ -58,6 +58,11 @@ const (
 	agentCtxFloor int64 = 8192
 	agentGoodCtx  int64 = 16384
 	agentParallel int64 = 2
+	// agentCacheReuse 는 에이전트 프로필에서 프롬프트 캐시를 다시 쓰는 최소 조각(토큰)이다.
+	agentCacheReuse = 256
+	// 프롬프트 캐시가 메모리에서 쓰는 크기의 범위다. 전체 메모리의 1/8 을 이 범위 안으로 넣는다(llama-server 기본값은 8192).
+	cacheRAMMinMiB int64 = 512
+	cacheRAMMaxMiB int64 = 8192
 
 	// 프로필 이름이다. 비어 있으면 chat 이다.
 	ProfileChat  = "chat"
@@ -108,6 +113,8 @@ type Output struct {
 	Batch          int      // 배치 크기
 	Parallel       int      // 동시에 처리할 요청 수(슬롯). 0 이나 1 이면 하나다
 	SlotCtx        int      // 슬롯 하나의 컨텍스트. Ctx 는 SlotCtx 와 Parallel 의 곱이다
+	CacheReuse     int      // 프롬프트 캐시 재사용 최소 조각(토큰). 0 이면 llama-server 기본값(끔)이다
+	CacheRAMMiB    int      // 프롬프트 캐시가 메모리에서 쓸 수 있는 최대 크기. 0 이면 llama-server 기본값이다
 	TensorSplit    string   // GPU가 둘 이상일 때만 값이 있다
 	VisibleDevices []int    // CUDA에 보일 GPU index 목록, 오름차순
 	LoadMode       string   // 모델 로드 방식
@@ -127,6 +134,7 @@ type norm struct {
 	ctxTrain   int64
 	embedding  int64
 	ramAvail   int64
+	ramTotal   int64
 	gpus       []GPU
 	desktop    bool
 	ov         Overrides
@@ -292,6 +300,10 @@ func (pl *planner) normalize(in Input) norm {
 	if n.ramAvail < 0 {
 		pl.warn("negative available RAM treated as 0")
 		n.ramAvail = 0
+	}
+
+	if in.RAMTotalMiB > 0 {
+		n.ramTotal = in.RAMTotalMiB
 	}
 
 	seen := make(map[int]bool, len(in.GPUs))
@@ -550,6 +562,15 @@ func (pl *planner) finish(n norm, c choice) Output {
 		if c.ctx < agentGoodCtx {
 			pl.warnf("only %d tokens per request fit; a coding agent will compact its history often. Free GPU memory, use a smaller model or one slot", c.ctx)
 		}
+	}
+	if n.agent {
+		// 에이전트는 시스템 프롬프트와 앞부분 대화가 같고 뒤만 바뀌는 요청을 반복한다. 캐시를 조각 단위로 재사용하면 앞부분을 다시 계산하지 않는다.
+		out.CacheReuse = agentCacheReuse
+		pl.rationalef("agent profile: prompt cache reuse from %d-token chunks", agentCacheReuse)
+	}
+	if ram := n.ramTotal; ram > 0 {
+		// llama-server 기본값은 8 GiB 다. 작은 컴퓨터에서 캐시가 시스템 메모리를 다 쓰지 않도록 전체 메모리의 1/8 로 묶는다.
+		out.CacheRAMMiB = int(min(cacheRAMMaxMiB, max(cacheRAMMinMiB, ram/8)))
 	}
 	if n.par > 1 {
 		pl.rationalef("%d parallel slots with %d tokens each: the server context is %d tokens", n.par, c.ctx, satMul(c.ctx, n.par))

@@ -2225,3 +2225,28 @@ func TestGatewayModeStillRequiresAKeyForLANExposure(t *testing.T) {
 		t.Fatalf("expected %s, got %v", CodeAPIKeyRequired, err)
 	}
 }
+
+func TestPlanUsesTotalMemoryForPromptCacheAndSavedAgentProfile(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	pr, err := f.sup.Plan(context.Background(), "", autoconf.Overrides{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	// 시험용 메모리 정보는 전체 65536 MiB 이므로 1/8 은 8192 로 상한에 걸린다.
+	if pr.Output.CacheRAMMiB != 8192 {
+		t.Fatalf("CacheRAMMiB = %d, want 8192", pr.Output.CacheRAMMiB)
+	}
+	if pr.Output.CacheReuse != 0 {
+		t.Fatalf("chat profile CacheReuse = %d", pr.Output.CacheReuse)
+	}
+	// 설정에 저장한 에이전트 프로필이 계획에 반영된다.
+	agent := "agent"
+	f.cfg.Overrides.Profile = &agent
+	pr, err = f.sup.Plan(context.Background(), "", autoconf.Overrides{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if pr.Output.CacheReuse != 256 {
+		t.Fatalf("agent profile CacheReuse = %d", pr.Output.CacheReuse)
+	}
+}

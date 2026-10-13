@@ -37,6 +37,8 @@ const (
 	envTensorSplit = "LLAMA_ARG_TENSOR_SPLIT"     // arg.cpp:2859, -ts/--tensor-split
 	envLoadMode    = "LLAMA_ARG_LOAD_MODE"        // arg.cpp:2711, -lm/--load-mode
 	envFit         = "LLAMA_ARG_FIT"              // arg.cpp:2883, -fit/--fit [on|off]
+	envCacheReuse  = "LLAMA_ARG_CACHE_REUSE"      // arg.cpp:3600, --cache-reuse N
+	envCacheRAM    = "LLAMA_ARG_CACHE_RAM"        // arg.cpp:1725, -cram/--cache-ram N (MiB)
 
 	// CUDA 런타임 변수다. llama.cpp 소스에는 나오지 않는다.
 	// NVIDIA CUDA 문서 5.2.1.1, 5.2.1.2의 CUDA_VISIBLE_DEVICES와 CUDA_DEVICE_ORDER 절에서 확인했다.
@@ -111,6 +113,12 @@ func Env(p autoconf.Output, s ServerSettings) (map[string]string, error) {
 	}
 	if p.Parallel > 1 {
 		env[envParallel] = strconv.Itoa(p.Parallel)
+	}
+	if p.CacheReuse > 0 {
+		env[envCacheReuse] = strconv.Itoa(p.CacheReuse)
+	}
+	if p.CacheRAMMiB > 0 {
+		env[envCacheRAM] = strconv.Itoa(p.CacheRAMMiB)
 	}
 	return env, nil
 }

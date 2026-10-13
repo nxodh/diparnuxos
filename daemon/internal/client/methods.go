@@ -272,6 +272,11 @@ func (c *Client) Connection(ctx context.Context) (Connection, []byte, error) {
 	return call[Connection](ctx, c, http.MethodGet, "/v1/connection", nil, defaultLimit)
 }
 
+// ToolCheck 는 POST /v1/server/toolcheck 로 모델이 도구 호출을 하는지 확인한다.
+func (c *Client) ToolCheck(ctx context.Context) (ToolCheck, []byte, error) {
+	return call[ToolCheck](ctx, c, http.MethodPost, "/v1/server/toolcheck", nil, defaultLimit)
+}
+
 // ServerStats 는 GET /v1/server/stats 로 서버 현황(슬롯, 처리 속도)을 읽는다.
 func (c *Client) ServerStats(ctx context.Context) (ServerStats, []byte, error) {
 	return call[ServerStats](ctx, c, http.MethodGet, "/v1/server/stats", nil, defaultLimit)

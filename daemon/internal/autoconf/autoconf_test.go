@@ -785,3 +785,32 @@ func TestProfileIsValidated(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentProfileReusesPromptCacheAndCacheRAMIsBounded(t *testing.T) {
+	in := withGPUs(refModel(), gpu(0, 24000))
+	in.RAMTotalMiB = 16000
+	chat := Plan(in)
+	if chat.CacheReuse != 0 {
+		t.Fatalf("chat profile cache reuse = %d", chat.CacheReuse)
+	}
+	if chat.CacheRAMMiB != 2000 {
+		t.Fatalf("cache RAM for 16000 MiB = %d, want 2000", chat.CacheRAMMiB)
+	}
+	in.Overrides.Profile = strp(ProfileAgent)
+	agent := Plan(in)
+	if agent.CacheReuse != 256 || !contains(agent.Rationale, "cache reuse") {
+		t.Fatalf("agent cache reuse = %d rationale = %v", agent.CacheReuse, agent.Rationale)
+	}
+	in.RAMTotalMiB = 2000
+	if got := Plan(in).CacheRAMMiB; got != 512 {
+		t.Fatalf("small machine cache RAM = %d, want the 512 floor", got)
+	}
+	in.RAMTotalMiB = 262144
+	if got := Plan(in).CacheRAMMiB; got != 8192 {
+		t.Fatalf("large machine cache RAM = %d, want the 8192 ceiling", got)
+	}
+	in.RAMTotalMiB = 0
+	if got := Plan(in).CacheRAMMiB; got != 0 {
+		t.Fatalf("unknown RAM must leave the server default, got %d", got)
+	}
+}
