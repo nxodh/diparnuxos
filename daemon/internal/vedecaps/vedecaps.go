@@ -37,6 +37,9 @@ type Input struct {
 	NeedsKey bool
 	// KeyEnv 는 키를 읽을 환경 변수 이름이다. 비어 있으면 DefaultKeyEnv 다.
 	KeyEnv string
+	// Packaged 가 true 이면 Diparnux 패키지가 /usr/bin 에 둔 Vedecaps 다. 사용자가 이 파일을 바꿀 수 없으므로
+	// 자체 업데이트 확인을 끈다(업데이트는 Diparnux 업데이트로 온다).
+	Packaged bool
 	// MCP 가 true 이면 `diparnux mcp` 를 Vedecaps 의 MCP 서버로 등록하는 조각도 넣는다.
 	MCP bool
 }
@@ -69,6 +72,9 @@ func Fragment(in Input) (map[string]any, error) {
 		provider["options"] = map[string]any{"apiKey": "{env:" + env + "}"}
 	}
 	frag := map[string]any{"provider": map[string]any{ProviderID: provider}}
+	if in.Packaged {
+		frag["autoupdate"] = false
+	}
 	if in.MCP {
 		// 읽기 전용 도구만 내는 기본 모드다. 서버를 바꾸는 도구(--allow-control)는 설정 조각에 넣지 않는다.
 		frag["mcp"] = map[string]any{ProviderID: map[string]any{
@@ -167,6 +173,13 @@ func Merge(existing []byte, frag map[string]any, opt MergeOptions) (MergeResult,
 	providers[ProviderID] = fragProviders[ProviderID]
 	root["provider"] = providers
 
+	if au, ok := frag["autoupdate"]; ok {
+		// 사용자가 이미 정한 값은 바꾸지 않는다.
+		if _, set := root["autoupdate"]; !set {
+			root["autoupdate"] = au
+			res.Notes = append(res.Notes, "turned off Vedecaps self-update (updates come with Diparnux updates)")
+		}
+	}
 	if fragMCP, ok := frag["mcp"].(map[string]any); ok {
 		mcp, _ := root["mcp"].(map[string]any)
 		if root["mcp"] != nil && mcp == nil {

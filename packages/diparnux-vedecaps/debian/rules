@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# build-debs.sh 가 DIPARNUX_CONF 를 정해 준다. 단독으로 빌드할 때는 저장소 루트의 diparnux.conf 를 쓴다.
+DIPARNUX_CONF ?= $(CURDIR)/../../diparnux.conf
+DEST = debian/diparnux-vedecaps
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	sh debian/fetch.sh "$(DIPARNUX_CONF)" build
+
+override_dh_auto_install:
+	install -D -m 755 build/vedecaps $(DEST)/usr/bin/vedecaps
+
+# bun 단일 실행 파일은 ELF 뒤에 스크립트 묶음이 붙어 있다. strip 이나 dwz 가 건드리면 실행되지 않는다.
+override_dh_strip:
+override_dh_dwz:
+override_dh_shlibdeps:
+override_dh_strip_nondeterminism:
+
+override_dh_auto_clean:
+	rm -rf build

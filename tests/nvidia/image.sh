@@ -199,6 +199,10 @@ echo 'PASS: GPT and EFI System partition found'
 # Phase 3: 데스크톱 구성 요소는 설치하되 기본 부팅 대상은 서버 모드(multi-user.target)로 둔다.
 check_package diparnux-desktop "$DIPARNUX_VERSION"
 check_package diparnux-control-center "$DIPARNUX_VERSION"
+# 0.5.3: 고정 버전의 Vedecaps 실행 파일과 에이전트용 스킬이 들어 있다.
+check_package diparnux-vedecaps "$DIPARNUX_VERSION"
+require_path 'squashfs-root/usr/bin/vedecaps$' 'Vedecaps executable'
+require_path 'squashfs-root/usr/share/diparnux/skills/diparnux/SKILL[.]md$' 'Diparnux skill for coding agents'
 for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done

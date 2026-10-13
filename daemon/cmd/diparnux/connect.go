@@ -77,7 +77,7 @@ func (c *cli) connectVedecaps(args []string) int {
 		}
 	}
 
-	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP})
+	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP, Packaged: packagedVedecaps()})
 	if err != nil {
 		c.errorLine(strings.TrimPrefix(err.Error(), "vedecaps: "))
 		return exitUsage
@@ -215,4 +215,13 @@ func linkSkill(home string) string {
 		return "could not link " + link + ": " + err.Error()
 	}
 	return "linked " + link
+}
+
+// vedecapsPath 는 Diparnux 패키지가 설치하는 Vedecaps 실행 파일 경로다. 시험이 바꾼다.
+var vedecapsPath = "/usr/bin/vedecaps"
+
+// packagedVedecaps 는 이 컴퓨터의 Vedecaps 가 Diparnux 패키지로 설치된 것인지다.
+func packagedVedecaps() bool {
+	st, err := os.Stat(vedecapsPath)
+	return err == nil && st.Mode().IsRegular()
 }

@@ -224,3 +224,25 @@ func TestConnectVedecapsWithoutWriteNeverTouchesTheFilesystem(t *testing.T) {
 		t.Fatalf("printing created files: %v", entries)
 	}
 }
+
+func TestConnectVedecapsTurnsOffSelfUpdateForThePackagedInstall(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "vedecaps")
+	if err := os.WriteFile(bin, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := vedecapsPath
+	vedecapsPath = bin
+	defer func() { vedecapsPath = old }()
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, connRunning)
+	res := runCLI(t, f, "connect", "vedecaps")
+	wantCode(t, res, exitOK)
+	if decodeOut(t, res.stdout)["autoupdate"] != false {
+		t.Fatalf("output = %s", res.stdout)
+	}
+	vedecapsPath = filepath.Join(t.TempDir(), "missing")
+	res = runCLI(t, f, "connect", "vedecaps")
+	if _, ok := decodeOut(t, res.stdout)["autoupdate"]; ok {
+		t.Fatalf("autoupdate written without the packaged binary: %s", res.stdout)
+	}
+}

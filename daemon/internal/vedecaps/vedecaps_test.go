@@ -190,3 +190,29 @@ func TestFragmentAndMergeCarryTheMCPServer(t *testing.T) {
 		t.Fatal("merged an mcp that is not an object")
 	}
 }
+
+func TestPackagedInstallTurnsOffSelfUpdateOnlyWhenUnset(t *testing.T) {
+	frag, err := Fragment(Input{BaseURL: "http://127.0.0.1:8080/v1", Packaged: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Merge([]byte(`{"theme":"dark"}`), frag, MergeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decode(t, res.Data)["autoupdate"] != false {
+		t.Fatalf("autoupdate = %v", decode(t, res.Data)["autoupdate"])
+	}
+	res, err = Merge([]byte(`{"autoupdate":"notify"}`), frag, MergeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decode(t, res.Data)["autoupdate"] != "notify" {
+		t.Fatalf("the user's choice was overwritten: %v", decode(t, res.Data)["autoupdate"])
+	}
+	// 패키지로 설치하지 않은 Vedecaps 는 스스로 업데이트하므로 건드리지 않는다.
+	frag, _ = Fragment(Input{BaseURL: "http://127.0.0.1:8080/v1"})
+	if _, ok := frag["autoupdate"]; ok {
+		t.Fatal("autoupdate was written for an install that is not ours")
+	}
+}
