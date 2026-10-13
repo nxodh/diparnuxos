@@ -1600,3 +1600,72 @@ msgstr "새 용도를 적용하려면 서버를 다시 시작하세요."
 
 msgid "for coding agents"
 msgstr "코딩 에이전트용"
+
+msgid "%(ctx)d tokens. Vedecaps works better with at least %(good)d: choose “Use for coding agents”."
+msgstr "%(ctx)d 토큰. Vedecaps는 %(good)d 토큰 이상일 때 더 잘 동작합니다. “코딩 에이전트용으로 사용”을 선택하세요."
+
+msgid "%d tokens"
+msgstr "%d 토큰"
+
+msgid "Adds Diparnux as a provider and as a source of tools."
+msgstr "Diparnux를 모델 제공자와 도구 제공자로 추가합니다."
+
+msgid "Checks that the model calls tools, which coding agents need."
+msgstr "코딩 에이전트에 필요한 도구 호출을 모델이 하는지 확인합니다."
+
+msgid "Context per request"
+msgstr "요청당 컨텍스트"
+
+msgid "Known when the server runs"
+msgstr "서버가 실행되면 알 수 있습니다"
+
+msgid "Model server"
+msgstr "모델 서버"
+
+msgid "Not installed on this computer"
+msgstr "이 컴퓨터에 설치되어 있지 않습니다"
+
+msgid "Set up"
+msgstr "설정"
+
+msgid "Set up Vedecaps"
+msgstr "Vedecaps 설정"
+
+msgid "Setting up Vedecaps failed"
+msgstr "Vedecaps 설정에 실패했습니다"
+
+msgid "Settings"
+msgstr "설정"
+
+msgid "The diparnux command was not found."
+msgstr "diparnux 명령을 찾을 수 없습니다."
+
+msgid "The model calls tools correctly."
+msgstr "모델이 도구를 올바르게 호출합니다."
+
+msgid "The model does not call tools."
+msgstr "모델이 도구를 호출하지 않습니다."
+
+msgid "Tool calls"
+msgstr "도구 호출"
+
+msgid "Use for coding agents"
+msgstr "코딩 에이전트용으로 사용"
+
+msgid "Vedecaps"
+msgstr "Vedecaps"
+
+msgid "Vedecaps is a coding agent for the terminal. This computer runs the model it uses."
+msgstr "Vedecaps는 터미널용 코딩 에이전트입니다. 이 컴퓨터가 Vedecaps가 쓰는 모델을 실행합니다."
+
+msgid "Vedecaps is set up"
+msgstr "Vedecaps 설정을 마쳤습니다"
+
+msgid "What Vedecaps needs to know, in case you want to add it by hand."
+msgstr "직접 추가하려는 경우를 위해, Vedecaps가 알아야 할 내용입니다."
+
+msgid "Writes the model, the context size and the Diparnux tools into your Vedecaps settings. Nothing else in them changes."
+msgstr "모델, 컨텍스트 크기, Diparnux 도구를 Vedecaps 설정에 씁니다. 그 밖의 설정은 바뀌지 않습니다."
+
+msgid "vedecaps.json"
+msgstr "vedecaps.json"

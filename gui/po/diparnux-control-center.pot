@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 17:38+0000\n"
+"POT-Creation-Date: 2026-10-13 17:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1554,6 +1554,83 @@ msgstr ""
 
 #, python-format
 msgid "Report saved to %s"
+msgstr ""
+
+msgid "The diparnux command was not found."
+msgstr ""
+
+msgid "Vedecaps"
+msgstr ""
+
+msgid ""
+"Vedecaps is a coding agent for the terminal. This computer runs the model it "
+"uses."
+msgstr ""
+
+msgid "Model server"
+msgstr ""
+
+msgid "Context per request"
+msgstr ""
+
+msgid "Use for coding agents"
+msgstr ""
+
+msgid ""
+"Writes the model, the context size and the Diparnux tools into your Vedecaps "
+"settings. Nothing else in them changes."
+msgstr ""
+
+msgid "Set up Vedecaps"
+msgstr ""
+
+msgid "Adds Diparnux as a provider and as a source of tools."
+msgstr ""
+
+msgid "Set up"
+msgstr ""
+
+msgid "Tool calls"
+msgstr ""
+
+msgid "Checks that the model calls tools, which coding agents need."
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "What Vedecaps needs to know, in case you want to add it by hand."
+msgstr ""
+
+msgid "Not installed on this computer"
+msgstr ""
+
+msgid "Known when the server runs"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(ctx)d tokens. Vedecaps works better with at least %(good)d: choose “Use "
+"for coding agents”."
+msgstr ""
+
+#, python-format
+msgid "%d tokens"
+msgstr ""
+
+msgid "vedecaps.json"
+msgstr ""
+
+msgid "Vedecaps is set up"
+msgstr ""
+
+msgid "Setting up Vedecaps failed"
+msgstr ""
+
+msgid "The model calls tools correctly."
+msgstr ""
+
+msgid "The model does not call tools."
 msgstr ""
 
 msgid ""

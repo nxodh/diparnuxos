@@ -72,11 +72,12 @@ ROUTES = {
         "server_state": "running", "model_id": "a.gguf", "models": ["a.gguf"], "public_port": 8080, "lan_exposed": True,
         "gateway": True, "key_required": True, "key_count": 1, "hostname": "diparnux", "local_url": "http://127.0.0.1:8080/v1",
         "addresses": [{"interface": "enp3s0", "address": "192.168.0.23", "family": "ipv4", "url": "http://192.168.0.23:8080/v1"}],
-        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."],
-        "examples": {"settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
+        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."], "slot_ctx": 8192,
+        "examples": {"vedecaps": "{\n  \"model\": \"diparnux/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
     ("GET", "/v1/gateway"): (200, {"enabled": True, "public_port": 8080, "lan_exposed": True, "state": {"listening": True, "addr": "0.0.0.0:8080", "backend_port": 18080},
         "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
         "keys": [{"id": "k1", "label": "orca", "prefix": "dpx_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
+    ("POST", "/v1/server/toolcheck"): (200, {"ok": False, "code": "no_tool_call", "message": "the model answered in text", "finish_reason": "stop", "latency_ms": 5}),
     ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
     ("GET", "/v1/firewall"): (200, {"policy": "drop", "max_rule": 64,
         "builtin": [{"name": "SSH", "protocol": "tcp", "port": 22, "source": "any", "reason": "the SSH server is on"}],
@@ -202,6 +203,32 @@ class SmokeTests(unittest.TestCase):
         page.check()
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
 
+    def test_vedecaps_page_connects_checks_tools_and_offers_the_agent_profile(self):
+        import diparnux_cc.vedecaps as vp
+
+        calls = []
+        orig_run, orig_find = vp.run_connect, vp.find_vedecaps
+        vp.run_connect = lambda: (calls.append("connect"), (True, "config   /home/u/.config/vedecaps/vedecaps.json"))[1]
+        vp.find_vedecaps = lambda: "/usr/local/bin/vedecaps"
+        try:
+            page = vp.VedecapsPage(self.ctx)
+            self.assertTrue(pump(5, until=lambda: "a.gguf" in (page.server_row.get_subtitle() or "")), "the server was not shown")
+            self.assertEqual(page.program_row.get_subtitle(), "/usr/local/bin/vedecaps")
+            # 슬롯당 컨텍스트가 작으면 에이전트 용도를 권한다. 저장된 용도가 agent 이면 단추를 숨긴다.
+            self.assertIn("8192", page.context_row.get_subtitle())
+            self.assertIn("16384", page.context_row.get_subtitle())
+            self.assertTrue(pump(5, until=lambda: len(page._example_rows) == 1), "the settings were not shown")
+            self.assertTrue(pump(5, until=lambda: page.profile_row.get_subtitle() not in (None, "-")))
+            self.assertFalse(page.profile_btn.get_visible(), "the stored profile is agent")
+
+            page.check_tools()
+            self.assertTrue(pump(5, until=lambda: "answered in text" in (page.tools_row.get_subtitle() or "")))
+
+            page.connect()
+            self.assertTrue(pump(5, until=lambda: calls == ["connect"]))
+        finally:
+            vp.run_connect, vp.find_vedecaps = orig_run, orig_find
+
     def test_models_page_imports_a_file(self):
         import tempfile
 
@@ -239,7 +266,7 @@ class SmokeTests(unittest.TestCase):
         names = [n for n, _t, _i in win._entries]
         self.assertEqual(
             names,
-            ["dashboard", "models", "server", "connection", "network", "firewall", "remote", "services", "resources", "system"],
+            ["dashboard", "models", "server", "connection", "vedecaps", "network", "firewall", "remote", "services", "resources", "system"],
         )
         for name in names:
             self.assertIsNotNone(win.stack.get_child_by_name(name), name)

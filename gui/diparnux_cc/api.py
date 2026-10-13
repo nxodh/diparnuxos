@@ -223,6 +223,9 @@ class Client:
     def delete_key(self, key_id):
         return self._request("DELETE", "/v1/apikeys/" + urllib.parse.quote(key_id, safe=""))
 
+    def tool_check(self):
+        return self._request("POST", "/v1/server/toolcheck", timeout=180.0)
+
     def server_stats(self):
         return self._request("GET", "/v1/server/stats")
 
