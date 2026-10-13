@@ -537,7 +537,12 @@ def scenario(console, monitor, budgets, logs, workdir):
         browser = capture(console, monitor, logs, "browser", workdir)
         print(f"desktop-session: browser capture {browser}", flush=True)
         console.command("browser-log", "tail -n 30 /tmp/browser.log; true", cmd)
-        console.command("browser-stop", "sudo -n pkill -f firefox; true", cmd)
+        # 패턴을 [f]irefox 로 써서 이 명령을 실행하는 셸 자신이 걸리지 않게 하고, 브라우저가 내려갈 때까지 기다린다.
+        console.command(
+            "browser-stop",
+            "sudo -n pkill -f '[f]irefox'; for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -f '[f]irefox' >/dev/null || break; sleep 1; done; true",
+            cmd,
+        )
     except Failure as error:
         print(f"desktop-session: browser experiment did not complete: {error.kind}: {str(error)[:300]}", flush=True)
 
@@ -546,7 +551,17 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(json_object(back, "mode-server").get("mode") == "server", "Mode switch did not report server")
     poll_command(console, "xfce-session-gone", "! pgrep -x xfce4-session", budgets["START_TIMEOUT"])
     console.command("lightdm-stopped", "! systemctl is-active --quiet lightdm.service", cmd)
-    console.command("xorg-gone", "! pgrep -x Xorg", cmd)
+    # lightdm 이 멈춘 뒤에도 X 서버가 내려가는 데 몇 초 걸릴 수 있다. 사라질 때까지 기다리고, 남아 있으면 상태를 남긴다.
+    try:
+        poll_command(console, "xorg-gone", "! pgrep -x Xorg", budgets["START_TIMEOUT"])
+    except Failure:
+        console.command(
+            "xorg-leftover",
+            "ps -eo pid,ppid,etime,stat,args | grep -E 'Xorg|lightdm|firefox' | grep -v grep; "
+            "systemctl status lightdm.service --no-pager 2>&1 | head -n 20; cat /proc/$(pgrep -x Xorg | head -n 1)/cgroup 2>/dev/null; true",
+            cmd,
+        )
+        raise
     console.command("default-target-server", "systemctl get-default | grep -x multi-user.target", cmd)
     time.sleep(5)
     console.command("memory-server-after", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
