@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Lightlix first-boot wizard
-Comment=Opens the Control Center only while the first-boot wizard is not finished
-Exec=lightlix-control-center --autostart
-Icon=lightlix
-OnlyShowIn=XFCE;
-NoDisplay=true

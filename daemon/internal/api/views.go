@@ -3,9 +3,9 @@ package api
 import (
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/gpustatus"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
 // statusView 는 GET /v1/status 의 응답이다.

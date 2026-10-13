@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""UEFI 게스트에서 헤드리스 설치(lightlix-install)와 설치된 시스템의 부팅을 검사한다.
+"""UEFI 게스트에서 헤드리스 설치(diparnux-install)와 설치된 시스템의 부팅을 검사한다.
 
 흐름은 세 번의 부팅이다.
-1. ISO 로 부팅해 빈 가상 디스크에 lightlix-install 로 설치한다(거절 경로도 확인한다).
+1. ISO 로 부팅해 빈 가상 디스크에 diparnux-install 로 설치한다(거절 경로도 확인한다).
 2. 디스크만으로 부팅해 설치된 시스템을 검사한다: 루트, 계정, 서비스, 부트로더, 업데이트 상태, 다시 부팅 뒤 영속성.
 3. Microsoft 키가 들어 있는 OVMF 변수로 Secure Boot 를 켜고 shim 경로(EFI/BOOT/BOOTX64.EFI)로 부팅한다.
 
@@ -44,7 +44,7 @@ def installed_sudo(command):
 
 HOSTNAME = "lxtest"
 USER = "tester"
-PASSWORD = "lightlixtest1"
+PASSWORD = "diparnuxtest1"
 
 
 def json_object(text, label):
@@ -87,7 +87,7 @@ def firmware(name, default):
     return base.firmware(name, default)
 
 
-def argv_for(qemu, chosen, code, variables, disk, iso=None, name="lightlix-install-e2e"):
+def argv_for(qemu, chosen, code, variables, disk, iso=None, name="diparnux-install-e2e"):
     argv = [qemu, "-name", name, "-machine", "q35", "-accel", chosen,
             "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "3072M",
             "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
@@ -120,16 +120,16 @@ def scenario_live(console, budgets):
         "refuse-no-confirmation": (f"--disk /dev/vda {base_args}", "not_confirmed"),
     }
     for label, (args, code) in refused.items():
-        out = console.command(label, f"printf '%s\\n' {shlex.quote(PASSWORD)} | sudo -n lightlix-install run {args}", cmd, expected=1)
+        out = console.command(label, f"printf '%s\\n' {shlex.quote(PASSWORD)} | sudo -n diparnux-install run {args}", cmd, expected=1)
         require(f'"code":"{code}"' in out, f"{label}: expected code {code}: {out[-300:]}")
     weak = console.command("refuse-weak-password",
-                           f"printf 'short\\n' | sudo -n lightlix-install run --disk /dev/vda {base_args} --yes", cmd, expected=1)
+                           f"printf 'short\\n' | sudo -n diparnux-install run --disk /dev/vda {base_args} --yes", cmd, expected=1)
     require('"code":"invalid_option"' in weak, "A weak password must be refused")
     console.command("disk-untouched", "! sudo -n blkid /dev/vda", cmd)
 
     output = console.command(
         "install",
-        f"printf '%s\\n' {shlex.quote(PASSWORD)} | sudo -n lightlix-install run --disk /dev/vda "
+        f"printf '%s\\n' {shlex.quote(PASSWORD)} | sudo -n diparnux-install run --disk /dev/vda "
         f"--hostname {HOSTNAME} --user {USER} --admin --password-stdin --mode server --console serial "
         f"--locale en_US.UTF-8 --timezone UTC --keyboard us --yes --json",
         budgets["INSTALL_TIMEOUT"],
@@ -140,8 +140,8 @@ def scenario_live(console, budgets):
     steps = [json.loads(l)["step"] for l in output.splitlines() if l.startswith('{"time"')]
     for want in ("disk", "format", "mount", "copy", "configure", "account", "cleanup", "initramfs", "bootloader", "done"):
         require(want in steps, f"Installer step {want!r} did not run: {steps}")
-    console.command("install-log", "sudo -n test -s /var/log/lightlix-install.log && ! sudo -n grep -q " + shlex.quote(PASSWORD) + " /var/log/lightlix-install.log", cmd)
-    console.command("target-unmounted", "! findmnt /mnt/lightlix-target", cmd)
+    console.command("install-log", "sudo -n test -s /var/log/diparnux-install.log && ! sudo -n grep -q " + shlex.quote(PASSWORD) + " /var/log/diparnux-install.log", cmd)
+    console.command("target-unmounted", "! findmnt /mnt/diparnux-target", cmd)
     console.command("layout", "sudo -n sfdisk -d /dev/vda", cmd)
     console.send("sudo -n systemctl poweroff")
     wait_exit(console, 180, "poweroff after install")
@@ -178,7 +178,7 @@ def scenario_installed(console, budgets, secure_boot):
         command = installed_sudo(command)
         return soft.run(label + name, lambda: console.command(label + name, command, timeout, expected=expected))
 
-    check("os-release", ". /etc/os-release && test \"$ID\" = lightlix && echo \"$PRETTY_NAME\"")
+    check("os-release", ". /etc/os-release && test \"$ID\" = diparnux && echo \"$PRETTY_NAME\"")
     check("not-live", "! test -e /run/live && ! grep -q boot=live /proc/cmdline")
     root = check("root-device", "findmnt -no SOURCE,FSTYPE /")
     if root is not None:
@@ -187,13 +187,13 @@ def scenario_installed(console, budgets, secure_boot):
     check("hostname", f"test \"$(hostname)\" = {HOSTNAME}")
     # 부트로더 파일. 목록을 먼저 남기고 하나씩 판정한다(어느 파일이 없는지 로그에서 바로 보이게). ESP 는 umask 0077 이라 root 만 읽는다.
     check("esp-listing", "sudo -n find /boot/efi -type f | sort")
-    for name, path in (("shim", "/boot/efi/EFI/lightlix/shimx64.efi"), ("grub", "/boot/efi/EFI/lightlix/grubx64.efi"),
+    for name, path in (("shim", "/boot/efi/EFI/diparnux/shimx64.efi"), ("grub", "/boot/efi/EFI/diparnux/grubx64.efi"),
                        ("fallback", "/boot/efi/EFI/BOOT/BOOTX64.EFI")):
         check("esp-" + name, f"sudo -n test -s {path}")
     ids = check("identity", "id -nG && id -u")
     if ids is not None:
         groups = ids.splitlines()[0].split()
-        soft.run(label + "groups", lambda: require(all(g in groups for g in ("lightlix", "sudo", "video", "render")), f"Missing groups: {groups}"))
+        soft.run(label + "groups", lambda: require(all(g in groups for g in ("diparnux", "sudo", "video", "render")), f"Missing groups: {groups}"))
     sb = check("secure-boot-state", "mokutil --sb-state 2>&1 || true")
     if sb is not None:
         if secure_boot:
@@ -201,7 +201,7 @@ def scenario_installed(console, budgets, secure_boot):
         else:
             soft.run(label + "sb-disabled", lambda: require("enabled" not in sb.replace("disabled", ""), f"Secure Boot unexpectedly enabled: {sb}"))
 
-    poll = (f"end=$(( $(date +%s) + {budgets['START_TIMEOUT']} )); until lightlix --json status >/dev/null 2>&1; "
+    poll = (f"end=$(( $(date +%s) + {budgets['START_TIMEOUT']} )); until diparnux --json status >/dev/null 2>&1; "
             "do [ \"$(date +%s)\" -ge \"$end\" ] && exit 1; sleep 2; done")
     check("daemon-ready", poll, budgets["START_TIMEOUT"] + 20)
 
@@ -211,38 +211,38 @@ def scenario_installed(console, budgets, secure_boot):
         soft.finish("the Secure Boot boot")
         return
 
-    status_text = check("status", "lightlix --json status | tr -d '\\n'")
+    status_text = check("status", "diparnux --json status | tr -d '\\n'")
     if status_text is not None:
         soft.run("status-json", lambda: require(json_object(status_text, "status").get("mode") == "server", "Installed system must start in server mode"))
     check("default-target", "systemctl get-default | grep -x multi-user.target")
-    users_text = check("user-list", "lightlix --json user list | tr -d '\\n'")
+    users_text = check("user-list", "diparnux --json user list | tr -d '\\n'")
     if users_text is not None:
         soft.run("user-list-json", lambda: require([u["name"] for u in json_object(users_text, "user-list").get("users", [])] == [USER],
                                                     f"Account list: {users_text[:200]}"))
     check("live-packages-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' live-boot live-config 2>/dev/null | grep -qx installed")
-    check("installer-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' calamares lightlix-installer 2>/dev/null | grep -qx installed")
+    check("installer-gone", "! dpkg-query -W -f '${db:Status-Status}\\n' calamares diparnux-installer 2>/dev/null | grep -qx installed")
     check("grub-default", "sudo -n grep -x 'saved_entry=gnulinux-.*' /boot/grub/grubenv")
-    check("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-lightlix.cfg")
+    check("grub-dropin", "grep -q '^GRUB_DEFAULT=saved' /etc/default/grub.d/20-diparnux.cfg")
     check("nvidia-modules", "/usr/sbin/modinfo -k \"$(uname -r)\" -F license nvidia | grep -x 'Dual MIT/GPL'")
     check("root-locked", "sudo -n passwd -S root | awk '{exit $2 == \"L\" || $2 == \"LK\" ? 0 : 1}'")
     check("memory-installed-server", "awk '/MemTotal|MemAvailable/' /proc/meminfo")
     check("services", "systemctl --failed --no-legend | cat")
 
     # 업데이트 상태. 설치된 시스템이므로 사용할 수 있어야 한다.
-    info_text = check("update-status", "lightlix --json update --status")
+    info_text = check("update-status", "diparnux --json update --status")
     if info_text is not None:
         def judge():
             info = multiline_json(info_text, "update-status")
             require(info.get("available") is True and info.get("live") is False, f"Updates should be available: {info}")
             require(info.get("state", {}).get("phase") == "idle", f"Fresh install must be idle: {info.get('state')}")
         soft.run("update-status-json", judge)
-    checked = check("update-check", "lightlix update --check; echo rc=$?", budgets["UPDATE_TIMEOUT"])
+    checked = check("update-check", "diparnux update --check; echo rc=$?", budgets["UPDATE_TIMEOUT"])
     if checked is not None:
         soft.run("update-check-result", lambda: require("rc=0" in checked or "network" in checked,
                                                         f"update --check neither succeeded nor reported a network problem: {checked[-300:]}"))
 
     # 재부팅 뒤에도 같은 시스템이다.
-    check("reboot-marker", "sudo -n sh -c 'echo persisted > /var/lib/lightlix/e2e-marker'")
+    check("reboot-marker", "sudo -n sh -c 'echo persisted > /var/lib/diparnux/e2e-marker'")
     soft.finish("the installed system")
     console.send(installed_sudo("sudo -n systemctl reboot"))
 
@@ -250,7 +250,7 @@ def scenario_installed(console, budgets, secure_boot):
 def main():
     sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
     sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
-    parser = argparse.ArgumentParser(description="Lightlix headless installation E2E")
+    parser = argparse.ArgumentParser(description="Diparnux headless installation E2E")
     parser.add_argument("iso", type=Path)
     args = parser.parse_args()
     log_root = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-install"))
@@ -298,7 +298,7 @@ def main():
         print(f"install: accel={chosen} total_timeout={budgets['E2E_TIMEOUT']}s", flush=True)
         deadline = start + budgets["E2E_TIMEOUT"]
 
-        with tempfile.TemporaryDirectory(prefix="lightlix-install-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-install-") as work:
             work = Path(work)
             disk = work / "disk.qcow2"
             subprocess.run(["qemu-img", "create", "-q", "-f", "qcow2", str(disk), "20G"], check=True)
@@ -317,7 +317,7 @@ def main():
             # 2. 디스크만으로 부팅한다.
             sub = logs / "2-installed"
             sub.mkdir()
-            console = Console(argv_for(qemu, chosen, code, variables, disk, name="lightlix-installed-e2e"), sub, deadline)
+            console = Console(argv_for(qemu, chosen, code, variables, disk, name="diparnux-installed-e2e"), sub, deadline)
             console.start()
             scenario_installed(console, budgets, secure_boot=False)
             wait_exit(console, 180, "reboot of the installed system")
@@ -327,10 +327,10 @@ def main():
             # 다시 부팅한 뒤에도 표식과 계정이 남아 있어야 한다.
             sub = logs / "3-installed-again"
             sub.mkdir()
-            console = Console(argv_for(qemu, chosen, code, variables, disk, name="lightlix-installed-e2e"), sub, deadline)
+            console = Console(argv_for(qemu, chosen, code, variables, disk, name="diparnux-installed-e2e"), sub, deadline)
             console.start()
             login_installed(console, budgets["BOOT_TIMEOUT"])
-            console.command("marker-persisted", installed_sudo("test \"$(sudo -n cat /var/lib/lightlix/e2e-marker)\" = persisted"), budgets["COMMAND_TIMEOUT"])
+            console.command("marker-persisted", installed_sudo("test \"$(sudo -n cat /var/lib/diparnux/e2e-marker)\" = persisted"), budgets["COMMAND_TIMEOUT"])
             console.send(installed_sudo("sudo -n systemctl poweroff"))
             wait_exit(console, 180, "poweroff of the installed system")
             console.close()
@@ -342,7 +342,7 @@ def main():
                 shutil.copyfile(sb_template, sb_vars)
                 sub = logs / "4-secure-boot"
                 sub.mkdir()
-                argv = argv_for(qemu, chosen, sb_code, sb_vars, disk, name="lightlix-secureboot-e2e")
+                argv = argv_for(qemu, chosen, sb_code, sb_vars, disk, name="diparnux-secureboot-e2e")
                 # secboot 펌웨어는 SMM 이 필요하다.
                 argv[argv.index("-machine") + 1] = "q35,smm=on"
                 argv += ["-global", "driver=cfi.pflash01,property=secure,value=on"]

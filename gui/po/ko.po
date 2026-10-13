@@ -1,9 +1,9 @@
-# Korean translation for lightlix-control-center.
+# Korean translation for diparnux-control-center.
 msgid ""
 msgstr ""
-"Project-Id-Version: lightlix-control-center 0.2.0\n"
+"Project-Id-Version: diparnux-control-center 0.2.0\n"
 "PO-Revision-Date: 2026-10-12 10:00+0900\n"
-"Last-Translator: Lightlix Developers\n"
+"Last-Translator: Diparnux Developers\n"
 "Language-Team: Korean\n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
@@ -155,8 +155,8 @@ msgstr "보안 부팅이 켜져 있어 서명되지 않은 NVIDIA 모듈을 로�
 msgid "A proprietary NVIDIA module is loaded"
 msgstr "독점 NVIDIA 모듈이 로드되어 있습니다"
 
-msgid "Lightlix needs the open kernel modules. Reinstall the image or remove the proprietary driver."
-msgstr "Lightlix는 오픈 커널 모듈이 필요합니다. 이미지를 다시 설치하거나 독점 드라이버를 제거하세요."
+msgid "Diparnux needs the open kernel modules. Reinstall the image or remove the proprietary driver."
+msgstr "Diparnux는 오픈 커널 모듈이 필요합니다. 이미지를 다시 설치하거나 독점 드라이버를 제거하세요."
 
 msgid "Driver and library versions differ"
 msgstr "드라이버와 라이브러리 버전이 다릅니다"
@@ -227,8 +227,8 @@ msgstr "알 수 없는 GPU 상태: %s"
 msgid "Run the GPU check to detect your GPU."
 msgstr "GPU 검사를 실행해 GPU를 감지하세요."
 
-msgid "You can still use Lightlix on the CPU."
-msgstr "GPU가 없어도 CPU로 Lightlix를 쓸 수 있습니다."
+msgid "You can still use Diparnux on the CPU."
+msgstr "GPU가 없어도 CPU로 Diparnux를 쓸 수 있습니다."
 
 msgid "GPU detected"
 msgstr "GPU를 감지했습니다"
@@ -260,8 +260,8 @@ msgstr "NVIDIA GPU가 없습니다."
 msgid "Secure Boot is on and blocks the driver"
 msgstr "보안 부팅이 켜져 있고 드라이버를 막고 있습니다"
 
-msgid "Turn Secure Boot off in the firmware settings and reboot. On an installed system you can enroll a machine key instead: run 'sudo lightlix-mok enroll' in a terminal."
-msgstr "펌웨어 설정에서 보안 부팅을 끄고 재부팅하세요. 설치된 시스템에서는 대신 기기 키를 등록할 수 있습니다. 터미널에서 'sudo lightlix-mok enroll'을 실행하세요."
+msgid "Turn Secure Boot off in the firmware settings and reboot. On an installed system you can enroll a machine key instead: run 'sudo diparnux-mok enroll' in a terminal."
+msgstr "펌웨어 설정에서 보안 부팅을 끄고 재부팅하세요. 설치된 시스템에서는 대신 기기 키를 등록할 수 있습니다. 터미널에서 'sudo diparnux-mok enroll'을 실행하세요."
 
 msgid "Secure Boot is on"
 msgstr "보안 부팅이 켜져 있습니다"
@@ -377,8 +377,8 @@ msgstr "GGUF 모델 검색"
 msgid "Access token (for gated models)"
 msgstr "접근 토큰(제한된 모델용)"
 
-msgid "The token is stored by the daemon. Restart lightlixd for it to take effect."
-msgstr "토큰은 데몬이 저장합니다. 적용하려면 lightlixd를 다시 시작하세요."
+msgid "The token is stored by the daemon. Restart diparnuxd for it to take effect."
+msgstr "토큰은 데몬이 저장합니다. 적용하려면 diparnuxd를 다시 시작하세요."
 
 msgid "No models installed"
 msgstr "설치된 모델이 없습니다"
@@ -428,8 +428,8 @@ msgstr "이 모델을 삭제할까요?"
 msgid "Download started"
 msgstr "내려받기를 시작했습니다"
 
-msgid "Token saved. Restart lightlixd to use it."
-msgstr "토큰을 저장했습니다. 쓰려면 lightlixd를 다시 시작하세요."
+msgid "Token saved. Restart diparnuxd to use it."
+msgstr "토큰을 저장했습니다. 쓰려면 diparnuxd를 다시 시작하세요."
 
 msgid "Token saved"
 msgstr "토큰을 저장했습니다"
@@ -689,17 +689,17 @@ msgstr "진단 리포트 저장"
 msgid "Report saved to %s"
 msgstr "리포트를 %s에 저장했습니다"
 
-msgid "Permission denied. Add your user to the 'lightlix' group and log in again."
-msgstr "권한이 없습니다. 사용자를 'lightlix' 그룹에 추가하고 다시 로그인하세요."
+msgid "Permission denied. Add your user to the 'diparnux' group and log in again."
+msgstr "권한이 없습니다. 사용자를 'diparnux' 그룹에 추가하고 다시 로그인하세요."
 
-msgid "The Lightlix daemon is not running."
-msgstr "Lightlix 데몬이 실행 중이 아닙니다."
+msgid "The Diparnux daemon is not running."
+msgstr "Diparnux 데몬이 실행 중이 아닙니다."
 
 msgid "OK"
 msgstr "확인"
 
-msgid "Lightlix Control Center"
-msgstr "Lightlix 제어 센터"
+msgid "Diparnux Control Center"
+msgstr "Diparnux 제어 센터"
 
 msgid "Chat"
 msgstr "채팅"
@@ -716,8 +716,8 @@ msgstr "계정"
 msgid "Network access"
 msgstr "네트워크 접근"
 
-msgid "Lightlix setup"
-msgstr "Lightlix 설정"
+msgid "Diparnux setup"
+msgstr "Diparnux 설정"
 
 msgid "Back"
 msgstr "이전"
@@ -725,8 +725,8 @@ msgstr "이전"
 msgid "Next"
 msgstr "다음"
 
-msgid "Cannot reach the Lightlix daemon"
-msgstr "Lightlix 데몬에 연결할 수 없습니다"
+msgid "Cannot reach the Diparnux daemon"
+msgstr "Diparnux 데몬에 연결할 수 없습니다"
 
 msgid "Close this window and try again later."
 msgstr "이 창을 닫고 나중에 다시 시도하세요."
@@ -863,8 +863,8 @@ msgstr "이전 커널과 드라이버를 복원합니다. 끝난 뒤 다시 시�
 msgid "The update helper is not installed"
 msgstr "업데이트 도구가 설치되어 있지 않습니다"
 
-msgid "This is a live session. Install Lightlix to receive kernel and driver updates."
-msgstr "라이브 세션입니다. 커널과 드라이버 업데이트를 받으려면 Lightlix를 설치하세요."
+msgid "This is a live session. Install Diparnux to receive kernel and driver updates."
+msgstr "라이브 세션입니다. 커널과 드라이버 업데이트를 받으려면 Diparnux를 설치하세요."
 
 msgid "Update status is not available"
 msgstr "업데이트 상태를 알 수 없습니다"

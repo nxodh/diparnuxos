@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/update"
+	"github.com/nxodh/diparnuxos/daemon/internal/update"
 )
 
 // protectedPackages 는 대상 마무리 뒤에도 남아 있어야 하는 패키지다. 하나라도 없으면 설치를 실패로 본다.
-var protectedPackages = []string{"lightlix-daemon", "lightlix-nvidia", "lightlix-base", "systemd", "grub-efi-amd64-bin", "grub-efi-amd64-signed", "shim-signed", "nvidia-kernel-open-dkms"}
+var protectedPackages = []string{"diparnux-daemon", "diparnux-nvidia", "diparnux-base", "systemd", "grub-efi-amd64-bin", "grub-efi-amd64-signed", "shim-signed", "nvidia-kernel-open-dkms"}
 
 // configure 는 복사가 끝난 대상 시스템을 설정하고 부트로더를 설치한다.
 func (in *Installer) configure(ctx context.Context, o *Options, espDev, rootDev string) error {
@@ -27,7 +27,7 @@ func (in *Installer) configure(ctx context.Context, o *Options, espDev, rootDev 
 	if err != nil {
 		return err
 	}
-	fstab := "# /etc/fstab: written by lightlix-install. Use 'blkid' to see the UUIDs.\n" +
+	fstab := "# /etc/fstab: written by diparnux-install. Use 'blkid' to see the UUIDs.\n" +
 		fmt.Sprintf("UUID=%s / ext4 defaults,noatime,errors=remount-ro 0 1\n", rootUUID) +
 		fmt.Sprintf("UUID=%s /boot/efi vfat umask=0077 0 2\n", espUUID)
 	if err := writeFile(target, "etc/fstab", fstab, 0o644); err != nil {
@@ -81,8 +81,8 @@ func (in *Installer) configure(ctx context.Context, o *Options, espDev, rootDev 
 	if o.Admin {
 		args = append(args, "--admin")
 	}
-	out, err := in.chroot(ctx, CodeAccount, 2*time.Minute, []byte(o.Password+"\n"), "/usr/lib/lightlix/lightlix-user", args...)
-	if err != nil || !strings.Contains(out, "LIGHTLIX_USER_RESULT=ok") {
+	out, err := in.chroot(ctx, CodeAccount, 2*time.Minute, []byte(o.Password+"\n"), "/usr/lib/diparnux/diparnux-user", args...)
+	if err != nil || !strings.Contains(out, "DIPARNUX_USER_RESULT=ok") {
 		if err == nil {
 			err = errf(CodeAccount, "the account helper did not report success")
 		}
@@ -179,7 +179,7 @@ func writeFile(root, rel, body string, mode os.FileMode) error {
 type PrepareOptions struct {
 	// Mode 는 기본 모드(server 또는 desktop)다. 비어 있으면 바꾸지 않는다.
 	Mode string
-	// RegisterUser 는 Lightlix 계정 목록(users.list)에 올릴 이미 만들어진 계정 이름이다. Calamares 가 만든 계정에 쓴다.
+	// RegisterUser 는 Diparnux 계정 목록(users.list)에 올릴 이미 만들어진 계정 이름이다. Calamares 가 만든 계정에 쓴다.
 	RegisterUser string
 	Admin        bool
 	// KeepInstaller 가 참이면 설치기 패키지를 지우지 않는다.
@@ -214,7 +214,7 @@ func (in *Installer) PrepareTarget(ctx context.Context, root string, o PrepareOp
 	}
 	if !o.KeepInstaller {
 		var inst []string
-		for _, p := range []string{"calamares", "lightlix-installer"} {
+		for _, p := range []string{"calamares", "diparnux-installer"} {
 			if _, err := in.exec(ctx, root, CodeCleanup, time.Minute, "dpkg-query", "-W", "-f", "${Status}", p); err == nil {
 				inst = append(inst, p)
 			}
@@ -254,7 +254,7 @@ func (in *Installer) PrepareTarget(ctx context.Context, root string, o PrepareOp
 			admin = "1"
 		}
 		line := fmt.Sprintf("%s %s %s\n", o.RegisterUser, admin, in.now().UTC().Format(time.RFC3339))
-		dir := filepath.Join(rootOr(root), "var/lib/lightlix")
+		dir := filepath.Join(rootOr(root), "var/lib/diparnux")
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return errf(CodeConfigure, "%v", err)
 		}
@@ -279,7 +279,7 @@ func rootOr(root string) string {
 }
 
 // BootDefault 는 grub.cfg 가 만들어진 뒤 가장 새로운 커널을 저장된 기본 부팅 항목으로 고정한다.
-// 이후 lightlix-update 는 이 값을 기준으로 새 커널을 한 번만 부팅해 본다.
+// 이후 diparnux-update 는 이 값을 기준으로 새 커널을 한 번만 부팅해 본다.
 func (in *Installer) BootDefault(ctx context.Context, root string) error {
 	cfg := filepath.Join(rootOr(root), "boot/grub/grub.cfg")
 	releases, err := update.GrubKernelReleases(cfg)
@@ -301,11 +301,11 @@ func (in *Installer) BootDefault(ctx context.Context, root string) error {
 // console 이 serial 이면 커널과 GRUB 콘솔을 ttyS0 에도 둔다.
 func (in *Installer) InstallBootloader(ctx context.Context, root, console string) error {
 	if console == "serial" {
-		cfg := "# Written by lightlix-install (--console serial).\n" +
+		cfg := "# Written by diparnux-install (--console serial).\n" +
 			"GRUB_CMDLINE_LINUX=\"console=tty0 console=ttyS0,115200\"\n" +
 			"GRUB_TERMINAL=\"console serial\"\n" +
 			"GRUB_SERIAL_COMMAND=\"serial --speed=115200\"\n"
-		if err := writeFile(rootOr(root), "etc/default/grub.d/30-lightlix-console.cfg", cfg, 0o644); err != nil {
+		if err := writeFile(rootOr(root), "etc/default/grub.d/30-diparnux-console.cfg", cfg, 0o644); err != nil {
 			return err
 		}
 	}
@@ -316,7 +316,7 @@ func (in *Installer) InstallBootloader(ctx context.Context, root, console string
 	}
 
 	in.event("bootloader", "installing GRUB for UEFI with Secure Boot support")
-	grub := []string{"--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=lightlix", "--uefi-secure-boot"}
+	grub := []string{"--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=diparnux", "--uefi-secure-boot"}
 	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", grub...); err != nil {
 		// 펌웨어가 NVRAM 쓰기를 거부하면(efibootmgr 실패) 항목 등록 없이 파일만 설치한다. 아래 대체 경로가 부팅을 맡는다.
 		in.event("bootloader", "registering the boot entry failed (%v); installing the files without it", err)

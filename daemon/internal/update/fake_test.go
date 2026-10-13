@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // fakePkg 는 가짜 시스템의 설치된 패키지 하나다.
@@ -74,7 +74,7 @@ func newFakeSys(t *testing.T) *fakeSys {
 	add("linux-headers-6.12.111+deb13-amd64", "6.12.111-1", "linux", true)
 	add("nvidia-kernel-open-dkms", "595.91.07-1", "nvidia-graphics-drivers", true)
 	add("nvidia-driver", "595.91.07-1", "nvidia-graphics-drivers", true)
-	add("lightlix-nvidia", "0.3.0", "lightlix-nvidia", false)
+	add("diparnux-nvidia", "0.3.0", "diparnux-nvidia", false)
 	add("bash", "5.2.37-2", "bash", false)
 	f.modules["6.12.111+deb13-amd64"] = "595.91.07"
 
@@ -138,7 +138,7 @@ func (f *fakeSys) kernels() []string {
 func (f *fakeSys) writeGrub() {
 	var b strings.Builder
 	for _, rel := range f.kernels() {
-		fmt.Fprintf(&b, "menuentry 'Lightlix, with Linux %s' --class debian $menuentry_id_option 'gnulinux-%s-advanced-uuid' {\n}\n", rel, rel)
+		fmt.Fprintf(&b, "menuentry 'Diparnux, with Linux %s' --class debian $menuentry_id_option 'gnulinux-%s-advanced-uuid' {\n}\n", rel, rel)
 	}
 	if err := os.WriteFile(f.path("boot/grub/grub.cfg"), []byte(b.String()), 0o644); err != nil {
 		f.t.Fatal(err)
@@ -244,7 +244,7 @@ func (f *fakeSys) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 		}
 		return out(""), nil
 	}
-	if strings.HasSuffix(cmd.Name, "lightlix-gpu-check") {
+	if strings.HasSuffix(cmd.Name, "diparnux-gpu-check") {
 		return platform.Result{ExitCode: f.gpuExit}, nil
 	}
 	f.t.Fatalf("unexpected command: %s", line)

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Lightlix 자체 APT 저장소를 만든다. 입력은 .deb 디렉터리이고 출력은 서명된 저장소 트리다.
+# Diparnux 자체 APT 저장소를 만든다. 입력은 .deb 디렉터리이고 출력은 서명된 저장소 트리다.
 #
 #   build-apt-repo.sh --debs DIR --out DIR --key KEYID [--gnupghome DIR] [--passphrase-file FILE]
-#                     [--suite lightlix] [--component main]
+#                     [--suite diparnux] [--component main]
 #
 # apt-ftparchive 로 색인을 만들고 gpg 로 Release 를 서명한다(InRelease 와 Release.gpg). 서명 개인 키는 이 저장소에
 # 두지 않는다. 사용자가 만든 GNUPGHOME 을 --gnupghome 으로 준다. 이 스크립트는 Docker 컨테이너 안에서 쓰도록 만들었다
@@ -11,8 +11,8 @@ set -euo pipefail
 
 die() { echo "build-apt-repo: $*" >&2; exit 2; }
 
-debs="" out="" key="" gnupghome="" passfile="" suite="lightlix" component="main"
-origin="Lightlix" label="Lightlix"
+debs="" out="" key="" gnupghome="" passfile="" suite="diparnux" component="main"
+origin="Diparnux" label="Diparnux"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --debs) debs="${2:-}"; shift 2 ;;
@@ -76,7 +76,7 @@ APT::FTPArchive::Release::Suite "$suite";
 APT::FTPArchive::Release::Codename "$suite";
 APT::FTPArchive::Release::Architectures "$arch_list";
 APT::FTPArchive::Release::Components "$component";
-APT::FTPArchive::Release::Description "Lightlix packages (signed)";
+APT::FTPArchive::Release::Description "Diparnux packages (signed)";
 CONF
 (cd "$out/dists/$suite" && APT_CONFIG="$work/release.conf" apt-ftparchive release .) > "$work/Release"
 mv "$work/Release" "$out/dists/$suite/Release"

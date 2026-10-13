@@ -8,20 +8,20 @@
 | 방법 | 명령 또는 위치 |
 |---|---|
 | Control Center | 네트워크 페이지(어댑터, Wi-Fi 목록, 연결, 비밀번호 입력) |
-| CLI | `lightlix network`, `lightlix network wifi list\|scan\|connect <ssid>\|disconnect\|forget <ssid>\|on\|off` |
+| CLI | `diparnux network`, `diparnux network wifi list\|scan\|connect <ssid>\|disconnect\|forget <ssid>\|on\|off` |
 | 패널 | 오른쪽 위의 `Wi-Fi <이름>`, `Wired`, `Offline` 표시. 누르면 네트워크 페이지가 열린다 |
 
 ```sh
-lightlix network                          # 어댑터, 주소, 게이트웨이, Wi-Fi 상태
-lightlix network wifi scan                # 검색을 시작한다
-lightlix network wifi list                # * 연결됨, + 저장됨
-lightlix network wifi connect "내 Wi-Fi"   # 비밀번호를 터미널에서 묻는다
-printf '%s\n' "$PW" | lightlix network wifi connect "내 Wi-Fi" --password-stdin
+diparnux network                          # 어댑터, 주소, 게이트웨이, Wi-Fi 상태
+diparnux network wifi scan                # 검색을 시작한다
+diparnux network wifi list                # * 연결됨, + 저장됨
+diparnux network wifi connect "내 Wi-Fi"   # 비밀번호를 터미널에서 묻는다
+printf '%s\n' "$PW" | diparnux network wifi connect "내 Wi-Fi" --password-stdin
 ```
 
 ## 동작 방식
 
-- 데몬(`lightlixd`)이 iwd 의 D-Bus(`net.connman.iwd`)를 `busctl --json=short` 로 부른다. GUI 와 CLI 는 데몬의 `/v1/network/...` 만 쓴다.
+- 데몬(`diparnuxd`)이 iwd 의 D-Bus(`net.connman.iwd`)를 `busctl --json=short` 로 부른다. GUI 와 CLI 는 데몬의 `/v1/network/...` 만 쓴다.
 - 비밀번호는 요청 본문으로만 오가며 명령 줄, 로그, 응답에 남지 않는다. 데몬이 iwd 설정 파일(`/var/lib/iwd/<SSID>.psk`, 모드 0600)을 쓰고 iwd 가 읽을 때까지 기다린 뒤 연결한다. 연결에 실패하면 이번에 만든 파일을 지운다.
 - 이미 저장된 네트워크는 비밀번호 없이 다시 연결한다. 공개(open) 네트워크는 비밀번호가 필요 없다.
 - 지원하지 않는 것: 기업용 802.1X, WEP, 숨은 SSID, 고정 IP 설정, VPN, 프록시.

@@ -7,24 +7,24 @@
 # bash 3.2(macOS)에서도 돌도록 연관 배열을 쓰지 않는다.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-GPU_CHECK="$ROOT/packages/lightlix-nvidia/src/gpu-check.sh"
-GEN_CONFIG="$ROOT/packages/lightlix-nvidia/debian/gen-config.sh"
+GPU_CHECK="$ROOT/packages/diparnux-nvidia/src/gpu-check.sh"
+GEN_CONFIG="$ROOT/packages/diparnux-nvidia/debian/gen-config.sh"
 # shellcheck source=/dev/null
-. "$ROOT/lightlix.conf"
+. "$ROOT/diparnux.conf"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 CASE=""
 
 # 실제 설정 생성기로 nvidia.conf 를 만든다. 패키지가 설치될 때와 같은 파일이다.
-sh "$GEN_CONFIG" "$ROOT/lightlix.conf" "$WORK/pkg"
-CONF="$WORK/pkg/usr/share/lightlix/nvidia.conf"
+sh "$GEN_CONFIG" "$ROOT/diparnux.conf" "$WORK/pkg"
+CONF="$WORK/pkg/usr/share/diparnux/nvidia.conf"
 VERSION="$WORK/version"
 STATUS="$WORK/run/gpu-status"
-ISSUE="$WORK/issue.d/50-lightlix-gpu.issue"
-MOTD="$WORK/motd.d/50-lightlix-gpu"
+ISSUE="$WORK/issue.d/50-diparnux-gpu.issue"
+MOTD="$WORK/motd.d/50-diparnux-gpu"
 BACKSLASH="$(printf '\134')"
-REQUIRED_KEYS="LIGHTLIX_GPU_STATUS LIGHTLIX_GPU_PRESENT LIGHTLIX_GPU_PCI_COUNT LIGHTLIX_GPU_COUNT LIGHTLIX_GPU_USABLE_COUNT LIGHTLIX_GPU_USABLE_INDEXES LIGHTLIX_SECURE_BOOT LIGHTLIX_DRIVER_VERSION LIGHTLIX_GPU_MESSAGE"
+REQUIRED_KEYS="DIPARNUX_GPU_STATUS DIPARNUX_GPU_PRESENT DIPARNUX_GPU_PCI_COUNT DIPARNUX_GPU_COUNT DIPARNUX_GPU_USABLE_COUNT DIPARNUX_GPU_USABLE_INDEXES DIPARNUX_SECURE_BOOT DIPARNUX_DRIVER_VERSION DIPARNUX_GPU_MESSAGE"
 
 mkdir -p "$WORK/bin" "$WORK/sys" "$WORK/run"
 cat > "$WORK/bin/timeout" <<'EOF'
@@ -74,11 +74,11 @@ chmod +x "$WORK/bin/"*
 export PATH="$WORK/bin:$PATH"
 export TEST_TRACE="$WORK/trace"
 export TEST_VERSION_FILE="$VERSION"
-export LIGHTLIX_SYSFS="$WORK/sys"
-export LIGHTLIX_NVIDIA_VERSION_FILE="$VERSION"
-export LIGHTLIX_RUNTIME_DIR="$WORK/run"
-export LIGHTLIX_ISSUE_DIR="$WORK/issue.d"
-export LIGHTLIX_MOTD_DIR="$WORK/motd.d"
+export DIPARNUX_SYSFS="$WORK/sys"
+export DIPARNUX_NVIDIA_VERSION_FILE="$VERSION"
+export DIPARNUX_RUNTIME_DIR="$WORK/run"
+export DIPARNUX_ISSUE_DIR="$WORK/issue.d"
+export DIPARNUX_MOTD_DIR="$WORK/motd.d"
 
 die() {
     echo "FAIL: ${CASE:-setup}: $*" >&2
@@ -106,9 +106,9 @@ reset_case() {
     export TEST_DRM_FAIL=0
     export TEST_SMI_ERROR=""
     export TEST_GPU_ROWS="0, NVIDIA GeForce RTX 3060, 8.6, $NVIDIA_DRIVER_VERSION"
-    export LIGHTLIX_MOKUTIL="$WORK/bin/mokutil"
-    export LIGHTLIX_NVIDIA_SMI="$WORK/bin/nvidia-smi"
-    export LIGHTLIX_NVIDIA_CONF="$CONF"
+    export DIPARNUX_MOKUTIL="$WORK/bin/mokutil"
+    export DIPARNUX_NVIDIA_SMI="$WORK/bin/nvidia-smi"
+    export DIPARNUX_NVIDIA_CONF="$CONF"
 }
 
 status_value() {  # status_value KEY: 상태 파일에서 값을 꺼낸다. 따옴표는 뗀다.
@@ -148,7 +148,7 @@ run_case() {
     for key in $REQUIRED_KEYS; do
         grep -q "^$key=" "$STATUS" || die "$key is missing from gpu-status"
     done
-    expect_value LIGHTLIX_GPU_STATUS "$state"
+    expect_value DIPARNUX_GPU_STATUS "$state"
     # shellcheck source=/dev/null
     ( . "$STATUS" ) || die "gpu-status cannot be sourced by sh"
     if [[ -z "$(find "$STATUS" -perm 644)" ]]; then
@@ -156,12 +156,12 @@ run_case() {
     fi
 
     first="$(sed -n 1p "$WORK/output")"
-    if [[ "$first" != "Lightlix GPU [$state]: "* ]]; then
+    if [[ "$first" != "Diparnux GPU [$state]: "* ]]; then
         die "first output line is '$first'"
     fi
     [[ -f "$ISSUE" && -f "$MOTD" ]] || die "issue or motd file was not written"
     first="$(sed -n 1p "$ISSUE")"
-    if [[ "$first" != "Lightlix GPU [$state]: "* ]]; then
+    if [[ "$first" != "Diparnux GPU [$state]: "* ]]; then
         die "issue first line is '$first'"
     fi
     cmp -s "$ISSUE" "$MOTD" || die "issue and motd files differ"
@@ -169,8 +169,8 @@ run_case() {
         die "issue or motd file contains a backslash (agetty escape)"
     fi
     if [[ "$rc" == 1 || "$rc" == 2 ]]; then
-        grep -qx 'Lightlix: running in CPU fallback mode.' "$ISSUE" || die "CPU fallback line missing in issue"
-        grep -qx 'Lightlix: running in CPU fallback mode.' "$WORK/output" || die "CPU fallback line missing in output"
+        grep -qx 'Diparnux: running in CPU fallback mode.' "$ISSUE" || die "CPU fallback line missing in issue"
+        grep -qx 'Diparnux: running in CPU fallback mode.' "$WORK/output" || die "CPU fallback line missing in output"
     elif grep -q 'CPU fallback' "$WORK/output" "$ISSUE"; then
         die "CPU fallback line printed for exit $rc"
     fi
@@ -189,8 +189,8 @@ rm -rf "$WORK/sys/bus/pci/devices"
 mkdir -p "$WORK/sys/bus/pci/devices"
 add_pci 0000:00:1f.3 0x10de 0x040300
 run_case no_gpu no_gpu 1
-expect_value LIGHTLIX_GPU_PRESENT 0
-expect_value LIGHTLIX_GPU_PCI_COUNT 0
+expect_value DIPARNUX_GPU_PRESENT 0
+expect_value DIPARNUX_GPU_PCI_COUNT 0
 if [[ -s "$TEST_TRACE" ]]; then
     die "driver commands ran although no GPU is present"
 fi
@@ -201,7 +201,7 @@ rm -f "$VERSION"
 export TEST_SECURE_BOOT=enabled TEST_MODPROBE_FAIL=1
 export TEST_MODPROBE_MSG="modprobe: ERROR: could not insert 'nvidia': Key was rejected by service"
 run_case secure_boot secure_boot 2
-expect_value LIGHTLIX_SECURE_BOOT enabled
+expect_value DIPARNUX_SECURE_BOOT enabled
 expect_output 'Turn off Secure Boot'
 expect_output 'UEFI'
 
@@ -210,7 +210,7 @@ reset_case
 rm -f "$VERSION"
 export TEST_MODPROBE_FAIL=1
 run_case module_unloaded_sb_off module_unloaded 2
-expect_value LIGHTLIX_SECURE_BOOT disabled
+expect_value DIPARNUX_SECURE_BOOT disabled
 if grep -q 'Secure Boot is enabled' "$ISSUE"; then
     die "Secure Boot note added although Secure Boot is disabled"
 fi
@@ -225,10 +225,10 @@ expect_output 'Secure Boot is enabled'
 # 5. mokutil 없음 -> Secure Boot unknown. 서명 거부 문구여도 secure_boot 이 아니다.
 reset_case
 rm -f "$VERSION"
-export LIGHTLIX_MOKUTIL="$WORK/none/mokutil" TEST_MODPROBE_FAIL=1
+export DIPARNUX_MOKUTIL="$WORK/none/mokutil" TEST_MODPROBE_FAIL=1
 export TEST_MODPROBE_MSG="modprobe: ERROR: could not insert 'nvidia': Key was rejected by service"
 run_case no_mokutil module_unloaded 2
-expect_value LIGHTLIX_SECURE_BOOT unknown
+expect_value DIPARNUX_SECURE_BOOT unknown
 
 # 6. 독점 모듈 -> proprietary_module
 reset_case
@@ -239,7 +239,7 @@ run_case proprietary_module proprietary_module 2
 reset_case
 echo 'NVIDIA UNIX Open Kernel Module wrong-version' > "$VERSION"
 run_case version_mismatch_module version_mismatch 2
-expect_value LIGHTLIX_DRIVER_VERSION ""
+expect_value DIPARNUX_DRIVER_VERSION ""
 
 # 8. 모듈을 올려 버전 파일이 생기는 경로 -> ready. nvidia-uvm 과 nvidia-drm 도 올라간다.
 reset_case
@@ -252,19 +252,19 @@ expect_trace 'modprobe nvidia-drm'
 # 9. 정상 ready: RTX 3060 (compute_cap 8.6)
 reset_case
 run_case ready ready 0
-expect_value LIGHTLIX_GPU_USABLE_COUNT 1
-expect_value LIGHTLIX_GPU_USABLE_INDEXES 0
-expect_value LIGHTLIX_DRIVER_VERSION "$NVIDIA_DRIVER_VERSION"
-expect_value LIGHTLIX_GPU_0_NAME "NVIDIA GeForce RTX 3060"
-expect_value LIGHTLIX_GPU_0_COMPUTE_CAP 8.6
-expect_value LIGHTLIX_GPU_0_SUPPORTED 1
-expect_value LIGHTLIX_GPU_0_REASON ok
+expect_value DIPARNUX_GPU_USABLE_COUNT 1
+expect_value DIPARNUX_GPU_USABLE_INDEXES 0
+expect_value DIPARNUX_DRIVER_VERSION "$NVIDIA_DRIVER_VERSION"
+expect_value DIPARNUX_GPU_0_NAME "NVIDIA GeForce RTX 3060"
+expect_value DIPARNUX_GPU_0_COMPUTE_CAP 8.6
+expect_value DIPARNUX_GPU_0_SUPPORTED 1
+expect_value DIPARNUX_GPU_0_REASON ok
 
 # 10. 노트북 이름과 compute_cap 8.9 -> ready
 reset_case
 export TEST_GPU_ROWS="0, NVIDIA GeForce RTX 4060 Laptop GPU, 8.9, $NVIDIA_DRIVER_VERSION"
 run_case ready_laptop_8_9 ready 0
-expect_value LIGHTLIX_GPU_0_COMPUTE_CAP 8.9
+expect_value DIPARNUX_GPU_0_COMPUTE_CAP 8.9
 
 # 11. 지원 GPU 와 미지원 GPU 가 섞임 -> ready. 미지원은 무시하고 USABLE_INDEXES 에는 지원 장치만 든다.
 reset_case
@@ -274,12 +274,12 @@ export TEST_GPU_ROWS="0, NVIDIA GeForce RTX 3060, 8.6, $NVIDIA_DRIVER_VERSION
 1, NVIDIA GeForce GTX 1650, 7.5, $NVIDIA_DRIVER_VERSION
 2, NVIDIA GeForce RTX 5090, 12.0, $NVIDIA_DRIVER_VERSION"
 run_case mixed_supported_unsupported ready 0
-expect_value LIGHTLIX_GPU_COUNT 3
-expect_value LIGHTLIX_GPU_USABLE_COUNT 2
-expect_value LIGHTLIX_GPU_USABLE_INDEXES "0,2"
-expect_value LIGHTLIX_GPU_1_SUPPORTED 0
-expect_value LIGHTLIX_GPU_1_REASON compute_cap
-expect_value LIGHTLIX_GPU_2_SUPPORTED 1
+expect_value DIPARNUX_GPU_COUNT 3
+expect_value DIPARNUX_GPU_USABLE_COUNT 2
+expect_value DIPARNUX_GPU_USABLE_INDEXES "0,2"
+expect_value DIPARNUX_GPU_1_SUPPORTED 0
+expect_value DIPARNUX_GPU_1_REASON compute_cap
+expect_value DIPARNUX_GPU_2_SUPPORTED 1
 expect_output 'ignoring unsupported GPU(s) at index 1.'
 expect_trace 'modprobe nvidia-uvm'
 
@@ -287,7 +287,7 @@ expect_trace 'modprobe nvidia-uvm'
 reset_case
 export TEST_GPU_ROWS="0, NVIDIA GeForce RTX 2080, 7.5, $NVIDIA_DRIVER_VERSION"
 run_case unsupported_single unsupported_gpu 2
-expect_value LIGHTLIX_GPU_0_REASON compute_cap
+expect_value DIPARNUX_GPU_0_REASON compute_cap
 if grep -q 'nvidia-uvm' "$TEST_TRACE"; then
     die "nvidia-uvm was loaded without a usable GPU"
 fi
@@ -296,7 +296,7 @@ fi
 reset_case
 export TEST_GPU_ROWS="0, NVIDIA RTX A4000, 8.6, $NVIDIA_DRIVER_VERSION"
 run_case reason_name unsupported_gpu 2
-expect_value LIGHTLIX_GPU_0_REASON name
+expect_value DIPARNUX_GPU_0_REASON name
 
 # 14. nvidia-smi 행의 드라이버 버전이 고정 버전과 다름 -> version_mismatch
 reset_case
@@ -317,7 +317,7 @@ expect_output 'Unknown Error'
 
 # 17. nvidia-smi 없음 -> driver_missing
 reset_case
-export LIGHTLIX_NVIDIA_SMI="$WORK/none/nvidia-smi"
+export DIPARNUX_NVIDIA_SMI="$WORK/none/nvidia-smi"
 run_case driver_missing driver_missing 2
 
 # 18. nvidia-smi 가 0행 -> query_failed
@@ -341,13 +341,13 @@ expect_output 'nvidia-drm failed to load'
 reset_case
 add_pci 0000:02:00.0 0x10de 0x030200
 run_case pci_more_than_rows ready 0
-expect_value LIGHTLIX_GPU_PCI_COUNT 2
-expect_value LIGHTLIX_GPU_COUNT 1
+expect_value DIPARNUX_GPU_PCI_COUNT 2
+expect_value DIPARNUX_GPU_COUNT 1
 expect_output 'warning: PCI shows 2 NVIDIA display device(s), but nvidia-smi lists 1.'
 
 # 22. nvidia.conf 없음 -> config_missing (3). 버전 검사를 건너뛰지 않고 끝낸다.
 reset_case
-export LIGHTLIX_NVIDIA_CONF="$WORK/absent/nvidia.conf"
+export DIPARNUX_NVIDIA_CONF="$WORK/absent/nvidia.conf"
 run_case config_missing config_missing 3
 if [[ -s "$TEST_TRACE" ]]; then
     die "driver commands ran although nvidia.conf is missing"
@@ -356,7 +356,7 @@ fi
 # 23. 예상하지 못한 명령 실패 -> internal_error (3). 설정 파일 끝의 false 가 실패를 재현한다.
 reset_case
 { cat "$CONF"; echo 'false'; } > "$WORK/broken.conf"
-export LIGHTLIX_NVIDIA_CONF="$WORK/broken.conf"
+export DIPARNUX_NVIDIA_CONF="$WORK/broken.conf"
 run_case internal_error internal_error 3
 expect_output 'internal error at line'
 

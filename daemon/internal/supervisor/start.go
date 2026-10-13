@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/llamaargs"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // run 은 입력을 먼저 검증하고 기존 유닛을 중지·회수한 뒤 VRAM 계획과 새 실행을 한다.

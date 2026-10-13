@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+# 키링은 저장소 루트의 keys/diparnux-archive-keyring.pgp(공개 키) 에서 가져온다. build-debs.sh 가 keys/ 를 임시 사본에 넣는다.
+# 키가 없거나 저장소 주소(DIPARNUX_APT_URL)가 비어 있으면 소스를 Enabled: no 로 둔다.
+DIPARNUX_CONF ?= $(CURDIR)/../../diparnux.conf
+DEST = debian/diparnux-archive-keyring
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	set -e; \
+	url=""; \
+	if [ -r "$(DIPARNUX_CONF)" ]; then . "$(DIPARNUX_CONF)"; url="$${DIPARNUX_APT_URL:-}"; fi; \
+	enabled=yes; \
+	[ -n "$$url" ] || enabled=no; \
+	if [ -s keys/diparnux-archive-keyring.pgp ]; then \
+	  install -D -m 644 keys/diparnux-archive-keyring.pgp $(DEST)/usr/share/keyrings/diparnux-archive-keyring.pgp; \
+	else \
+	  enabled=no; \
+	fi; \
+	[ -n "$$url" ] || url="https://example.invalid/diparnux"; \
+	install -d $(DEST)/etc/apt/sources.list.d; \
+	printf '%s\n' \
+	  '# Diparnux 패키지 저장소(diparnux-* 패키지만 제공한다).' \
+	  '# Enabled: no 이면 저장소 주소나 서명 키가 정해지지 않은 빌드다.' \
+	  'Types: deb' \
+	  "URIs: $$url" \
+	  'Suites: diparnux' \
+	  'Components: main' \
+	  'Architectures: amd64' \
+	  'Signed-By: /usr/share/keyrings/diparnux-archive-keyring.pgp' \
+	  "Enabled: $$enabled" \
+	  > $(DEST)/etc/apt/sources.list.d/diparnux.sources; \
+	chmod 644 $(DEST)/etc/apt/sources.list.d/diparnux.sources
+	install -D -m 644 src/10-diparnux.pref $(DEST)/etc/apt/preferences.d/10-diparnux.pref

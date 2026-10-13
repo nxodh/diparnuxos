@@ -1,6 +1,6 @@
-// Package api는 lightlixd 의 REST API 를 구현한다. 서비스는 유닉스 소켓에서만 돈다.
+// Package api는 diparnuxd 의 REST API 를 구현한다. 서비스는 유닉스 소켓에서만 돈다.
 //
-// 인증은 소켓 권한이 맡는다. 소켓은 0660 이고 그룹은 lightlix 이므로 그 그룹의 사용자만 연결할 수 있다.
+// 인증은 소켓 권한이 맡는다. 소켓은 0660 이고 그룹은 diparnux 이므로 그 그룹의 사용자만 연결할 수 있다.
 // 이 패키지는 TCP 로 서비스하지 않는다. 데몬 자체의 API 키 검사는 없다.
 //
 // 모든 응답은 JSON이다. 오류는 {"error":{"code":"...","message":"..."}} 형태이고 HTTP 상태와 맞춘다.
@@ -25,17 +25,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/accounts"
-	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/gpustatus"
-	"github.com/nxodh/lightlixos/daemon/internal/hf"
-	"github.com/nxodh/lightlixos/daemon/internal/jobs"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/network"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
-	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
+	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
+	"github.com/nxodh/diparnuxos/daemon/internal/hf"
+	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
 // 요청과 응답의 크기 상한이다.
@@ -103,11 +103,11 @@ type Deps struct {
 	Runner platform.Runner
 	// ConfigPath 는 설정 파일 경로다.
 	ConfigPath string
-	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/lightlix/firstboot.json 이다.
+	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/diparnux/firstboot.json 이다.
 	FirstBootPath string
 	// GPUStatusPath 는 GPU 진단 상태 파일 경로다.
 	GPUStatusPath string
-	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/lightlix-gpu-check.
+	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/diparnux-gpu-check.
 	GPUCheckPath string
 	// MemInfo 는 메모리 상태를 돌려준다. nil 이면 메모리를 null 로 보고한다.
 	MemInfo func() (platform.MemInfo, error)
@@ -117,7 +117,7 @@ type Deps struct {
 	Version string
 	// Now 는 현재 시각이다. nil 이면 time.Now 를 쓴다.
 	Now func() time.Time
-	// ChownKeyFile 은 키 파일의 그룹을 lightlix-llm 으로 맞춘다. 키 파일을 쓸 때마다 부른다. nil 이면 아무것도 하지 않는다.
+	// ChownKeyFile 은 키 파일의 그룹을 diparnux-llm 으로 맞춘다. 키 파일을 쓸 때마다 부른다. nil 이면 아무것도 하지 않는다.
 	ChownKeyFile func(path string) error
 	// HTTP 는 llama-server 채팅 프록시에 쓰는 클라이언트다. nil 이면 기본 클라이언트를 쓴다.
 	HTTP *http.Client
@@ -139,13 +139,13 @@ func New(d Deps) http.Handler {
 		d.HTTP = &http.Client{}
 	}
 	if d.GPUCheckPath == "" {
-		d.GPUCheckPath = "/usr/sbin/lightlix-gpu-check"
+		d.GPUCheckPath = "/usr/sbin/diparnux-gpu-check"
 	}
 	if d.GPUStatusPath == "" {
-		d.GPUStatusPath = "/run/lightlix/gpu-status"
+		d.GPUStatusPath = "/run/diparnux/gpu-status"
 	}
 	if d.FirstBootPath == "" {
-		d.FirstBootPath = "/var/lib/lightlix/firstboot.json"
+		d.FirstBootPath = "/var/lib/diparnux/firstboot.json"
 	}
 	s := &server{d: d, mux: http.NewServeMux()}
 	s.routes()

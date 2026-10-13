@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // TestFakeMatchesFirstRuleByPrefix 는 이름과 인자 접두사로 규칙을 고르고, 처음 맞는 규칙을 쓰는지 확인한다.

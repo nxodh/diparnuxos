@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
 const (

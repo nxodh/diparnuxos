@@ -11,7 +11,7 @@ import (
 // writeFile은 테스트용 설정 파일을 임시 디렉터리에 쓴다.
 func writeFile(t *testing.T, body string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "lightlixd.json")
+	file := filepath.Join(t.TempDir(), "diparnuxd.json")
 	if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -20,7 +20,7 @@ func writeFile(t *testing.T, body string) string {
 
 func TestDefault(t *testing.T) {
 	d := Default()
-	if d.Port != 8080 || d.LANExposed || !d.Autostart || d.ModelsDir != "/var/lib/lightlix/models" || d.HFToken != "" {
+	if d.Port != 8080 || d.LANExposed || !d.Autostart || d.ModelsDir != "/var/lib/diparnux/models" || d.HFToken != "" {
 		t.Fatalf("Default = %+v", d)
 	}
 	if err := d.Validate(); err != nil {
@@ -44,7 +44,7 @@ func TestLoadPartialKeepsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.Port != 9000 || !cfg.Autostart || cfg.ModelsDir != "/var/lib/lightlix/models" {
+	if cfg.Port != 9000 || !cfg.Autostart || cfg.ModelsDir != "/var/lib/diparnux/models" {
 		t.Fatalf("partial load = %+v", cfg)
 	}
 }
@@ -104,7 +104,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 
 func TestSaveLoadRoundTripAndMode(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "lightlixd.json")
+	file := filepath.Join(dir, "diparnuxd.json")
 	ngl := "17"
 	ctx := 8192
 	in := Default()
@@ -156,7 +156,7 @@ func TestSaveOverwritesExisting(t *testing.T) {
 }
 
 func TestSaveRefusesInvalidConfig(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "lightlixd.json")
+	file := filepath.Join(t.TempDir(), "diparnuxd.json")
 	bad := Default()
 	bad.ModelsDir = "relative"
 	if err := Save(file, bad); err == nil {

@@ -85,18 +85,18 @@ def pump(seconds, until=None):
 @unittest.skipUnless(HAVE_GTK, "GTK4 and libadwaita with a display are required")
 class SmokeTests(unittest.TestCase):
     def setUp(self):
-        from lightlix_cc import api, i18n
-        from lightlix_cc.context import Context
+        from diparnux_cc import api, i18n
+        from diparnux_cc.context import Context
 
         i18n.setup(localedir="/nonexistent")
         self.daemon = FakeDaemon(ROUTES).__enter__()
         self.addCleanup(self.daemon.__exit__, None, None, None)
         self.ctx = Context(api.Client(self.daemon.path))
-        self.app = Adw.Application(application_id="io.github.nxodh.lightlixos.Test")
+        self.app = Adw.Application(application_id="io.github.nxodh.diparnuxos.Test")
         self.app.register(None)
 
     def test_main_window_fills_pages(self):
-        from lightlix_cc.window import MainWindow
+        from diparnux_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -118,7 +118,7 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_system_page_lists_accounts(self):
-        from lightlix_cc.window import MainWindow
+        from diparnux_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -127,8 +127,8 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_create_account_dialog_validates_and_posts(self):
-        from lightlix_cc.accounts import CreateAccountDialog
-        from lightlix_cc.window import MainWindow
+        from diparnux_cc.accounts import CreateAccountDialog
+        from diparnux_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         created = []
@@ -152,7 +152,7 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_network_page_lists_wifi_and_asks_for_the_password(self):
-        from lightlix_cc.network import NetworkPage, WifiPasswordDialog
+        from diparnux_cc.network import NetworkPage, WifiPasswordDialog
 
         page = NetworkPage(self.ctx)
         page.refresh()
@@ -180,11 +180,11 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(posts[0][2], {"ssid": "Office 5G", "passphrase": "correct horse battery"})
 
     def test_daemon_down_shows_banner(self):
-        from lightlix_cc import api
-        from lightlix_cc.context import Context
-        from lightlix_cc.window import MainWindow
+        from diparnux_cc import api
+        from diparnux_cc.context import Context
+        from diparnux_cc.window import MainWindow
 
-        ctx = Context(api.Client("/nonexistent/lightlixd.sock"))
+        ctx = Context(api.Client("/nonexistent/diparnuxd.sock"))
         win = MainWindow(self.app, ctx)
         win.present()
         ctx.refresh()
@@ -193,9 +193,9 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_wizard_walks_all_steps_and_completes(self):
-        from lightlix_cc import logic
-        from lightlix_cc.window import MainWindow
-        from lightlix_cc.wizard import WizardWindow
+        from diparnux_cc import logic
+        from diparnux_cc.window import MainWindow
+        from diparnux_cc.wizard import WizardWindow
 
         win = MainWindow(self.app, self.ctx)
         done = []

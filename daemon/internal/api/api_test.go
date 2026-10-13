@@ -17,16 +17,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/hf"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/network"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
-	"github.com/nxodh/lightlixos/daemon/internal/update"
-	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/hf"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/update"
+	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
 // fakeSup는 Supervisor 의 가짜다. 호출 결과를 필드로 정한다.
@@ -172,7 +172,7 @@ func newEnv(t *testing.T, sup *fakeSup) *env {
 func newEnvWith(t *testing.T, sup *fakeSup, mutate func(*Deps)) *env {
 	t.Helper()
 	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "lightlixd.json")
+	cfgPath := filepath.Join(dir, "diparnuxd.json")
 	cfg := config.Default()
 	cfg.Port = 8080
 	cfg.ModelsDir = dir
@@ -998,9 +998,9 @@ func serr(code, msg string) error {
 // writeStatusFile은 no_gpu 상태 파일을 쓴다.
 func writeStatusFile(t *testing.T, path string) {
 	t.Helper()
-	text := "LIGHTLIX_GPU_STATUS=no_gpu\nLIGHTLIX_GPU_PRESENT=0\nLIGHTLIX_GPU_PCI_COUNT=0\nLIGHTLIX_GPU_COUNT=0\n" +
-		"LIGHTLIX_GPU_USABLE_COUNT=0\nLIGHTLIX_GPU_USABLE_INDEXES=\nLIGHTLIX_SECURE_BOOT=unknown\n" +
-		"LIGHTLIX_DRIVER_VERSION=\nLIGHTLIX_GPU_MESSAGE=\"no NVIDIA GPU\"\n"
+	text := "DIPARNUX_GPU_STATUS=no_gpu\nDIPARNUX_GPU_PRESENT=0\nDIPARNUX_GPU_PCI_COUNT=0\nDIPARNUX_GPU_COUNT=0\n" +
+		"DIPARNUX_GPU_USABLE_COUNT=0\nDIPARNUX_GPU_USABLE_INDEXES=\nDIPARNUX_SECURE_BOOT=unknown\n" +
+		"DIPARNUX_DRIVER_VERSION=\nDIPARNUX_GPU_MESSAGE=\"no NVIDIA GPU\"\n"
 	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
 		t.Fatal(err)
 	}

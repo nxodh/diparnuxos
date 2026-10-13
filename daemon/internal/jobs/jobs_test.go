@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 const testToken = "hf_test_secret_token_value"

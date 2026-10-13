@@ -129,8 +129,8 @@ func TestUserAgent(t *testing.T) {
 	if _, err := c.ModelInfo(context.Background(), "a/b"); err != nil {
 		t.Fatal(err)
 	}
-	if ua != "lightlixd" {
-		t.Fatalf("User-Agent = %q, want lightlixd", ua)
+	if ua != "diparnuxd" {
+		t.Fatalf("User-Agent = %q, want diparnuxd", ua)
 	}
 	c.UserAgent = "custom/1"
 	if _, err := c.ModelInfo(context.Background(), "a/b"); err != nil {

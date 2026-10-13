@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Lightlix 실 하드웨어 체크리스트 실행기 (Phase 1).
+# Diparnux 실 하드웨어 체크리스트 실행기 (Phase 1).
 #
 # 사용법: tests/hw/run.sh
-#   대상 기기에서 Lightlix 로 부팅한 뒤 실행한다. 결과는 RESULT_TEMPLATE.md 에 옮겨 적는다.
+#   대상 기기에서 Diparnux 로 부팅한 뒤 실행한다. 결과는 RESULT_TEMPLATE.md 에 옮겨 적는다.
 #
 # Phase 1 의 드라이버 항목을 검증한다. LLM 및 GUI 항목은 후속 단계에서 확인한다.
-#   - os-release 의 ID=lightlix
+#   - os-release 의 ID=diparnux
 #   - 커널 버전 (기록용)
 #   - UEFI 부팅 여부
 #   - Secure Boot 상태 (mokutil 이 있을 때, 기록용)
 #   - NVIDIA 드라이버 로드 흔적 (/proc/driver/nvidia/version 이 있을 때)
 #   - nvidia-smi 가 있을 때의 compute_cap (8.6 / 8.9 / 12.0 중 하나여야 함)
-#   - GPU 진단 상태 /run/lightlix/gpu-status 의 LIGHTLIX_GPU_STATUS 와 USABLE_COUNT
+#   - GPU 진단 상태 /run/diparnux/gpu-status 의 DIPARNUX_GPU_STATUS 와 USABLE_COUNT
 #     (ready 면 PASS, no_gpu 면 SKIP, 그 밖이면 FAIL)
 #   - ready 일 때 /dev/dri/card* 가 있는지 (없으면 FAIL)
-#   - 로드된 드라이버 버전이 /usr/share/lightlix/nvidia.conf 의 고정 버전과 같은지
+#   - 로드된 드라이버 버전이 /usr/share/diparnux/nvidia.conf 의 고정 버전과 같은지
 #     (드라이버가 로드되지 않았으면 SKIP)
 #   - 무선 인터페이스(/sys/class/net/wl*)가 있으면 이름, 그때 iwd.service 가 active 인지
 #     (무선 장치가 없으면 SKIP)
@@ -23,23 +23,23 @@
 # 출력: 항목마다 PASS / FAIL / SKIP 한 줄. FAIL 이 하나라도 있으면 1 로 끝난다.
 #
 # 테스트용 덮어쓰기 환경 변수
-#   LIGHTLIX_OS_RELEASE          기본 /etc/os-release
-#   LIGHTLIX_EFI_DIR             기본 /sys/firmware/efi
-#   LIGHTLIX_NVIDIA_VERSION_FILE 기본 /proc/driver/nvidia/version
-#   LIGHTLIX_NET_CLASS_DIR       기본 /sys/class/net
-#   LIGHTLIX_GPU_STATUS_FILE     기본 /run/lightlix/gpu-status
-#   LIGHTLIX_NVIDIA_CONF_FILE    기본 /usr/share/lightlix/nvidia.conf
-#   LIGHTLIX_DRI_DIR             기본 /dev/dri
+#   DIPARNUX_OS_RELEASE          기본 /etc/os-release
+#   DIPARNUX_EFI_DIR             기본 /sys/firmware/efi
+#   DIPARNUX_NVIDIA_VERSION_FILE 기본 /proc/driver/nvidia/version
+#   DIPARNUX_NET_CLASS_DIR       기본 /sys/class/net
+#   DIPARNUX_GPU_STATUS_FILE     기본 /run/diparnux/gpu-status
+#   DIPARNUX_NVIDIA_CONF_FILE    기본 /usr/share/diparnux/nvidia.conf
+#   DIPARNUX_DRI_DIR             기본 /dev/dri
 
 set -euo pipefail
 
-OS_RELEASE_FILE="${LIGHTLIX_OS_RELEASE:-/etc/os-release}"
-EFI_DIR="${LIGHTLIX_EFI_DIR:-/sys/firmware/efi}"
-NVIDIA_VERSION_FILE="${LIGHTLIX_NVIDIA_VERSION_FILE:-/proc/driver/nvidia/version}"
-NET_CLASS_DIR="${LIGHTLIX_NET_CLASS_DIR:-/sys/class/net}"
-GPU_STATUS_FILE="${LIGHTLIX_GPU_STATUS_FILE:-/run/lightlix/gpu-status}"
-NVIDIA_CONF_FILE="${LIGHTLIX_NVIDIA_CONF_FILE:-/usr/share/lightlix/nvidia.conf}"
-DRI_DIR="${LIGHTLIX_DRI_DIR:-/dev/dri}"
+OS_RELEASE_FILE="${DIPARNUX_OS_RELEASE:-/etc/os-release}"
+EFI_DIR="${DIPARNUX_EFI_DIR:-/sys/firmware/efi}"
+NVIDIA_VERSION_FILE="${DIPARNUX_NVIDIA_VERSION_FILE:-/proc/driver/nvidia/version}"
+NET_CLASS_DIR="${DIPARNUX_NET_CLASS_DIR:-/sys/class/net}"
+GPU_STATUS_FILE="${DIPARNUX_GPU_STATUS_FILE:-/run/diparnux/gpu-status}"
+NVIDIA_CONF_FILE="${DIPARNUX_NVIDIA_CONF_FILE:-/usr/share/diparnux/nvidia.conf}"
+DRI_DIR="${DIPARNUX_DRI_DIR:-/dev/dri}"
 
 # RTX 30 (Ampere), RTX 40 (Ada), RTX 50 (Blackwell) 의 compute capability.
 readonly SUPPORTED_COMPUTE_CAPS='8.6 8.9 12.0'
@@ -66,10 +66,10 @@ check_os_release() {
   id="$(. "$OS_RELEASE_FILE" && printf '%s' "${ID:-}")"
   # shellcheck source=/dev/null
   version="$(. "$OS_RELEASE_FILE" && printf '%s' "${VERSION_ID:-}")"
-  if [[ "$id" == "lightlix" ]]; then
-    emit PASS os-release "ID=lightlix VERSION_ID=${version:-unset}"
+  if [[ "$id" == "diparnux" ]]; then
+    emit PASS os-release "ID=diparnux VERSION_ID=${version:-unset}"
   else
-    emit FAIL os-release "ID=${id:-unset} (expected lightlix)"
+    emit FAIL os-release "ID=${id:-unset} (expected diparnux)"
   fi
 }
 
@@ -81,7 +81,7 @@ check_uefi() {
   if [[ -d "$EFI_DIR" ]]; then
     emit PASS uefi-boot "$EFI_DIR present"
   else
-    emit FAIL uefi-boot "$EFI_DIR missing (Lightlix requires UEFI boot)"
+    emit FAIL uefi-boot "$EFI_DIR missing (Diparnux requires UEFI boot)"
   fi
 }
 
@@ -159,9 +159,9 @@ check_gpu_status() {
     return 0
   fi
   local state usable message
-  state="$(gpu_status_value LIGHTLIX_GPU_STATUS)"
-  usable="$(gpu_status_value LIGHTLIX_GPU_USABLE_COUNT)"
-  message="$(gpu_status_value LIGHTLIX_GPU_MESSAGE)"
+  state="$(gpu_status_value DIPARNUX_GPU_STATUS)"
+  usable="$(gpu_status_value DIPARNUX_GPU_USABLE_COUNT)"
+  message="$(gpu_status_value DIPARNUX_GPU_MESSAGE)"
   case "$state" in
     ready)  emit PASS gpu-status "ready (usable GPUs: ${usable:-0})" ;;
     no_gpu) emit SKIP gpu-status "no_gpu: $message" ;;
@@ -178,7 +178,7 @@ check_gpu_status() {
 
 check_dri_card() {
   local state
-  state="$(gpu_status_value LIGHTLIX_GPU_STATUS)"
+  state="$(gpu_status_value DIPARNUX_GPU_STATUS)"
   if [[ "$state" != ready ]]; then
     emit SKIP dri-card "gpu-status is not ready (${state:-none})"
     return 0

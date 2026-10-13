@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/nxodh/lightlixos/daemon/internal/network"
-	"github.com/nxodh/lightlixos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
 // Status 는 GET /v1/status 를 부른다. 응답과 원본 본문을 돌려준다.
@@ -222,7 +222,7 @@ func (c *Client) Report(ctx context.Context) (string, error) {
 	return string(raw), nil
 }
 
-// Users 는 GET /v1/users 로 Lightlix 계정 목록을 받는다.
+// Users 는 GET /v1/users 로 Diparnux 계정 목록을 받는다.
 func (c *Client) Users(ctx context.Context) (UserList, []byte, error) {
 	return call[UserList](ctx, c, http.MethodGet, "/v1/users", nil, defaultLimit)
 }

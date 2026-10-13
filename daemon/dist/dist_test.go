@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/firewall"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 )
 
 // readFile 은 이 디렉터리의 파일을 읽는다. 테스트는 패키지 디렉터리에서 실행되므로 상대 경로를 쓴다.
@@ -56,10 +56,10 @@ func TestDefaultRulesetMatchesFirewallPackage(t *testing.T) {
 
 // TestDaemonUnitHasSocketAndTarget 는 데몬 유닛이 소켓을 요구하고, 부팅 때 자동으로 뜨는 대상에 묶였는지 확인한다.
 func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
-	svc := readFile(t, "lightlixd.service")
+	svc := readFile(t, "diparnuxd.service")
 	for _, line := range []string{
-		"Requires=lightlixd.socket lightlix-firewall-default.service",
-		"ExecStart=/usr/sbin/lightlixd",
+		"Requires=diparnuxd.socket diparnux-firewall-default.service",
+		"ExecStart=/usr/sbin/diparnuxd",
 		"Type=simple",
 		"Restart=on-failure",
 		"WantedBy=multi-user.target",
@@ -69,72 +69,72 @@ func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
 		"NoNewPrivileges=yes",
 	} {
 		if !hasLine(svc, line) {
-			t.Errorf("lightlixd.service lacks %q", line)
+			t.Errorf("diparnuxd.service lacks %q", line)
 		}
 	}
-	if !hasLine(svc, "After=lightlixd.socket lightlix-gpu-check.service lightlix-firewall-default.service lightlix-firewall.service network.target") {
-		t.Errorf("lightlixd.service lacks the After= line with the socket, the GPU check, and network.target")
+	if !hasLine(svc, "After=diparnuxd.socket diparnux-gpu-check.service diparnux-firewall-default.service diparnux-firewall.service network.target") {
+		t.Errorf("diparnuxd.service lacks the After= line with the socket, the GPU check, and network.target")
 	}
 	if hasLine(svc, "PrivateDevices=yes") {
-		t.Error("lightlixd.service sets PrivateDevices=yes, which hides /dev/nvidia* from NVML")
+		t.Error("diparnuxd.service sets PrivateDevices=yes, which hides /dev/nvidia* from NVML")
 	}
 }
 
 // TestSocketUnit 은 소켓의 경로, 모드, 그룹, 설치 대상을 확인한다.
 func TestSocketUnit(t *testing.T) {
-	sock := readFile(t, "lightlixd.socket")
+	sock := readFile(t, "diparnuxd.socket")
 	for _, line := range []string{
-		"ListenStream=/run/lightlix/lightlixd.sock",
+		"ListenStream=/run/diparnux/diparnuxd.sock",
 		"SocketMode=0660",
-		"SocketGroup=lightlix",
+		"SocketGroup=diparnux",
 		"WantedBy=sockets.target",
 	} {
 		if !hasLine(sock, line) {
-			t.Errorf("lightlixd.socket lacks %q", line)
+			t.Errorf("diparnuxd.socket lacks %q", line)
 		}
 	}
 }
 
 // TestLlamaUnitKeepsGPUAccess 는 llama 유닛이 GPU 접근을 막는 옵션을 쓰지 않고, 자동 재시작과 [Install] 이 없는지 확인한다.
 func TestLlamaUnitKeepsGPUAccess(t *testing.T) {
-	llama := readFile(t, "lightlix-llama.service")
+	llama := readFile(t, "diparnux-llama.service")
 	for _, line := range []string{
-		"User=lightlix-llm",
-		"Group=lightlix-llm",
+		"User=diparnux-llm",
+		"Group=diparnux-llm",
 		"SupplementaryGroups=video render",
-		"ExecStartPre=/usr/lib/lightlix/check-gpu-permissions",
-		"EnvironmentFile=/run/lightlix/llama-server.env",
-		"ExecStart=/usr/lib/lightlix/llama/llama-server",
+		"ExecStartPre=/usr/lib/diparnux/check-gpu-permissions",
+		"EnvironmentFile=/run/diparnux/llama-server.env",
+		"ExecStart=/usr/lib/diparnux/llama/llama-server",
 		"Restart=no",
 		"NoNewPrivileges=yes",
 		"ProtectSystem=strict",
 		"ProtectHome=yes",
 		"PrivateTmp=yes",
-		"ReadOnlyPaths=/var/lib/lightlix/models",
+		"ReadOnlyPaths=/var/lib/diparnux/models",
 		"LimitMEMLOCK=infinity",
 		"RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
 	} {
 		if !hasLine(llama, line) {
-			t.Errorf("lightlix-llama.service lacks %q", line)
+			t.Errorf("diparnux-llama.service lacks %q", line)
 		}
 	}
 	for _, bad := range []string{"PrivateDevices=yes", "MemoryDenyWriteExecute=yes"} {
 		if hasLine(llama, bad) {
-			t.Errorf("lightlix-llama.service sets %q, which breaks CUDA device access", bad)
+			t.Errorf("diparnux-llama.service sets %q, which breaks CUDA device access", bad)
 		}
 	}
 	for _, l := range activeLines(llama) {
 		if strings.HasPrefix(l, "[Install]") || strings.HasPrefix(l, "WantedBy=") {
-			t.Errorf("lightlix-llama.service has an install section line %q; the daemon starts it", l)
+			t.Errorf("diparnux-llama.service has an install section line %q; the daemon starts it", l)
 		}
 	}
 }
 
 // TestLlamaUnitWaitsForExecBeforeStartReturns는 데몬의 즉시 MainPID 검증에 필요한 실행 장벽을 고정한다.
 func TestLlamaUnitWaitsForExecBeforeStartReturns(t *testing.T) {
-	llama := readFile(t, "lightlix-llama.service")
+	llama := readFile(t, "diparnux-llama.service")
 	if !hasLine(llama, "Type=exec") {
-		t.Fatal("lightlix-llama.service must wait until ExecStart has executed before systemctl start succeeds")
+		t.Fatal("diparnux-llama.service must wait until ExecStart has executed before systemctl start succeeds")
 	}
 	if hasLine(llama, "Type=simple") {
 		t.Fatal("Type=simple can report success before ExecStart calls execve")
@@ -143,9 +143,9 @@ func TestLlamaUnitWaitsForExecBeforeStartReturns(t *testing.T) {
 
 // TestFirewallDefaultsBeforeSaved 는 저장 파일이 깨져도 기본 차단을 먼저 적용하는 의존성을 확인한다.
 func TestFirewallDefaultsBeforeSaved(t *testing.T) {
-	saved := readFile(t, "lightlix-firewall.service")
-	def := readFile(t, "lightlix-firewall-default.service")
-	if !hasLine(saved, "ConditionPathExists=/var/lib/lightlix/firewall.nft") {
+	saved := readFile(t, "diparnux-firewall.service")
+	def := readFile(t, "diparnux-firewall-default.service")
+	if !hasLine(saved, "ConditionPathExists=/var/lib/diparnux/firewall.nft") {
 		t.Error("saved-rules unit lacks its path condition")
 	}
 	for _, line := range activeLines(def) {
@@ -153,7 +153,7 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 			t.Errorf("default firewall must always apply, found %q", line)
 		}
 	}
-	for _, line := range []string{"Requires=lightlix-firewall-default.service", "After=local-fs.target lightlix-firewall-default.service"} {
+	for _, line := range []string{"Requires=diparnux-firewall-default.service", "After=local-fs.target diparnux-firewall-default.service"} {
 		if !hasLine(saved, line) {
 			t.Errorf("saved firewall lacks %q", line)
 		}
@@ -161,10 +161,10 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	if !hasLine(def, "After=local-fs.target nftables.service") {
 		t.Error("default firewall must follow any nftables.service ruleset flush")
 	}
-	if !hasLine(saved, "ExecStart=/usr/sbin/nft -f /var/lib/lightlix/firewall.nft") {
+	if !hasLine(saved, "ExecStart=/usr/sbin/nft -f /var/lib/diparnux/firewall.nft") {
 		t.Error("saved-rules unit applies the wrong file")
 	}
-	if !hasLine(def, "ExecStart=/usr/sbin/nft -f /usr/share/lightlix/firewall-default.nft") {
+	if !hasLine(def, "ExecStart=/usr/sbin/nft -f /usr/share/diparnux/firewall-default.nft") {
 		t.Error("default-rules unit applies the wrong file")
 	}
 	for name, text := range map[string]string{"saved": saved, "default": def} {
@@ -177,19 +177,19 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	}
 }
 
-// TestTmpfilesDoesNotRedefineRun 은 /run/lightlix 를 이 설정에서 다시 정의하지 않는지 확인한다.
-// 그 경로는 lightlix-nvidia 패키지가 만든다.
+// TestTmpfilesDoesNotRedefineRun 은 /run/diparnux 를 이 설정에서 다시 정의하지 않는지 확인한다.
+// 그 경로는 diparnux-nvidia 패키지가 만든다.
 func TestTmpfilesDoesNotRedefineRun(t *testing.T) {
-	tf := readFile(t, "lightlix-daemon.tmpfiles.conf")
+	tf := readFile(t, "diparnux-daemon.tmpfiles.conf")
 	for _, l := range activeLines(tf) {
-		if strings.Contains(l, "/run/lightlix") {
-			t.Errorf("tmpfiles line %q redefines /run/lightlix", l)
+		if strings.Contains(l, "/run/diparnux") {
+			t.Errorf("tmpfiles line %q redefines /run/diparnux", l)
 		}
 	}
 	for _, want := range []string{
-		"d /var/lib/lightlix 0750 root lightlix-llm -",
-		"d /var/lib/lightlix/models 2750 root lightlix-llm -",
-		"d /etc/lightlix 0750 root root -",
+		"d /var/lib/diparnux 0750 root diparnux-llm -",
+		"d /var/lib/diparnux/models 2750 root diparnux-llm -",
+		"d /etc/diparnux 0750 root root -",
 	} {
 		if !hasLine(tf, want) {
 			t.Errorf("tmpfiles lacks %q", want)
@@ -199,11 +199,11 @@ func TestTmpfilesDoesNotRedefineRun(t *testing.T) {
 
 // TestSysusersDefinesGroupAndUser 는 그룹과 사용자 선언을 확인한다.
 func TestSysusersDefinesGroupAndUser(t *testing.T) {
-	su := readFile(t, "lightlix.sysusers.conf")
-	if !hasLine(su, "g lightlix - -") {
-		t.Error("sysusers lacks the lightlix group")
+	su := readFile(t, "diparnux.sysusers.conf")
+	if !hasLine(su, "g diparnux - -") {
+		t.Error("sysusers lacks the diparnux group")
 	}
-	if !hasLine(su, `u lightlix-llm - "Lightlix llama-server" /nonexistent /usr/sbin/nologin`) {
-		t.Error("sysusers lacks the lightlix-llm user with no home and nologin shell")
+	if !hasLine(su, `u diparnux-llm - "Diparnux llama-server" /nonexistent /usr/sbin/nologin`) {
+		t.Error("sysusers lacks the diparnux-llm user with no home and nologin shell")
 	}
 }

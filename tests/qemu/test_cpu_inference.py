@@ -19,11 +19,11 @@ STATUS_POLL_COMMAND = runpy.run_path(str(ROOT / "cpu-inference.py"))["status_pol
 
 class StatusPollTests(unittest.TestCase):
     def run_poll(self, script):
-        with tempfile.TemporaryDirectory(prefix="lightlix-status-poll-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-status-poll-") as work:
             work = Path(work)
             binary_dir = work / "bin"
             binary_dir.mkdir()
-            fake = binary_dir / "lightlix"
+            fake = binary_dir / "diparnux"
             fake.write_text(script)
             fake.chmod(0o755)
             calls = work / "calls"
@@ -41,7 +41,7 @@ if [ -f "$POLL_CALLS" ]; then count=$(cat "$POLL_CALLS"); fi
 count=$((count + 1))
 printf '%s' "$count" > "$POLL_CALLS"
 if [ "$count" -eq 1 ]; then
-    echo "lightlix: lightlixd is not running (systemctl status lightlixd)" >&2
+    echo "diparnux: diparnuxd is not running (systemctl status diparnuxd)" >&2
     exit 3
 fi
 printf '%s\\n' '{"server":{"state":"running_cpu_fallback"}}'
@@ -53,7 +53,7 @@ printf '%s\\n' '{"server":{"state":"running_cpu_fallback"}}'
     def test_propagates_non_transport_status_error_without_retry(self):
         result, calls = self.run_poll("""#!/bin/sh
 printf '1' > "$POLL_CALLS"
-echo "lightlix: permission denied: add your user to the 'lightlix' group" >&2
+echo "diparnux: permission denied: add your user to the 'diparnux' group" >&2
 exit 3
 """)
         self.assertEqual(result.returncode, 3)
@@ -83,7 +83,7 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(reader.returncode, 0, reader.stderr)
 
     def run_fixture(self, mode, expected_exit=1, interrupt=False, interrupt_signal=signal.SIGTERM):
-        with tempfile.TemporaryDirectory(prefix="lightlix-e2e-fixture-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-e2e-fixture-") as work:
             work = Path(work)
             work.chmod(0o755)
             iso, firmware = work / "fixture.iso", work / "firmware.fd"
@@ -190,7 +190,7 @@ class DriverTests(unittest.TestCase):
         self.assertLess(labels.index("autostart-on"), labels.index("daemon-restart-autostart-on"))
         for event in starts:
             if event["label"] in ("status-initial", "model-pull", "model-default", "serve-plan", "serve-start", "chat", "serve-stop"):
-                self.assertTrue(event["command"].startswith("lightlix --json "))
+                self.assertTrue(event["command"].startswith("diparnux --json "))
                 self.assertNotIn("sudo", event["command"])
 
     def test_trained_context_is_taken_from_the_actual_plan(self):
@@ -213,9 +213,9 @@ class DriverTests(unittest.TestCase):
         self.assertIn("ctx override 256 ignored", " ".join(plan["plan"]["warnings"]))
         commands_by_label = {event["label"]: event["command"] for event in commands if event["event"] == "start"}
         self.assertEqual(commands_by_label["serve-plan"],
-                         "lightlix --json serve plan --ctx 256 --batch 32")
+                         "diparnux --json serve plan --ctx 256 --batch 32")
         self.assertEqual(commands_by_label["serve-start"],
-                         "lightlix --json serve start --ctx 256 --batch 32")
+                         "diparnux --json serve start --ctx 256 --batch 32")
 
         expected_pid = 42
         for label in ("serve-start", "status-running", "status-after-daemon-restart-off",
@@ -307,7 +307,7 @@ class DriverTests(unittest.TestCase):
                     self.assertNotIn("status-after-daemon-restart-on", labels)
 
     def test_shell_efi_check_failure_is_not_masked_by_uname(self):
-        with tempfile.TemporaryDirectory(prefix="lightlix-missing-efi-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-missing-efi-") as work:
             missing_efi = Path(work) / "sys/firmware/efi"
             command = "id -u && id -un && id -Gn && test -d \"$1\" && uname -m"
             result = subprocess.run(
@@ -342,7 +342,7 @@ class DriverTests(unittest.TestCase):
 
 class DockerWrapperTests(unittest.TestCase):
     def wrapper_fixture(self, interrupt=False, interrupt_signal=signal.SIGTERM):
-        with tempfile.TemporaryDirectory(prefix="lightlix-docker-fixture-") as work:
+        with tempfile.TemporaryDirectory(prefix="diparnux-docker-fixture-") as work:
             work = Path(work)
             (work / "fixture.iso").touch()
             fake = work / "docker"

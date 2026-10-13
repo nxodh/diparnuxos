@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 type fakeRunner struct {
@@ -24,12 +24,12 @@ func (f *fakeRunner) Run(ctx context.Context, cmd platform.Command) (platform.Re
 }
 
 func ok() platform.Result {
-	return platform.Result{Stdout: []byte("noise\nLIGHTLIX_USER_RESULT=ok\n")}
+	return platform.Result{Stdout: []byte("noise\nDIPARNUX_USER_RESULT=ok\n")}
 }
 
 func TestValidName(t *testing.T) {
 	good := []string{"alice", "a", "a_b-c9", strings.Repeat("a", 32)}
-	bad := []string{"", "Alice", "1abc", "a b", "root", "user", "lightlixd", "systemd-x", "x;y", "a.b", strings.Repeat("a", 33), "한글"}
+	bad := []string{"", "Alice", "1abc", "a b", "root", "user", "diparnuxd", "systemd-x", "x;y", "a.b", strings.Repeat("a", 33), "한글"}
 	for _, n := range good {
 		if !ValidName(n) {
 			t.Errorf("ValidName(%q) = false", n)
@@ -59,7 +59,7 @@ func TestValidPassword(t *testing.T) {
 
 func TestAddPassesPasswordOnlyThroughStdin(t *testing.T) {
 	r := &fakeRunner{res: ok()}
-	m := &Manager{Runner: r, Helper: "/h/lightlix-user"}
+	m := &Manager{Runner: r, Helper: "/h/diparnux-user"}
 	if err := m.Add(context.Background(), "alice", "correct-horse-9", true); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestAddPassesPasswordOnlyThroughStdin(t *testing.T) {
 	if c.Name != "systemd-run" {
 		t.Fatalf("name = %s", c.Name)
 	}
-	wantTail := []string{"/h/lightlix-user", "add", "alice", "--admin"}
+	wantTail := []string{"/h/diparnux-user", "add", "alice", "--admin"}
 	if !reflect.DeepEqual(c.Args[len(c.Args)-4:], wantTail) {
 		t.Fatalf("args = %v", c.Args)
 	}
@@ -112,14 +112,14 @@ func TestAddRejectsBeforeRunning(t *testing.T) {
 
 func TestHelperErrorCodesAreMapped(t *testing.T) {
 	cases := map[string]string{
-		"LIGHTLIX_USER_RESULT=error:user_exists":    CodeUserExists,
-		"LIGHTLIX_USER_RESULT=error:ssh_config":     CodeSSHConfig,
-		"LIGHTLIX_USER_RESULT=error:weird_thing":    CodeAccountFailed,
+		"DIPARNUX_USER_RESULT=error:user_exists":    CodeUserExists,
+		"DIPARNUX_USER_RESULT=error:ssh_config":     CodeSSHConfig,
+		"DIPARNUX_USER_RESULT=error:weird_thing":    CodeAccountFailed,
 		"no result line at all":                     CodeAccountFailed,
-		"LIGHTLIX_USER_RESULT=error:user_not_found": CodeUserNotFound,
+		"DIPARNUX_USER_RESULT=error:user_not_found": CodeUserNotFound,
 	}
 	for out, want := range cases {
-		r := &fakeRunner{res: platform.Result{Stdout: []byte(out + "\n"), Stderr: []byte("lightlix-user: boom\n"), ExitCode: 1}}
+		r := &fakeRunner{res: platform.Result{Stdout: []byte(out + "\n"), Stderr: []byte("diparnux-user: boom\n"), ExitCode: 1}}
 		err := (&Manager{Runner: r}).Remove(context.Background(), "alice")
 		var e *Error
 		if !errors.As(err, &e) || e.Code != want {

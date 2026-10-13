@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nxodh/lightlixos/daemon/internal/gguf"
+	"github.com/nxodh/diparnuxos/daemon/internal/gguf"
 )
 
 // File names and limits.
@@ -52,7 +52,7 @@ var ErrSizeMismatch = errors.New("model size does not match")
 // ErrChecksumMismatch 는 모델 파일의 SHA-256 이 예상값과 다르면 반환한다.
 var ErrChecksumMismatch = errors.New("model SHA-256 does not match")
 
-// Store is a model directory. Dir is the directory path, such as /var/lib/lightlix/models.
+// Store is a model directory. Dir is the directory path, such as /var/lib/diparnux/models.
 type Store struct {
 	Dir string
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# llama.cpp 의 llama-server 를 고정 커밋에서 빌드하고 lightlix-llm .deb 를 /out 에 만든다.
+# llama.cpp 의 llama-server 를 고정 커밋에서 빌드하고 diparnux-llm .deb 를 /out 에 만든다.
 # 컨테이너 안에서 실행한다(scripts/build-llama-in-docker.sh 가 호출). 저장소는 /src 에 읽기 전용으로 마운트된다.
 #
 # 빌드는 한 벌이다. CUDA 백엔드는 GGML_BACKEND_DL=ON 으로 dlopen 되는 모듈(libggml-cuda.so)이 되므로,
 # CUDA 라이브러리나 GPU 가 없는 시스템에서는 로드에 실패하고 CPU 백엔드로 돈다.
 set -euo pipefail
 
-SRC="${LIGHTLIX_SRC:-/src}"
-OUT="${LIGHTLIX_OUT:-/out}"
+SRC="${DIPARNUX_SRC:-/src}"
+OUT="${DIPARNUX_OUT:-/out}"
 WORK="${LLAMA_WORK:-/var/tmp/llama-build}"
 LLAMA_CUDA="${LLAMA_CUDA:-ON}"
 BUILD_KEY="${LLAMA_BUILD_KEY:-}"
@@ -26,9 +26,9 @@ case "${LLAMA_CUDA}" in
     *) die "LLAMA_CUDA must be ON or OFF (got: ${LLAMA_CUDA})" ;;
 esac
 
-[ -r "${SRC}/lightlix.conf" ] || die "cannot read ${SRC}/lightlix.conf"
+[ -r "${SRC}/diparnux.conf" ] || die "cannot read ${SRC}/diparnux.conf"
 # shellcheck source=/dev/null
-. "${SRC}/lightlix.conf"
+. "${SRC}/diparnux.conf"
 
 for cmd in git cmake readelf ldd dpkg-buildpackage nproc; do
     command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} is missing from the builder image"
@@ -97,7 +97,7 @@ CPU_MODULES=("${STAGE}"/libggml-cpu-*.so)
 shopt -u nullglob
 [ "${#CPU_MODULES[@]}" -ge 1 ] || die "no libggml-cpu-*.so backend module was staged"
 
-DOC="${PKGROOT}/usr/share/doc/lightlix-llm"
+DOC="${PKGROOT}/usr/share/doc/diparnux-llm"
 mkdir -p "${DOC}"
 cp "${SRCDIR}/LICENSE" "${DOC}/LICENSE.llama.cpp"
 bash "${SRC}/llama/copy-vendor-licenses.sh" "${SRCDIR}" "${DOC}"
@@ -158,9 +158,9 @@ log "check (e): no nvcc, static libraries or headers in the staged tree"
 # 빌드 정보: 커밋, CMake 옵션, 도구 버전, 그리고 ldd 와 readelf 출력.
 INFO="${DOC}/build-info.txt"
 {
-    echo "lightlix-llm build-info"
+    echo "diparnux-llm build-info"
     echo "built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    echo "lightlix_version=${LIGHTLIX_VERSION}"
+    echo "diparnux_version=${DIPARNUX_VERSION}"
     echo "llama_cpp_repo=${LLAMA_CPP_REPO}"
     echo "llama_cpp_tag=${LLAMA_CPP_TAG}"
     echo "llama_cpp_commit=${ACTUAL_COMMIT}"
@@ -190,17 +190,17 @@ INFO="${DOC}/build-info.txt"
 } > "${INFO}"
 
 # 6. 패키지. llama/pkg/debian 을 임시 소스 트리로 복사하고 버전과 의존성을 채운다.
-PKGSRC="${WORK}/pkg/lightlix-llm-${LIGHTLIX_VERSION}"
+PKGSRC="${WORK}/pkg/diparnux-llm-${DIPARNUX_VERSION}"
 mkdir -p "${PKGSRC}"
 cp -a "${SRC}/llama/pkg/debian" "${PKGSRC}/debian"
 
 if [ "${LLAMA_CUDA}" = ON ]; then
-    NVIDIA_DEP=", lightlix-nvidia"
+    NVIDIA_DEP=", diparnux-nvidia"
 else
     NVIDIA_DEP=""
 fi
-sed -i "s/@LIGHTLIX_NVIDIA_DEPENDS@/${NVIDIA_DEP}/" "${PKGSRC}/debian/control"
-sed -i "s|@LIGHTLIX_HOME_URL@|${LIGHTLIX_HOME_URL}|g" "${PKGSRC}/debian/control"
+sed -i "s/@DIPARNUX_NVIDIA_DEPENDS@/${NVIDIA_DEP}/" "${PKGSRC}/debian/control"
+sed -i "s|@DIPARNUX_HOME_URL@|${DIPARNUX_HOME_URL}|g" "${PKGSRC}/debian/control"
 
 {
     cat "${SRC}/llama/pkg/debian/copyright"
@@ -210,23 +210,23 @@ sed -i "s|@LIGHTLIX_HOME_URL@|${LIGHTLIX_HOME_URL}|g" "${PKGSRC}/debian/control"
 } > "${PKGSRC}/debian/copyright"
 
 cat > "${PKGSRC}/debian/changelog" <<EOF
-lightlix-llm (${LIGHTLIX_VERSION}) trixie; urgency=medium
+diparnux-llm (${DIPARNUX_VERSION}) trixie; urgency=medium
 
   * Build llama-server from llama.cpp ${LLAMA_CPP_TAG} (${ACTUAL_COMMIT}).
 
- -- Lightlix Developers <noreply@users.noreply.github.com>  $(date -R -u)
+ -- Diparnux Developers <noreply@users.noreply.github.com>  $(date -R -u)
 EOF
 
 cp -a "${PKGROOT}" "${PKGSRC}/staging"
 
 (cd "${PKGSRC}" && dpkg-buildpackage -us -uc -b)
 
-DEB_NAME="lightlix-llm_${LIGHTLIX_VERSION}_${ARCH}.deb"
+DEB_NAME="diparnux-llm_${DIPARNUX_VERSION}_${ARCH}.deb"
 DEB="${WORK}/pkg/${DEB_NAME}"
 [ -f "${DEB}" ] || die "dpkg-buildpackage did not produce ${DEB_NAME}"
 
 mkdir -p "${OUT}"
-rm -f "${OUT}/BUILD_KEY" "${OUT}"/lightlix-llm_*.deb
+rm -f "${OUT}/BUILD_KEY" "${OUT}"/diparnux-llm_*.deb
 mv "${DEB}" "${OUT}/${DEB_NAME}"
 printf '%s\n' "${BUILD_KEY}" > "${OUT}/BUILD_KEY"
 log "wrote ${OUT}/${DEB_NAME}"

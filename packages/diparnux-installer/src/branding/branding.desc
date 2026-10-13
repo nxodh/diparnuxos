@@ -1,0 +1,33 @@
+# Diparnux 의 Calamares 브랜딩이다. Debian 의 이름과 로고는 쓰지 않는다.
+---
+componentName: diparnux
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 900px,560px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+strings:
+    productName: "Diparnux"
+    shortProductName: "Diparnux"
+    version: "@VERSION@"
+    shortVersion: "@VERSION@"
+    versionedName: "Diparnux @VERSION@"
+    shortVersionedName: "Diparnux @VERSION@"
+    bootloaderEntryName: "Diparnux"
+    productUrl: "https://github.com/nxodh/diparnuxos"
+    supportUrl: "https://github.com/nxodh/diparnuxos/issues"
+    knownIssuesUrl: "https://github.com/nxodh/diparnuxos/issues"
+    releaseNotesUrl: "https://github.com/nxodh/diparnuxos"
+images:
+    productLogo: "logo.png"
+    productIcon: "icon.png"
+    productWelcome: "welcome.png"
+style:
+    SidebarBackground: "#0D0D0D"
+    SidebarText: "#EBEBEB"
+    SidebarTextCurrent: "#000000"
+    SidebarBackgroundCurrent: "#EBEBEB"
+slideshow: "show.qml"
+slideshowAPI: 2

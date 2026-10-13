@@ -1,9 +1,0 @@
-# Lightlix 저장소는 lightlix-* 패키지만 제공한다. 다른 이름의 패키지는 이 저장소에서 받지 않는다.
-# Debian 이나 NVIDIA 저장소의 패키지를 이 저장소가 덮어쓰지 못하게 하는 보호 장치다.
-Package: *
-Pin: release o=Lightlix
-Pin-Priority: -1
-
-Package: lightlix-*
-Pin: release o=Lightlix
-Pin-Priority: 600

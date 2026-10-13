@@ -15,14 +15,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // 기본 경로다. 테스트는 Config 로 바꾼다.
 const (
-	DefaultStateDir = "/var/lib/lightlix/update"
+	DefaultStateDir = "/var/lib/diparnux/update"
 	// PolicyPackage 는 드라이버 핀과 정확한 의존성을 가진 패키지다. 드라이버는 이 패키지를 통해서만 올라간다.
-	PolicyPackage = "lightlix-nvidia"
+	PolicyPackage = "diparnux-nvidia"
 	// DriverPackage 는 드라이버 버전을 대표하는 패키지다.
 	DriverPackage = "nvidia-kernel-open-dkms"
 )
@@ -56,10 +56,10 @@ func (c Config) withDefaults() Config {
 	def(&c.ProcNvidia, "/proc/driver/nvidia/version")
 	def(&c.LiveDir, "/run/live")
 	def(&c.PrefsDir, "/etc/apt/preferences.d")
-	def(&c.PolicyPrefName, "00-lightlix-nvidia.pref")
+	def(&c.PolicyPrefName, "00-diparnux-nvidia.pref")
 	def(&c.BootDir, "/boot")
 	def(&c.RootDir, "/")
-	def(&c.GPUCheck, "/usr/sbin/lightlix-gpu-check")
+	def(&c.GPUCheck, "/usr/sbin/diparnux-gpu-check")
 	def(&c.TmpDir, os.TempDir())
 	if c.MinFreeBoot == 0 {
 		c.MinFreeBoot = 512 << 20
@@ -461,10 +461,10 @@ func (e *Engine) aptUpdate(ctx context.Context) error {
 }
 
 // prefsOverride 는 드라이버 핀 파일을 뺀 apt preferences 디렉터리를 임시로 만든다.
-// 드라이버를 올리려면 새 lightlix-nvidia 가 가져올 정확한 버전을 apt 가 고를 수 있어야 한다. 브랜치 핀은 남긴다.
+// 드라이버를 올리려면 새 diparnux-nvidia 가 가져올 정확한 버전을 apt 가 고를 수 있어야 한다. 브랜치 핀은 남긴다.
 func (e *Engine) prefsOverride() (dir string, cleanup func(), err error) {
 	c := e.cfg()
-	dir, err = os.MkdirTemp(c.TmpDir, "lightlix-prefs-")
+	dir, err = os.MkdirTemp(c.TmpDir, "diparnux-prefs-")
 	if err != nil {
 		return "", nil, err
 	}
@@ -1190,7 +1190,7 @@ func (e *Engine) Status(ctx context.Context) (*Status, error) {
 
 // protectedPackage 는 갱신 중 지워지면 안 되는 패키지다.
 func protectedPackage(name string) bool {
-	for _, p := range []string{"lightlix-", "nvidia-", "libnvidia-", "cuda-", "libcublas", "linux-image", "linux-headers", "linux-kbuild", "dkms", "grub-", "shim-", "initramfs-tools", "systemd", "base-files", "libc6"} {
+	for _, p := range []string{"diparnux-", "nvidia-", "libnvidia-", "cuda-", "libcublas", "linux-image", "linux-headers", "linux-kbuild", "dkms", "grub-", "shim-", "initramfs-tools", "systemd", "base-files", "libc6"} {
 		if strings.HasPrefix(name, p) {
 			return true
 		}

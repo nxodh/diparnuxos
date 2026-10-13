@@ -20,20 +20,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/lightlixos/daemon/internal/apikeys"
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
-	"github.com/nxodh/lightlixos/daemon/internal/config"
-	"github.com/nxodh/lightlixos/daemon/internal/models"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // 기본값이다. Options에서 비워 두면 이 값을 쓴다.
 const (
-	defaultGPUStatusPath = "/run/lightlix/gpu-status"
-	defaultEnvFilePath   = "/run/lightlix/llama-server.env"
-	defaultServerBinary  = "/usr/lib/lightlix/llama/llama-server"
-	defaultUnit          = "lightlix-llama.service"
-	defaultFirewallPath  = "/var/lib/lightlix/firewall.nft"
+	defaultGPUStatusPath = "/run/diparnux/gpu-status"
+	defaultEnvFilePath   = "/run/diparnux/llama-server.env"
+	defaultServerBinary  = "/usr/lib/diparnux/llama/llama-server"
+	defaultUnit          = "diparnux-llama.service"
+	defaultFirewallPath  = "/var/lib/diparnux/firewall.nft"
 	defaultProcRoot      = "/proc"
 	defaultHealthTimeout = 10 * time.Minute
 	defaultPollInterval  = 2 * time.Second
@@ -144,15 +144,15 @@ type Options struct {
 	Config func() config.Config
 	// MemInfo 는 메모리 상태를 돌려준다. nil 이면 RAM 검사를 건너뛴다.
 	MemInfo func() (platform.MemInfo, error)
-	// GPUStatusPath 는 GPU 진단 상태 파일이다. 기본 /run/lightlix/gpu-status.
+	// GPUStatusPath 는 GPU 진단 상태 파일이다. 기본 /run/diparnux/gpu-status.
 	GPUStatusPath string
-	// EnvFilePath 는 systemd EnvironmentFile 경로다. 기본 /run/lightlix/llama-server.env.
+	// EnvFilePath 는 systemd EnvironmentFile 경로다. 기본 /run/diparnux/llama-server.env.
 	EnvFilePath string
 	// ServerBinary 는 llama-server 실행 파일이다.
 	ServerBinary string
-	// Unit 은 llama-server systemd 유닛이다. 기본 lightlix-llama.service.
+	// Unit 은 llama-server systemd 유닛이다. 기본 diparnux-llama.service.
 	Unit string
-	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/lightlix/firewall.nft.
+	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/diparnux/firewall.nft.
 	FirewallPath string
 	// HTTP 는 /health 확인에 쓰는 클라이언트다. nil 이면 기본 클라이언트를 쓴다.
 	HTTP *http.Client

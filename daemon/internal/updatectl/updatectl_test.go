@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
-	"github.com/nxodh/lightlixos/daemon/internal/update"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/update"
 )
 
 type fakeRunner struct {
@@ -130,7 +130,7 @@ func TestStartRunsTransientUnit(t *testing.T) {
 		}
 	}
 	args := strings.Join(run.Args, " ")
-	for _, want := range []string{"--unit=lightlix-update-run", "--collect", "--service-type=exec", DefaultHelper + " apply --json --reboot"} {
+	for _, want := range []string{"--unit=diparnux-update-run", "--collect", "--service-type=exec", DefaultHelper + " apply --json --reboot"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("systemd-run args %q miss %q", args, want)
 		}

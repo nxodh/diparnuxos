@@ -1,0 +1,18 @@
+Source: diparnux-branding
+Section: misc
+Priority: optional
+Maintainer: Diparnux Developers <noreply@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.2
+Homepage: https://github.com/nxodh/diparnuxos
+Vcs-Git: https://github.com/nxodh/diparnuxos.git
+Vcs-Browser: https://github.com/nxodh/diparnuxos
+Rules-Requires-Root: no
+
+Package: diparnux-branding
+Architecture: all
+Depends: ${misc:Depends}
+Description: Diparnux 로고, 아이콘, 배경 화면과 색 설정
+ 흑백 로고(원 안의 D)에서 만든 앱 아이콘(hicolor 16~512), 글자만 있는 마크,
+ 데스크톱 배경 이미지, GRUB 메뉴 색 설정을 제공한다. 색은 흑백 두 가지
+ (#0D0D0D 와 #EBEBEB)를 기본으로 한다.

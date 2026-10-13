@@ -1,0 +1,18 @@
+Source: diparnux-control-center
+Section: admin
+Priority: optional
+Maintainer: Diparnux Developers <noreply@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), gettext, python3
+Standards-Version: 4.7.2
+Homepage: https://github.com/nxodh/diparnuxos
+Vcs-Git: https://github.com/nxodh/diparnuxos.git
+Vcs-Browser: https://github.com/nxodh/diparnuxos
+Rules-Requires-Root: no
+
+Package: diparnux-control-center
+Architecture: all
+Depends: ${misc:Depends}, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, diparnux-daemon, diparnux-branding
+Description: Diparnux Control Center (GTK4, libadwaita)
+ diparnuxd 의 유닉스 소켓 API 만 쓰는 그래픽 관리 도구다. 대시보드, 모델,
+ 서버, 채팅, 시스템 페이지와 첫 부팅 마법사를 제공한다. root 권한이 필요한
+ 작업은 모두 데몬이 처리한다. 한국어와 영어를 지원한다.

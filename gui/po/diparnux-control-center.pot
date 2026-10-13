@@ -1,0 +1,1070 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the diparnux-control-center package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: diparnux-control-center\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-12 04:21+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Create account"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid ""
+"This account works at the console, at the login screen and, when SSH is on, "
+"over the network."
+msgstr ""
+
+msgid "User name"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Repeat the password"
+msgstr ""
+
+msgid "Administrator"
+msgstr ""
+
+msgid "Allow this account to use sudo."
+msgstr ""
+
+#, python-format
+msgid "Account %s created"
+msgstr ""
+
+msgid "Type a message"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "You"
+msgstr ""
+
+msgid "Waiting for the model…"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+#, python-format
+msgid "%(tokens)d tokens · %(speed).1f tokens/s"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Graphics cards"
+msgstr ""
+
+msgid "Driver"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "LLM server"
+msgstr ""
+
+msgid "Driver version"
+msgstr ""
+
+msgid "Kernel module"
+msgstr ""
+
+msgid "CUDA version"
+msgstr ""
+
+msgid "Secure Boot"
+msgstr ""
+
+msgid "Memory"
+msgstr ""
+
+msgid "Session mode"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "GPU offload"
+msgstr ""
+
+msgid "No GPU"
+msgstr ""
+
+msgid "No NVIDIA GPU was detected."
+msgstr ""
+
+msgid "NVIDIA open kernel module"
+msgstr ""
+
+msgid "Proprietary module"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+#, python-format
+msgid "%(used)s used of %(total)s"
+msgstr ""
+
+msgid "Desktop mode"
+msgstr ""
+
+msgid "Server mode"
+msgstr ""
+
+#, python-format
+msgid "%(n)d of %(total)d layers on the GPU"
+msgstr ""
+
+msgid "No NVIDIA GPU found"
+msgstr ""
+
+msgid "The model will run on the CPU. Inference is slower without a GPU."
+msgstr ""
+
+msgid "The NVIDIA driver is not loaded"
+msgstr ""
+
+msgid ""
+"The GPU is present but the kernel module did not load. Check the driver "
+"report in the System page."
+msgstr ""
+
+msgid "Secure Boot blocks the NVIDIA driver"
+msgstr ""
+
+msgid ""
+"Secure Boot is on, so the unsigned NVIDIA module cannot load. Turn Secure "
+"Boot off in the firmware settings, or enroll a key (see the Secure Boot "
+"step)."
+msgstr ""
+
+msgid "A proprietary NVIDIA module is loaded"
+msgstr ""
+
+msgid ""
+"Diparnux needs the open kernel modules. Reinstall the image or remove the "
+"proprietary driver."
+msgstr ""
+
+msgid "Driver and library versions differ"
+msgstr ""
+
+msgid ""
+"Reboot so the loaded kernel module matches the installed driver libraries."
+msgstr ""
+
+msgid "The NVIDIA driver is missing"
+msgstr ""
+
+msgid "The driver packages are not installed in this image."
+msgstr ""
+
+msgid "The GPU did not answer"
+msgstr ""
+
+msgid ""
+"The driver is loaded but querying the GPU failed. Run the check again after "
+"a reboot."
+msgstr ""
+
+msgid "This GPU is not supported"
+msgstr ""
+
+msgid ""
+"Only RTX 30, 40 and 50 series GPUs are supported. The model will run on the "
+"CPU."
+msgstr ""
+
+msgid "The diagnostic configuration is missing"
+msgstr ""
+
+msgid "The GPU check could not read its configuration. Reinstall the image."
+msgstr ""
+
+msgid "The GPU check failed"
+msgstr ""
+
+msgid ""
+"The diagnostic script hit an internal error. Export the report from the "
+"System page."
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "Running on GPU"
+msgstr ""
+
+msgid "Running on CPU"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Unknown architecture"
+msgstr ""
+
+msgid "GPU status is not available yet"
+msgstr ""
+
+#, python-format
+msgid "The GPU check has not produced a result: %s"
+msgstr ""
+
+msgid "The GPU check has not run."
+msgstr ""
+
+#, python-format
+msgid "Unknown GPU state: %s"
+msgstr ""
+
+msgid "Run the GPU check to detect your GPU."
+msgstr ""
+
+msgid "You can still use Diparnux on the CPU."
+msgstr ""
+
+msgid "GPU detected"
+msgstr ""
+
+#, python-format
+msgid "%(names)s (%(usable)d of %(total)d usable)"
+msgstr ""
+
+msgid "GPU detected but not usable"
+msgstr ""
+
+msgid "Driver status is not available yet"
+msgstr ""
+
+#, python-format
+msgid "Driver %s"
+msgstr ""
+
+msgid "open kernel module"
+msgstr ""
+
+msgid "The NVIDIA driver works"
+msgstr ""
+
+msgid "No driver check needed"
+msgstr ""
+
+msgid "There is no NVIDIA GPU."
+msgstr ""
+
+msgid "Secure Boot is on and blocks the driver"
+msgstr ""
+
+msgid ""
+"Turn Secure Boot off in the firmware settings and reboot. On an installed "
+"system you can enroll a machine key instead: run 'sudo diparnux-mok enroll' "
+"in a terminal."
+msgstr ""
+
+msgid "Secure Boot is on"
+msgstr ""
+
+msgid "The NVIDIA driver loaded, so no action is needed."
+msgstr ""
+
+msgid "Secure Boot is off"
+msgstr ""
+
+msgid "The NVIDIA module can load without a signature."
+msgstr ""
+
+msgid "Secure Boot state is unknown"
+msgstr ""
+
+msgid "This machine may not use UEFI Secure Boot."
+msgstr ""
+
+msgid "Enter a user name."
+msgstr ""
+
+msgid "The user name can have at most 32 characters."
+msgstr ""
+
+msgid "The user name must start with a lowercase letter."
+msgstr ""
+
+msgid "Use only lowercase letters, digits, _ and - in the user name."
+msgstr ""
+
+msgid "This user name is reserved. Choose another one."
+msgstr ""
+
+msgid "The password must have at least 8 characters."
+msgstr ""
+
+msgid "The password can have at most 128 characters."
+msgstr ""
+
+msgid "Use only printable ASCII characters in the password."
+msgstr ""
+
+msgid "The password must differ from the user name."
+msgstr ""
+
+msgid "The two passwords do not match."
+msgstr ""
+
+msgid "A login account exists"
+msgstr ""
+
+msgid "Create your own login account"
+msgstr ""
+
+msgid ""
+"Without one you can only use the default live account. Choose a user name "
+"and a password."
+msgstr ""
+
+msgid "A model is already installed"
+msgstr ""
+
+#, python-format
+msgid "Recommended model: %s"
+msgstr ""
+
+msgid "No recommended model fits this machine"
+msgstr ""
+
+msgid "Search Hugging Face for a smaller model."
+msgstr ""
+
+msgid "The API is open to your network"
+msgstr ""
+
+msgid "An API key is required to connect."
+msgstr ""
+
+msgid "The API is open without a key"
+msgstr ""
+
+msgid "Create an API key before opening the API to the network."
+msgstr ""
+
+msgid "The API is available on this machine only"
+msgstr ""
+
+msgid "Other computers cannot connect."
+msgstr ""
+
+msgid "Models"
+msgstr ""
+
+msgid "Recommended for this machine"
+msgstr ""
+
+msgid ""
+"An estimate from the file size; the real plan is computed after the download."
+msgstr ""
+
+msgid "Installed models"
+msgstr ""
+
+msgid "Downloads"
+msgstr ""
+
+msgid "Search Hugging Face"
+msgstr ""
+
+msgid "Hugging Face access"
+msgstr ""
+
+msgid "Search GGUF models"
+msgstr ""
+
+msgid "Access token (for gated models)"
+msgstr ""
+
+msgid ""
+"The token is stored by the daemon. Restart diparnuxd for it to take effect."
+msgstr ""
+
+msgid "No models installed"
+msgstr ""
+
+msgid "Download one from the recommendations or search below."
+msgstr ""
+
+msgid "incomplete"
+msgstr ""
+
+msgid "Default"
+msgstr ""
+
+msgid "Set default"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+#, python-format
+msgid "Based on %s of GPU memory"
+msgstr ""
+
+#, python-format
+msgid "No usable GPU: based on %s of system memory"
+msgstr ""
+
+msgid "Hardware could not be read"
+msgstr ""
+
+msgid "fits"
+msgstr ""
+
+msgid "too large"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Default model set"
+msgstr ""
+
+msgid "Model deleted"
+msgstr ""
+
+msgid "Delete this model?"
+msgstr ""
+
+msgid "Download started"
+msgstr ""
+
+msgid "Token saved. Restart diparnuxd to use it."
+msgstr ""
+
+msgid "Token saved"
+msgstr ""
+
+#, python-format
+msgid "Downloaded %s"
+msgstr ""
+
+#, python-format
+msgid "Download failed: %s"
+msgstr ""
+
+msgid "Download canceled"
+msgstr ""
+
+msgid "No results"
+msgstr ""
+
+#, python-format
+msgid "%d downloads"
+msgstr ""
+
+msgid "gated"
+msgstr ""
+
+msgid "Back to results"
+msgstr ""
+
+msgid "This repository is gated"
+msgstr ""
+
+msgid ""
+"Accept its terms on Hugging Face and save an access token above before "
+"downloading."
+msgstr ""
+
+msgid "No GGUF files in this repository"
+msgstr ""
+
+msgid "Server"
+msgstr ""
+
+msgid "Notes"
+msgstr ""
+
+msgid "Run a model"
+msgstr ""
+
+msgid "Show plan"
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Plan"
+msgstr ""
+
+msgid "Network"
+msgstr ""
+
+msgid "Allow other computers to connect"
+msgstr ""
+
+msgid ""
+"Requires an API key. The firewall opens the server port only while this is "
+"on."
+msgstr ""
+
+msgid "API keys"
+msgstr ""
+
+msgid "New key label"
+msgstr ""
+
+msgid "Server log"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "CPU only"
+msgstr ""
+
+#, python-format
+msgid "Estimated VRAM %(vram)s · RAM %(ram)s"
+msgstr ""
+
+msgid "Why"
+msgstr ""
+
+msgid "Warnings"
+msgstr ""
+
+msgid "Advice"
+msgstr ""
+
+msgid ""
+"This model is large for desktop mode. Consider switching to server mode."
+msgstr ""
+
+msgid "Download a model first."
+msgstr ""
+
+msgid "Server is starting"
+msgstr ""
+
+msgid "Server stopped"
+msgstr ""
+
+msgid "Restart the server for the network setting to take effect."
+msgstr ""
+
+msgid "Network setting saved"
+msgstr ""
+
+msgid "No API keys"
+msgstr ""
+
+msgid "Your new API key"
+msgstr ""
+
+msgid "Copy it now. It is shown only once."
+msgstr ""
+
+msgid "Delete this API key?"
+msgstr ""
+
+msgid "Clients using it will stop working."
+msgstr ""
+
+msgid ""
+"Server mode runs without the desktop and leaves more memory for the model."
+msgstr ""
+
+msgid "Mode"
+msgstr ""
+
+msgid "Server mode (no desktop)"
+msgstr ""
+
+msgid "Accounts"
+msgstr ""
+
+msgid ""
+"Create your own account with a user name and a password. It replaces the "
+"default live account for daily use."
+msgstr ""
+
+msgid "Remote access"
+msgstr ""
+
+msgid "SSH server"
+msgstr ""
+
+msgid "Note"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Color scheme"
+msgstr ""
+
+msgid "Follow the system"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Dark"
+msgstr ""
+
+msgid "Maintenance"
+msgstr ""
+
+msgid "Check"
+msgstr ""
+
+msgid "GPU check"
+msgstr ""
+
+msgid "Run the GPU diagnostic again."
+msgstr ""
+
+msgid "Run"
+msgstr ""
+
+msgid "Diagnostic report"
+msgstr ""
+
+msgid "Save a report with GPU, driver and server details. Tokens are removed."
+msgstr ""
+
+msgid "Export"
+msgstr ""
+
+msgid "Setup wizard"
+msgstr ""
+
+msgid "Walk through the first-boot checks again."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "No accounts created yet"
+msgstr ""
+
+msgid "Only the default live account exists."
+msgstr ""
+
+msgid "Standard account"
+msgstr ""
+
+msgid "Delete account"
+msgstr ""
+
+msgid "Account deleted"
+msgstr ""
+
+msgid "Delete this account?"
+msgstr ""
+
+#, python-format
+msgid "The account %s is removed. Its home directory and files are kept."
+msgstr ""
+
+msgid "Switching to server mode closes the desktop session and this window."
+msgstr ""
+
+msgid "Switching to desktop mode starts the graphical login."
+msgstr ""
+
+msgid "Mode changed"
+msgstr ""
+
+msgid "Change the session mode?"
+msgstr ""
+
+msgid "Change"
+msgstr ""
+
+msgid "Opens port 22 in the firewall."
+msgstr ""
+
+msgid "The SSH server is not installed in this image."
+msgstr ""
+
+msgid "Update started"
+msgstr ""
+
+msgid "Running the GPU check…"
+msgstr ""
+
+#, python-format
+msgid "GPU check finished (exit code %d)"
+msgstr ""
+
+msgid "Save diagnostic report"
+msgstr ""
+
+#, python-format
+msgid "Report saved to %s"
+msgstr ""
+
+msgid ""
+"Permission denied. Add your user to the 'diparnux' group and log in again."
+msgstr ""
+
+msgid "The Diparnux daemon is not running."
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Diparnux Control Center"
+msgstr ""
+
+msgid "Chat"
+msgstr ""
+
+msgid "Graphics card"
+msgstr ""
+
+msgid "NVIDIA driver"
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Network access"
+msgstr ""
+
+msgid "Diparnux setup"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "Cannot reach the Diparnux daemon"
+msgstr ""
+
+msgid "Close this window and try again later."
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Checking this machine…"
+msgstr ""
+
+#, python-format
+msgid "Step %(n)d of %(total)d"
+msgstr ""
+
+msgid "Check again"
+msgstr ""
+
+msgid "Run the GPU diagnostic once more."
+msgstr ""
+
+msgid "Finish"
+msgstr ""
+
+msgid "Create an account"
+msgstr ""
+
+msgid ""
+"Choose your own user name and password for the console, the login screen and "
+"SSH."
+msgstr ""
+
+#, python-format
+msgid "Download %s now"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(size)s from Hugging Face. You can also do this later in the Models page."
+msgstr ""
+
+msgid "Download started. You can follow it in the Models page."
+msgstr ""
+
+msgid "Who can use the API"
+msgstr ""
+
+msgid "Needs an API key. Leave this off if you only use this machine."
+msgstr ""
+
+msgid "%d package updates are available"
+msgstr ""
+
+msgid "Check for updates to see what is available."
+msgstr ""
+
+msgid "Everything is up to date"
+msgstr ""
+
+msgid "Finishing"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Install the kernel, NVIDIA driver and system updates together."
+msgstr ""
+
+msgid "Install updates?"
+msgstr ""
+
+msgid "Installing and building the new kernel"
+msgstr ""
+
+msgid "Installing the updates"
+msgstr ""
+
+msgid "NVIDIA driver %(old)s to %(new)s"
+msgstr ""
+
+msgid "New kernel %s"
+msgstr ""
+
+msgid "Not checked yet"
+msgstr ""
+
+msgid "Planning the update"
+msgstr ""
+
+msgid "Preparing the boot entry"
+msgstr ""
+
+msgid "Refreshing the package lists"
+msgstr ""
+
+msgid "Removing the failed kernel"
+msgstr ""
+
+msgid "Restart to finish the update"
+msgstr ""
+
+msgid "Restart to use the previous kernel and driver."
+msgstr ""
+
+msgid "Restoring the previous driver"
+msgstr ""
+
+msgid "Restoring the previous versions"
+msgstr ""
+
+msgid "Roll back"
+msgstr ""
+
+msgid "Roll back the last update?"
+msgstr ""
+
+msgid "Rolled back"
+msgstr ""
+
+msgid "System updates"
+msgstr ""
+
+msgid "The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."
+msgstr ""
+
+msgid "The last check failed"
+msgstr ""
+
+msgid "The last update failed"
+msgstr ""
+
+msgid "The new driver is loaded after the restart."
+msgstr ""
+
+msgid "The new kernel %s starts once. It becomes the default only after it passes the boot check."
+msgstr ""
+
+msgid "The previous kernel and driver are restored. A restart is needed afterwards."
+msgstr ""
+
+msgid "The update helper is not installed"
+msgstr ""
+
+msgid "This is a live session. Install Diparnux to receive kernel and driver updates."
+msgstr ""
+
+msgid "Update status is not available"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "Updates are only available on an installed system"
+msgstr ""
+
+msgid "Updating"
+msgstr ""
+
+msgid "Verifying the driver build"
+msgstr ""
+
+msgid "%(used)s used of %(total)s. Files written in this session are kept in memory and disappear on reboot."
+msgstr ""
+
+msgid "Adapters"
+msgstr ""
+
+msgid "Available networks"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Connect to %s"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Connected to %s"
+msgstr ""
+
+msgid "Connected: %(label)s (%(address)s)"
+msgstr ""
+
+msgid "Connecting to %s…"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Disconnect"
+msgstr ""
+
+msgid "Down"
+msgstr ""
+
+msgid "Enter the password of the network."
+msgstr ""
+
+msgid "Enterprise networks are not supported here."
+msgstr ""
+
+msgid "Forget"
+msgstr ""
+
+msgid "Forget this network?"
+msgstr ""
+
+msgid "Good"
+msgstr ""
+
+msgid "Internet"
+msgstr ""
+
+msgid "Live session storage"
+msgstr ""
+
+msgid "Network status is not available"
+msgstr ""
+
+msgid "No network adapters"
+msgstr ""
+
+msgid "No networks found"
+msgstr ""
+
+msgid "No wireless adapter was found."
+msgstr ""
+
+msgid "Not connected to the internet"
+msgstr ""
+
+msgid "Other"
+msgstr ""
+
+msgid "Press Scan to search again."
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Scan"
+msgstr ""
+
+msgid "Searching for networks…"
+msgstr ""
+
+msgid "Secured"
+msgstr ""
+
+msgid "Strong"
+msgstr ""
+
+msgid "The password must be at least 8 characters."
+msgstr ""
+
+msgid "The password must be at most 63 characters."
+msgstr ""
+
+msgid "The saved password of %s is deleted."
+msgstr ""
+
+msgid "The wireless service is not running."
+msgstr ""
+
+msgid "Up"
+msgstr ""
+
+msgid "Use only letters, digits and symbols from the keyboard (no Korean or accented characters)."
+msgstr ""
+
+msgid "Weak"
+msgstr ""
+
+msgid "Wi-Fi"
+msgstr ""
+
+msgid "Wi-Fi is not available."
+msgstr ""
+
+msgid "Wi-Fi is turned off."
+msgstr ""
+
+msgid "Wired"
+msgstr ""

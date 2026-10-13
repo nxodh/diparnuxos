@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/lightlixos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 )
 
 // gpuPlan은 24GB GPU 하나에 전체 오프로드하는 계획 결과다.
@@ -24,11 +24,11 @@ func gpuPlan() autoconf.Output {
 
 func lanSettings() ServerSettings {
 	return ServerSettings{
-		ModelPath:  "/var/lib/lightlix/models/m.gguf",
+		ModelPath:  "/var/lib/diparnux/models/m.gguf",
 		Alias:      "local",
 		Host:       "127.0.0.1",
 		Port:       8080,
-		APIKeyFile: "/etc/lightlix/api-keys",
+		APIKeyFile: "/etc/diparnux/api-keys",
 		Metrics:    true,
 	}
 }
@@ -39,11 +39,11 @@ func TestEnvGPUPlan(t *testing.T) {
 		t.Fatalf("Env: %v", err)
 	}
 	want := map[string]string{
-		"LLAMA_ARG_MODEL":            "/var/lib/lightlix/models/m.gguf",
+		"LLAMA_ARG_MODEL":            "/var/lib/diparnux/models/m.gguf",
 		"LLAMA_ARG_HOST":             "127.0.0.1",
 		"LLAMA_ARG_PORT":             "8080",
 		"LLAMA_ARG_ALIAS":            "local",
-		"LLAMA_ARG_API_KEY_FILE":     "/etc/lightlix/api-keys",
+		"LLAMA_ARG_API_KEY_FILE":     "/etc/diparnux/api-keys",
 		"LLAMA_ARG_ENDPOINT_METRICS": "1",
 		"LLAMA_ARG_N_GPU_LAYERS":     "all",
 		"LLAMA_ARG_CTX_SIZE":         "8192",

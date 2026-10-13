@@ -1,21 +1,21 @@
 #!/bin/sh
-# Lightlix live-build 설정 스크립트 (lb config 의 auto 관례).
-# lightlix.conf 값을 읽어 lb config noauto 를 호출한다. lb config 는 build/ 디렉터리에서 ./auto/config 로 실행한다.
+# Diparnux live-build 설정 스크립트 (lb config 의 auto 관례).
+# diparnux.conf 값을 읽어 lb config noauto 를 호출한다. lb config 는 build/ 디렉터리에서 ./auto/config 로 실행한다.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-LIGHTLIX_CONF="${LIGHTLIX_CONF:-${ROOT}/lightlix.conf}"
+DIPARNUX_CONF="${DIPARNUX_CONF:-${ROOT}/diparnux.conf}"
 
-if [ ! -r "${LIGHTLIX_CONF}" ]; then
-    echo "auto/config: lightlix.conf 를 읽을 수 없다: ${LIGHTLIX_CONF}" >&2
+if [ ! -r "${DIPARNUX_CONF}" ]; then
+    echo "auto/config: diparnux.conf 를 읽을 수 없다: ${DIPARNUX_CONF}" >&2
     exit 1
 fi
 
 # shellcheck source=/dev/null
-. "${LIGHTLIX_CONF}"
+. "${DIPARNUX_CONF}"
 
 INCLUDES_APT_DIR="config/includes.chroot/etc/apt/apt.conf.d"
-SNAPSHOT_APT_CONF="${INCLUDES_APT_DIR}/90lightlix-snapshot"
+SNAPSHOT_APT_CONF="${INCLUDES_APT_DIR}/90diparnux-snapshot"
 
 if [ -n "${DEBIAN_SNAPSHOT}" ]; then
     if ! echo "${DEBIAN_SNAPSHOT}" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$'; then
@@ -67,9 +67,9 @@ lb config noauto \
     --mirror-binary "${mirror}" \
     --mirror-chroot-security "${security_mirror}" \
     --mirror-binary-security "${security_mirror}" \
-    --bootappend-live "boot=live components console=ttyS0,115200 console=tty0 hostname=${LIGHTLIX_ID}" \
-    --iso-volume "${LIGHTLIX_NAME}" \
-    --iso-application "${LIGHTLIX_NAME}" \
-    --iso-publisher "${LIGHTLIX_NAME}" \
-    --image-name "${LIGHTLIX_ID}-${LIGHTLIX_VERSION}" \
+    --bootappend-live "boot=live components console=ttyS0,115200 console=tty0 hostname=${DIPARNUX_ID}" \
+    --iso-volume "${DIPARNUX_NAME}" \
+    --iso-application "${DIPARNUX_NAME}" \
+    --iso-publisher "${DIPARNUX_NAME}" \
+    --image-name "${DIPARNUX_ID}-${DIPARNUX_VERSION}" \
     ${1+"$@"}

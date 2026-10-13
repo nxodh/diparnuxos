@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nxodh/lightlixos/daemon/internal/firewall"
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // 부팅 모드 값과 데스크톱에 필요한 디스플레이 매니저 유닛이다.
@@ -66,7 +66,7 @@ func (s *Supervisor) SetMode(ctx context.Context, mode string) error {
 			return errorf(CodeModeChangeFailed, "check %s: %v", displayManagerUnit, err)
 		}
 		if !installed {
-			return errorf(CodeDesktopNotInstalled, "%s is not installed; install the lightlix-desktop package", displayManagerUnit)
+			return errorf(CodeDesktopNotInstalled, "%s is not installed; install the diparnux-desktop package", displayManagerUnit)
 		}
 	}
 	steps := [][]string{

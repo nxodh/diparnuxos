@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Diparnux 배경 화면 기본값. xfdesktop 은 모니터 이름별 속성을 쓰므로 여기서는 흔한 이름만 둔다.
+  나머지 모니터는 첫 로그인 스크립트(diparnux-session-setup)가 xfconf-query 로 채운다.
+-->
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitorVirtual-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="1"/>
+          <property name="last-image" type="string" value="/usr/share/diparnux/wallpaper.png"/>
+          <property name="rgba1" type="array">
+            <value type="double" value="0.050980"/>
+            <value type="double" value="0.050980"/>
+            <value type="double" value="0.050980"/>
+            <value type="double" value="1.000000"/>
+          </property>
+        </property>
+      </property>
+    </property>
+  </property>
+  <property name="desktop-icons" type="empty">
+    <property name="style" type="int" value="0"/>
+  </property>
+</channel>

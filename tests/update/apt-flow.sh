@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 실제 apt 와 dpkg 로 lightlix-update 의 갱신, 검증, 롤백, 실패 복구 흐름을 확인한다.
+# 실제 apt 와 dpkg 로 diparnux-update 의 갱신, 검증, 롤백, 실패 복구 흐름을 확인한다.
 # 가짜 패키지(.deb)와 로컬 저장소를 만들고, dkms, modinfo, grub 도구만 스텁으로 둔다.
 # 컨테이너 안에서만 실행한다(scripts/test-update-in-docker.sh). 호스트의 apt 를 건드리지 않도록 /.dockerenv 를 확인한다.
 set -Eeuo pipefail
@@ -23,7 +23,7 @@ die() { echo "FAIL: $*" >&2; exit 1; }
 expect_eq() { [[ "$1" == "$2" ]] || die "$3: got '$1', want '$2'"; pass "$3"; }
 
 # 부팅된 커널을 흉내 낸다. 실제 /proc/cmdline 은 이 컨테이너를 띄운 호스트의 값이라 쓰지 않는다.
-export LIGHTLIX_UPDATE_PROC_CMDLINE="$FAKE/cmdline"
+export DIPARNUX_UPDATE_PROC_CMDLINE="$FAKE/cmdline"
 set_running() {
     echo "$1" > "$FAKE/running"
     echo "BOOT_IMAGE=/boot/vmlinuz-$1 root=/dev/fake ro quiet" > "$FAKE/cmdline"
@@ -75,11 +75,11 @@ out=/boot/grub/grub.cfg
 for img in /boot/vmlinuz-*; do
   [ -e "$img" ] || continue
   rel=${img##*/vmlinuz-}
-  echo "menuentry 'Lightlix, with Linux $rel' --class debian \$menuentry_id_option 'gnulinux-$rel-advanced-fakeuuid' {" >> "$out"
+  echo "menuentry 'Diparnux, with Linux $rel' --class debian \$menuentry_id_option 'gnulinux-$rel-advanced-fakeuuid' {" >> "$out"
   echo "}" >> "$out"
 done
 EOF
-install -m 0755 /dev/stdin /usr/sbin/lightlix-gpu-check <<'EOF'
+install -m 0755 /dev/stdin /usr/sbin/diparnux-gpu-check <<'EOF'
 #!/bin/sh
 exit 1
 EOF
@@ -105,7 +105,7 @@ mkdeb() {
     if [[ -n "$pin" ]]; then
         mkdir -p "$d/etc/apt/preferences.d"
         printf 'Package: nvidia-kernel-open-dkms nvidia-driver\nPin: version %s\nPin-Priority: 1001\n\nPackage: nvidia-kernel-open-dkms nvidia-driver\nPin: version *\nPin-Priority: -1\n' "$pin" \
-            > "$d/etc/apt/preferences.d/00-lightlix-nvidia.pref"
+            > "$d/etc/apt/preferences.d/00-diparnux-nvidia.pref"
     fi
     dpkg-deb --build "$d" "$REPO/${name}_${ver}_all.deb" > /dev/null
 }
@@ -151,7 +151,7 @@ for k in /var/fake/kernels/*; do
 done" \
     mkdeb nvidia-kernel-open-dkms "$ver" nvidia-graphics-drivers ""
     mkdeb nvidia-driver "$ver" nvidia-graphics-drivers ""
-    mkdeb lightlix-nvidia "$2" lightlix-nvidia "nvidia-kernel-open-dkms (= $ver), nvidia-driver (= $ver)" "$ver"
+    mkdeb diparnux-nvidia "$2" diparnux-nvidia "nvidia-kernel-open-dkms (= $ver), nvidia-driver (= $ver)" "$ver"
 }
 
 reindex() {
@@ -169,7 +169,7 @@ reindex
 
 # ---- 초기 설치 ----
 set_running "$OLD"
-apt-get install -y -q --no-install-recommends lightlix-nvidia linux-image-amd64 linux-headers-amd64 fake-tool
+apt-get install -y -q --no-install-recommends diparnux-nvidia linux-image-amd64 linux-headers-amd64 fake-tool
 mapfile -t managed < <(dpkg-query -W -f '${binary:Package}\n' | grep -E '^(linux-(image|headers)-|nvidia-)')
 apt-mark hold "${managed[@]}" > /dev/null
 grub-set-default "$ID_PREFIX-$OLD-advanced-$UUID"
@@ -183,14 +183,14 @@ mkdeb fake-tool 2.0-1 fake-tool ""
 reindex
 
 # 전제 확인: 일반 apt 는 hold 와 핀 때문에 커널과 드라이버를 올리지 않는다.
-if apt-get -s dist-upgrade | grep -E '^Inst (nvidia|linux-image|lightlix-nvidia)'; then
+if apt-get -s dist-upgrade | grep -E '^Inst (nvidia|linux-image|diparnux-nvidia)'; then
     die "plain apt would have changed the pinned and held packages"
 fi
 pass "plain apt keeps the held packages"
 
-LU=/usr/local/bin/lightlix-update
+LU=/usr/local/bin/diparnux-update
 last_json() { tail -n 1; }
-# run_json LABEL ARGS... : lightlix-update 를 실행해 마지막 JSON 줄을 돌려준다. 종료 코드와 상관없이 출력 전체를 실패 때 보여 준다.
+# run_json LABEL ARGS... : diparnux-update 를 실행해 마지막 JSON 줄을 돌려준다. 종료 코드와 상관없이 출력 전체를 실패 때 보여 준다.
 run_json() {
     local out rc=0
     out="$("$LU" "$@" --json 2>&1)" || rc=$?
@@ -237,7 +237,7 @@ res="$(run_json rollback)"
 expect_eq "$(jq -r .ok <<<"$res")" true "rollback ok"
 expect_eq "$(jq -r .state.phase <<<"$res")" rolled_back "rollback phase"
 expect_eq "$(dpkg-query -W -f '${Version}' nvidia-kernel-open-dkms)" 595.91.07-1 "driver restored"
-expect_eq "$(dpkg-query -W -f '${Version}' lightlix-nvidia)" 0.3.0 "policy package restored"
+expect_eq "$(dpkg-query -W -f '${Version}' diparnux-nvidia)" 0.3.0 "policy package restored"
 grep -qx "saved_entry=$ID_PREFIX-$OLD-advanced-$UUID" "$FAKE/grubenv" || die "rollback did not select the previous kernel"
 expect_eq "$(cat "$FAKE/modules/$NEW")" 595.91.07 "module of the new kernel follows the restored driver"
 pass "rollback"
@@ -275,7 +275,7 @@ grep -q '^next_entry=' "$FAKE/grubenv" && die "a failed kernel must not be selec
 if ! apt-mark showhold | grep -qx "linux-image-amd64"; then
     echo "--- holds:"; apt-mark showhold
     echo "--- packages:"; dpkg -l 'linux-*' 'nvidia-*' | tail -n +6
-    echo "--- last state:"; cat /var/lib/lightlix/update/state.json
+    echo "--- last state:"; cat /var/lib/diparnux/update/state.json
     die "hold lost after the failed update"
 fi
 pass "failed kernel is removed and the previous kernel stays the default"

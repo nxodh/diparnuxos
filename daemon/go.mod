@@ -1,4 +1,4 @@
-module github.com/nxodh/lightlixos/daemon
+module github.com/nxodh/diparnuxos/daemon
 
 go 1.24
 

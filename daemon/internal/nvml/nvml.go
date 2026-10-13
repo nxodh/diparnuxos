@@ -15,7 +15,7 @@ import (
 
 	gonvml "github.com/NVIDIA/go-nvml/pkg/nvml"
 
-	"github.com/nxodh/lightlixos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
 
 // 기본 재시도 간격과 단위 상수다.

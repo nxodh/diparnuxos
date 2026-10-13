@@ -4,8 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LIGHTLIX_CONF="${LIGHTLIX_CONF:-${ROOT}/lightlix.conf}"
-export LIGHTLIX_CONF
+DIPARNUX_CONF="${DIPARNUX_CONF:-${ROOT}/diparnux.conf}"
+export DIPARNUX_CONF
 DEST="${ROOT}/build/config/packages.chroot"
 
 die() {
@@ -13,10 +13,10 @@ die() {
     exit 1
 }
 
-[ -r "${LIGHTLIX_CONF}" ] || die "cannot read lightlix.conf: ${LIGHTLIX_CONF}"
+[ -r "${DIPARNUX_CONF}" ] || die "cannot read diparnux.conf: ${DIPARNUX_CONF}"
 # shellcheck source=/dev/null
-. "${LIGHTLIX_CONF}"
-[ -n "${LIGHTLIX_VERSION:-}" ] || die "LIGHTLIX_VERSION is missing in lightlix.conf"
+. "${DIPARNUX_CONF}"
+[ -n "${DIPARNUX_VERSION:-}" ] || die "DIPARNUX_VERSION is missing in diparnux.conf"
 
 for cmd in dpkg-buildpackage dpkg-parsechangelog; do
     command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} is missing (dpkg-dev is required)"
@@ -33,27 +33,27 @@ for pkgdir in "${ROOT}"/packages/*/; do
 
     name="$(basename "${pkgdir}")"
     version="$(dpkg-parsechangelog -l "${pkgdir}/debian/changelog" --show-field Version)"
-    if [ "${version}" != "${LIGHTLIX_VERSION}" ]; then
-        die "${name}: debian/changelog version (${version}) differs from LIGHTLIX_VERSION (${LIGHTLIX_VERSION})"
+    if [ "${version}" != "${DIPARNUX_VERSION}" ]; then
+        die "${name}: debian/changelog version (${version}) differs from DIPARNUX_VERSION (${DIPARNUX_VERSION})"
     fi
 
     src="${WORK}/src-${name}"
     cp -a "${pkgdir}" "${src}"
     # Go 모듈은 한 곳에서 관리하며 패키지의 임시 사본에만 넣는다.
-    if [ "${name}" = lightlix-daemon ]; then
+    if [ "${name}" = diparnux-daemon ]; then
         cp -a "${ROOT}/daemon" "${src}/daemon"
     fi
     # 키링 패키지는 저장소 루트의 공개 키 디렉터리를 쓴다.
-    if [ "${name}" = lightlix-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
+    if [ "${name}" = diparnux-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
         cp -a "${ROOT}/keys" "${src}/keys"
     fi
     # 브랜딩 패키지는 저장소 루트의 브랜드 이미지(assets/brand)를 쓴다.
     # 데스크톱 패키지는 생성된 xfwm4 테마 이미지를 쓴다.
-    if [ "${name}" = lightlix-branding ] || [ "${name}" = lightlix-desktop ]; then
+    if [ "${name}" = diparnux-branding ] || [ "${name}" = diparnux-desktop ]; then
         cp -a "${ROOT}/assets/brand" "${src}/assets"
     fi
     # Control Center 소스도 패키지의 임시 사본에만 넣는다.
-    if [ "${name}" = lightlix-control-center ]; then
+    if [ "${name}" = diparnux-control-center ]; then
         cp -a "${ROOT}/gui" "${src}/gui"
     fi
     (cd "${src}" && dpkg-buildpackage -us -uc -b)

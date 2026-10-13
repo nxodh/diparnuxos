@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""xfwm4 테마 `Lightlix` 의 이미지를 만든다. 결과는 assets/brand/generated/xfwm4/ 에 쓰고 커밋한다.
+"""xfwm4 테마 `Diparnux` 의 이미지를 만든다. 결과는 assets/brand/generated/xfwm4/ 에 쓰고 커밋한다.
 
 실행은 Pillow 가 있는 컨테이너에서 한다(scripts/make-brand-assets.sh 가 함께 부른다).
 색은 docs/design.md 의 흑백 팔레트만 쓴다. xfwm4 테마는 프레임 조각과 버튼 이미지로 이루어진다.
