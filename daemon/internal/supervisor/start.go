@@ -16,13 +16,14 @@ import (
 // 호출자는 수명 주기 세마포어를 잡고 있어야 한다.
 func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	host := "127.0.0.1"
-	if job.cfg.LANExposed {
+	// 게이트웨이를 쓰면 llama-server 는 내부 포트에서 127.0.0.1 로만 듣고 공개 포트는 데몬이 받는다.
+	if job.cfg.LANExposed && !job.cfg.Gateway {
 		host = "0.0.0.0"
 	}
 	settings := llamaargs.ServerSettings{
 		ModelPath:  job.model.Path,
 		Host:       host,
-		Port:       job.cfg.Port,
+		Port:       job.cfg.BackendPort(),
 		APIKeyFile: job.apiKeyFile,
 	}
 	if err := autoconf.ValidateOverrides(mergeOverrides(job.cfg.Overrides, job.ov)); err != nil {
@@ -92,7 +93,7 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 		startedCPUPID = pid
 	}
 
-	if e := s.waitHealthy(ctx, job.cfg.Port); e != nil {
+	if e := s.waitHealthy(ctx, job.cfg.BackendPort()); e != nil {
 		return s.fail(ctx, e)
 	}
 

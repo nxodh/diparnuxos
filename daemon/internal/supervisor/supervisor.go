@@ -96,10 +96,12 @@ type Offload struct {
 
 // Status는 llama-server의 현재 상태다. Plan 은 API 계층이 JSON으로 바꾼다.
 type Status struct {
-	State            State            `json:"state"`
-	ModelID          string           `json:"model_id"`
-	Host             string           `json:"host"`
-	Port             int              `json:"port"`
+	State   State  `json:"state"`
+	ModelID string `json:"model_id"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	// BackendPort 는 llama-server 가 실제로 여는 포트다. 게이트웨이를 쓰면 내부 포트(127.0.0.1)이고 Port 는 공개 포트다.
+	BackendPort      int              `json:"backend_port"`
 	LANExposed       bool             `json:"lan_exposed"`
 	PID              int              `json:"pid"`
 	UnitUnverifiable bool             `json:"unit_unverifiable,omitempty"`
@@ -313,7 +315,8 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 	}
 
 	apiKeyFile := ""
-	if len(keySnapshot) > 0 {
+	// 게이트웨이를 쓰면 키 확인을 데몬이 하므로 llama-server 에 키 파일을 주지 않는다.
+	if len(keySnapshot) > 0 && !cfg.Gateway {
 		var snapshotErr error
 		apiKeyFile, snapshotErr = s.writeKeySnapshot(keySnapshot)
 		if snapshotErr != nil {
@@ -340,13 +343,14 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 		s.priorStatus = nil
 	}
 	s.st = Status{
-		State:      StateStarting,
-		ModelID:    m.ID,
-		Host:       host,
-		Port:       cfg.Port,
-		LANExposed: cfg.LANExposed,
-		Since:      s.opts.Now(),
-		Warnings:   []string{},
+		State:       StateStarting,
+		ModelID:     m.ID,
+		Host:        host,
+		Port:        cfg.Port,
+		BackendPort: cfg.BackendPort(),
+		LANExposed:  cfg.LANExposed,
+		Since:       s.opts.Now(),
+		Warnings:    []string{},
 	}
 	if s.priorStatus != nil {
 		s.st.UnitUnverifiable = true

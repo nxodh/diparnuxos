@@ -11,10 +11,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,13 +26,14 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/api"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/power"
 	"github.com/nxodh/diparnuxos/daemon/internal/nvml"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/power"
 	"github.com/nxodh/diparnuxos/daemon/internal/report"
 	"github.com/nxodh/diparnuxos/daemon/internal/runner"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
@@ -150,6 +153,34 @@ func run(args []string) error {
 		OSReleasePath: osReleasePath,
 	}
 
+	gw := &gateway.Gateway{
+		Keys:       keys,
+		LANExposed: func() bool { return src.get().LANExposed },
+		UsagePath:  *stateDir + "/api-usage.json",
+	}
+	gwMgr := &gateway.Manager{
+		G: gw,
+		Wanted: func() (bool, string, int) {
+			c := src.get()
+			host := "127.0.0.1"
+			if c.LANExposed {
+				host = "0.0.0.0"
+			}
+			return c.Gateway, net.JoinHostPort(host, strconv.Itoa(c.Port)), c.Port
+		},
+		Backend: func() (int, bool) {
+			st := sup.Status()
+			if st.State != supervisor.StateRunning && st.State != supervisor.StateRunningCPU {
+				return 0, false
+			}
+			if st.BackendPort != 0 {
+				return st.BackendPort, true
+			}
+			return st.Port, true
+		},
+		Logf: log.Printf,
+	}
+
 	accountsMgr := &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"}
 	handler := api.New(api.Deps{
 		Supervisor:    sup,
@@ -161,6 +192,7 @@ func run(args []string) error {
 		Updates:       &updatectl.Controller{Runner: cmds},
 		Network:       &network.Manager{Runner: cmds},
 		Power:         &power.Manager{Runner: cmds},
+		Gateway:       gwMgr,
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
@@ -209,7 +241,11 @@ func run(args []string) error {
 	go func() { serveErr <- srv.Serve(ln) }()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		gwMgr.Run(ctx)
+	}()
 	go func() {
 		defer wg.Done()
 		sup.Autostart(ctx)

@@ -225,7 +225,11 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), chatTimeout)
 	defer cancel()
-	up, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:"+strconv.Itoa(st.Port)+"/v1/chat/completions", strings.NewReader(string(payload)))
+	backendPort := st.BackendPort
+	if backendPort == 0 {
+		backendPort = st.Port
+	}
+	up, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:"+strconv.Itoa(backendPort)+"/v1/chat/completions", strings.NewReader(string(payload)))
 	if err != nil {
 		writeErr(w, err)
 		return
