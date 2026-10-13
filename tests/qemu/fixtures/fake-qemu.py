@@ -124,6 +124,26 @@ def result(command):
     if command.startswith("printf '%s\\n' 'e2e-correct-horse-battery' | diparnux --json webadmin password"):
         webadmin_password = True
         return json.dumps({"password_set": True}), 0
+    if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=120)"):
+        return json.dumps({
+            "props": [200, 512, 1], "models": [200, [model], "0.5.3"],
+            "info": [200, {"diparnux": "0.5.3", "server": "running", "model": model, "ctx_per_slot": 512, "slots": 1}],
+            "sse": [200, "text/event-stream", 6, True, True], "tools": 200}), 0
+    if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30)"):
+        return json.dumps([401, "application/json", "an API key is required"]), 0
+    if command == "diparnux connect vedecaps --mcp":
+        return json.dumps({
+            "provider": {"diparnux": {"name": "Diparnux", "protocol": "openai", "api": "http://127.0.0.1:8080/v1",
+                                      "models": {model: {"name": model, "limit": {"context": 512, "output": 128}}}}},
+            "model": "diparnux/" + model,
+            "mcp": {"diparnux": {"type": "local", "command": ["diparnux", "mcp"], "enabled": True}}}, indent=2), 0
+    if command.startswith("printf '%s\\n' '{\"jsonrpc\""):
+        return "\n".join([
+            json.dumps({"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-06-18"}}),
+            json.dumps({"jsonrpc": "2.0", "id": 2, "result": {"tools": [{"name": "diparnux_status"}, {"name": "diparnux_connection"}]}})]), 0
+    if command == "diparnux --json serve toolcheck":
+        return json.dumps({"ok": False, "code": "no_tool_call", "message": "the model answered in text",
+                           "finish_reason": "stop", "latency_ms": 900}), 1
     if command.startswith("python3 -I -c 'import ssl,json,http.client"):
         return "401 200 200 403", 0
     if command.startswith("diparnux vpn peer add e2e-peer --out"):
