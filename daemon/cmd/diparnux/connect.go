@@ -16,7 +16,7 @@ import (
 // connect 는 다른 프로그램을 이 서버에 연결하는 설정을 만든다. 지금은 Vedecaps 만 있다.
 func (c *cli) connect(args []string) int {
 	if len(args) == 0 || args[0] != "vedecaps" {
-		return c.usage("usage: diparnux connect vedecaps [--remote] [--url URL] [--model ID] [--write]", "connect")
+		return c.usage("usage: diparnux connect vedecaps [--remote] [--url URL] [--model ID] [--write] [--mcp]", "connect")
 	}
 	return c.connectVedecaps(args[1:])
 }
@@ -29,6 +29,7 @@ func (c *cli) connectVedecaps(args []string) int {
 	keyEnv := fs.String("key-env", vedecaps.DefaultKeyEnv, "environment variable that holds the API key")
 	write := fs.Bool("write", false, "merge the settings into the Vedecaps config of the current user")
 	makeDefault := fs.Bool("make-default", false, "make Diparnux the default model even when another default is set")
+	withMCP := fs.Bool("mcp", false, "also register the read-only Diparnux MCP server (diparnux mcp)")
 	pos, code, ok := c.parse(fs, "connect vedecaps", args)
 	if !ok {
 		return code
@@ -76,7 +77,7 @@ func (c *cli) connectVedecaps(args []string) int {
 		}
 	}
 
-	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv})
+	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP})
 	if err != nil {
 		c.errorLine(strings.TrimPrefix(err.Error(), "vedecaps: "))
 		return exitUsage
@@ -117,6 +118,9 @@ func (c *cli) connectVedecaps(args []string) int {
 	kv(w, "config", path)
 	for _, n := range res.Notes {
 		kv(w, "change", n)
+	}
+	if note := linkSkill(home); note != "" {
+		kv(w, "skill", note)
 	}
 	if len(existing) > 0 {
 		kv(w, "backup", path+".bak")
@@ -188,4 +192,27 @@ func writeConfig(path string, old, data []byte) error {
 		return fmt.Errorf("cannot replace %s: %v", path, err)
 	}
 	return nil
+}
+
+// skillSource 는 패키지가 설치하는 스킬 폴더다. 시험이 바꾼다.
+var skillSource = "/usr/share/diparnux/skills/diparnux"
+
+// linkSkill 은 ~/.agents/skills/diparnux 에 스킬 폴더 링크를 만든다. 이미 무언가 있으면 건드리지 않는다.
+// 스킬 원본이 이 컴퓨터에 없으면(개발 환경 등) 아무것도 하지 않는다. 결과를 한 줄로 돌려준다.
+func linkSkill(home string) string {
+	if _, err := os.Stat(filepath.Join(skillSource, "SKILL.md")); err != nil {
+		return ""
+	}
+	dir := filepath.Join(home, ".agents", "skills")
+	link := filepath.Join(dir, "diparnux")
+	if _, err := os.Lstat(link); err == nil {
+		return link + " already exists (left as it is)"
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "could not create " + dir + ": " + err.Error()
+	}
+	if err := os.Symlink(skillSource, link); err != nil {
+		return "could not link " + link + ": " + err.Error()
+	}
+	return "linked " + link
 }

@@ -163,3 +163,30 @@ func TestConfigFileFollowsXDG(t *testing.T) {
 		t.Fatalf("relative XDG_CONFIG_HOME must be ignored, got %s", got)
 	}
 }
+
+func TestFragmentAndMergeCarryTheMCPServer(t *testing.T) {
+	frag, err := Fragment(Input{BaseURL: "http://127.0.0.1:8080/v1", MCP: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	existing := []byte(`{"mcp":{"other":{"type":"remote","url":"https://x.example/mcp"}}}`)
+	res, err := Merge(existing, frag, MergeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := decode(t, res.Data)["mcp"].(map[string]any)
+	if _, ok := m["other"]; !ok {
+		t.Fatalf("another MCP server was dropped: %v", m)
+	}
+	d := m["diparnux"].(map[string]any)
+	cmd := d["command"].([]any)
+	if d["type"] != "local" || len(cmd) != 2 || cmd[0] != "diparnux" || cmd[1] != "mcp" {
+		t.Fatalf("mcp entry = %v", d)
+	}
+	if strings.Contains(string(res.Data), "allow-control") {
+		t.Fatal("the control tools must never be registered by this command")
+	}
+	if _, err := Merge([]byte(`{"mcp":[]}`), frag, MergeOptions{}); err == nil {
+		t.Fatal("merged an mcp that is not an object")
+	}
+}

@@ -175,3 +175,52 @@ func TestConnectUsage(t *testing.T) {
 		}
 	}
 }
+
+func TestConnectVedecapsWriteWithMCPAndSkillLink(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "SKILL.md"), []byte("---\nname: diparnux\ndescription: x\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := skillSource
+	skillSource = src
+	defer func() { skillSource = old }()
+
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, connRunning)
+	home := t.TempDir()
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write", "--mcp")
+	wantCode(t, res, exitOK)
+	wantContains(t, "write", res.stdout, "added the MCP server", "linked")
+	data, err := os.ReadFile(filepath.Join(home, ".config", "vedecaps", "vedecaps.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mcp := decodeOut(t, string(data))["mcp"].(map[string]any)["diparnux"].(map[string]any)
+	if mcp["type"] != "local" {
+		t.Fatalf("mcp = %v", mcp)
+	}
+	target, err := os.Readlink(filepath.Join(home, ".agents", "skills", "diparnux"))
+	if err != nil || target != src {
+		t.Fatalf("skill link = %q, %v", target, err)
+	}
+
+	// 다시 실행하면 이미 있는 링크를 그대로 둔다.
+	res = runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write", "--mcp")
+	wantCode(t, res, exitOK)
+	wantContains(t, "second write", res.stdout, "already exists")
+}
+
+func TestConnectVedecapsWithoutWriteNeverTouchesTheFilesystem(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, connRunning)
+	home := t.TempDir()
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--mcp")
+	wantCode(t, res, exitOK)
+	if _, ok := decodeOut(t, res.stdout)["mcp"]; !ok {
+		t.Fatalf("the MCP entry is missing from the printed settings: %s", res.stdout)
+	}
+	entries, _ := os.ReadDir(home)
+	if len(entries) != 0 {
+		t.Fatalf("printing created files: %v", entries)
+	}
+}
