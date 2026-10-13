@@ -37,6 +37,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/nvml"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 	"github.com/nxodh/diparnuxos/daemon/internal/power"
+	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/report"
 	"github.com/nxodh/diparnuxos/daemon/internal/runner"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
@@ -45,6 +46,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
 	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/webadmin"
 	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
@@ -127,6 +129,8 @@ func run(args []string) error {
 	defer jobMgr.Close()
 
 	fwRules := &firewall.Store{Path: *stateDir + "/firewall-rules.json"}
+	waMgr := &webadmin.Manager{StateDir: *stateDir, Logf: log.Printf, Addresses: localAddresses}
+	rdpMgr := &rdpctl.Manager{Runner: cmds, StatePath: *stateDir + "/remote-desktop.json"}
 	wgAdmin := &admin.Client{Runner: cmds}
 	wgMgr := &wireguard.Manager{Files: wgAdmin, Runner: cmds, StatePath: *stateDir + "/wireguard.json"}
 	sup := supervisor.New(supervisor.Options{
@@ -148,6 +152,12 @@ func run(args []string) error {
 				x.Open = append(x.Open, firewall.Open{Name: "WireGuard VPN", Protocol: "udp", Port: port, Source: firewall.SourceAny, Reason: "the VPN is on"})
 				x.Trusted = append(x.Trusted, iface)
 			}
+			if port, src, ok := waMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "Web admin (HTTPS)", Protocol: "tcp", Port: port, Source: src, Reason: "the web admin page is on"})
+			}
+			if port, src, ok := rdpMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "Remote desktop (RDP)", Protocol: "tcp", Port: port, Source: src, Reason: "remote desktop is on"})
+			}
 			return x
 		},
 		KeySnapshotDir: *stateDir,
@@ -157,6 +167,8 @@ func run(args []string) error {
 	})
 
 	wgMgr.Reapply = sup.ApplyFirewall
+	rdpMgr.Reapply = sup.ApplyFirewall
+	waMgr.Reapply = sup.ApplyFirewall
 	wgMgr.DefaultEndpoint = func() string {
 		if h, err := os.Hostname(); err == nil && h != "" {
 			return h + ".local"
@@ -228,6 +240,8 @@ func run(args []string) error {
 		NetConf:       netConf,
 		SSHConf:       sshConf,
 		VPN:           wgMgr,
+		RDP:           rdpMgr,
+		WebAdmin:      waMgr,
 		Services:      &svcctl.Manager{Runner: cmds},
 		Stats:         &sysstat.Reader{},
 		FirewallRules: fwRules,
@@ -262,6 +276,11 @@ func run(args []string) error {
 	if err := netConf.Recover(ctx); err != nil {
 		log.Printf("network change recovery failed: %v", err)
 	}
+
+	// 웹 관리는 소켓 API 와 같은 핸들러를 쓴다. 켜져 있으면 리스너를 연다.
+	waMgr.API = handler
+	waMgr.Start()
+	defer waMgr.Close()
 
 	ln, created, err := socketListener(*socketPath, *socketGroup)
 	if err != nil {
@@ -439,6 +458,26 @@ func loginUsers(_ *accounts.Manager) []string {
 			continue
 		}
 		out = append(out, f[0])
+	}
+	return out
+}
+
+// localAddresses 는 이 컴퓨터의 호스트 이름과 전역 IPv4 주소다. 웹 관리 인증서와 주소 안내에 쓴다.
+func localAddresses() []string {
+	var out []string
+	if h, err := os.Hostname(); err == nil && h != "" {
+		out = append(out, h+".local", h)
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return out
+	}
+	for _, a := range addrs {
+		ipn, ok := a.(*net.IPNet)
+		if !ok || ipn.IP.IsLoopback() || ipn.IP.IsLinkLocalUnicast() || ipn.IP.To4() == nil {
+			continue
+		}
+		out = append(out, ipn.IP.String())
 	}
 	return out
 }

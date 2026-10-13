@@ -3,3 +3,5 @@ Name=en* eth*
 
 [Network]
 DHCP=yes
+# <호스트 이름>.local 로 찾을 수 있게 한다(방화벽은 LAN 공개일 때만 5353 을 연다).
+MulticastDNS=yes

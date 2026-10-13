@@ -153,8 +153,12 @@ func execute(e runEnv, args []string) int {
 		return c.power(cargs)
 	case "firewall":
 		return c.firewall(cargs)
+	case "webadmin":
+		return c.webadmin(cargs)
 	case "vpn":
 		return c.vpn(cargs)
+	case "remote-desktop":
+		return c.remoteDesktop(cargs)
 	case "services":
 		return c.services(cargs)
 	case "resources":

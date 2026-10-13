@@ -1347,3 +1347,46 @@ func TestVPNPeerAddShowsTheClientConfigOnce(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "status", res.stdout, "wg0", "51820/udp", "serverpub", "phone")
 }
+
+func TestRemoteDesktopOnAndStatus(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/remote-desktop", 200, `{"installed":true,"enabled":true,"active":true,"port":3389,"source":"192.168.1.0/24"}`)
+	res := runCLI(t, f, "remote-desktop", "on", "--from", "192.168.1.0/24")
+	wantCode(t, res, exitOK)
+	wantContains(t, "on", res.stdout, "remote desktop:", "yes", "3389/tcp", "192.168.1.0/24")
+	if b := f.bodiesOf("PUT /v1/remote-desktop"); len(b) != 1 || !strings.Contains(b[0], `"source":"192.168.1.0/24"`) {
+		t.Fatalf("body = %v", b)
+	}
+	f.on("GET /v1/remote-desktop", 200, `{"installed":false,"enabled":false,"active":false,"port":3389,"source":"lan","note":"xrdp is not installed in this image"}`)
+	res = runCLI(t, f, "remote-desktop")
+	wantCode(t, res, exitOK)
+	wantContains(t, "off", res.stdout, "not installed")
+	res = runCLI(t, f, "remote-desktop", "maybe")
+	wantCode(t, res, exitUsage)
+}
+
+func TestWebAdminStatusOnAndPassword(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/webadmin", 200, `{"enabled":true,"running":true,"port":8443,"source":"lan","password_set":true,"cert_fingerprint":"AA:BB","urls":["https://192.168.0.23:8443/"]}`)
+	res := runCLI(t, f, "webadmin", "on", "--port", "9443", "--from", "lan")
+	wantCode(t, res, exitOK)
+	wantContains(t, "on", res.stdout, "web admin:", "yes", "AA:BB", "https://192.168.0.23:8443/", "self-signed")
+	if b := f.bodiesOf("PUT /v1/webadmin"); len(b) != 1 || !strings.Contains(b[0], `"port":9443`) || !strings.Contains(b[0], `"enabled":true`) {
+		t.Fatalf("body = %v", b)
+	}
+
+	f.on("PUT /v1/webadmin", 409, `{"error":{"code":"password_required","message":"set the web admin password first"}}`)
+	res = runCLI(t, f, "webadmin", "on")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "password", res.stderr, "set the web admin password first")
+
+	f.on("PUT /v1/webadmin/password", 200, `{"password_set":true}`)
+	res = runCLIWith(t, f, cliOpts{stdin: "correct horse battery\n"}, "webadmin", "password")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/webadmin/password"); len(b) != 1 || b[0] != `{"password":"correct horse battery"}` {
+		t.Fatalf("body = %v", b)
+	}
+	if strings.Contains(res.stdout+res.stderr, "correct horse battery") {
+		t.Fatal("the password was echoed")
+	}
+}

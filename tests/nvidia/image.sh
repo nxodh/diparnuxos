@@ -164,8 +164,8 @@ require_path 'squashfs-root/etc/systemd/resolved[.]conf[.]d/diparnux[.]conf$' 'r
 unsquashfs -cat "$WORK/rootfs.squashfs" etc/systemd/resolved.conf.d/diparnux.conf > "$WORK/resolved.conf"
 grep -qx '\[Resolve\]' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks [Resolve]'
 grep -qx 'LLMNR=no' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks LLMNR=no'
-grep -qx 'MulticastDNS=no' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks MulticastDNS=no'
-echo 'PASS: systemd-resolved LLMNR and MulticastDNS are disabled'
+grep -qx 'MulticastDNS=yes' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks MulticastDNS=yes'
+echo 'PASS: systemd-resolved has LLMNR off and mDNS on (the firewall opens 5353 only for LAN exposure)'
 
 # 로그인 배너(minor 6). /etc/issue 첫 줄은 Diparnux 한 줄이고 agetty 이스케이프 \n \l 을 유지하며 ASCII 만 쓴다.
 expected_banner="Diparnux ${DIPARNUX_VERSION} (based on Debian ${DEBIAN_VERSION})"

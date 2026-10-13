@@ -36,6 +36,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
@@ -104,6 +105,10 @@ type Deps struct {
 	FirewallRules *firewall.Store
 	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
 	FirewallOpens func() []firewall.Open
+	// WebAdmin 은 원격 관리 웹 페이지다. nil 이면 해당 API 는 webadmin_unavailable 을 돌려준다.
+	WebAdmin WebAdminManager
+	// RDP 는 원격 데스크톱(xrdp)이다. nil 이면 해당 API 는 remote_desktop_unavailable 을 돌려준다.
+	RDP RDPManager
 	// VPN 은 WireGuard VPN 이다. nil 이면 해당 API 는 vpn_unavailable 을 돌려준다.
 	VPN VPNManager
 	// Services 는 서비스 목록과 제어(허용 목록)다. nil 이면 해당 API 는 services_unavailable 을 돌려준다.
@@ -232,6 +237,11 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/webadmin", s.getWebAdmin)
+	s.mux.HandleFunc("PUT /v1/webadmin", s.putWebAdmin)
+	s.mux.HandleFunc("PUT /v1/webadmin/password", s.putWebAdminPassword)
+	s.mux.HandleFunc("GET /v1/remote-desktop", s.getRemoteDesktop)
+	s.mux.HandleFunc("PUT /v1/remote-desktop", s.putRemoteDesktop)
 	s.mux.HandleFunc("GET /v1/vpn", s.getVPN)
 	s.mux.HandleFunc("PUT /v1/vpn", s.putVPN)
 	s.mux.HandleFunc("POST /v1/vpn/peers", s.postVPNPeer)
@@ -374,6 +384,18 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var rde *rdpctl.Error
+	if errors.As(err, &rde) {
+		status := http.StatusInternalServerError
+		switch rde.Code {
+		case rdpctl.CodeInvalidInput:
+			status = http.StatusBadRequest
+		case rdpctl.CodeNotInstalled:
+			status = http.StatusConflict
+		}
+		writeError(w, status, rde.Code, "%s", rde.Message)
 		return
 	}
 	var wge *wireguard.Error

@@ -10,6 +10,7 @@ import (
 
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
 	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
@@ -257,4 +258,35 @@ func TestVPNEndpoints(t *testing.T) {
 	v.err = &wireguard.Error{Code: wireguard.CodeNotEnabled, Message: "turn the VPN on first"}
 	w = e.do("POST", "/v1/vpn/peers", `{"name":"x"}`)
 	wantStatus(t, w, http.StatusConflict)
+}
+
+type fakeRDP struct {
+	st  rdpctl.Status
+	err error
+}
+
+func (f *fakeRDP) Status(ctx context.Context) rdpctl.Status { return f.st }
+func (f *fakeRDP) Set(ctx context.Context, enabled bool, source string) (rdpctl.Status, error) {
+	if f.err != nil {
+		return rdpctl.Status{}, f.err
+	}
+	f.st.Enabled = enabled
+	if source != "" {
+		f.st.Source = source
+	}
+	return f.st, nil
+}
+
+func TestRemoteDesktopEndpoints(t *testing.T) {
+	rd := &fakeRDP{st: rdpctl.Status{Installed: true, Port: 3389, Source: "lan"}}
+	e := newEnvWith(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}, func(d *Deps) { d.RDP = rd })
+	w := e.do("PUT", "/v1/remote-desktop", `{"enabled":true,"source":"any"}`)
+	wantStatus(t, w, http.StatusOK)
+	if !rd.st.Enabled || rd.st.Source != "any" {
+		t.Fatalf("st = %+v", rd.st)
+	}
+	wantStatus(t, e.do("PUT", "/v1/remote-desktop", `{}`), http.StatusBadRequest)
+	rd.err = &rdpctl.Error{Code: rdpctl.CodeNotInstalled, Message: "xrdp is not installed"}
+	wantStatus(t, e.do("PUT", "/v1/remote-desktop", `{"enabled":true}`), http.StatusConflict)
+	wantStatus(t, e.do("GET", "/v1/remote-desktop", ""), http.StatusOK)
 }

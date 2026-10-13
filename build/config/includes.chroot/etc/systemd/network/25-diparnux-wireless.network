@@ -10,3 +10,4 @@ RequiredForOnline=no
 
 [Network]
 DHCP=yes
+MulticastDNS=yes
