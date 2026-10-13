@@ -175,6 +175,8 @@ Commands:
   network [wifi ...]          show the network state, list/connect Wi-Fi
   network set|confirm|hostname|wol|diagnose   wired IP, DNS, host name, wake-on-lan, checks
   firewall [add|rm|enable|disable]   show and change the firewall rules
+  services [start|stop|restart|enable|disable|logs] <unit>   managed services and their logs
+  resources                   CPU, memory, disks, network, temperature and GPU
   ssh [on|off]                show or change the SSH server
   user add <name>             create a login account (prompts for a password)
   user list                   list accounts created with Diparnux

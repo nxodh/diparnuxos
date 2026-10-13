@@ -38,6 +38,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
@@ -102,6 +103,10 @@ type Deps struct {
 	FirewallRules *firewall.Store
 	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
 	FirewallOpens func() []firewall.Open
+	// Services 는 서비스 목록과 제어(허용 목록)다. nil 이면 해당 API 는 services_unavailable 을 돌려준다.
+	Services ServiceManager
+	// Stats 는 자원 사용량 측정이다. nil 이면 해당 API 는 resources_unavailable 을 돌려준다.
+	Stats StatReader
 	// SSHConf 는 SSH 포트, 비밀번호 로그인, 공개 키다. nil 이면 해당 API 는 ssh_unavailable 을 돌려준다.
 	SSHConf SSHConfManager
 	// NetConf 는 유선 IP 설정, 호스트 이름, 깨우기다. nil 이면 해당 API 는 network_unavailable 을 돌려준다.
@@ -224,6 +229,10 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/services", s.listServices)
+	s.mux.HandleFunc("POST /v1/services/{unit}/{action}", s.postServiceAction)
+	s.mux.HandleFunc("GET /v1/services/{unit}/logs", s.getServiceLogs)
+	s.mux.HandleFunc("GET /v1/resources", s.getResources)
 	s.mux.HandleFunc("GET /v1/ssh/advanced", s.getSSHAdvanced)
 	s.mux.HandleFunc("PUT /v1/ssh/advanced", s.putSSHAdvanced)
 	s.mux.HandleFunc("GET /v1/ssh/keys", s.listSSHKeys)
@@ -358,6 +367,11 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var sve *svcctl.Error
+	if errors.As(err, &sve) {
+		writeError(w, svcStatus(sve.Code), sve.Code, "%s", sve.Message)
 		return
 	}
 	var sce *sshconf.Error
@@ -545,22 +559,27 @@ func (s *server) gpuView(ctx context.Context) gpuInfo {
 			out.DriverVersion = snap.DriverVersion
 		}
 		for _, d := range snap.Devices {
-			out.NVML.Devices = append(out.NVML.Devices, deviceView{
-				Index:          d.Index,
-				Name:           d.Name,
-				Arch:           d.Arch,
-				ComputeCap:     d.ComputeCap,
-				MemTotalMiB:    d.MemTotalMiB,
-				MemFreeMiB:     d.MemFreeMiB,
-				MemUsedMiB:     d.MemUsedMiB,
-				TemperatureC:   d.TemperatureC,
-				PowerMilliwatt: d.PowerMilliwatt,
-				UtilGPUPercent: d.UtilGPUPercent,
-				UtilMemPercent: d.UtilMemPercent,
-			})
+			out.NVML.Devices = append(out.NVML.Devices, deviceViewOf(d))
 		}
 	}
 	return out
+}
+
+// deviceViewOf 는 NVML 장치 하나를 JSON 모양으로 바꾼다.
+func deviceViewOf(d platform.GPUDevice) deviceView {
+	return deviceView{
+		Index:          d.Index,
+		Name:           d.Name,
+		Arch:           d.Arch,
+		ComputeCap:     d.ComputeCap,
+		MemTotalMiB:    d.MemTotalMiB,
+		MemFreeMiB:     d.MemFreeMiB,
+		MemUsedMiB:     d.MemUsedMiB,
+		TemperatureC:   d.TemperatureC,
+		PowerMilliwatt: d.PowerMilliwatt,
+		UtilGPUPercent: d.UtilGPUPercent,
+		UtilMemPercent: d.UtilMemPercent,
+	}
 }
 
 // openModule 은 상태 파일의 상태로 오픈 모듈 여부를 추정한다. ready 는 독점 모듈이 감지되지 않았다는 뜻으로 본다.

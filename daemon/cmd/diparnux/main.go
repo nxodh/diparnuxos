@@ -153,6 +153,10 @@ func execute(e runEnv, args []string) int {
 		return c.power(cargs)
 	case "firewall":
 		return c.firewall(cargs)
+	case "services":
+		return c.services(cargs)
+	case "resources":
+		return c.resources(cargs)
 	case "connection":
 		return c.connection(cargs)
 	case "gateway":

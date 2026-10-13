@@ -1297,3 +1297,29 @@ func TestSSHAdvancedCommands(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "log", res.stdout, "alice", "publickey", "192.168.0.5")
 }
+
+func TestServicesAndResources(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/services", 200, `{"services":[{"unit":"ssh.service","title":"SSH server","installed":true,"active":"active","sub":"running","enabled":"enabled","pid":10,"memory_mib":4,"actions":["restart"]},{"unit":"xrdp.service","title":"Remote desktop (RDP)","installed":false,"active":"inactive","sub":"dead","enabled":"not-found","actions":[]}]}`)
+	res := runCLI(t, f, "services")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "ssh.service", "active/running", "enabled", "xrdp.service", "not-found")
+
+	f.on("POST /v1/services/ssh.service/restart", 200, `{"unit":"ssh.service","action":"restart","done":true}`)
+	res = runCLI(t, f, "services", "restart", "ssh.service")
+	wantCode(t, res, exitOK)
+	f.on("POST /v1/services/diparnuxd.service/stop", 403, `{"error":{"code":"action_not_allowed","message":"Diparnux daemon cannot be stopped from here"}}`)
+	res = runCLI(t, f, "services", "stop", "diparnuxd.service")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "protected", res.stderr, "action_not_allowed")
+
+	f.on("GET /v1/services/ssh.service/logs", 200, `{"unit":"ssh.service","log":"2026-10-13 sshd started\n"}`)
+	res = runCLI(t, f, "services", "logs", "ssh.service", "-n", "20")
+	wantCode(t, res, exitOK)
+	wantContains(t, "logs", res.stdout, "sshd started")
+
+	f.on("GET /v1/resources", 200, `{"system":{"uptime_seconds":90061,"cpu":{"cores":8,"used_percent":12.5,"load1":0.5,"load5":0.4,"load15":0.3},"memory":{"total_mib":16000,"available_mib":8000,"used_mib":8000,"swap_total_mib":0,"swap_used_mib":0},"disks":[{"mount":"/","fs_type":"ext4","total_mib":100000,"used_mib":40000,"used_percent":40}],"network":[{"name":"enp3s0","rx_bytes_per_second":2048,"tx_bytes_per_second":0}],"temperatures":[{"name":"x86_pkg_temp","celsius":52.5}],"top_processes":[{"pid":4242,"name":"llama-server","rss_mib":3000}]},"gpus":[{"index":0,"name":"RTX 3060","memory_total_mib":6144,"memory_used_mib":3000,"util_gpu_percent":5,"temperature_c":50,"power_mw":20000}],"gpu_available":true}`)
+	res = runCLI(t, f, "resources")
+	wantCode(t, res, exitOK)
+	wantContains(t, "resources", res.stdout, "12.5% of 8 cores", "disk /", "net enp3s0", "52.5 C", "RTX 3060", "llama-server")
+}

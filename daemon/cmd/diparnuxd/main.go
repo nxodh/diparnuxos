@@ -41,7 +41,9 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/runner"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
+	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
@@ -209,6 +211,8 @@ func run(args []string) error {
 		Network:       netMgr,
 		NetConf:       netConf,
 		SSHConf:       sshConf,
+		Services:      &svcctl.Manager{Runner: cmds},
+		Stats:         &sysstat.Reader{},
 		FirewallRules: fwRules,
 		Power:         &power.Manager{Runner: cmds},
 		Gateway:       gwMgr,
