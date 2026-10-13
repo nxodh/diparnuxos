@@ -677,9 +677,9 @@ func TestAPIKeyCreatePrintsKeyOnce(t *testing.T) {
 }
 
 func TestAPIKeyCreateWhileRunningShowsRestartInstruction(t *testing.T) {
-	const key = "llx_test-created-key"
+	const key = "dpx_test-created-key"
 	f := newFakeDaemon(t)
-	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_test","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"dpx_test","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
 	res := runCLI(t, f, "apikey", "create", "laptop")
 	wantCode(t, res, exitOK)
 	wantContains(t, "create", res.stdout, "API key created.", key, "shown only once", "restart the server for the new API key to take effect", "diparnux serve stop, then diparnux serve start")
@@ -689,9 +689,9 @@ func TestAPIKeyCreateWhileRunningShowsRestartInstruction(t *testing.T) {
 }
 
 func TestAPIKeyCreateJSONKeepsRestartContract(t *testing.T) {
-	const key = "llx_json-created-key"
+	const key = "dpx_json-created-key"
 	f := newFakeDaemon(t)
-	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_json","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"dpx_json","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
 	res := runCLI(t, f, "--json", "apikey", "create", "laptop")
 	wantCode(t, res, exitOK)
 	var response map[string]any

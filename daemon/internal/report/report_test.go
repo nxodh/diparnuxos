@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	plainKey  = "llx_PLAINKEYabcdefghijklmnopqrstuvwxyz0123456789ABC"
+	plainKey  = "dpx_PLAINKEYabcdefghijklmnopqrstuvwxyz0123456789ABC"
 	hfToken   = "hf_HFTOKENabcdefghijklmnopqrstuv"
-	bearerKey = "llx_UNLISTEDKEYabcdefghijklmnopqrstuvwxyz"
+	bearerKey = "dpx_UNLISTEDKEYabcdefghijklmnopqrstuvwxyz"
 )
 
 // fakeRunner는 명령마다 다른 출력을 낸다. journalctl 에는 비밀을 섞는다.

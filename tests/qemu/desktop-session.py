@@ -304,8 +304,8 @@ def scenario(console, monitor, budgets, logs, workdir):
         cmd,
     )
     askpass = (
-        'd=$(mktemp -d); printf \'#!/bin/sh\\necho "$LLX_PW"\\n\' > "$d/ask"; chmod 700 "$d/ask"; '
-        'ssh_try() { LLX_PW="$2" SSH_ASKPASS="$d/ask" SSH_ASKPASS_REQUIRE=force '
+        'd=$(mktemp -d); printf \'#!/bin/sh\\necho "$DPX_PW"\\n\' > "$d/ask"; chmod 700 "$d/ask"; '
+        'ssh_try() { DPX_PW="$2" SSH_ASKPASS="$d/ask" SSH_ASKPASS_REQUIRE=force '
         'ssh -o BatchMode=no -o PreferredAuthentications=password -o PubkeyAuthentication=no '
         '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 '
         '"$1@127.0.0.1" id -un; }; '

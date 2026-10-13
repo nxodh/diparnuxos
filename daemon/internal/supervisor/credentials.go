@@ -27,7 +27,7 @@ func validateCredentialSnapshot(data []byte) error {
 	lines := bytes.Split(data[:len(data)-1], []byte{'\n'})
 	seen := make(map[[sha256.Size]byte]struct{}, len(lines))
 	for _, line := range lines {
-		if len(line) != 47 || !bytes.HasPrefix(line, []byte("llx_")) {
+		if len(line) != 47 || !bytes.HasPrefix(line, []byte("dpx_")) {
 			return errors.New("credential snapshot contains a malformed key")
 		}
 		raw, err := base64.RawURLEncoding.DecodeString(string(line[4:]))

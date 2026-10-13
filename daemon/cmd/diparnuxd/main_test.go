@@ -25,7 +25,7 @@ func TestReportRedactsActiveRuntimeKeySnapshotAfterStoreDeletion(t *testing.T) {
 	}
 	keyFile := filepath.Join(dir, "api-keys")
 	snapshot := filepath.Join(dir, "api-keys.start-test.key")
-	secret := "llx_" + strings.Repeat("A", 43)
+	secret := "dpx_" + strings.Repeat("A", 43)
 	if err := os.WriteFile(snapshot, []byte(secret+"\n"), 0o640); err != nil {
 		t.Fatal(err)
 	}

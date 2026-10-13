@@ -150,13 +150,13 @@ class Console:
     def command(self, label, command, timeout, expected=0):
         self.counter += 1
         token = secrets.token_hex(8)
-        stem = f"__LLX_{token}"
+        stem = f"__DPX_{token}"
         begin, end = stem + "_BEGIN__", stem + "_END__"
         # 마커를 두 문자열로 만들어 tty 입력 에코가 완료 마커로 오인되지 않게 한다.
         line = (
-            f"printf '\\n%s%s\\n' '__LLX_' '{token}_BEGIN__'; "
+            f"printf '\\n%s%s\\n' '__DPX_' '{token}_BEGIN__'; "
             f"LC_ALL=C TERM=dumb timeout --foreground --verbose --kill-after=5s {timeout}s sh -c {shlex.quote(command)}; "
-            f"llx_rc=$?; printf '\\n%s%s:%s\\n' '__LLX_' '{token}_END__' \"$llx_rc\""
+            f"dpx_rc=$?; printf '\\n%s%s:%s\\n' '__DPX_' '{token}_END__' \"$dpx_rc\""
         )
         self.commands.write(json.dumps({"event": "start", "label": label, "command": command,
                                         "timeout_seconds": timeout, "expected_exit": expected}) + "\n")

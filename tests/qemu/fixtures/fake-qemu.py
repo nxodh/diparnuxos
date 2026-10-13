@@ -180,4 +180,4 @@ for line in sys.stdin:
     if mode == "serial-timeout" and command.startswith("diparnux --json model pull"):
         time.sleep(60)
     output, rc = result(command)
-    emit(f"\n__LLX_{token}_BEGIN__\n{output}\n__LLX_{token}_END__:{rc}\n")
+    emit(f"\n__DPX_{token}_BEGIN__\n{output}\n__DPX_{token}_END__:{rc}\n")

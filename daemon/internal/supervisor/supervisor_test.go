@@ -1053,7 +1053,7 @@ func TestStartLANWithKeyBindsAllInterfaces(t *testing.T) {
 	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+snapshots[0]+`"`) || strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+f.keys.KeyFile+`"`) {
 		t.Fatalf("env file lacks key file path: %s", env)
 	}
-	if strings.Contains(string(env), "llx_") {
+	if strings.Contains(string(env), "dpx_") {
 		t.Fatal("env file must not contain a plaintext key")
 	}
 	snapshot, err := os.ReadFile(snapshots[0])

@@ -475,7 +475,7 @@ func TestKeyCreateShowsPlaintextOnceAndListHidesIt(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(created.Key, "llx_") || e.chowns != 1 {
+	if !strings.HasPrefix(created.Key, "dpx_") || e.chowns != 1 {
 		t.Fatalf("key = %q, chowns = %d", created.Key, e.chowns)
 	}
 	list := e.do("GET", "/v1/apikeys", "")

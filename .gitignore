@@ -65,3 +65,21 @@ id_ed25519_sk
 # Python 바이트코드
 __pycache__/
 *.pyc
+
+# 로컬 인수인계 파일과 작업 기록(저장소에 올리지 않는다. 모든 클론에서 무시되도록 여기에도 둔다)
+HANDOFF.md
+.handoff/
+
+# 비밀 정보와 모델: 공개 저장소에 올리지 않는다
+*.psk
+*.p12
+*.pfx
+*.ovpn
+wg*.conf
+apikeys*.json
+id_rsa*
+id_ed25519*
+*.gguf
+*.gguf.json
+*.key.pem
+
