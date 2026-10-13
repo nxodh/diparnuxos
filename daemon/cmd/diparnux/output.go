@@ -173,6 +173,8 @@ Commands:
   gateway                     show the gateway state and per-key usage
   power [on|off]              show or change always-on (no suspend or sleep)
   network [wifi ...]          show the network state, list/connect Wi-Fi
+  network set|confirm|hostname|wol|diagnose   wired IP, DNS, host name, wake-on-lan, checks
+  firewall [add|rm|enable|disable]   show and change the firewall rules
   ssh [on|off]                show or change the SSH server
   user add <name>             create a login account (prompts for a password)
   user list                   list accounts created with Diparnux

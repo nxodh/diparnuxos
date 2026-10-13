@@ -139,3 +139,102 @@ func TestRulesetRejectsBadPorts(t *testing.T) {
 		})
 	}
 }
+
+func TestRulesetWithFeatureOpensAndUserRules(t *testing.T) {
+	o := Options{
+		APIPort: 8080, APIOpen: true, MDNSOpen: true,
+		Open: []Open{{Name: "WireGuard", Protocol: "udp", Port: 51820, Source: SourceAny}},
+		Rules: []Rule{
+			{ID: "r1", Name: "Open WebUI", Protocol: "tcp", Port: 3000, Source: SourceLAN, Enabled: true},
+			{ID: "r2", Name: "Off", Protocol: "tcp", Port: 9999, Source: SourceAny, Enabled: false},
+			{ID: "r3", Name: "Range", Protocol: "udp", Port: 6000, PortEnd: 6010, Source: "10.1.2.0/24", Enabled: true},
+			{ID: "r4", Name: "V6", Protocol: "tcp", Port: 443, Source: "2001:db8::/32", Enabled: true},
+		},
+	}
+	got, err := Ruleset(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := build(
+		"\t\t# llama-server API (LAN exposure enabled; API key required).",
+		"\t\ttcp dport 8080 accept",
+		"\t\t# mDNS (the <host name>.local name).",
+		"\t\tudp dport 5353 accept",
+		"\t\t# WireGuard.",
+		"\t\tudp dport 51820 accept",
+		"\t\t# Rule: Open WebUI.",
+		"\t\tip saddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16 } tcp dport 3000 accept",
+		"\t\tip6 saddr { fc00::/7, fe80::/10 } tcp dport 3000 accept",
+		"\t\t# Rule: Range.",
+		"\t\tip saddr 10.1.2.0/24 udp dport 6000-6010 accept",
+		"\t\t# Rule: V6.",
+		"\t\tip6 saddr 2001:db8::/32 tcp dport 443 accept",
+	)
+	if got != want {
+		t.Fatalf("ruleset:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestRuleValidationRefusesInjection(t *testing.T) {
+	bad := []Rule{
+		{Name: "x", Protocol: "tcp", Port: 0, Source: SourceAny},
+		{Name: "x", Protocol: "tcp", Port: 70000, Source: SourceAny},
+		{Name: "x", Protocol: "icmp", Port: 80, Source: SourceAny},
+		{Name: "x", Protocol: "tcp", Port: 80, PortEnd: 70, Source: SourceAny},
+		{Name: "x", Protocol: "tcp", Port: 80, Source: "0.0.0.0/0"},
+		{Name: "x", Protocol: "tcp", Port: 80, Source: "1.2.3.4; drop"},
+		{Name: "a\naccept", Protocol: "tcp", Port: 80, Source: SourceAny},
+		{Name: "a # b", Protocol: "tcp", Port: 80, Source: SourceAny},
+		{Name: "", Protocol: "tcp", Port: 80, Source: SourceAny},
+	}
+	for i, r := range bad {
+		if err := r.Validate(); err == nil {
+			t.Errorf("case %d accepted: %+v", i, r)
+		}
+	}
+	if _, err := Ruleset(Options{APIPort: 8080, Rules: []Rule{{Name: "x", Protocol: "tcp", Port: 80, Source: "bad", Enabled: true}}}); err == nil {
+		t.Fatal("Ruleset accepted an invalid rule")
+	}
+}
+
+func TestStoreAddUpdateRemove(t *testing.T) {
+	s := &Store{Path: t.TempDir() + "/rules.json"}
+	a, err := s.Add(Rule{Name: "a", Protocol: "tcp", Port: 3000, Source: SourceLAN, Enabled: true})
+	if err != nil || a.ID != "r1" {
+		t.Fatalf("a = %+v, %v", a, err)
+	}
+	b, _ := s.Add(Rule{Name: "b", Protocol: "udp", Port: 4000, Source: SourceAny, Enabled: true})
+	if b.ID != "r2" {
+		t.Fatalf("b = %+v", b)
+	}
+	b.Enabled = false
+	if _, err := s.Update(b); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Remove("r1"); err != nil {
+		t.Fatal(err)
+	}
+	c, _ := s.Add(Rule{Name: "c", Protocol: "tcp", Port: 5000, Source: SourceAny, Enabled: true})
+	if c.ID != "r1" {
+		t.Fatalf("a freed ID must be reused: %+v", c)
+	}
+	list, err := s.List()
+	if err != nil || len(list) != 2 {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	if err := s.Remove("nope"); err != ErrNotFound {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := s.Update(Rule{ID: "nope", Name: "x", Protocol: "tcp", Port: 80, Source: SourceAny}); err != ErrNotFound {
+		t.Fatalf("err = %v", err)
+	}
+	for i := 0; i < MaxRules; i++ {
+		if _, err := s.Add(Rule{Name: "x", Protocol: "tcp", Port: 1000 + i, Source: SourceAny}); err != nil {
+			if err != ErrTooMany {
+				t.Fatalf("err = %v", err)
+			}
+			return
+		}
+	}
+	t.Fatal("the rule limit was not enforced")
+}

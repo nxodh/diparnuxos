@@ -23,6 +23,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
@@ -158,6 +159,8 @@ type Options struct {
 	Unit string
 	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/diparnux/firewall.nft.
 	FirewallPath string
+	// FirewallExtras 는 규칙 파일에 더할 것을 돌려준다: 켜진 기능이 여는 포트와 사용자 규칙. nil 이면 둘 다 없다.
+	FirewallExtras func() ([]firewall.Open, []firewall.Rule)
 	// HTTP 는 /health 확인에 쓰는 클라이언트다. nil 이면 기본 클라이언트를 쓴다.
 	HTTP *http.Client
 	// Now 는 현재 시각이다. nil 이면 time.Now 를 쓴다.

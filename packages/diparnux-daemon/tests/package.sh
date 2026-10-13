@@ -21,7 +21,7 @@ done
 for dependency in diparnux-nvidia diparnux-llm; do
     [[ "$depends" == *"$dependency (= $DIPARNUX_VERSION)"* ]]
 done
-for path in usr/sbin/diparnuxd usr/bin/diparnux usr/lib/diparnux/check-gpu-permissions usr/lib/diparnux/diparnux-update usr/sbin/diparnux-install; do
+for path in usr/sbin/diparnuxd usr/bin/diparnux usr/lib/diparnux/check-gpu-permissions usr/lib/diparnux/diparnux-update usr/lib/diparnux/diparnux-admin usr/sbin/diparnux-install; do
     [[ -x "$WORK/root/$path" ]]
 done
 for path in etc/default/grub.d/20-diparnux.cfg usr/lib/systemd/system/diparnux-update-verify.service usr/lib/sysusers.d/diparnux.conf usr/lib/tmpfiles.d/diparnux-daemon.conf usr/share/diparnux/firewall-default.nft usr/share/doc/diparnux-daemon/go-nvml.LICENSE; do

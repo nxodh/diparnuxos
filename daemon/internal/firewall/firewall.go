@@ -19,6 +19,12 @@ type Options struct {
 	APIOpen bool // true이면 APIPort를 연다(LAN 공개를 켰을 때만)
 	SSHOpen bool // true이면 SSHPort를 연다
 	SSHPort int  // 0이면 22
+	// MDNSOpen 이 true 이면 mDNS(UDP 5353)를 연다. 이름(<호스트>.local)으로 찾게 하려면 LAN 공개와 함께 켠다.
+	MDNSOpen bool
+	// Open 은 기능(WireGuard, 원격 데스크톱, 웹 관리)이 여는 포트다. 기능이 켜져 있을 때만 넘긴다.
+	Open []Open
+	// Rules 는 사용자가 만든 규칙이다. 사용 중인 규칙만 규칙 파일에 들어간다.
+	Rules []Rule
 }
 
 // Ruleset은 nftables 규칙 파일 전체를 만든다. 잘못된 포트는 오류를 돌려준다.
@@ -60,6 +66,31 @@ func Ruleset(o Options) (string, error) {
 	if o.SSHOpen {
 		b.WriteString("\t\t# SSH.\n")
 		fmt.Fprintf(&b, "\t\ttcp dport %d accept\n", sshPort)
+	}
+	if o.MDNSOpen {
+		b.WriteString("\t\t# mDNS (the <host name>.local name).\n")
+		b.WriteString("\t\tudp dport 5353 accept\n")
+	}
+	for _, op := range o.Open {
+		if err := op.Validate(); err != nil {
+			return "", fmt.Errorf("firewall: ruleset: %w", err)
+		}
+		fmt.Fprintf(&b, "\t\t# %s.\n", sanitizeComment(op.Name))
+		for _, line := range nftLines(op.Protocol, op.Port, op.PortEnd, op.Source) {
+			b.WriteString("\t\t" + line + "\n")
+		}
+	}
+	for _, r := range o.Rules {
+		if !r.Enabled {
+			continue
+		}
+		if err := r.Validate(); err != nil {
+			return "", fmt.Errorf("firewall: ruleset: rule %q: %w", r.Name, err)
+		}
+		fmt.Fprintf(&b, "\t\t# Rule: %s.\n", sanitizeComment(r.Name))
+		for _, line := range nftLines(r.Protocol, r.Port, r.PortEnd, r.Source) {
+			b.WriteString("\t\t" + line + "\n")
+		}
 	}
 	b.WriteString("\t}\n")
 

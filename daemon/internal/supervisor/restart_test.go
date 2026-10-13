@@ -2,8 +2,12 @@ package supervisor
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 )
 
 // killServer 는 돌던 서버가 예상 밖으로 죽은 것처럼 만들고 감시를 한 번 돌린다.
@@ -122,5 +126,47 @@ func TestAutoRestartGivesUpAfterTheLastAttempt(t *testing.T) {
 	f.sup.restartTick(context.Background())
 	if f.sys.count("systemctl", "start") != before {
 		t.Fatal("the supervisor kept restarting after giving up")
+	}
+}
+
+func TestApplyFirewallIncludesFeatureOpensAndUserRules(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.sup.opts.FirewallExtras = func() ([]firewall.Open, []firewall.Rule) {
+		return []firewall.Open{{Name: "WireGuard", Protocol: "udp", Port: 51820, Source: firewall.SourceAny}},
+			[]firewall.Rule{{ID: "r1", Name: "WebUI", Protocol: "tcp", Port: 3000, Source: firewall.SourceLAN, Enabled: true}}
+	}
+	if err := f.sup.ApplyFirewall(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(f.fwPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"udp dport 51820 accept", "tcp dport 3000 accept"} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("rules lack %q:\n%s", want, data)
+		}
+	}
+	if f.sys.count("nft", "-c") != 1 || f.sys.count("nft", "-f") != 1 {
+		t.Fatalf("nft must check once then apply once: -c=%d -f=%d", f.sys.count("nft", "-c"), f.sys.count("nft", "-f"))
+	}
+}
+
+func TestApplyFirewallKeepsTheOldRulesWhenTheCheckFails(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	if err := f.sup.ApplyFirewall(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.ReadFile(f.fwPath)
+	f.cfg.LANExposed = true
+	f.sys.nftExit = 1
+	f.sys.nftStderr = "syntax error"
+	wantCode(t, f.sup.ApplyFirewall(context.Background()), CodeFirewallFailed)
+	after, _ := os.ReadFile(f.fwPath)
+	if string(before) != string(after) {
+		t.Fatal("a rule set that failed the check replaced the saved file")
+	}
+	if _, err := os.Stat(f.fwPath + ".new"); err == nil {
+		t.Fatal("the candidate file was left behind")
 	}
 }

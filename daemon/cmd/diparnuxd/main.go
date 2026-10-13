@@ -23,13 +23,16 @@ import (
 	"time"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
+	"github.com/nxodh/diparnuxos/daemon/internal/admin"
 	"github.com/nxodh/diparnuxos/daemon/internal/api"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/nvml"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
@@ -119,18 +122,23 @@ func run(args []string) error {
 	})
 	defer jobMgr.Close()
 
+	fwRules := &firewall.Store{Path: *stateDir + "/firewall-rules.json"}
 	sup := supervisor.New(supervisor.Options{
-		Runner:         cmds,
-		GPU:            gpu,
-		Store:          store,
-		Keys:           keys,
-		Config:         src.get,
-		MemInfo:        mem,
-		GPUStatusPath:  gpuStatusPath,
-		EnvFilePath:    envFilePath,
-		ServerBinary:   llamaBinary,
-		Unit:           llamaUnit,
-		FirewallPath:   *stateDir + "/firewall.nft",
+		Runner:        cmds,
+		GPU:           gpu,
+		Store:         store,
+		Keys:          keys,
+		Config:        src.get,
+		MemInfo:       mem,
+		GPUStatusPath: gpuStatusPath,
+		EnvFilePath:   envFilePath,
+		ServerBinary:  llamaBinary,
+		Unit:          llamaUnit,
+		FirewallPath:  *stateDir + "/firewall.nft",
+		FirewallExtras: func() ([]firewall.Open, []firewall.Rule) {
+			rules, _ := fwRules.List()
+			return nil, rules
+		},
 		KeySnapshotDir: *stateDir,
 		KeySnapshotGID: uint32(keyGID),
 		ChownKeyFile:   chownKeyFile,
@@ -182,6 +190,9 @@ func run(args []string) error {
 	}
 
 	accountsMgr := &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"}
+	adminHelper := &admin.Client{Runner: cmds}
+	netMgr := &network.Manager{Runner: cmds}
+	netConf := &netconf.Manager{Files: adminHelper, Runner: cmds, Lister: netMgr, PendingPath: *stateDir + "/netconf-pending.json"}
 	handler := api.New(api.Deps{
 		Supervisor:    sup,
 		Jobs:          jobMgr,
@@ -190,7 +201,9 @@ func run(args []string) error {
 		HF:            hfProxy{cfg: src.get},
 		Accounts:      accountsMgr,
 		Updates:       &updatectl.Controller{Runner: cmds},
-		Network:       &network.Manager{Runner: cmds},
+		Network:       netMgr,
+		NetConf:       netConf,
+		FirewallRules: fwRules,
 		Power:         &power.Manager{Runner: cmds},
 		Gateway:       gwMgr,
 		GPU:           gpu,
@@ -218,6 +231,10 @@ func run(args []string) error {
 		log.Printf("llama startup reconciliation failed: %v", err)
 	}
 	restoreSSH(ctx, *configPath, sup, accountsMgr)
+	// 확인을 기다리던 네트워크 변경이 있는 채로 다시 시작했다면 이전 설정으로 되돌린다.
+	if err := netConf.Recover(ctx); err != nil {
+		log.Printf("network change recovery failed: %v", err)
+	}
 
 	ln, created, err := socketListener(*socketPath, *socketGroup)
 	if err != nil {

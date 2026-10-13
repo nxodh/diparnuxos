@@ -71,7 +71,7 @@ func buildConnection(in connectionInput) Connection {
 
 	if in.Cfg.LANExposed {
 		for _, ifc := range in.Interfaces {
-			if ifc.State != "up" {
+			if ifc.State == "down" {
 				continue
 			}
 			for _, a := range ifc.Addresses {

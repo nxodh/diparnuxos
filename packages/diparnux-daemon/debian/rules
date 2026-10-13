@@ -14,7 +14,7 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	mkdir -p build
-	set -e; . "$(DIPARNUX_CONF)"; cd daemon; go build -ldflags "-X main.version=$$DIPARNUX_VERSION" -o ../build/diparnuxd ./cmd/diparnuxd; go build -ldflags "-X main.version=$$DIPARNUX_VERSION" -o ../build/diparnux ./cmd/diparnux; go build -o ../build/diparnux-update ./cmd/diparnux-update; go build -o ../build/diparnux-install ./cmd/diparnux-install
+	set -e; . "$(DIPARNUX_CONF)"; cd daemon; go build -ldflags "-X main.version=$$DIPARNUX_VERSION" -o ../build/diparnuxd ./cmd/diparnuxd; go build -ldflags "-X main.version=$$DIPARNUX_VERSION" -o ../build/diparnux ./cmd/diparnux; go build -o ../build/diparnux-update ./cmd/diparnux-update; go build -o ../build/diparnux-install ./cmd/diparnux-install; go build -o ../build/diparnux-admin ./cmd/diparnux-admin
 
 override_dh_auto_test:
 	cd daemon && go test -count=1 ./...
@@ -26,6 +26,7 @@ override_dh_auto_install:
 	install -D -m 755 daemon/dist/diparnux-user.sh debian/diparnux-daemon/usr/lib/diparnux/diparnux-user
 	install -D -m 755 build/diparnux-update debian/diparnux-daemon/usr/lib/diparnux/diparnux-update
 	install -D -m 755 build/diparnux-install debian/diparnux-daemon/usr/sbin/diparnux-install
+	install -D -m 755 build/diparnux-admin debian/diparnux-daemon/usr/lib/diparnux/diparnux-admin
 	install -D -m 644 daemon/dist/grub-diparnux.cfg debian/diparnux-daemon/etc/default/grub.d/20-diparnux.cfg
 	install -D -m 644 daemon/dist/diparnux.sysusers.conf debian/diparnux-daemon/usr/lib/sysusers.d/diparnux.conf
 	install -D -m 644 daemon/dist/diparnux-daemon.tmpfiles.conf debian/diparnux-daemon/usr/lib/tmpfiles.d/diparnux-daemon.conf

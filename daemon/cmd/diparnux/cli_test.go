@@ -1204,3 +1204,61 @@ func TestServeStatsShowsSlotsAndSpeed(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "stopped", res.stdout, "not running")
 }
+
+func TestNetworkSetStaticAndConfirm(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/network/interfaces/enp3s0", 200, `{"config":{"interface":"enp3s0","mode":"static","addresses":["192.168.0.50/24"],"gateway":"192.168.0.1","dns":["1.1.1.1"],"managed":true},"pending":{"interface":"enp3s0","deadline":"2026-10-13T12:01:00Z"},"confirm_seconds":60}`)
+	res := runCLI(t, f, "network", "set", "enp3s0", "--address", "192.168.0.50/24", "--gateway", "192.168.0.1", "--dns", "1.1.1.1")
+	wantCode(t, res, exitOK)
+	wantContains(t, "set", res.stdout, "static 192.168.0.50/24, gateway 192.168.0.1", "diparnux network confirm", "60 seconds")
+	got := f.bodiesOf("PUT /v1/network/interfaces/enp3s0")
+	if len(got) != 1 || !strings.Contains(got[0], `"mode":"static"`) || !strings.Contains(got[0], `"addresses":["192.168.0.50/24"]`) || !strings.Contains(got[0], `"confirm_seconds":60`) {
+		t.Fatalf("body = %v", got)
+	}
+
+	f.on("POST /v1/network/confirm", 200, `{"confirmed":true}`)
+	res = runCLI(t, f, "network", "confirm")
+	wantCode(t, res, exitOK)
+	wantContains(t, "confirm", res.stdout, "confirmed")
+
+	res = runCLI(t, f, "network", "set", "enp3s0")
+	wantCode(t, res, exitUsage)
+	res = runCLI(t, f, "network", "set", "enp3s0", "--dhcp", "--address", "10.0.0.2/24")
+	wantCode(t, res, exitUsage)
+}
+
+func TestNetworkDiagnoseFailsWhenACheckFails(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/network/diagnose", 200, `{"checks":[{"name":"address","ok":true,"detail":"enp3s0 192.168.0.23/24"},{"name":"dns","ok":false,"detail":"huggingface.co could not be resolved"},{"name":"gateway","ok":false,"skipped":true,"detail":"ping is not available"}]}`)
+	res := runCLI(t, f, "network", "diagnose")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "diagnose", res.stdout, "ok    address", "FAIL  dns", "skip  gateway")
+}
+
+func TestFirewallListAddAndToggle(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/firewall", 200, `{"policy":"drop","builtin":[{"name":"SSH","protocol":"tcp","port":22,"source":"any","reason":"the SSH server is on"}],"rules":[{"id":"r1","name":"WebUI","protocol":"tcp","port":3000,"source":"lan","enabled":true}],"max_rule":64}`)
+	res := runCLI(t, f, "firewall")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "SSH", "the SSH server is on", "r1", "WebUI", "lan")
+
+	f.on("POST /v1/firewall/rules", 201, `{"id":"r2","name":"Range","protocol":"udp","port":6000,"port_end":6010,"source":"10.0.0.0/8","enabled":true}`)
+	res = runCLI(t, f, "firewall", "add", "Range", "udp", "6000-6010", "--from", "10.0.0.0/8")
+	wantCode(t, res, exitOK)
+	wantContains(t, "add", res.stdout, "rule r2 added", "udp/6000-6010")
+	body := f.bodiesOf("POST /v1/firewall/rules")
+	if len(body) != 1 || !strings.Contains(body[0], `"port":6000`) || !strings.Contains(body[0], `"port_end":6010`) {
+		t.Fatalf("body = %v", body)
+	}
+
+	f.on("PUT /v1/firewall/rules/r1", 200, `{"id":"r1","name":"WebUI","protocol":"tcp","port":3000,"source":"lan","enabled":false}`)
+	res = runCLI(t, f, "firewall", "disable", "r1")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/firewall/rules/r1"); len(b) != 1 || !strings.Contains(b[0], `"enabled":false`) {
+		t.Fatalf("body = %v", b)
+	}
+	res = runCLI(t, f, "firewall", "disable", "r9")
+	wantCode(t, res, exitFailure)
+	res = runCLI(t, f, "firewall", "add", "x", "tcp", "abc")
+	wantCode(t, res, exitUsage)
+}

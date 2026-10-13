@@ -28,10 +28,12 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
@@ -95,6 +97,12 @@ type Deps struct {
 	Accounts AccountManager
 	// Network 는 인터넷 연결 상태와 Wi-Fi 다. nil 이면 네트워크 API 는 network_unavailable 을 돌려준다.
 	Network NetworkManager
+	// FirewallRules 는 사용자 방화벽 규칙 저장소다. nil 이면 방화벽 규칙 API 는 firewall_unavailable 을 돌려준다.
+	FirewallRules *firewall.Store
+	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
+	FirewallOpens func() []firewall.Open
+	// NetConf 는 유선 IP 설정, 호스트 이름, 깨우기다. nil 이면 해당 API 는 network_unavailable 을 돌려준다.
+	NetConf NetConfManager
 	// Gateway 는 모델 서버 앞의 프록시(키 확인, 사용량)다. nil 이면 게이트웨이 API 는 gateway_unavailable 을 돌려준다.
 	Gateway GatewayView
 	// Power 는 상시 가동(절전과 종료 금지)이다. nil 이면 전원 API 는 power_unavailable 을 돌려준다.
@@ -213,6 +221,17 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/firewall", s.getFirewall)
+	s.mux.HandleFunc("POST /v1/firewall/rules", s.postFirewallRule)
+	s.mux.HandleFunc("PUT /v1/firewall/rules/{id}", s.putFirewallRule)
+	s.mux.HandleFunc("DELETE /v1/firewall/rules/{id}", s.deleteFirewallRule)
+	s.mux.HandleFunc("GET /v1/network/config", s.getNetworkConfig)
+	s.mux.HandleFunc("PUT /v1/network/interfaces/{name}", s.putInterfaceConfig)
+	s.mux.HandleFunc("POST /v1/network/confirm", s.postNetworkConfirm)
+	s.mux.HandleFunc("POST /v1/network/revert", s.postNetworkRevert)
+	s.mux.HandleFunc("PUT /v1/network/hostname", s.putHostname)
+	s.mux.HandleFunc("PUT /v1/network/wol", s.putWakeOnLAN)
+	s.mux.HandleFunc("POST /v1/network/diagnose", s.postNetworkDiagnose)
 	s.mux.HandleFunc("GET /v1/update", s.getUpdate)
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
@@ -330,6 +349,17 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var nce *netconf.Error
+	if errors.As(err, &nce) {
+		status := netconfStatus(nce.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: network configuration error: %v", err)
+			writeError(w, status, nce.Code, "network configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, nce.Code, "%s", nce.Message)
 		return
 	}
 	var ue *updatectl.Error

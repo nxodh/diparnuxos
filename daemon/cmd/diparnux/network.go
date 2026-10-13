@@ -21,6 +21,20 @@ func (c *cli) network(args []string) int {
 		return c.networkStatus()
 	case "wifi":
 		return c.networkWifi(rest)
+	case "config":
+		return c.networkConfigShow()
+	case "set":
+		return c.networkSet(rest)
+	case "confirm":
+		return c.networkConfirm(false)
+	case "revert":
+		return c.networkConfirm(true)
+	case "hostname":
+		return c.networkHostname(rest)
+	case "wol":
+		return c.networkWOL(rest)
+	case "diagnose":
+		return c.networkDiagnose()
 	}
 	return c.usage(fmt.Sprintf("unknown network command %q", sub), "network")
 }

@@ -3,6 +3,7 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
@@ -120,11 +121,35 @@ func (s *Supervisor) ApplyFirewall(ctx context.Context) error {
 	defer s.firewallMu.Unlock()
 
 	cfg := s.opts.Config()
-	rules, err := firewall.Ruleset(firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled})
+	fo := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, MDNSOpen: cfg.LANExposed}
+	if s.opts.FirewallExtras != nil {
+		fo.Open, fo.Rules = s.opts.FirewallExtras()
+	}
+	rules, err := firewall.Ruleset(fo)
 	if err != nil {
 		return errorf(CodeFirewallFailed, "build rules: %v", err)
 	}
-	if err := writeFileAtomic(s.opts.FirewallPath, []byte(rules), 0o644); err != nil {
+	// 새 규칙은 먼저 문법을 검사한다(nft -c). 검사에 실패하면 저장된 파일과 적용 중인 규칙은 그대로다.
+	candidate := s.opts.FirewallPath + ".new"
+	if err := writeFileAtomic(candidate, []byte(rules), 0o644); err != nil {
+		return errorf(CodeFirewallFailed, "write %s: %v", candidate, err)
+	}
+	check, err := s.exec(ctx, platform.Command{
+		Name:      "nft",
+		Args:      []string{"-c", "-f", candidate},
+		Timeout:   firewallTimeout,
+		MaxOutput: maxCommandOutput,
+	})
+	if err != nil {
+		_ = os.Remove(candidate)
+		return errorf(CodeFirewallFailed, "nft -c: %v", err)
+	}
+	if check.ExitCode != 0 {
+		_ = os.Remove(candidate)
+		return errorf(CodeFirewallFailed, "the new rules did not pass nft -c (exit %d): %s", check.ExitCode, excerpt(string(check.Stderr), 512))
+	}
+	if err := os.Rename(candidate, s.opts.FirewallPath); err != nil {
+		_ = os.Remove(candidate)
 		return errorf(CodeFirewallFailed, "write %s: %v", s.opts.FirewallPath, err)
 	}
 	res, err := s.exec(ctx, platform.Command{
