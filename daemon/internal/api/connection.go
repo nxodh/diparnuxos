@@ -26,26 +26,26 @@ type ConnectionAddress struct {
 // Connection 은 외부 클라이언트(Orca, Open WebUI, 에디터 플러그인 등)가 이 컴퓨터의 모델 서버에 접속하는 데 필요한 정보다.
 // API 키 평문은 담지 않는다(평문은 만들 때 한 번만 보인다).
 type Connection struct {
-	ServerState string              `json:"server_state"`
-	ModelID     string              `json:"model_id"`
-	Models      []string            `json:"models"`
-	PublicPort  int                 `json:"public_port"`
-	LANExposed  bool                `json:"lan_exposed"`
-	Gateway     bool                `json:"gateway"`
-	KeyRequired bool                `json:"key_required"`
-	KeyCount    int                 `json:"key_count"`
+	ServerState string   `json:"server_state"`
+	ModelID     string   `json:"model_id"`
+	Models      []string `json:"models"`
+	PublicPort  int      `json:"public_port"`
+	LANExposed  bool     `json:"lan_exposed"`
+	Gateway     bool     `json:"gateway"`
+	KeyRequired bool     `json:"key_required"`
+	KeyCount    int      `json:"key_count"`
 	// LocalNoKey 는 이 컴퓨터에서 온 요청이 키 없이 통과하는지다. LocalKeyRequired 는 이 컴퓨터에서도 키가 필요한지다.
 	LocalNoKey       bool `json:"local_no_key"`
 	LocalKeyRequired bool `json:"local_key_required"`
 	// SlotCtx 와 Parallel 은 실행 중인 서버의 계획 값이다. 서버가 멈춰 있으면 0 이다.
-	SlotCtx  int `json:"slot_ctx"`
-	Parallel int `json:"parallel"`
-	Hostname    string              `json:"hostname"`
-	LocalURL    string              `json:"local_url"`
-	Addresses   []ConnectionAddress `json:"addresses"`
-	MDNSURL     string              `json:"mdns_url,omitempty"`
-	Warnings    []string            `json:"warnings"`
-	Examples    map[string]string   `json:"examples"`
+	SlotCtx   int                 `json:"slot_ctx"`
+	Parallel  int                 `json:"parallel"`
+	Hostname  string              `json:"hostname"`
+	LocalURL  string              `json:"local_url"`
+	Addresses []ConnectionAddress `json:"addresses"`
+	MDNSURL   string              `json:"mdns_url,omitempty"`
+	Warnings  []string            `json:"warnings"`
+	Examples  map[string]string   `json:"examples"`
 }
 
 // connectionInput 은 Connection 을 만드는 데 필요한 값이다. 순수 함수로 만들어 시험하기 쉽게 한다.

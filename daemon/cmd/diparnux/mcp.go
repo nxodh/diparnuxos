@@ -65,13 +65,25 @@ func (c *cli) mcpTools(allowControl bool) []mcpserver.Tool {
 
 	tools := []mcpserver.Tool{
 		read("diparnux_status", "Diparnux status", "Version, mode, GPU, memory and the state of the model server.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Status(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Status(ctx)
+				return raw, err
+			}),
 		read("diparnux_server_stats", "Model server load", "Busy slots, tokens per second, queued requests and gateway counters of the running model server.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.ServerStats(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.ServerStats(ctx)
+				return raw, err
+			}),
 		read("diparnux_connection", "How to connect", "The addresses, whether an API key is needed, the model name and the context of one request.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Connection(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Connection(ctx)
+				return raw, err
+			}),
 		read("diparnux_models", "Installed models", "The installed GGUF models and the default one.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Models(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Models(ctx)
+				return raw, err
+			}),
 		read("diparnux_plan", "Run plan", "The plan the server would use for a model: GPU layers, context per request, slots and why.",
 			map[string]any{"type": "object", "properties": map[string]any{
 				"model":   map[string]any{"type": "string", "description": "Model id. Omit for the default model."},
@@ -86,11 +98,20 @@ func (c *cli) mcpTools(allowControl bool) []mcpserver.Tool {
 				return raw, err
 			}),
 		read("diparnux_resources", "Resource use", "CPU, memory, disks, network, temperature and GPU use of this computer.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Resources(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Resources(ctx)
+				return raw, err
+			}),
 		read("diparnux_exposure", "Network exposure", "What this computer offers to the network, with warnings for risky settings.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Exposure(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Exposure(ctx)
+				return raw, err
+			}),
 		read("diparnux_toolcheck", "Tool-call check", "Send the model one small request and report whether it calls tools correctly.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.ToolCheck(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.ToolCheck(ctx)
+				return raw, err
+			}),
 		read("diparnux_logs", "Server log", "The last lines of the model server log.",
 			map[string]any{"type": "object", "properties": map[string]any{
 				"lines": map[string]any{"type": "integer", "minimum": 1, "maximum": logLinesLimit, "description": "Number of lines (default 100)."},
@@ -127,6 +148,9 @@ func (c *cli) mcpTools(allowControl bool) []mcpserver.Tool {
 				return raw, err
 			}),
 		control("diparnux_server_stop", "Stop the model server", "Stop the model server. Programs using it lose their connection.", nil,
-			func(ctx context.Context, _ map[string]any) ([]byte, error) { _, raw, err := c.api.Stop(ctx); return raw, err }),
+			func(ctx context.Context, _ map[string]any) ([]byte, error) {
+				_, raw, err := c.api.Stop(ctx)
+				return raw, err
+			}),
 	)
 }

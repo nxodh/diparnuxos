@@ -21,7 +21,9 @@ func newTestServer() *Server {
 				}},
 			{Name: "boom", Run: func(ctx context.Context, a map[string]any) (string, error) { return "", errors.New("it failed") }},
 			{Name: "panic", Run: func(ctx context.Context, a map[string]any) (string, error) { panic("secret internals") }},
-			{Name: "huge", ReadOnly: true, Run: func(ctx context.Context, a map[string]any) (string, error) { return strings.Repeat("x", maxResultBytes+10), nil }},
+			{Name: "huge", ReadOnly: true, Run: func(ctx context.Context, a map[string]any) (string, error) {
+				return strings.Repeat("x", maxResultBytes+10), nil
+			}},
 		},
 	}
 }

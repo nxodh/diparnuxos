@@ -441,26 +441,26 @@ type ConnectionAddress struct {
 
 // Connection 은 GET /v1/connection 의 응답이다. 평문 API 키는 없다.
 type Connection struct {
-	ServerState string              `json:"server_state"`
-	ModelID     string              `json:"model_id"`
-	Models      []string            `json:"models"`
-	PublicPort  int                 `json:"public_port"`
-	LANExposed  bool                `json:"lan_exposed"`
-	Gateway     bool                `json:"gateway"`
-	KeyRequired bool                `json:"key_required"`
-	KeyCount    int                 `json:"key_count"`
+	ServerState string   `json:"server_state"`
+	ModelID     string   `json:"model_id"`
+	Models      []string `json:"models"`
+	PublicPort  int      `json:"public_port"`
+	LANExposed  bool     `json:"lan_exposed"`
+	Gateway     bool     `json:"gateway"`
+	KeyRequired bool     `json:"key_required"`
+	KeyCount    int      `json:"key_count"`
 	// LocalNoKey 는 이 컴퓨터의 요청이 키 없이 통과하는지, LocalKeyRequired 는 이 컴퓨터에서도 키가 필요한지다.
 	LocalNoKey       bool `json:"local_no_key"`
 	LocalKeyRequired bool `json:"local_key_required"`
 	// SlotCtx 와 Parallel 은 실행 중인 서버의 계획 값이다. 멈춰 있으면 0 이다.
-	SlotCtx  int `json:"slot_ctx"`
-	Parallel int `json:"parallel"`
-	Hostname    string              `json:"hostname"`
-	LocalURL    string              `json:"local_url"`
-	Addresses   []ConnectionAddress `json:"addresses"`
-	MDNSURL     string              `json:"mdns_url"`
-	Warnings    []string            `json:"warnings"`
-	Examples    map[string]string   `json:"examples"`
+	SlotCtx   int                 `json:"slot_ctx"`
+	Parallel  int                 `json:"parallel"`
+	Hostname  string              `json:"hostname"`
+	LocalURL  string              `json:"local_url"`
+	Addresses []ConnectionAddress `json:"addresses"`
+	MDNSURL   string              `json:"mdns_url"`
+	Warnings  []string            `json:"warnings"`
+	Examples  map[string]string   `json:"examples"`
 }
 
 // ToolCheck 는 POST /v1/server/toolcheck 의 응답이다.
