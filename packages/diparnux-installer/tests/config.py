@@ -171,6 +171,14 @@ def main():
     if "dictcheck=0" not in options:
         fail("users.conf must set dictcheck=0 (the image has no cracklib dictionary)")
     check_password_quality(options)
+    # sudoersGroup 은 sudoers 파일만 쓴다. 계정이 그 그룹에 들어가려면 defaultGroups 에도 있어야 한다.
+    sudoers_group = users.get("sudoersGroup")
+    groups = [g.get("name") if isinstance(g, dict) else g for g in (users.get("defaultGroups") or [])]
+    if sudoers_group and sudoers_group not in groups:
+        fail(f"users.conf defaultGroups must contain {sudoers_group}: the created account would not be an administrator")
+    for required in ("diparnux", "video", "render"):
+        if required not in groups:
+            fail(f"users.conf defaultGroups must contain {required}")
 
     if failures:
         print(f"{len(failures)} problem(s)")

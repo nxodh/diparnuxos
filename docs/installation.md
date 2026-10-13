@@ -75,6 +75,23 @@ sudo apt-get install -y cracklib-runtime wamerican
 sudo diparnux-install run
 ```
 
+## 설치기로 만든 계정이 sudo 를 못 쓸 때
+
+0.5.1 이미지의 그래픽 설치기로 만든 계정이 `sudo` 에서 "is not in the sudoers file" 로 거절되면, 설치기가 계정을 `sudo` 그룹에 넣지 않은 것이다. Calamares 3.3 은 `/etc/sudoers.d/10-installer` 에 `%sudo ALL=(ALL) ALL` 만 쓰고 계정을 그 그룹에 넣지 않으며, 그룹은 `defaultGroups` 에 적어야 한다. 0.5.2 부터 설치기가 `sudo` 그룹을 넣는다(설치기에서 만드는 계정은 관리자 하나다).
+
+0.5.1 로 이미 설치한 시스템은 다음 중 하나로 고친다.
+
+```sh
+# 방법 1: 계정이 diparnux 그룹에는 들어 있으므로, 데몬으로 관리자 계정을 하나 더 만든다.
+printf '%s\n' '새-비밀번호' | diparnux user add admin2 --admin --password-stdin
+# 그 계정으로 로그인한 뒤 원래 계정을 관리자로 만든다.
+sudo usermod -aG sudo 원래계정이름
+
+# 방법 2: 라이브 ISO 로 부팅해 설치한 디스크를 마운트하고 chroot 한다.
+sudo mount /dev/설치한_루트_파티션 /mnt
+sudo chroot /mnt usermod -aG sudo 원래계정이름
+```
+
 ## 알려진 한계
 
 - 실기에서 설치해 본 적이 없다. 노트북 펌웨어가 부팅 항목(NVRAM)을 받아들이지 않으면 설치기는 항목 등록 없이 파일만 설치하고 대체 경로(`EFI/BOOT/BOOTX64.EFI`)에 의존한다. 이 경우 펌웨어 메뉴에서 디스크를 직접 고른다.
