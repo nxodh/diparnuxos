@@ -153,8 +153,14 @@ func (c *cli) userRemove(args []string) int {
 
 // ssh 는 SSH 서버 상태를 보여 주거나 켜고 끈다.
 func (c *cli) ssh(args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "port", "password", "keys", "log", "advanced":
+			return c.sshAdvanced(args[0], args[1:])
+		}
+	}
 	if len(args) > 1 {
-		return c.usage("usage: diparnux ssh [on|off]", "ssh")
+		return c.usage("usage: diparnux ssh [on|off|port N|password on|off|keys ...|log|advanced]", "ssh")
 	}
 	var (
 		res client.SSH

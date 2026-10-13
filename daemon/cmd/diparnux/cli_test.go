@@ -1262,3 +1262,38 @@ func TestFirewallListAddAndToggle(t *testing.T) {
 	res = runCLI(t, f, "firewall", "add", "x", "tcp", "abc")
 	wantCode(t, res, exitUsage)
 }
+
+func TestSSHAdvancedCommands(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/ssh/advanced", 200, `{"enabled":true,"port":2222,"password_login_configured":false,"key_count":2,"host_keys":[{"type":"ssh-ed25519","fingerprint":"SHA256:abc","comment":"ssh_host_ed25519_key.pub"}]}`)
+	res := runCLI(t, f, "ssh", "advanced")
+	wantCode(t, res, exitOK)
+	wantContains(t, "advanced", res.stdout, "2222", "password login:", "off", "public keys:", "SHA256:abc")
+
+	f.on("PUT /v1/ssh/advanced", 200, `{"enabled":true,"port":2200,"key_count":2,"host_keys":[]}`)
+	res = runCLI(t, f, "ssh", "port", "2200")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/ssh/advanced"); len(b) != 1 || b[0] != `{"port":2200}` {
+		t.Fatalf("body = %v", b)
+	}
+	res = runCLI(t, f, "ssh", "password", "off")
+	wantCode(t, res, exitOK)
+	res = runCLI(t, f, "ssh", "port", "99999")
+	wantCode(t, res, exitUsage)
+
+	f.on("PUT /v1/ssh/advanced", 409, `{"error":{"code":"no_keys","message":"add a public key to an account first"}}`)
+	res = runCLI(t, f, "ssh", "password", "off")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "no keys", res.stderr, "add a public key", "no_keys")
+
+	f.on("POST /v1/ssh/keys", 201, `{"key":{"type":"ssh-ed25519","fingerprint":"SHA256:x"},"added":true}`)
+	res = runCLIWith(t, f, cliOpts{stdin: "ssh-ed25519 AAAAC3 alice@laptop\n"}, "ssh", "keys", "add", "alice")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("POST /v1/ssh/keys"); len(b) != 1 || !strings.Contains(b[0], `"user":"alice"`) || !strings.Contains(b[0], "AAAAC3") {
+		t.Fatalf("body = %v", b)
+	}
+	f.on("GET /v1/ssh/log", 200, `{"events":[{"time":"2026-10-13T12:00:00+0900","result":"accepted","user":"alice","method":"publickey","from":"192.168.0.5"}]}`)
+	res = runCLI(t, f, "ssh", "log")
+	wantCode(t, res, exitOK)
+	wantContains(t, "log", res.stdout, "alice", "publickey", "192.168.0.5")
+}

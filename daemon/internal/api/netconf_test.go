@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
 	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 )
 
@@ -108,4 +110,98 @@ func TestNetworkConfigWithoutManager(t *testing.T) {
 	e := newEnv(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}})
 	w := e.do("GET", "/v1/network/config", "")
 	wantStatus(t, w, http.StatusServiceUnavailable)
+}
+
+type fakeSSHConf struct {
+	set     sshconf.Settings
+	applied []sshconf.Settings
+	err     error
+	keys    []sshconf.Key
+}
+
+func (f *fakeSSHConf) Settings() sshconf.Settings { return f.set }
+func (f *fakeSSHConf) Apply(ctx context.Context, s sshconf.Settings, active bool) error {
+	f.applied = append(f.applied, s)
+	if f.err != nil {
+		return f.err
+	}
+	f.set = s
+	return nil
+}
+func (f *fakeSSHConf) CountKeys(ctx context.Context) (int, error) { return len(f.keys), nil }
+func (f *fakeSSHConf) ListKeys(ctx context.Context, user string) ([]sshconf.Key, error) {
+	return f.keys, nil
+}
+func (f *fakeSSHConf) AddKey(ctx context.Context, user, line string) (sshconf.Key, bool, error) {
+	k := sshconf.Key{Type: "ssh-ed25519", Fingerprint: "SHA256:x", Comment: "c"}
+	f.keys = append(f.keys, k)
+	return k, true, nil
+}
+func (f *fakeSSHConf) RemoveKey(ctx context.Context, user, fp string) error { return nil }
+func (f *fakeSSHConf) HostKeys(ctx context.Context) []sshconf.Key {
+	return []sshconf.Key{{Type: "ssh-ed25519", Fingerprint: "SHA256:host"}}
+}
+func (f *fakeSSHConf) RecentLogins(ctx context.Context, limit int) ([]sshconf.LoginEvent, error) {
+	return []sshconf.LoginEvent{{Result: "accepted", User: "alice"}}, nil
+}
+
+func TestSSHAdvancedChangesThePortAndTheFirewallTogether(t *testing.T) {
+	sup := &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}
+	sc := &fakeSSHConf{set: sshconf.Settings{Port: 22}}
+	e := newEnvWith(t, sup, func(d *Deps) { d.SSHConf = sc })
+
+	w := e.do("PUT", "/v1/ssh/advanced", `{"port":2222}`)
+	wantStatus(t, w, http.StatusOK)
+	if len(sc.applied) != 1 || sc.applied[0].Port != 2222 {
+		t.Fatalf("applied = %+v", sc.applied)
+	}
+	if sup.firewalls != 1 {
+		t.Fatalf("the firewall was applied %d times", sup.firewalls)
+	}
+	cfg, err := config.Load(e.cfgPath)
+	if err != nil || cfg.SSHPort != 2222 {
+		t.Fatalf("config = %+v, %v", cfg, err)
+	}
+
+	// 다시 22 로 돌리면 설정에는 0(기본)을 남긴다.
+	w = e.do("PUT", "/v1/ssh/advanced", `{"port":22}`)
+	wantStatus(t, w, http.StatusOK)
+	cfg, _ = config.Load(e.cfgPath)
+	if cfg.SSHPort != 0 {
+		t.Fatalf("ssh_port = %d", cfg.SSHPort)
+	}
+
+	// sshd 가 거절하면 설정을 되돌린다.
+	sc.err = &sshconf.Error{Code: sshconf.CodeSSHConfig, Message: "sshd rejected the configuration"}
+	w = e.do("PUT", "/v1/ssh/advanced", `{"port":2200}`)
+	wantStatus(t, w, http.StatusConflict)
+	cfg, _ = config.Load(e.cfgPath)
+	if cfg.SSHPort != 0 {
+		t.Fatalf("the rejected port was kept: %d", cfg.SSHPort)
+	}
+	w = e.do("PUT", "/v1/ssh/advanced", `{"port":70000}`)
+	wantStatus(t, w, http.StatusBadRequest)
+}
+
+func TestSSHKeysAndLog(t *testing.T) {
+	sc := &fakeSSHConf{}
+	e := newEnvWith(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}, func(d *Deps) { d.SSHConf = sc })
+	w := e.do("POST", "/v1/ssh/keys", `{"user":"alice","key":"ssh-ed25519 AAAA c"}`)
+	wantStatus(t, w, http.StatusCreated)
+	w = e.do("GET", "/v1/ssh/keys?user=alice", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), "SHA256:x") {
+		t.Fatalf("keys = %s", w.Body.String())
+	}
+	w = e.do("DELETE", "/v1/ssh/keys", `{"user":"alice","fingerprint":"SHA256:x"}`)
+	wantStatus(t, w, http.StatusOK)
+	w = e.do("GET", "/v1/ssh/log?limit=5", "")
+	wantStatus(t, w, http.StatusOK)
+	w = e.do("GET", "/v1/ssh/log?limit=0", "")
+	wantStatus(t, w, http.StatusBadRequest)
+	w = e.do("GET", "/v1/ssh/advanced", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"key_count":1`) || !strings.Contains(w.Body.String(), "SHA256:host") {
+		t.Fatalf("advanced = %s", w.Body.String())
+	}
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
@@ -101,6 +102,8 @@ type Deps struct {
 	FirewallRules *firewall.Store
 	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
 	FirewallOpens func() []firewall.Open
+	// SSHConf 는 SSH 포트, 비밀번호 로그인, 공개 키다. nil 이면 해당 API 는 ssh_unavailable 을 돌려준다.
+	SSHConf SSHConfManager
 	// NetConf 는 유선 IP 설정, 호스트 이름, 깨우기다. nil 이면 해당 API 는 network_unavailable 을 돌려준다.
 	NetConf NetConfManager
 	// Gateway 는 모델 서버 앞의 프록시(키 확인, 사용량)다. nil 이면 게이트웨이 API 는 gateway_unavailable 을 돌려준다.
@@ -221,6 +224,12 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/ssh/advanced", s.getSSHAdvanced)
+	s.mux.HandleFunc("PUT /v1/ssh/advanced", s.putSSHAdvanced)
+	s.mux.HandleFunc("GET /v1/ssh/keys", s.listSSHKeys)
+	s.mux.HandleFunc("POST /v1/ssh/keys", s.postSSHKey)
+	s.mux.HandleFunc("DELETE /v1/ssh/keys", s.deleteSSHKey)
+	s.mux.HandleFunc("GET /v1/ssh/log", s.getSSHLog)
 	s.mux.HandleFunc("GET /v1/firewall", s.getFirewall)
 	s.mux.HandleFunc("POST /v1/firewall/rules", s.postFirewallRule)
 	s.mux.HandleFunc("PUT /v1/firewall/rules/{id}", s.putFirewallRule)
@@ -349,6 +358,17 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var sce *sshconf.Error
+	if errors.As(err, &sce) {
+		status := sshconfStatus(sce.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: ssh configuration error: %v", err)
+			writeError(w, status, sce.Code, "SSH configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, sce.Code, "%s", sce.Message)
 		return
 	}
 	var nce *netconf.Error

@@ -121,7 +121,7 @@ func (s *Supervisor) ApplyFirewall(ctx context.Context) error {
 	defer s.firewallMu.Unlock()
 
 	cfg := s.opts.Config()
-	fo := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, MDNSOpen: cfg.LANExposed}
+	fo := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, SSHPort: cfg.SSHPort, MDNSOpen: cfg.LANExposed}
 	if s.opts.FirewallExtras != nil {
 		fo.Open, fo.Rules = s.opts.FirewallExtras()
 	}

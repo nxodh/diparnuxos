@@ -10,7 +10,7 @@ import (
 
 // firewallBuiltins 는 설정과 켜진 기능 때문에 열리는 포트다. 규칙 화면에 읽기 전용으로 보인다.
 func (s *server) firewallBuiltins(cfg config.Config) []firewall.Open {
-	o := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, MDNSOpen: cfg.LANExposed}
+	o := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, SSHPort: cfg.SSHPort, MDNSOpen: cfg.LANExposed}
 	if s.d.FirewallOpens != nil {
 		o.Open = s.d.FirewallOpens()
 	}

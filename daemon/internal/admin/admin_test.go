@@ -23,7 +23,7 @@ func TestAllowedPath(t *testing.T) {
 	good := []string{
 		"/etc/systemd/network/10-diparnux-enp3s0.network",
 		"/etc/systemd/network/50-diparnux-wg0.netdev",
-		"/etc/ssh/sshd_config.d/60-diparnux-admin.conf",
+		"/etc/ssh/sshd_config.d/40-diparnux-ssh.conf",
 		"/etc/hosts",
 	}
 	bad := []string{

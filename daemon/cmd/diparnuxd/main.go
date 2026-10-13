@@ -39,6 +39,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/power"
 	"github.com/nxodh/diparnuxos/daemon/internal/report"
 	"github.com/nxodh/diparnuxos/daemon/internal/runner"
+	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
@@ -192,6 +193,10 @@ func run(args []string) error {
 	accountsMgr := &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"}
 	adminHelper := &admin.Client{Runner: cmds}
 	netMgr := &network.Manager{Runner: cmds}
+	sshConf := &sshconf.Manager{
+		Files: adminHelper, Keys: adminHelper, Runner: cmds,
+		Users: func() []string { return loginUsers(accountsMgr) },
+	}
 	netConf := &netconf.Manager{Files: adminHelper, Runner: cmds, Lister: netMgr, PendingPath: *stateDir + "/netconf-pending.json"}
 	handler := api.New(api.Deps{
 		Supervisor:    sup,
@@ -203,6 +208,7 @@ func run(args []string) error {
 		Updates:       &updatectl.Controller{Runner: cmds},
 		Network:       netMgr,
 		NetConf:       netConf,
+		SSHConf:       sshConf,
 		FirewallRules: fwRules,
 		Power:         &power.Manager{Runner: cmds},
 		Gateway:       gwMgr,
@@ -389,4 +395,29 @@ func restoreSSH(ctx context.Context, configPath string, sup *supervisor.Supervis
 	if err := sup.SetSSHUnit(ctx, true); err != nil {
 		log.Printf("ssh was enabled in the config, but the server did not start: %v", err)
 	}
+}
+
+// loginUsers 는 공개 키를 관리할 수 있는 로그인 계정이다: 시스템의 일반 사용자(uid 1000-59999, 로그인 셸이 있음).
+// Diparnux 가 만든 계정과 설치기가 만든 관리자 계정이 모두 들어간다.
+func loginUsers(_ *accounts.Manager) []string {
+	data, err := os.ReadFile("/etc/passwd")
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Split(line, ":")
+		if len(f) < 7 {
+			continue
+		}
+		uid, err := strconv.Atoi(f[2])
+		if err != nil || uid < 1000 || uid >= 60000 {
+			continue
+		}
+		if strings.HasSuffix(f[6], "nologin") || strings.HasSuffix(f[6], "/false") || f[6] == "" {
+			continue
+		}
+		out = append(out, f[0])
+	}
+	return out
 }

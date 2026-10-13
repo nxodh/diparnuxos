@@ -23,10 +23,12 @@ type Config struct {
 	LANExposed bool `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
 	Autostart  bool `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
 	// AutoRestart 가 true 이면 서버가 예상 밖으로 멈췄을 때 데몬이 대기 시간을 늘려 가며 다시 시작한다.
-	AutoRestart bool   `json:"auto_restart"`
-	SSHEnabled  bool   `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
-	ModelsDir   string `json:"models_dir"`  // 절대 경로, 기본 /var/lib/diparnux/models
-	HFToken     string `json:"hf_token"`    // Hugging Face 토큰, 진단 리포트에서는 가린다
+	AutoRestart bool `json:"auto_restart"`
+	SSHEnabled  bool `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
+	// SSHPort 는 SSH 서버 포트다. 0 이면 22 다. sshd 설정(Port)과 방화벽이 같은 값을 쓴다.
+	SSHPort   int    `json:"ssh_port"`
+	ModelsDir string `json:"models_dir"` // 절대 경로, 기본 /var/lib/diparnux/models
+	HFToken   string `json:"hf_token"`   // Hugging Face 토큰, 진단 리포트에서는 가린다
 	// Gateway 가 true 이면 데몬이 공개 포트(Port)를 받아 키를 확인하고 llama-server 로 넘긴다. llama-server 는
 	// 127.0.0.1:InternalPort 에서만 연다. 키 변경이 서버 재시작 없이 반영되고 키별 사용량을 알 수 있다. false 이면
 	// 예전처럼 llama-server 가 Port 를 직접 받는다. 바꾸면 서버를 다시 시작해야 반영된다.
@@ -157,6 +159,9 @@ func (c Config) Validate() error {
 		} else if c.InternalPort == c.Port {
 			errs = append(errs, fmt.Errorf("internal_port must differ from port %d", c.Port))
 		}
+	}
+	if c.SSHPort < 0 || c.SSHPort > 65535 {
+		errs = append(errs, fmt.Errorf("ssh_port %d is out of range 0-65535", c.SSHPort))
 	}
 	if !path.IsAbs(c.ModelsDir) {
 		errs = append(errs, fmt.Errorf("models_dir %q must be an absolute path", c.ModelsDir))

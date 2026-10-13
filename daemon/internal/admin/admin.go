@@ -50,7 +50,7 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 // 허용 경로다. 데몬과 헬퍼가 같은 목록을 쓴다.
 var allowed = []*regexp.Regexp{
 	regexp.MustCompile(`^/etc/systemd/network/[0-9]{2}-diparnux-[a-z0-9][a-z0-9._-]{0,40}\.(network|netdev|link)$`),
-	regexp.MustCompile(`^/etc/ssh/sshd_config\.d/60-diparnux-[a-z0-9][a-z0-9-]{0,30}\.conf$`),
+	regexp.MustCompile(`^/etc/ssh/sshd_config\.d/[0-9]{2}-diparnux-[a-z0-9][a-z0-9-]{0,30}\.conf$`),
 	regexp.MustCompile(`^/etc/hosts$`),
 }
 
