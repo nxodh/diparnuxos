@@ -1323,3 +1323,27 @@ func TestServicesAndResources(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "resources", res.stdout, "12.5% of 8 cores", "disk /", "net enp3s0", "52.5 C", "RTX 3060", "llama-server")
 }
+
+func TestVPNPeerAddShowsTheClientConfigOnce(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/vpn/peers", 201, `{"peer":{"name":"phone","public_key":"pub","allowed_ips":["10.8.0.2/32"]},"client_config":"[Interface]\nPrivateKey = CLIENTSECRET\nAddress = 10.8.0.2/32\n","note":"shown only once"}`)
+	res := runCLI(t, f, "vpn", "peer", "add", "phone")
+	wantCode(t, res, exitOK)
+	wantContains(t, "peer add", res.stdout, "peer phone added", "CLIENTSECRET", "shown only once")
+
+	out := filepath.Join(t.TempDir(), "phone.conf")
+	res = runCLI(t, f, "vpn", "peer", "add", "phone", "--out", out)
+	wantCode(t, res, exitOK)
+	if strings.Contains(res.stdout, "CLIENTSECRET") {
+		t.Fatal("the private key was printed although --out was given")
+	}
+	st, err := os.Stat(out)
+	if err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("out file: %v %v", st, err)
+	}
+
+	f.on("GET /v1/vpn", 200, `{"enabled":true,"interface":"wg0","address":"10.8.0.1/24","listen_port":51820,"public_key":"serverpub","peers":[{"name":"phone","public_key":"pub","allowed_ips":["10.8.0.2/32"]}]}`)
+	res = runCLI(t, f, "vpn")
+	wantCode(t, res, exitOK)
+	wantContains(t, "status", res.stdout, "wg0", "51820/udp", "serverpub", "phone")
+}

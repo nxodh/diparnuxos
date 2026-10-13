@@ -45,6 +45,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
 	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
 // version 은 빌드 때 -ldflags "-X main.version=..." 으로 넣는다.
@@ -126,6 +127,8 @@ func run(args []string) error {
 	defer jobMgr.Close()
 
 	fwRules := &firewall.Store{Path: *stateDir + "/firewall-rules.json"}
+	wgAdmin := &admin.Client{Runner: cmds}
+	wgMgr := &wireguard.Manager{Files: wgAdmin, Runner: cmds, StatePath: *stateDir + "/wireguard.json"}
 	sup := supervisor.New(supervisor.Options{
 		Runner:        cmds,
 		GPU:           gpu,
@@ -138,15 +141,28 @@ func run(args []string) error {
 		ServerBinary:  llamaBinary,
 		Unit:          llamaUnit,
 		FirewallPath:  *stateDir + "/firewall.nft",
-		FirewallExtras: func() ([]firewall.Open, []firewall.Rule) {
+		FirewallExtras: func() firewall.Extras {
 			rules, _ := fwRules.List()
-			return nil, rules
+			x := firewall.Extras{Rules: rules}
+			if port, iface, ok := wgMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "WireGuard VPN", Protocol: "udp", Port: port, Source: firewall.SourceAny, Reason: "the VPN is on"})
+				x.Trusted = append(x.Trusted, iface)
+			}
+			return x
 		},
 		KeySnapshotDir: *stateDir,
 		KeySnapshotGID: uint32(keyGID),
 		ChownKeyFile:   chownKeyFile,
 		Now:            time.Now,
 	})
+
+	wgMgr.Reapply = sup.ApplyFirewall
+	wgMgr.DefaultEndpoint = func() string {
+		if h, err := os.Hostname(); err == nil && h != "" {
+			return h + ".local"
+		}
+		return ""
+	}
 
 	rep := report.Deps{
 		Version:       version,
@@ -211,6 +227,7 @@ func run(args []string) error {
 		Network:       netMgr,
 		NetConf:       netConf,
 		SSHConf:       sshConf,
+		VPN:           wgMgr,
 		Services:      &svcctl.Manager{Runner: cmds},
 		Stats:         &sysstat.Reader{},
 		FirewallRules: fwRules,

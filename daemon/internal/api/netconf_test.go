@@ -12,6 +12,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
 type fakeNetConf struct {
@@ -204,4 +205,56 @@ func TestSSHKeysAndLog(t *testing.T) {
 	if !strings.Contains(w.Body.String(), `"key_count":1`) || !strings.Contains(w.Body.String(), "SHA256:host") {
 		t.Fatalf("advanced = %s", w.Body.String())
 	}
+}
+
+type fakeVPN struct {
+	view   wireguard.View
+	added  string
+	cfg    string
+	remove string
+	err    error
+}
+
+func (f *fakeVPN) Status() (wireguard.View, error) { return f.view, f.err }
+func (f *fakeVPN) Update(ctx context.Context, enabled *bool, address *string, port *int) (wireguard.View, error) {
+	if f.err != nil {
+		return wireguard.View{}, f.err
+	}
+	if enabled != nil {
+		f.view.Enabled = *enabled
+	}
+	return f.view, nil
+}
+func (f *fakeVPN) AddPeer(ctx context.Context, name, key, endpoint string) (wireguard.Peer, string, error) {
+	f.added = name
+	return wireguard.Peer{Name: name, PublicKey: "pub", AllowedIPs: []string{"10.8.0.2/32"}}, f.cfg, f.err
+}
+func (f *fakeVPN) RemovePeer(ctx context.Context, id string) error { f.remove = id; return f.err }
+
+func TestVPNEndpoints(t *testing.T) {
+	v := &fakeVPN{view: wireguard.View{Interface: "wg0", Address: "10.8.0.1/24", ListenPort: 51820, Peers: []wireguard.Peer{}}, cfg: "[Interface]\nPrivateKey = SECRET\n"}
+	e := newEnvWith(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}, func(d *Deps) { d.VPN = v })
+	w := e.do("PUT", "/v1/vpn", `{"enabled":true}`)
+	wantStatus(t, w, http.StatusOK)
+	if !v.view.Enabled {
+		t.Fatal("the VPN was not enabled")
+	}
+	w = e.do("POST", "/v1/vpn/peers", `{"name":"phone"}`)
+	wantStatus(t, w, http.StatusCreated)
+	if !strings.Contains(w.Body.String(), "client_config") || v.added != "phone" {
+		t.Fatalf("body = %s", w.Body.String())
+	}
+	w = e.do("GET", "/v1/vpn", "")
+	wantStatus(t, w, http.StatusOK)
+	if strings.Contains(w.Body.String(), "PrivateKey") || strings.Contains(w.Body.String(), "private") {
+		t.Fatalf("the status shows secrets: %s", w.Body.String())
+	}
+	w = e.do("DELETE", "/v1/vpn/peers/phone", "")
+	wantStatus(t, w, http.StatusOK)
+	if v.remove != "phone" {
+		t.Fatalf("removed = %q", v.remove)
+	}
+	v.err = &wireguard.Error{Code: wireguard.CodeNotEnabled, Message: "turn the VPN on first"}
+	w = e.do("POST", "/v1/vpn/peers", `{"name":"x"}`)
+	wantStatus(t, w, http.StatusConflict)
 }

@@ -40,6 +40,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
 	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
 // 요청과 응답의 크기 상한이다.
@@ -103,6 +104,8 @@ type Deps struct {
 	FirewallRules *firewall.Store
 	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
 	FirewallOpens func() []firewall.Open
+	// VPN 은 WireGuard VPN 이다. nil 이면 해당 API 는 vpn_unavailable 을 돌려준다.
+	VPN VPNManager
 	// Services 는 서비스 목록과 제어(허용 목록)다. nil 이면 해당 API 는 services_unavailable 을 돌려준다.
 	Services ServiceManager
 	// Stats 는 자원 사용량 측정이다. nil 이면 해당 API 는 resources_unavailable 을 돌려준다.
@@ -229,6 +232,10 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/vpn", s.getVPN)
+	s.mux.HandleFunc("PUT /v1/vpn", s.putVPN)
+	s.mux.HandleFunc("POST /v1/vpn/peers", s.postVPNPeer)
+	s.mux.HandleFunc("DELETE /v1/vpn/peers/{id}", s.deleteVPNPeer)
 	s.mux.HandleFunc("GET /v1/services", s.listServices)
 	s.mux.HandleFunc("POST /v1/services/{unit}/{action}", s.postServiceAction)
 	s.mux.HandleFunc("GET /v1/services/{unit}/logs", s.getServiceLogs)
@@ -367,6 +374,17 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var wge *wireguard.Error
+	if errors.As(err, &wge) {
+		status := vpnStatus(wge.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: vpn error: %v", err)
+			writeError(w, status, wge.Code, "VPN configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, wge.Code, "%s", wge.Message)
 		return
 	}
 	var sve *svcctl.Error

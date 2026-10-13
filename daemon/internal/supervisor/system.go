@@ -123,7 +123,8 @@ func (s *Supervisor) ApplyFirewall(ctx context.Context) error {
 	cfg := s.opts.Config()
 	fo := firewall.Options{APIPort: cfg.Port, APIOpen: cfg.LANExposed, SSHOpen: cfg.SSHEnabled, SSHPort: cfg.SSHPort, MDNSOpen: cfg.LANExposed}
 	if s.opts.FirewallExtras != nil {
-		fo.Open, fo.Rules = s.opts.FirewallExtras()
+		x := s.opts.FirewallExtras()
+		fo.Open, fo.Rules, fo.Trusted = x.Open, x.Rules, x.Trusted
 	}
 	rules, err := firewall.Ruleset(fo)
 	if err != nil {

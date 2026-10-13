@@ -131,9 +131,12 @@ func TestAutoRestartGivesUpAfterTheLastAttempt(t *testing.T) {
 
 func TestApplyFirewallIncludesFeatureOpensAndUserRules(t *testing.T) {
 	f := newFixture(t, readyGPU(), "ready")
-	f.sup.opts.FirewallExtras = func() ([]firewall.Open, []firewall.Rule) {
-		return []firewall.Open{{Name: "WireGuard", Protocol: "udp", Port: 51820, Source: firewall.SourceAny}},
-			[]firewall.Rule{{ID: "r1", Name: "WebUI", Protocol: "tcp", Port: 3000, Source: firewall.SourceLAN, Enabled: true}}
+	f.sup.opts.FirewallExtras = func() firewall.Extras {
+		return firewall.Extras{
+			Open:    []firewall.Open{{Name: "WireGuard", Protocol: "udp", Port: 51820, Source: firewall.SourceAny}},
+			Rules:   []firewall.Rule{{ID: "r1", Name: "WebUI", Protocol: "tcp", Port: 3000, Source: firewall.SourceLAN, Enabled: true}},
+			Trusted: []string{"wg0"},
+		}
 	}
 	if err := f.sup.ApplyFirewall(context.Background()); err != nil {
 		t.Fatal(err)
@@ -142,7 +145,7 @@ func TestApplyFirewallIncludesFeatureOpensAndUserRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"udp dport 51820 accept", "tcp dport 3000 accept"} {
+	for _, want := range []string{"udp dport 51820 accept", "tcp dport 3000 accept", `iifname "wg0" accept`} {
 		if !strings.Contains(string(data), want) {
 			t.Fatalf("rules lack %q:\n%s", want, data)
 		}
