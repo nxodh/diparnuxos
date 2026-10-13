@@ -192,6 +192,28 @@ class Client:
     def update_start(self, action, reboot=False):
         return self._request("POST", "/v1/update", {"action": action, "reboot": bool(reboot)})
 
+    # --- 네트워크 ---
+    def network(self):
+        return self._request("GET", "/v1/network")
+
+    def wifi_networks(self):
+        return self._request("GET", "/v1/network/wifi/networks")
+
+    def wifi_scan(self):
+        return self._request("POST", "/v1/network/wifi/scan")
+
+    def wifi_connect(self, ssid, passphrase=""):
+        return self._request("POST", "/v1/network/wifi/connect", {"ssid": ssid, "passphrase": passphrase}, timeout=70.0)
+
+    def wifi_disconnect(self):
+        return self._request("POST", "/v1/network/wifi/disconnect")
+
+    def wifi_forget(self, ssid):
+        return self._request("POST", "/v1/network/wifi/forget", {"ssid": ssid})
+
+    def wifi_power(self, on):
+        return self._request("PUT", "/v1/network/wifi/power", {"on": bool(on)})
+
     # --- 계정 ---
     def users(self):
         return self._request("GET", "/v1/users")

@@ -1,3 +1,9 @@
+lightlix-desktop (0.4.1) trixie; urgency=medium
+
+  * 세션 환경 변수(XDG_SESSION_TYPE=wayland 등), labwc 출력을 저널로 보내 램 파일이 커지지 않게 한다, 흑백 labwc 테마와 패널, swaybg 배경 화면, 패널 네트워크 표시, dbus-user-session 과 xwayland 의존.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Tue, 13 Oct 2026 09:00:00 +0900
+
 lightlix-desktop (0.4.0) trixie; urgency=medium
 
   * 가상 머신에서 소프트웨어 렌더러를 쓰고 labwc 로그를 남기는 세션 래퍼(lightlix-session)와 메뉴 항목(설치, 다시 시작, 끄기)을 추가한다.

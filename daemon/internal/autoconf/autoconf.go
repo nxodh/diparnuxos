@@ -412,7 +412,12 @@ func (pl *planner) applyOverrides(n norm, c *choice) {
 		}
 		v := int64(*o.Ctx)
 		if v < minCtxOverride || v > limit {
-			pl.warnf("ctx override %d ignored: allowed range is %d-%d", v, minCtxOverride, limit)
+			if limit < minCtxOverride {
+				// 모델의 학습 컨텍스트가 하한보다 작으면 범위 표기가 뒤집힌다. 상한만 말한다.
+				pl.warnf("ctx override %d ignored: this model supports a context of at most %d", v, limit)
+			} else {
+				pl.warnf("ctx override %d ignored: allowed range is %d-%d", v, minCtxOverride, limit)
+			}
 		} else {
 			pl.rationalef("manual override: ctx = %d (planned %d)", v, c.ctx)
 			c.ctx = v

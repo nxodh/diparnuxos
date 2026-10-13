@@ -423,3 +423,85 @@ def describe_update(info):
             parts.append(_("NVIDIA driver %(old)s to %(new)s") % {"old": plan.get("driver_from") or "?", "new": plan["driver_to"]})
         out["detail"] = " · ".join(parts)
     return out
+
+
+def live_session():
+    """라이브 세션(램에 올린 이미지로 부팅)인지 본다. /run/live 는 live-boot 가 만든다."""
+    import os
+
+    return os.path.exists("/run/live")
+
+
+def live_storage_summary(path="/"):
+    """라이브 세션에서 루트 파일 시스템(램 기반)의 사용량을 돌려준다. (used_bytes, total_bytes) 또는 None."""
+    import shutil
+
+    try:
+        usage = shutil.disk_usage(path)
+    except OSError:
+        return None
+    if usage.total <= 0:
+        return None
+    return usage.used, usage.total
+
+
+# 네트워크 오류 코드별 안내.
+_NETWORK_REASONS = {
+    "no_wifi_device": lambda: _("No wireless adapter was found."),
+    "iwd_unavailable": lambda: _("The wireless service is not running."),
+}
+
+
+def describe_network(net):
+    """GET /v1/network 응답을 표시용 값으로 바꾼다. 돌려주는 사전: online, summary, wifi_available, wifi_note."""
+    out = {"online": False, "summary": _("Network status is not available"), "wifi_available": False, "wifi_note": ""}
+    if not isinstance(net, dict):
+        return out
+    out["online"] = bool(net.get("online"))
+    wifi = net.get("wifi") or {}
+    if out["online"]:
+        # 연결된 인터페이스와 주소를 한 줄로 보인다.
+        for it in net.get("interfaces") or []:
+            if it.get("gateway") and it.get("addresses"):
+                kind = {"ethernet": _("Wired"), "wifi": _("Wi-Fi")}.get(it.get("kind"), it.get("name", ""))
+                ssid = wifi.get("connected_ssid") if it.get("kind") == "wifi" else ""
+                label = "%s · %s" % (kind, ssid) if ssid else kind
+                out["summary"] = _("Connected: %(label)s (%(address)s)") % {"label": label, "address": it["addresses"][0]}
+                break
+        else:
+            out["summary"] = _("Connected")
+    else:
+        out["summary"] = _("Not connected to the internet")
+    out["wifi_available"] = bool(wifi.get("available"))
+    if not out["wifi_available"]:
+        fn = _NETWORK_REASONS.get(wifi.get("reason"))
+        out["wifi_note"] = fn() if fn else _("Wi-Fi is not available.")
+    elif not wifi.get("powered"):
+        out["wifi_note"] = _("Wi-Fi is turned off.")
+    return out
+
+
+def signal_label(percent):
+    """신호 세기(0~100)를 짧은 말로 바꾼다."""
+    if percent is None:
+        return ""
+    if percent >= 70:
+        return _("Strong")
+    if percent >= 40:
+        return _("Good")
+    return _("Weak")
+
+
+def check_wifi_password(password):
+    """Wi-Fi 비밀번호가 WPA 규칙(8~63자의 출력 가능한 ASCII 또는 64자리 16진수)에 맞는지 본다. 문제가 없으면 None."""
+    if password == "":
+        return _("Enter the password of the network.")
+    if len(password) == 64 and all(c in "0123456789abcdefABCDEF" for c in password):
+        return None
+    if len(password) < 8:
+        return _("The password must be at least 8 characters.")
+    if len(password) > 63:
+        return _("The password must be at most 63 characters.")
+    if any(ord(c) < 0x20 or ord(c) > 0x7E for c in password):
+        return _("Use only letters, digits and symbols from the keyboard (no Korean or accented characters).")
+    return None

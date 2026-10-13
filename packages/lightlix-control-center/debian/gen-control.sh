@@ -3,5 +3,5 @@
 set -eu
 # shellcheck source=/dev/null
 . "$1"
-sed "s/lightlix-daemon\$/lightlix-daemon (= ${LIGHTLIX_VERSION})/" debian/control > debian/control.new
+sed "s/lightlix-daemon, /lightlix-daemon (= ${LIGHTLIX_VERSION}), /" debian/control > debian/control.new
 mv debian/control.new debian/control

@@ -942,3 +942,129 @@ msgstr ""
 
 msgid "Verifying the driver build"
 msgstr ""
+
+msgid "%(used)s used of %(total)s. Files written in this session are kept in memory and disappear on reboot."
+msgstr ""
+
+msgid "Adapters"
+msgstr ""
+
+msgid "Available networks"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Connect to %s"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Connected to %s"
+msgstr ""
+
+msgid "Connected: %(label)s (%(address)s)"
+msgstr ""
+
+msgid "Connecting to %s…"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Disconnect"
+msgstr ""
+
+msgid "Down"
+msgstr ""
+
+msgid "Enter the password of the network."
+msgstr ""
+
+msgid "Enterprise networks are not supported here."
+msgstr ""
+
+msgid "Forget"
+msgstr ""
+
+msgid "Forget this network?"
+msgstr ""
+
+msgid "Good"
+msgstr ""
+
+msgid "Internet"
+msgstr ""
+
+msgid "Live session storage"
+msgstr ""
+
+msgid "Network status is not available"
+msgstr ""
+
+msgid "No network adapters"
+msgstr ""
+
+msgid "No networks found"
+msgstr ""
+
+msgid "No wireless adapter was found."
+msgstr ""
+
+msgid "Not connected to the internet"
+msgstr ""
+
+msgid "Other"
+msgstr ""
+
+msgid "Press Scan to search again."
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Scan"
+msgstr ""
+
+msgid "Searching for networks…"
+msgstr ""
+
+msgid "Secured"
+msgstr ""
+
+msgid "Strong"
+msgstr ""
+
+msgid "The password must be at least 8 characters."
+msgstr ""
+
+msgid "The password must be at most 63 characters."
+msgstr ""
+
+msgid "The saved password of %s is deleted."
+msgstr ""
+
+msgid "The wireless service is not running."
+msgstr ""
+
+msgid "Up"
+msgstr ""
+
+msgid "Use only letters, digits and symbols from the keyboard (no Korean or accented characters)."
+msgstr ""
+
+msgid "Weak"
+msgstr ""
+
+msgid "Wi-Fi"
+msgstr ""
+
+msgid "Wi-Fi is not available."
+msgstr ""
+
+msgid "Wi-Fi is turned off."
+msgstr ""
+
+msgid "Wired"
+msgstr ""

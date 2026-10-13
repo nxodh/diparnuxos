@@ -255,5 +255,40 @@ class DescribeUpdateTests(unittest.TestCase):
         self.assertFalse(logic.describe_update(None)["can_check"])
 
 
+class NetworkLogicTests(unittest.TestCase):
+    def test_online_summary_names_the_connection(self):
+        d = logic.describe_network({
+            "online": True,
+            "interfaces": [{"name": "wlan0", "kind": "wifi", "state": "up", "addresses": ["192.168.0.23/24"], "gateway": "192.168.0.1"}],
+            "wifi": {"available": True, "powered": True, "connected_ssid": "HomeWiFi"},
+        })
+        self.assertTrue(d["online"])
+        self.assertIn("HomeWiFi", d["summary"])
+        self.assertIn("192.168.0.23/24", d["summary"])
+        self.assertEqual(d["wifi_note"], "")
+
+    def test_offline_and_wifi_notes(self):
+        d = logic.describe_network({"online": False, "interfaces": [], "wifi": {"available": False, "reason": "no_wifi_device"}})
+        self.assertFalse(d["online"])
+        self.assertFalse(d["wifi_available"])
+        self.assertIn("adapter", d["wifi_note"])
+        d = logic.describe_network({"online": False, "interfaces": [], "wifi": {"available": True, "powered": False}})
+        self.assertIn("off", d["wifi_note"])
+        self.assertFalse(logic.describe_network(None)["online"])
+
+    def test_wifi_password_rules(self):
+        self.assertIsNotNone(logic.check_wifi_password(""))
+        self.assertIsNotNone(logic.check_wifi_password("short"))
+        self.assertIsNotNone(logic.check_wifi_password("a" * 64 + "g"))
+        self.assertIsNotNone(logic.check_wifi_password("한글비밀번호입니다"))
+        self.assertIsNone(logic.check_wifi_password("correct horse"))
+        self.assertIsNone(logic.check_wifi_password("f" * 64))
+
+    def test_signal_labels(self):
+        self.assertEqual(logic.signal_label(90), "Strong")
+        self.assertEqual(logic.signal_label(50), "Good")
+        self.assertEqual(logic.signal_label(10), "Weak")
+
+
 if __name__ == "__main__":
     unittest.main()

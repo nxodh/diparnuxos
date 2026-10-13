@@ -11,6 +11,7 @@ from .chat import ChatPage  # noqa: E402
 from .dashboard import DashboardPage  # noqa: E402
 from .i18n import _  # noqa: E402
 from .models import ModelsPage  # noqa: E402
+from .network import NetworkPage  # noqa: E402
 from .server import ServerPage  # noqa: E402
 from .system import SystemPage  # noqa: E402
 from .widgets import error_text  # noqa: E402
@@ -34,6 +35,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.stack.add_titled_with_icon(ModelsPage(ctx), "models", _("Models"), "folder-download-symbolic")
         self.stack.add_titled_with_icon(ServerPage(ctx), "server", _("Server"), "network-server-symbolic")
         self.stack.add_titled_with_icon(ChatPage(ctx), "chat", _("Chat"), "chat-message-new-symbolic")
+        self.stack.add_titled_with_icon(NetworkPage(ctx), "network", _("Network"), "network-wireless-symbolic")
         self.stack.add_titled_with_icon(SystemPage(ctx, self.open_wizard), "system", _("System"), "preferences-system-symbolic")
 
         header = Adw.HeaderBar()
@@ -61,6 +63,13 @@ class MainWindow(Adw.ApplicationWindow):
         self.add_breakpoint(bp)
 
         ctx.subscribe(self._on_status)
+        # 활성이 아닌 창은 상태를 천천히 확인한다.
+        self.connect("notify::is-active", lambda w, _p: self.ctx.set_active(w.is_active()))
+
+    def show_page(self, name):
+        """이름으로 페이지를 연다. 모르는 이름은 무시한다."""
+        if self.stack.get_child_by_name(name) is not None:
+            self.stack.set_visible_child_name(name)
 
     def _on_status(self, status, error):
         if error is not None:

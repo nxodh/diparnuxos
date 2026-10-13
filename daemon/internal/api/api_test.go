@@ -22,6 +22,7 @@ import (
 	"github.com/nxodh/lightlixos/daemon/internal/config"
 	"github.com/nxodh/lightlixos/daemon/internal/hf"
 	"github.com/nxodh/lightlixos/daemon/internal/models"
+	"github.com/nxodh/lightlixos/daemon/internal/network"
 	"github.com/nxodh/lightlixos/daemon/internal/platform"
 	"github.com/nxodh/lightlixos/daemon/internal/supervisor"
 	"github.com/nxodh/lightlixos/daemon/internal/update"
@@ -1002,5 +1003,101 @@ func writeStatusFile(t *testing.T, path string) {
 		"LIGHTLIX_DRIVER_VERSION=\nLIGHTLIX_GPU_MESSAGE=\"no NVIDIA GPU\"\n"
 	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// fakeNetwork 는 NetworkManager 의 가짜다.
+type fakeNetwork struct {
+	status    network.Status
+	nets      []network.WifiNetwork
+	err       error
+	connected []string
+	forgot    []string
+	power     []bool
+}
+
+func (f *fakeNetwork) Status(context.Context) (network.Status, error) { return f.status, f.err }
+func (f *fakeNetwork) Scan(context.Context) error                     { return f.err }
+func (f *fakeNetwork) Networks(context.Context) ([]network.WifiNetwork, error) {
+	return f.nets, f.err
+}
+func (f *fakeNetwork) Connect(_ context.Context, ssid, pass string) error {
+	f.connected = append(f.connected, ssid+":"+pass)
+	return f.err
+}
+func (f *fakeNetwork) Disconnect(context.Context) error { return f.err }
+func (f *fakeNetwork) Forget(_ context.Context, ssid string) error {
+	f.forgot = append(f.forgot, ssid)
+	return f.err
+}
+func (f *fakeNetwork) SetPowered(_ context.Context, on bool) error {
+	f.power = append(f.power, on)
+	return f.err
+}
+
+func TestNetworkWithoutManagerIsUnavailable(t *testing.T) {
+	e := newEnv(t, &fakeSup{})
+	w := e.do("GET", "/v1/network", "")
+	wantStatus(t, w, http.StatusServiceUnavailable)
+	if errCode(t, w) != "network_unavailable" {
+		t.Fatalf("code = %s", errCode(t, w))
+	}
+}
+
+func TestNetworkEndpoints(t *testing.T) {
+	fn := &fakeNetwork{
+		status: network.Status{Interfaces: []network.Interface{{Name: "wlan0", Kind: "wifi", State: "up"}}, Wifi: network.WifiState{Available: true, Device: "wlan0"}, Online: true},
+		nets:   []network.WifiNetwork{{SSID: "Home", Security: "psk", Signal: 80}},
+	}
+	e := newEnvWith(t, &fakeSup{}, func(d *Deps) { d.Network = fn })
+
+	w := e.do("GET", "/v1/network", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"wlan0"`) || !strings.Contains(w.Body.String(), `"online":true`) {
+		t.Fatalf("body = %s", w.Body.String())
+	}
+	wantStatus(t, e.do("POST", "/v1/network/wifi/scan", ""), http.StatusAccepted)
+	w = e.do("GET", "/v1/network/wifi/networks", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"Home"`) {
+		t.Fatalf("networks = %s", w.Body.String())
+	}
+	w = e.do("POST", "/v1/network/wifi/connect", `{"ssid":"Home","passphrase":"s3cretpassw0rd"}`)
+	wantStatus(t, w, http.StatusOK)
+	if strings.Contains(w.Body.String(), "s3cretpassw0rd") {
+		t.Fatal("the password must not be echoed")
+	}
+	if len(fn.connected) != 1 || fn.connected[0] != "Home:s3cretpassw0rd" {
+		t.Fatalf("connected = %v", fn.connected)
+	}
+	wantStatus(t, e.do("POST", "/v1/network/wifi/disconnect", ""), http.StatusOK)
+	wantStatus(t, e.do("POST", "/v1/network/wifi/forget", `{"ssid":"Home"}`), http.StatusOK)
+	wantStatus(t, e.do("PUT", "/v1/network/wifi/power", `{"on":false}`), http.StatusOK)
+	wantStatus(t, e.do("PUT", "/v1/network/wifi/power", `{}`), http.StatusBadRequest)
+	if len(fn.forgot) != 1 || len(fn.power) != 1 || fn.power[0] {
+		t.Fatalf("forgot=%v power=%v", fn.forgot, fn.power)
+	}
+}
+
+func TestNetworkErrorStatuses(t *testing.T) {
+	cases := []struct {
+		code   string
+		status int
+	}{
+		{network.CodeInvalidSSID, http.StatusBadRequest},
+		{network.CodeInvalidPass, http.StatusBadRequest},
+		{network.CodeNotFound, http.StatusNotFound},
+		{network.CodeNoWifi, http.StatusConflict},
+		{network.CodeIwdUnavailable, http.StatusServiceUnavailable},
+		{network.CodeConnectFailed, http.StatusBadGateway},
+	}
+	for _, tc := range cases {
+		fn := &fakeNetwork{err: &network.Error{Code: tc.code, Message: "x"}}
+		e := newEnvWith(t, &fakeSup{}, func(d *Deps) { d.Network = fn })
+		w := e.do("POST", "/v1/network/wifi/connect", `{"ssid":"a","passphrase":"12345678"}`)
+		wantStatus(t, w, tc.status)
+		if errCode(t, w) != tc.code {
+			t.Errorf("%s: code = %s", tc.code, errCode(t, w))
+		}
 	}
 }

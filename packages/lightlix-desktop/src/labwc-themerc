@@ -1,0 +1,36 @@
+# Lightlix 의 labwc 테마다. 설치 경로는 /usr/share/themes/Lightlix/openbox-3/themerc 다.
+# 로고의 흑백 두 색(#0D0D0D, #EBEBEB)과 회색 단계만 쓴다. 강조색은 없다.
+border.width: 1
+padding.width: 6
+padding.height: 4
+window.titlebar.padding.width: 6
+window.titlebar.padding.height: 4
+window.label.text.justify: left
+
+window.active.border.color: #EBEBEB
+window.inactive.border.color: #3A3A3A
+window.active.title.bg.color: #0D0D0D
+window.inactive.title.bg.color: #1A1A1A
+window.active.label.text.color: #EBEBEB
+window.inactive.label.text.color: #8E8E8E
+window.active.button.unpressed.image.color: #EBEBEB
+window.inactive.button.unpressed.image.color: #8E8E8E
+window.active.button.hover.bg.color: #2B2B2B
+window.active.client.color: #0D0D0D
+
+menu.border.width: 1
+menu.border.color: #3A3A3A
+menu.items.bg.color: #0D0D0D
+menu.items.text.color: #EBEBEB
+menu.items.active.bg.color: #EBEBEB
+menu.items.active.text.color: #000000
+menu.separator.color: #3A3A3A
+menu.separator.width: 1
+menu.items.padding.x: 10
+menu.items.padding.y: 5
+
+osd.bg.color: #0D0D0D
+osd.border.color: #EBEBEB
+osd.border.width: 1
+osd.label.text.color: #EBEBEB
+osd.window-switcher.item.active.border.color: #EBEBEB

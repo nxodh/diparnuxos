@@ -141,6 +141,8 @@ out/             빌드 산출물(git 제외)
 |---|---|
 | [docs/decisions.md](docs/decisions.md) | 기술 결정 기록. 원래 결정, 2026-10-10 변경, 근거와 출처 |
 | [docs/installation.md](docs/installation.md) | 설치(그래픽, 콘솔), 디스크 구성, 설치 뒤, 한계 |
+| [docs/network.md](docs/network.md) | 인터넷 연결과 Wi-Fi(GUI, CLI, 패널) |
+| [docs/design.md](docs/design.md) | 로고 기반 디자인 시스템(흑백 팔레트, 적용 범위) |
 | [docs/updates.md](docs/updates.md) | 커널·드라이버 업데이트, 부팅 뒤 확인, 롤백, 오류 코드 |
 | [docs/apt-repository.md](docs/apt-repository.md) | 자체 APT 저장소 구조, 키 생성 절차, 클라이언트 설정 |
 | [docs/phase-4-design.md](docs/phase-4-design.md) | Phase 4 설계 |

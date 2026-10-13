@@ -1,3 +1,9 @@
+lightlix-daemon (0.4.1) trixie; urgency=medium
+
+  * 네트워크 API 와 lightlix network 명령(Wi-Fi 목록, 연결, 끊기, 잊기, 전원), /var/lib/iwd 쓰기 허용, ctx override 경고 문구의 범위 표기를 고친다.
+
+ -- Lightlix Developers <noreply@users.noreply.github.com>  Tue, 13 Oct 2026 09:00:00 +0900
+
 lightlix-daemon (0.4.0) trixie; urgency=medium
 
   * lightlix-update(커널과 드라이버 갱신, 부팅 뒤 확인, 롤백), lightlix-install(설치기), /v1/update 와 lightlix update 를 추가한다.
