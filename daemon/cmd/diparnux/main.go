@@ -169,6 +169,8 @@ func execute(e runEnv, args []string) int {
 		return c.connection(cargs)
 	case "connect":
 		return c.connect(cargs)
+	case "mcp":
+		return c.mcp(cargs)
 	case "gateway":
 		return c.gateway(cargs)
 	case "network":

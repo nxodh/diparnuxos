@@ -172,6 +172,7 @@ Commands:
   apikey rm <id>              delete an API key
   connection [examples]       show the addresses and examples for other computers to connect
   connect vedecaps            settings that connect the Vedecaps coding agent to this server
+  mcp [--allow-control]       MCP server on stdin/stdout: this computer's state as tools for coding agents
   gateway                     show the gateway state and per-key usage
   power [on|off]              show or change always-on (no suspend or sleep)
   network [wifi ...]          show the network state, list/connect Wi-Fi
