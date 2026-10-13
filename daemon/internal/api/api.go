@@ -237,6 +237,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/exposure", s.getExposure)
 	s.mux.HandleFunc("GET /v1/webadmin", s.getWebAdmin)
 	s.mux.HandleFunc("PUT /v1/webadmin", s.putWebAdmin)
 	s.mux.HandleFunc("PUT /v1/webadmin/password", s.putWebAdminPassword)

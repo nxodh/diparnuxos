@@ -175,6 +175,7 @@ Commands:
   network [wifi ...]          show the network state, list/connect Wi-Fi
   network set|confirm|hostname|wol|diagnose   wired IP, DNS, host name, wake-on-lan, checks
   firewall [add|rm|enable|disable]   show and change the firewall rules
+  exposure                    what this computer offers to the network, with warnings
   webadmin [on|off|password]   remote admin web page (HTTPS, off by default)
   remote-desktop [on|off]     remote desktop (RDP, off by default)
   vpn [on|off|peer add|peer rm]   WireGuard VPN (off by default)

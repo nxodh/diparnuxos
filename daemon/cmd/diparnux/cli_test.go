@@ -1390,3 +1390,14 @@ func TestWebAdminStatusOnAndPassword(t *testing.T) {
 		t.Fatal("the password was echoed")
 	}
 }
+
+func TestExposureExitCodeFollowsTheFindings(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/exposure", 200, `{"level":"warning","findings":[{"level":"warning","title":"SSH accepts password logins","detail":"Keys are safer."},{"level":"ok","title":"The model server is reachable only from this computer"}]}`)
+	res := runCLI(t, f, "exposure")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "warn", res.stdout, "WARN  SSH accepts password logins", "Keys are safer.", "ok    The model server")
+	f.on("GET /v1/exposure", 200, `{"level":"ok","findings":[{"level":"ok","title":"fine"}]}`)
+	res = runCLI(t, f, "exposure")
+	wantCode(t, res, exitOK)
+}
