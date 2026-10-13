@@ -53,6 +53,14 @@ class ConnectionPage(Adw.PreferencesPage):
         self.check_group.add(self.check_row)
         self.add(self.check_group)
 
+        self.safety_group = Adw.PreferencesGroup(
+            title=_("Safety check"),
+            description=_("What this computer offers to the network, with warnings for risky settings."),
+        )
+        self.safety_group.set_header_suffix(text_button(_("Check again"), self.load_exposure))
+        self._safety_rows = []
+        self.add(self.safety_group)
+
         self.usage_group = Adw.PreferencesGroup(
             title=_("Usage per key"),
             description=_("Counted by the gateway since the daemon started."),
@@ -66,6 +74,18 @@ class ConnectionPage(Adw.PreferencesPage):
     def reload(self):
         run_async(self.ctx.client.connection, self._render_connection, lambda e: None)
         run_async(self.ctx.client.gateway, self._render_usage, lambda e: None)
+        self.load_exposure()
+
+    def load_exposure(self):
+        run_async(self.ctx.client.exposure, self._render_exposure, lambda e: None)
+
+    def _render_exposure(self, result):
+        clear_group(self.safety_group, self._safety_rows)
+        for f in result.get("findings") or []:
+            row = action_row(f.get("title", ""), f.get("detail", ""))
+            row.add_prefix(Gtk.Image.new_from_icon_name(logic.exposure_level_icon(f.get("level"))))
+            self.safety_group.add(row)
+            self._safety_rows.append(row)
 
     def _on_status(self, status, error):
         # 서버 상태가 바뀌면 주소 목록의 경고도 달라지므로 다시 읽는다.

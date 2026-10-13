@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 13:29+0000\n"
+"POT-Creation-Date: 2026-10-13 17:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -94,6 +94,16 @@ msgid "Send a short request to the server"
 msgstr ""
 
 msgid "Checks that the model answers."
+msgstr ""
+
+msgid "Safety check"
+msgstr ""
+
+msgid ""
+"What this computer offers to the network, with warnings for risky settings."
+msgstr ""
+
+msgid "Check again"
 msgstr ""
 
 msgid "Usage per key"
@@ -231,6 +241,91 @@ msgstr ""
 msgid "No NVIDIA GPU was detected."
 msgstr ""
 
+msgid "Firewall"
+msgstr ""
+
+msgid "Incoming connections"
+msgstr ""
+
+msgid ""
+"Everything that is not listed here is blocked. Answers to connections this "
+"computer starts always work."
+msgstr ""
+
+msgid "Opened by features"
+msgstr ""
+
+msgid "These ports open and close with the feature that needs them."
+msgstr ""
+
+msgid "Your rules"
+msgstr ""
+
+msgid "Add a rule"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Protocol"
+msgstr ""
+
+msgid "Port or range, such as 3000 or 6000-6010"
+msgstr ""
+
+msgid "Who may connect"
+msgstr ""
+
+msgid "The local network"
+msgstr ""
+
+msgid "Any address"
+msgstr ""
+
+msgid "An address range"
+msgstr ""
+
+msgid "Address range, such as 192.168.1.0/24"
+msgstr ""
+
+msgid "Add rule"
+msgstr ""
+
+msgid "Nothing is open"
+msgstr ""
+
+msgid "Turn on LAN exposure, SSH or another feature to open its port."
+msgstr ""
+
+msgid "No rules yet"
+msgstr ""
+
+msgid ""
+"Add one below, for example to let a web interface on this computer be "
+"reached."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Rule saved"
+msgstr ""
+
+msgid "Rule deleted"
+msgstr ""
+
+msgid "Delete this rule?"
+msgstr ""
+
+msgid "Enter a port number or a range such as 6000-6010."
+msgstr ""
+
+msgid "Give the rule a name."
+msgstr ""
+
+msgid "Rule added"
+msgstr ""
+
 msgid "No NVIDIA GPU found"
 msgstr ""
 
@@ -318,6 +413,15 @@ msgid "Running on CPU"
 msgstr ""
 
 msgid "Failed"
+msgstr ""
+
+msgid "any address"
+msgstr ""
+
+msgid "the local network"
+msgstr ""
+
+msgid "not installed"
 msgstr ""
 
 #, python-format
@@ -718,9 +822,6 @@ msgstr ""
 msgid "Set default"
 msgstr ""
 
-msgid "Delete"
-msgstr ""
-
 #, python-format
 msgid "Based on %s of GPU memory"
 msgstr ""
@@ -886,6 +987,203 @@ msgstr ""
 msgid "The saved password of %s is deleted."
 msgstr ""
 
+msgid "Remote access"
+msgstr ""
+
+msgid "SSH"
+msgstr ""
+
+msgid ""
+"Open a terminal on this computer from another computer. Turn the server on "
+"or off in System."
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Allow password login"
+msgstr ""
+
+msgid ""
+"Turn it off to accept public keys only. At least one key must be registered "
+"first."
+msgstr ""
+
+msgid "Public keys"
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Paste a public key (ssh-ed25519 AAAA…) and press Enter"
+msgstr ""
+
+msgid "Server fingerprints"
+msgstr ""
+
+msgid ""
+"Compare one of these with the fingerprint your SSH client shows the first "
+"time you connect."
+msgstr ""
+
+msgid "Recent logins"
+msgstr ""
+
+msgid "Remote desktop"
+msgstr ""
+
+msgid ""
+"Open this computer's desktop from another computer with an RDP client. It is "
+"off by default."
+msgstr ""
+
+msgid "Allow remote desktop"
+msgstr ""
+
+msgid "VPN (WireGuard)"
+msgstr ""
+
+msgid ""
+"Reach this computer from outside your home network. Devices that join are "
+"trusted like the local network."
+msgstr ""
+
+msgid "Turn the VPN on"
+msgstr ""
+
+msgid "This computer"
+msgstr ""
+
+msgid "VPN devices"
+msgstr ""
+
+msgid "Name of a new device, such as phone"
+msgstr ""
+
+msgid "Admin web page"
+msgstr ""
+
+msgid ""
+"Manage this computer from another computer's browser. It has its own "
+"password and is off by default."
+msgstr ""
+
+msgid "Turn the admin web page on"
+msgstr ""
+
+msgid "New web admin password (at least 10 characters)"
+msgstr ""
+
+msgid "Address"
+msgstr ""
+
+msgid "No host keys yet"
+msgstr ""
+
+msgid "They are created the first time SSH is turned on."
+msgstr ""
+
+msgid "No keys for this account"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Nothing in the recent log"
+msgstr ""
+
+msgid "signed in"
+msgstr ""
+
+msgid "failed"
+msgstr ""
+
+msgid "It is turned on but the service is not running."
+msgstr ""
+
+#, python-format
+msgid "Public key: %s"
+msgstr ""
+
+#, python-format
+msgid "Certificate: %s"
+msgstr ""
+
+msgid "Set a password first."
+msgstr ""
+
+#, python-format
+msgid "SSH port changed to %d"
+msgstr ""
+
+msgid "Key added"
+msgstr ""
+
+msgid "Remove this key?"
+msgstr ""
+
+msgid "The computer that uses it can no longer sign in."
+msgstr ""
+
+#, python-format
+msgid "Settings for %s"
+msgstr ""
+
+msgid ""
+"Open this in the WireGuard app on the device. It contains the device's "
+"private key and is shown only once."
+msgstr ""
+
+msgid "Remove this device?"
+msgstr ""
+
+msgid "Password saved. Everyone is signed out of the web page."
+msgstr ""
+
+msgid "Resources"
+msgstr ""
+
+msgid "Processor"
+msgstr ""
+
+msgid "Running for"
+msgstr ""
+
+msgid "Disks"
+msgstr ""
+
+msgid "Temperatures"
+msgstr ""
+
+msgid "Graphics card"
+msgstr ""
+
+msgid "Using the most memory"
+msgstr ""
+
+#, python-format
+msgid "%(used).1f%% of %(cores)d cores · load %(l1).2f %(l5).2f %(l15).2f"
+msgstr ""
+
+#, python-format
+msgid "swap %s"
+msgstr ""
+
+#, python-format
+msgid "%(used)s used of %(total)s (%(pct)d%%)"
+msgstr ""
+
+#, python-format
+msgid "in %(rx)s · out %(tx)s"
+msgstr ""
+
+#, python-format
+msgid "%(used)s of %(total)s · %(busy)d%% busy · %(temp)d °C · %(power).0f W"
+msgstr ""
+
 msgid "Live status"
 msgstr ""
 
@@ -999,6 +1297,36 @@ msgstr ""
 msgid "Clients using it will stop working."
 msgstr ""
 
+msgid "No log lines."
+msgstr ""
+
+msgid "Services"
+msgstr ""
+
+msgid "Managed services"
+msgstr ""
+
+msgid ""
+"Only these services can be controlled here. The Diparnux daemon itself can "
+"be viewed but not stopped."
+msgstr ""
+
+#, python-format
+msgid "at boot: %s"
+msgstr ""
+
+msgid "Show the log"
+msgstr ""
+
+msgid "Start at boot"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Stop this service?"
+msgstr ""
+
 msgid ""
 "Server mode runs without the desktop and leaves more memory for the model."
 msgstr ""
@@ -1028,9 +1356,6 @@ msgid ""
 msgstr ""
 
 msgid "Power status"
-msgstr ""
-
-msgid "Remote access"
 msgstr ""
 
 msgid "SSH server"
@@ -1215,13 +1540,141 @@ msgstr ""
 msgid "Diparnux Control Center"
 msgstr ""
 
-msgid "Graphics card"
+msgid "Diparnux"
+msgstr ""
+
+msgid "Show the page list"
+msgstr ""
+
+msgid "Change waiting for your confirmation"
+msgstr ""
+
+msgid "Keep the new settings?"
+msgstr ""
+
+msgid "Keep"
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+msgid "Wired settings"
+msgstr ""
+
+msgid ""
+"Change how a wired adapter gets its address. If you cannot confirm the "
+"change in time, the old settings come back by themselves."
+msgstr ""
+
+msgid "This computer on the network"
+msgstr ""
+
+msgid "Host name"
+msgstr ""
+
+msgid "Wake on LAN"
+msgstr ""
+
+msgid ""
+"Let another computer wake this one with a magic packet. It applies from the "
+"next start and needs support in the adapter and the firmware."
+msgstr ""
+
+msgid "Check the connection"
+msgstr ""
+
+msgid "Test the address, route, name lookup and internet"
+msgstr ""
+
+msgid "Run the check"
+msgstr ""
+
+#, python-format
+msgid ""
+"The change to %(iface)s is applied. It is undone at %(when)s unless you keep "
+"it."
+msgstr ""
+
+msgid "No wired adapter"
+msgstr ""
+
+msgid "Wi-Fi addresses are assigned automatically."
+msgstr ""
+
+msgid "Automatic (DHCP)"
+msgstr ""
+
+msgid "Fixed address"
+msgstr ""
+
+msgid "Address with prefix, such as 192.168.0.50/24"
+msgstr ""
+
+msgid "Gateway"
+msgstr ""
+
+msgid "DNS servers, separated by commas"
+msgstr ""
+
+msgid "Search domains, separated by commas"
+msgstr ""
+
+#, python-format
+msgid "Fixed address %s"
+msgstr ""
+
+#, python-format
+msgid "gateway %s"
+msgstr ""
+
+msgid "Enter an address with its prefix length, such as 192.168.0.50/24."
+msgstr ""
+
+#, python-format
+msgid "Applied. Keep the change within %d seconds or it is undone."
+msgstr ""
+
+#, python-format
+msgid "Change the address of %s?"
+msgstr ""
+
+msgid ""
+"You may lose the connection to this computer. If you do not keep the change "
+"within a minute it is undone automatically."
+msgstr ""
+
+msgid "Kept"
+msgstr ""
+
+msgid "Undone"
+msgstr ""
+
+#, python-format
+msgid "Host name changed to %s"
+msgstr ""
+
+msgid "Saved. It applies from the next start."
+msgstr ""
+
+msgid "Checking…"
+msgstr ""
+
+msgid "Route to the network"
+msgstr ""
+
+msgid "Gateway answers"
+msgstr ""
+
+msgid "Name lookup"
+msgstr ""
+
+msgid "skipped"
+msgstr ""
+
+msgid "Problem"
 msgstr ""
 
 msgid "NVIDIA driver"
-msgstr ""
-
-msgid "Account"
 msgstr ""
 
 msgid "Network access"
@@ -1250,9 +1703,6 @@ msgstr ""
 
 #, python-format
 msgid "Step %(n)d of %(total)d"
-msgstr ""
-
-msgid "Check again"
 msgstr ""
 
 msgid "Run the GPU diagnostic once more."

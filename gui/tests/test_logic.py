@@ -74,6 +74,31 @@ class ServerFailureTests(unittest.TestCase):
         self.assertEqual(logic.server_failure_notes(None), [])
 
 
+class RemoteHelperTests(unittest.TestCase):
+    def test_fmt_rate(self):
+        self.assertEqual(logic.fmt_rate(0), "0 B/s")
+        self.assertEqual(logic.fmt_rate(2048), "2.0 KiB/s")
+        self.assertEqual(logic.fmt_rate(5 * 1024 * 1024), "5.0 MiB/s")
+        self.assertEqual(logic.fmt_rate(None), "-")
+
+    def test_ports_and_sources(self):
+        self.assertEqual(logic.port_text(80), "80")
+        self.assertEqual(logic.port_text(6000, 6010), "6000-6010")
+        self.assertEqual(logic.port_text(80, 80), "80")
+        self.assertEqual(logic.source_label("lan"), "the local network")
+        self.assertEqual(logic.source_label("any"), "any address")
+        self.assertEqual(logic.source_label("10.0.0.0/8"), "10.0.0.0/8")
+        self.assertEqual(logic.rule_subtitle({"protocol": "udp", "port": 5, "port_end": 9, "source": "lan"}), "udp 5-9 · the local network")
+
+    def test_split_list_and_service_state(self):
+        self.assertEqual(logic.split_list("1.1.1.1, 9.9.9.9  8.8.8.8"), ["1.1.1.1", "9.9.9.9", "8.8.8.8"])
+        self.assertEqual(logic.split_list(""), [])
+        self.assertEqual(logic.service_state_text({"active": "active", "sub": "running"}), "active (running)")
+        self.assertEqual(logic.service_state_text({"active": "inactive", "sub": "inactive"}), "inactive")
+        self.assertEqual(logic.service_state_text({"installed": False}), "not installed")
+        self.assertEqual(logic.exposure_level_icon("warning"), "dialog-warning-symbolic")
+
+
 class UsageTests(unittest.TestCase):
     def test_fmt_count(self):
         self.assertEqual(logic.fmt_count(0), "0")
