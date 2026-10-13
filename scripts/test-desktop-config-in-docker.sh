@@ -21,7 +21,7 @@ fi
 docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" ${mount_out[@]+"${mount_out[@]}"} \
     -e DEBIAN_FRONTEND=noninteractive "${IMAGE}" bash -euc '
 apt-get update -qq >/dev/null
-apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils python3 xvfb xauth scrot procps x11-utils >/dev/null
+apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils python3 xvfb xauth scrot procps x11-utils xdotool fcitx5 fcitx5-hangul fcitx5-frontend-gtk3 >/dev/null
 
 D=/src/packages/diparnux-desktop/src
 echo "== 1. static checks"
@@ -118,6 +118,41 @@ fi
 su tester -c "test -r ~/.config/xfce4/terminal/terminalrc && grep -q ColorBackground=#0d0d0d ~/.config/xfce4/terminal/terminalrc" || { echo "FAIL: terminal colors were not seeded"; exit 1; }
 su tester -c "test -e ~/.config/diparnux/session-setup-done" || { echo "FAIL: first-login setup marker missing"; exit 1; }
 echo "ok: first-login setup ran"
+
+# 한글 입력기: 자동 시작으로 fcitx5 가 떠야 하고, 네 가지 전환 키가 실제 GTK 앱에서 한/영을 오가야 한다.
+for i in $(seq 1 20); do su tester -c "pgrep -x fcitx5 >/dev/null" && break; sleep 1; done
+su tester -c "pgrep -x fcitx5 >/dev/null" || { echo "FAIL: fcitx5 was not started by the session"; exit 1; }
+echo "ok: fcitx5 is running"
+su tester -c "grep -q '^1=Alt_R' ~/.config/fcitx5/config" || { echo "FAIL: trigger keys were not written"; su tester -c "cat ~/.config/fcitx5/config"; exit 1; }
+su tester -c "export DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus GTK_IM_MODULE=fcitx XMODIFIERS=@im=fcitx; nohup mousepad >/tmp/mousepad.log 2>&1 &"
+sleep 6
+wid="$(su tester -c "DISPLAY=:99 xdotool search --class mousepad | head -n 1")"
+[ -n "$wid" ] || { echo "FAIL: the test editor window did not open"; exit 1; }
+su tester -c "DISPLAY=:99 xdotool windowactivate $wid" 2>/dev/null || true
+su tester -c "DISPLAY=:99 xdotool windowfocus $wid" 2>/dev/null || true
+sleep 1
+im() { su tester -c "DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus fcitx5-remote -n"; }
+# 창이 포커스를 받고 fcitx5 가 입력 컨텍스트를 만들 때까지 첫 상태를 기다린다.
+for i in $(seq 1 15); do [ "$(im 2>/dev/null)" = keyboard-us ] && break; sleep 1; done
+[ "$(im)" = keyboard-us ] || { echo "FAIL: the input method does not start as keyboard-us: $(im)"; exit 1; }
+# 키를 보낸 뒤 상태가 바뀔 때까지 기다린다(느린 CI 에서 한 번에 안 바뀌는 경우를 걸러 낸다).
+toggle() { # 키, 기대 상태
+  key="$1"; want="$2"
+  su tester -c "DISPLAY=:99 xdotool key --clearmodifiers $key"
+  for i in 1 2 3 4 5 6; do [ "$(im)" = "$want" ] && return 0; sleep 1; done
+  return 1
+}
+for key in Hangul shift+space ctrl+space; do
+  toggle "$key" hangul || { echo "FAIL: [$key] did not switch to Hangul (now: $(im))"; exit 1; }
+  toggle "$key" keyboard-us || { echo "FAIL: [$key] did not switch back (now: $(im))"; exit 1; }
+done
+echo "ok: Hangul, Shift+Space and Ctrl+Space toggle the input method"
+# 오른쪽 Alt 를 그대로 두드리는 전환은 수정 키 단독 입력이라 누르는 시간이 짧아야 한다. 참고용으로만 본다.
+before="$(im)"; su tester -c "DISPLAY=:99 xdotool key --clearmodifiers Alt_R"; sleep 1
+if [ "$before" != "$(im)" ]; then echo "info: a quick right Alt tap toggles the input method"; su tester -c "DISPLAY=:99 xdotool key --clearmodifiers Alt_R"; sleep 1; else echo "info: a right Alt tap did not toggle (the Xorg option korean:ralt_hangul makes it a real Hangul key)"; fi
+test -s /etc/X11/xorg.conf.d/90-diparnux-keyboard.conf || { echo "FAIL: Xorg keyboard options file is missing"; exit 1; }
+grep -q "korean:ralt_hangul" /etc/X11/xorg.conf.d/90-diparnux-keyboard.conf || { echo "FAIL: ralt_hangul option missing"; exit 1; }
+su tester -c "pkill -x mousepad" || true
 
 echo "== 4. login screen (lightdm --test-mode in Xephyr)"
 pkill -u tester -x xfce4-session || true

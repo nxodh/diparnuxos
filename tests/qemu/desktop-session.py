@@ -393,6 +393,13 @@ def scenario(console, monitor, budgets, logs, workdir):
         "| grep -x \"XDG_CURRENT_DESKTOP=XFCE\" && tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -q \"^XDG_CONFIG_DIRS=/etc/xdg/diparnux:\"'",
         cmd,
     )
+    # 한글 입력: fcitx5 가 세션에서 떠 있고, 오른쪽 Alt 가 Hangul 키로 바뀌어 있어야 한다(Xorg InputClass).
+    poll_command(console, "fcitx5-running", f"pgrep -u {TEST_USER} -x fcitx5", budgets["START_TIMEOUT"])
+    console.command(
+        "xkb-options",
+        f"sudo -n -u {TEST_USER} env DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority setxkbmap -query | grep -E 'options:.*korean:ralt_hangul'",
+        cmd,
+    )
     poll_command(console, "control-center-running", f"pgrep -u {TEST_USER} -f diparnux-control-center", budgets["START_TIMEOUT"])
 
     # 창이 뜰 때까지 기다린다. 소프트웨어 렌더링과 Python 시작은 느릴 수 있다.

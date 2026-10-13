@@ -32,12 +32,12 @@ diparnux-desktop
 # 웹 브라우저. 라이브 세션은 apt 목록이 없어 나중에 설치하기 어렵다.
 firefox-esr
 firefox-esr-l10n-ko
-# 한글 입력기(fcitx5 + 한글)와 GTK 프런트엔드. 세션 환경 변수는 /etc/X11/Xsession.d/55diparnux-xdg 가 정한다.
+# 한글 입력기(fcitx5 + 한글)와 GTK 프런트엔드. 환경 변수는 /etc/X11/Xsession.d/55diparnux-xdg, 시작은 /etc/xdg/autostart/diparnux-fcitx5.desktop 이 맡는다.
+# im-config 는 넣지 않는다. 로케일이 한국어가 아니면 입력기를 시작하지 않고 환경 변수를 덮어쓸 수 있다.
 fcitx5
 fcitx5-hangul
 fcitx5-frontend-gtk3
 fcitx5-frontend-gtk4
-im-config
 # 가상 머신 게스트 통합(VMware 해상도·클립보드, QEMU/SPICE 클립보드). 실기에서는 서비스가 조건 때문에 시작되지 않는다.
 open-vm-tools-desktop
 spice-vdagent
