@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -422,15 +423,23 @@ func TestBusyAnswerAsksToRetry(t *testing.T) {
 }
 
 // 코딩 에이전트는 SSE 로 토큰을 받아 화면에 바로 쓴다. 게이트웨이가 청크를 모아 두었다 내보내면 안 된다.
+// 두 번째 청크는 클라이언트가 첫 청크를 읽은 뒤에야 모델 서버가 내보낸다. 줄 단위로 읽어 도착 순서를 확인한다.
 func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
 	release := make(chan struct{})
 	be := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
 		w.Header().Set("Content-Type", "text/event-stream")
 		fl := w.(http.Flusher)
 		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n")
 		fl.Flush()
-		<-release // 두 번째 청크는 클라이언트가 첫 청크를 받은 뒤에야 나간다.
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}],\"usage\":{\"completion_tokens\":2}}\n\ndata: [DONE]\n\n")
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}],\"usage\":{\"completion_tokens\":2}}\n\n")
+		fl.Flush()
+		io.WriteString(w, "data: [DONE]\n\n")
 		fl.Flush()
 	}))
 	defer be.Close()
@@ -439,8 +448,10 @@ func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
 	front := httptest.NewServer(g.Handler(u))
 	defer front.Close()
 
+	client := &http.Client{Transport: &http.Transport{}}
+	defer client.CloseIdleConnections()
 	req, _ := http.NewRequest("POST", front.URL+"/v1/chat/completions", strings.NewReader(`{"stream":true}`))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,23 +459,50 @@ func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
 	if !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") || resp.Header.Get("X-Diparnux") != "0.5.3" {
 		t.Fatalf("headers = %v", resp.Header)
 	}
-	first := make([]byte, 64)
-	got := make(chan string, 1)
+
+	// 줄을 읽는 일은 별도 고루틴에서 하고, 읽은 줄을 채널로 받는다.
+	lines := make(chan string, 16)
+	readErr := make(chan error, 1)
 	go func() {
-		n, _ := resp.Body.Read(first)
-		got <- string(first[:n])
-	}()
-	select {
-	case s := <-got:
-		if !strings.Contains(s, `"content":"a"`) {
-			t.Fatalf("first chunk = %q", s)
+		sc := bufio.NewScanner(resp.Body)
+		for sc.Scan() {
+			lines <- sc.Text()
 		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("the first chunk did not arrive before the stream ended: the gateway buffers the stream")
+		readErr <- sc.Err()
+		close(lines)
+	}()
+	next := func(what string) string {
+		t.Helper()
+		select {
+		case l, ok := <-lines:
+			if !ok {
+				t.Fatalf("the stream ended before %s", what)
+			}
+			return l
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out waiting for %s: the gateway may buffer the stream", what)
+		}
+		return ""
 	}
+	first := next("the first event")
+	if !strings.Contains(first, `"content":"a"`) {
+		t.Fatalf("first event = %q", first)
+	}
+	// 첫 이벤트가 도착했으니 이제 두 번째를 내보내게 한다.
 	close(release)
-	rest, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(rest), "[DONE]") || !strings.Contains(string(rest), "completion_tokens") {
-		t.Fatalf("rest = %q", rest)
+	var rest []string
+	for len(rest) < 8 {
+		l := next("the end of the stream")
+		if l == "" {
+			continue
+		}
+		rest = append(rest, l)
+		if l == "data: [DONE]" {
+			break
+		}
+	}
+	joined := strings.Join(rest, "\n")
+	if !strings.Contains(joined, "completion_tokens") || !strings.HasSuffix(joined, "[DONE]") {
+		t.Fatalf("rest = %q", joined)
 	}
 }

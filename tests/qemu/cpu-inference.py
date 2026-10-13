@@ -500,7 +500,11 @@ def check_vedecaps(console, budgets):
     status, info = probe["info"]
     require(status == 200 and info.get("diparnux") == version, "/diparnux/info must name the same Diparnux version")
     require(isinstance(info.get("ctx_per_slot"), int) and info["ctx_per_slot"] > 0, "/diparnux/info lacks ctx_per_slot")
-    require(info.get("slots") == slots, "/diparnux/info and /props disagree on the slot count")
+    # 슬롯 수를 명시하지 않으면 llama-server 가 자동으로 정한다(관찰: 4). 그때 info 는 값을 지어내지 않고 slots_auto 를 낸다.
+    if info.get("slots_auto"):
+        require("slots" not in info, "/diparnux/info must not report a slot count that the server chose by itself")
+    else:
+        require(info.get("slots") == slots, "/diparnux/info and /props disagree on the slot count")
     require("/" not in json.dumps(info), "/diparnux/info must not reveal file paths")
     status, content_type, chunks, done, usage = probe["sse"]
     require(status == 200 and "text/event-stream" in (content_type or ""), "Streaming must answer as text/event-stream")

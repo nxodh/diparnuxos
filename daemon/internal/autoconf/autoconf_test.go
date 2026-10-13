@@ -814,3 +814,20 @@ func TestAgentProfileReusesPromptCacheAndCacheRAMIsBounded(t *testing.T) {
 		t.Fatalf("unknown RAM must leave the server default, got %d", got)
 	}
 }
+
+func TestParallelIsFixedOnlyWhenTheUserOrTheAgentProfileSetsIt(t *testing.T) {
+	in := withGPUs(refModel(), gpu(0, 24000))
+	if Plan(in).ParallelFixed {
+		t.Fatal("the default plan must leave the slot count to the server")
+	}
+	one := 1
+	in.Overrides.Parallel = &one
+	if p := Plan(in); !p.ParallelFixed || p.Parallel != 1 {
+		t.Fatalf("an explicit single slot = %+v", p)
+	}
+	in.Overrides.Parallel = nil
+	in.Overrides.Profile = strp(ProfileAgent)
+	if p := Plan(in); !p.ParallelFixed || p.Parallel != 2 {
+		t.Fatalf("agent profile = %+v", p)
+	}
+}

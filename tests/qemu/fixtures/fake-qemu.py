@@ -127,8 +127,8 @@ def result(command):
         return json.dumps({"password_set": True}), 0
     if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=120)"):
         return json.dumps({
-            "props": [200, 512, 1], "models": [200, [model], "0.5.3"],
-            "info": [200, {"diparnux": "0.5.3", "server": "running", "model": model, "ctx_per_slot": 512, "slots": 1}],
+            "props": [200, 512, 4], "models": [200, [model], "0.5.3"],
+            "info": [200, {"diparnux": "0.5.3", "server": "running", "model": model, "ctx_per_slot": 512, "slots_auto": True}],
             "sse": [200, "text/event-stream", 6, True, True], "tools": 200}), 0
     if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30)"):
         return json.dumps([401, "application/json", "an API key is required"]), 0

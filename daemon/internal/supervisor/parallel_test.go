@@ -52,12 +52,13 @@ func TestRuntimePlanRestoresParallelSlots(t *testing.T) {
 func TestRuntimePlanRoundTripsEveryPlannedEnvironment(t *testing.T) {
 	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/diparnux/models/m.gguf", Host: "127.0.0.1", Port: 18080, Alias: "m.gguf", Metrics: true}
 	agent, chat := "agent", "chat"
-	four := 4
+	four, one := 4, 1
 	plans := map[string]autoconf.Input{
 		"chat gpu":       {ModelBytes: 4 << 30, Layers: 32, Embedding: 4096, CtxTrain: 8192, GPUs: []autoconf.GPU{{Index: 0, TotalMiB: 12000, FreeMiB: 11000}}, RAMAvailMiB: 20000, RAMTotalMiB: 32000},
 		"agent gpu":      {ModelBytes: 4 << 30, Layers: 32, Embedding: 4096, CtxTrain: 32768, GPUs: []autoconf.GPU{{Index: 0, TotalMiB: 24000, FreeMiB: 23000}}, RAMAvailMiB: 20000, RAMTotalMiB: 32000, Overrides: autoconf.Overrides{Profile: &agent}},
 		"agent cpu":      {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 32768, RAMAvailMiB: 6000, RAMTotalMiB: 8000, Overrides: autoconf.Overrides{Profile: &agent}},
 		"chat four":      {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000, RAMTotalMiB: 16000, Overrides: autoconf.Overrides{Profile: &chat, Parallel: &four}},
+		"explicit one":   {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000, RAMTotalMiB: 16000, Overrides: autoconf.Overrides{Parallel: &one}},
 		"unknown memory": {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000},
 	}
 	for name, in := range plans {

@@ -329,6 +329,12 @@ func TestEnvParallelSlots(t *testing.T) {
 	if env["LLAMA_ARG_N_PARALLEL"] != "4" {
 		t.Fatalf("env = %v", env)
 	}
+	// 사용자가 슬롯 하나를 명시하면 서버의 자동 슬롯(여러 개)에 맡기지 않는다.
+	p.Parallel, p.ParallelFixed = 1, true
+	env, err = Env(p, lanSettings())
+	if err != nil || env["LLAMA_ARG_N_PARALLEL"] != "1" {
+		t.Fatalf("explicit single slot env = %v, %v", env, err)
+	}
 }
 
 func TestEnvCacheReuseAndCacheRAMOnlyWhenPlanned(t *testing.T) {

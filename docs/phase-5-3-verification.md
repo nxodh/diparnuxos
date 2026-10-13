@@ -80,6 +80,7 @@ CI 결과는 PR 에서 확인한다.
 - `--cache-reuse 256` 이 Vedecaps 의 요청 모양에서 실제로 시간을 줄이는지, 모델 구조(SWA 등)에 따라 llama-server 가 이 옵션을 끄는지 확인하지 못했다.
 - 추천 목록의 "도구 호출 지원"은 모델 카드 기준이다. 이 컴퓨터에서의 동작은 `serve toolcheck` 로만 알 수 있다.
 - 원격 컴퓨터(LAN/VPN)에서의 Vedecaps 접속은 시험하지 않았다. 평문 HTTP 이다.
+- 실제 ISO 의 E2E 에서 확인한 사실(2026-10-14): 슬롯 수를 정하지 않으면 llama-server 가 4 슬롯(통합 KV)으로 뜬다. 0.5.3 의 `/diparnux/info` 는 이때 `slots` 대신 `slots_auto` 를 낸다.
 - 실기 ISO 부팅 후 `/usr/bin/vedecaps` 의 첫 실행.
 
 ## 5. 사용자 결정 대기

@@ -311,13 +311,13 @@ func runtimePlan(env map[string]string) (autoconf.Output, llamaargs.ServerSettin
 		}
 		metrics = true
 	}
-	parallel := 1
+	parallel, parallelFixed := 1, false
 	if value, ok := env["LLAMA_ARG_N_PARALLEL"]; ok {
 		p, err := strconv.Atoi(value)
-		if err != nil || p < 2 || p > 16 || ctx%p != 0 {
+		if err != nil || p < 1 || p > 16 || ctx%p != 0 {
 			return autoconf.Output{}, llamaargs.ServerSettings{}, errors.New("runtime parallel slot setting is invalid")
 		}
-		parallel = p
+		parallel, parallelFixed = p, true
 	}
 	// 프롬프트 캐시 옵션은 계획이 넣은 경우에만 있다. 없으면 0(서버 기본값)이다.
 	cacheReuse, cacheRAM := 0, 0
@@ -337,6 +337,7 @@ func runtimePlan(env map[string]string) (autoconf.Output, llamaargs.ServerSettin
 	}
 	out := autoconf.Output{
 		Parallel:       parallel,
+		ParallelFixed:  parallelFixed,
 		SlotCtx:        ctx / parallel,
 		CacheReuse:     cacheReuse,
 		CacheRAMMiB:    cacheRAM,

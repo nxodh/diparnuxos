@@ -206,7 +206,12 @@ func run(args []string) error {
 			}
 			if st.Plan != nil {
 				info["ctx_per_slot"] = st.Plan.SlotCtx
-				info["slots"] = max(st.Plan.Parallel, 1)
+				if st.Plan.ParallelFixed {
+					info["slots"] = max(st.Plan.Parallel, 1)
+				} else {
+					// 슬롯 수를 명시하지 않았다. llama-server 가 자동으로 정하므로 값을 지어내지 않는다.
+					info["slots_auto"] = true
+				}
 			}
 			return info
 		},

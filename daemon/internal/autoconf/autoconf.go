@@ -105,13 +105,16 @@ type Input struct {
 
 // Output은 Plan이 돌려주는 계산 결과다. 항상 사용할 수 있는 값을 담는다.
 type Output struct {
-	NGL            string   // "0", 정수 문자열, "all", "auto"
-	Ctx            int      // 컨텍스트 크기(토큰)
-	CacheTypeK     string   // K 캐시 타입
-	CacheTypeV     string   // V 캐시 타입
-	FlashAttn      bool     // 양자화 KV 캐시에는 필수다
-	Batch          int      // 배치 크기
-	Parallel       int      // 동시에 처리할 요청 수(슬롯). 0 이나 1 이면 하나다
+	NGL        string // "0", 정수 문자열, "all", "auto"
+	Ctx        int    // 컨텍스트 크기(토큰)
+	CacheTypeK string // K 캐시 타입
+	CacheTypeV string // V 캐시 타입
+	FlashAttn  bool   // 양자화 KV 캐시에는 필수다
+	Batch      int    // 배치 크기
+	Parallel   int    // 동시에 처리할 요청 수(슬롯). 0 이나 1 이면 하나다
+	// ParallelFixed 가 true 이면 슬롯 수를 서버에 명시한다(사용자가 정했거나 agent 프로필). false 이면 서버 기본값(자동)에 맡긴다.
+	// 자동일 때 llama-server 는 슬롯을 여러 개(최대 4) 만들고 하나의 컨텍스트를 나눠 쓴다(통합 KV).
+	ParallelFixed  bool
 	SlotCtx        int      // 슬롯 하나의 컨텍스트. Ctx 는 SlotCtx 와 Parallel 의 곱이다
 	CacheReuse     int      // 프롬프트 캐시 재사용 최소 조각(토큰). 0 이면 llama-server 기본값(끔)이다
 	CacheRAMMiB    int      // 프롬프트 캐시가 메모리에서 쓸 수 있는 최대 크기. 0 이면 llama-server 기본값이다
@@ -138,6 +141,8 @@ type norm struct {
 	gpus       []GPU
 	desktop    bool
 	ov         Overrides
+	// parFixed 는 슬롯 수를 명시해야 하는지다(사용자 값 또는 agent 기본값).
+	parFixed bool
 	// par 는 슬롯 수다(1 이상). 계획의 컨텍스트는 슬롯 하나의 길이이고 KV 캐시 추정은 par 배로 한다.
 	par int64
 	// agent 는 에이전트 프로필이다. floor 는 단계 3 과 4 가 컨텍스트를 줄이는 하한이다.
@@ -257,6 +262,7 @@ func (pl *planner) normalize(in Input) norm {
 			pl.warnf("parallel override %d ignored: allowed range is 1-%d", *p, maxParallel)
 		} else {
 			n.par = int64(*p)
+			n.parFixed = true
 		}
 	}
 
@@ -327,6 +333,7 @@ func (pl *planner) normalize(in Input) norm {
 	// 에이전트 프로필은 메인 요청과 서브에이전트·제목 생성이 겹치므로 슬롯 2개를 기본으로 한다. CPU 에서는 늘려도 이득이 없다.
 	if n.agent && in.Overrides.Parallel == nil && len(n.gpus) > 0 {
 		n.par = agentParallel
+		n.parFixed = true
 	}
 	return n
 }
@@ -518,16 +525,17 @@ func (pl *planner) applyOverrides(n norm, c *choice) {
 // finish는 선택 결과에서 Output의 파생 값(배치, GPU 목록, 텐서 분할, 추정치, 조언)을 계산한다.
 func (pl *planner) finish(n norm, c choice) Output {
 	out := Output{
-		NGL:        c.ngl,
-		Ctx:        int(satMul(c.ctx, n.par)),
-		Parallel:   int(n.par),
-		SlotCtx:    int(c.ctx),
-		CacheTypeK: c.cache,
-		CacheTypeV: c.cache,
-		FlashAttn:  c.cache != "f16",
-		LoadMode:   "mmap",
-		Fit:        c.ngl == "auto",
-		CPUOnly:    c.cpuOnly,
+		NGL:           c.ngl,
+		Ctx:           int(satMul(c.ctx, n.par)),
+		Parallel:      int(n.par),
+		ParallelFixed: n.parFixed,
+		SlotCtx:       int(c.ctx),
+		CacheTypeK:    c.cache,
+		CacheTypeV:    c.cache,
+		FlashAttn:     c.cache != "f16",
+		LoadMode:      "mmap",
+		Fit:           c.ngl == "auto",
+		CPUOnly:       c.cpuOnly,
 	}
 
 	out.Batch = int(batchGPU)

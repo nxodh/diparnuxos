@@ -111,8 +111,9 @@ func Env(p autoconf.Output, s ServerSettings) (map[string]string, error) {
 	if p.TensorSplit != "" {
 		env[envTensorSplit] = p.TensorSplit
 	}
-	if p.Parallel > 1 {
-		env[envParallel] = strconv.Itoa(p.Parallel)
+	// 슬롯 수를 명시한 계획만 서버에 넘긴다. 명시하지 않으면 서버가 자동으로 정한다.
+	if p.ParallelFixed || p.Parallel > 1 {
+		env[envParallel] = strconv.Itoa(max(p.Parallel, 1))
 	}
 	if p.CacheReuse > 0 {
 		env[envCacheReuse] = strconv.Itoa(p.CacheReuse)
