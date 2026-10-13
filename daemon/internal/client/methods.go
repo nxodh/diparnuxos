@@ -96,6 +96,9 @@ func (c *Client) Plan(ctx context.Context, model string, ov Overrides) (PlanResu
 	if ov.Parallel != nil {
 		q.Set("parallel", strconv.Itoa(*ov.Parallel))
 	}
+	if ov.Profile != nil {
+		q.Set("profile", *ov.Profile)
+	}
 	return call[PlanResult](ctx, c, http.MethodGet, withQuery("/v1/server/plan", q), nil, defaultLimit)
 }
 

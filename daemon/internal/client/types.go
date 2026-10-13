@@ -179,6 +179,7 @@ type Overrides struct {
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
 	Parallel  *int    `json:"parallel,omitempty"`
+	Profile   *string `json:"profile,omitempty"`
 }
 
 // StartRequest 는 POST /v1/server/start 의 본문이다.

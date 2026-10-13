@@ -92,6 +92,7 @@ func (s *server) putConfig(w http.ResponseWriter, r *http.Request) {
 			Batch:     patch.Overrides.Batch,
 			LoadMode:  patch.Overrides.LoadMode,
 			Parallel:  patch.Overrides.Parallel,
+			Profile:   patch.Overrides.Profile,
 		}
 	}
 	if err := next.Validate(); err != nil {
@@ -134,7 +135,7 @@ func restartRequired(old, next config.Config) bool {
 // sameOverrides 는 재정의 두 벌이 같은지 본다.
 func sameOverrides(a, b config.Overrides) bool {
 	return sameStr(a.NGL, b.NGL) && sameInt(a.Ctx, b.Ctx) && sameStr(a.CacheType, b.CacheType) &&
-		sameInt(a.Batch, b.Batch) && sameStr(a.LoadMode, b.LoadMode) && sameInt(a.Parallel, b.Parallel)
+		sameInt(a.Batch, b.Batch) && sameStr(a.LoadMode, b.LoadMode) && sameInt(a.Parallel, b.Parallel) && sameStr(a.Profile, b.Profile)
 }
 
 func sameStr(a, b *string) bool {

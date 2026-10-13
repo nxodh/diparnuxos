@@ -38,6 +38,7 @@ type overrideFlags struct {
 	batch     *int
 	loadMode  *string
 	parallel  *int
+	profile   *string
 }
 
 // addOverrideFlags 는 재정의 플래그를 등록한다.
@@ -49,6 +50,7 @@ func addOverrideFlags(fs *flag.FlagSet) *overrideFlags {
 		batch:     fs.Int("batch", 0, "batch size"),
 		loadMode:  fs.String("load-mode", "", "model load mode"),
 		parallel:  fs.Int("parallel", 0, "requests handled at the same time (slots); --ctx is the context of one slot"),
+		profile:   fs.String("profile", "", "chat (default) or agent: 16K+ tokens per request and 2 slots for coding agents"),
 	}
 }
 
@@ -80,6 +82,10 @@ func (o *overrideFlags) overrides(fs *flag.FlagSet) client.Overrides {
 	if set["parallel"] {
 		v := *o.parallel
 		ov.Parallel = &v
+	}
+	if set["profile"] {
+		v := *o.profile
+		ov.Profile = &v
 	}
 	return ov
 }

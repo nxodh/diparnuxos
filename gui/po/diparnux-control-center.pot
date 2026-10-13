@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 17:13+0000\n"
+"POT-Creation-Date: 2026-10-13 17:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1204,6 +1204,21 @@ msgid ""
 "context, so more requests need more memory. Restart the server to apply."
 msgstr ""
 
+msgid "Use"
+msgstr ""
+
+msgid ""
+"Chat suits short conversations. Coding agent keeps a long context for each "
+"request so tools like Vedecaps can work on large projects. Restart the "
+"server to apply."
+msgstr ""
+
+msgid "Chat"
+msgstr ""
+
+msgid "Coding agent"
+msgstr ""
+
 msgid "Show plan"
 msgstr ""
 
@@ -1222,6 +1237,14 @@ msgstr ""
 msgid ""
 "Requires an API key. The firewall opens the server port only while this is "
 "on."
+msgstr ""
+
+msgid "No key needed on this computer"
+msgstr ""
+
+msgid ""
+"Programs on this computer, such as Vedecaps, can connect without an API key. "
+"Other computers still need one."
 msgstr ""
 
 msgid "New key label"
@@ -1277,6 +1300,9 @@ msgstr ""
 msgid ""
 "Restart the server for the new number of simultaneous requests to take "
 "effect."
+msgstr ""
+
+msgid "Restart the server for the new use to take effect."
 msgstr ""
 
 msgid "Restart the server for the network setting to take effect."

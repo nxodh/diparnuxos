@@ -730,3 +730,58 @@ func TestParallelOverrideIsValidated(t *testing.T) {
 		t.Fatalf("parallel = %d, warnings = %v", out.Parallel, out.Warnings)
 	}
 }
+
+func TestAgentProfilePrefersLongContextAndTwoSlots(t *testing.T) {
+	roomy := withGPUs(refModel(), gpu(0, 48000))
+	chat := Plan(roomy)
+	roomy.Overrides.Profile = strp(ProfileAgent)
+	agent := Plan(roomy)
+	if chat.SlotCtx > 8192 {
+		t.Fatalf("the chat profile must stay conservative: %d", chat.SlotCtx)
+	}
+	if agent.Parallel != 2 || agent.SlotCtx != 32768 || agent.Ctx != 65536 {
+		t.Fatalf("agent plan = parallel %d slot ctx %d ctx %d", agent.Parallel, agent.SlotCtx, agent.Ctx)
+	}
+	if !contains(agent.Rationale, "agent profile") || contains(agent.Warnings, "compact its history") {
+		t.Fatalf("rationale = %v warnings = %v", agent.Rationale, agent.Warnings)
+	}
+	// 사용자가 직접 준 슬롯 수와 컨텍스트가 프로필보다 우선한다.
+	roomy.Overrides.Parallel = intp(1)
+	roomy.Overrides.Ctx = intp(20000)
+	manual := Plan(roomy)
+	if manual.Parallel != 1 || manual.SlotCtx != 20000 {
+		t.Fatalf("manual = parallel %d slot ctx %d", manual.Parallel, manual.SlotCtx)
+	}
+}
+
+func TestAgentProfileWarnsWhenMemoryIsTight(t *testing.T) {
+	tight := withGPUs(refModel(), gpu(0, 6500))
+	tight.Overrides.Profile = strp(ProfileAgent)
+	out := Plan(tight)
+	if out.SlotCtx >= 16384 && !out.CPUOnly {
+		t.Skipf("model fits with a roomy context: %d", out.SlotCtx)
+	}
+	if !contains(out.Warnings, "compact its history") {
+		t.Fatalf("warnings = %v (slot ctx %d)", out.Warnings, out.SlotCtx)
+	}
+}
+
+func TestAgentProfileOnCPUKeepsOneSlot(t *testing.T) {
+	in := refModel()
+	in.Overrides.Profile = strp(ProfileAgent)
+	out := Plan(in)
+	if out.Parallel != 1 || !out.CPUOnly {
+		t.Fatalf("cpu agent plan = %+v", out)
+	}
+}
+
+func TestProfileIsValidated(t *testing.T) {
+	if err := ValidateOverrides(Overrides{Profile: strp("turbo")}); err == nil {
+		t.Fatal("an unknown profile was accepted")
+	}
+	for _, ok := range []string{ProfileChat, ProfileAgent} {
+		if err := ValidateOverrides(Overrides{Profile: strp(ok)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

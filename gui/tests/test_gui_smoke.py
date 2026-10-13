@@ -50,7 +50,8 @@ ROUTES = {
     ("GET", "/v1/recommendations"): (200, {"basis": "gpu", "hardware": {"vram_mib": 6144, "ram_mib": 16000, "gpu_state": "ready"},
         "recommended": 0, "models": [{"name": "Gemma 3 4B IT", "repo": "r/g", "file": "g.gguf", "params": "4B", "size_mib": 2374,
         "license": "gemma", "fits": True, "placement": "gpu", "need_mib": 3400}]}),
-    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "overrides": {"parallel": 3}}),
+    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "local_no_key": True,
+        "overrides": {"parallel": 3, "profile": "agent"}}),
     ("PUT", "/v1/config"): (200, {"config": {}, "restart_required": True}),
     ("GET", "/v1/apikeys"): (200, {"keys": []}),
     ("GET", "/v1/network"): (200, {
@@ -170,7 +171,16 @@ class SmokeTests(unittest.TestCase):
         server.parallel_row.set_value(4)
         self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1] == "/v1/config" for c in self.daemon.calls)))
         put = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1]
-        self.assertEqual(put[2], {"overrides": {"parallel": 4}})
+        self.assertEqual(put[2], {"overrides": {"parallel": 4, "profile": "agent"}})
+        # 저장된 용도와 키 면제가 보이고, 바꾸면 그대로 저장한다.
+        self.assertEqual(server.profile_row.get_selected(), 1)
+        self.assertTrue(server.local_row.get_active())
+        server.profile_row.set_selected(0)
+        self.assertTrue(pump(5, until=lambda: [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1][2]
+                             == {"overrides": {"parallel": 4}}), "the chat profile was not saved")
+        server.local_row.set_active(False)
+        self.assertTrue(pump(5, until=lambda: [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1][2]
+                             == {"local_no_key": False}), "local_no_key was not saved")
         self.assertIn("server log line", server.log_view.get_buffer().get_text(
             server.log_view.get_buffer().get_start_iter(), server.log_view.get_buffer().get_end_iter(), False))
         win.destroy()

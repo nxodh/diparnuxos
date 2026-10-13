@@ -56,6 +56,13 @@ class ServerPage(Adw.PreferencesPage):
         )
         self.parallel_row.connect("notify::value", self._on_parallel)
         self.run_group.add(self.parallel_row)
+        self.profile_row = Adw.ComboRow(title=_("Use"))
+        self.profile_row.set_subtitle(
+            _("Chat suits short conversations. Coding agent keeps a long context for each request so tools like Vedecaps can work on large projects. Restart the server to apply.")
+        )
+        self.profile_row.set_model(Gtk.StringList.new([_("Chat"), _("Coding agent")]))
+        self.profile_row.connect("notify::selected", self._on_profile)
+        self.run_group.add(self.profile_row)
         buttons = Gtk.Box(spacing=8, halign=Gtk.Align.END, margin_top=6)
         buttons.append(text_button(_("Show plan"), self.show_plan))
         self.start_btn = text_button(_("Start"), self.start, "suggested-action")
@@ -74,6 +81,12 @@ class ServerPage(Adw.PreferencesPage):
         self.lan_row.set_subtitle(_("Requires an API key. The firewall opens the server port only while this is on."))
         self.lan_row.connect("notify::active", self._on_lan)
         self.net_group.add(self.lan_row)
+        self.local_row = Adw.SwitchRow(title=_("No key needed on this computer"))
+        self.local_row.set_subtitle(
+            _("Programs on this computer, such as Vedecaps, can connect without an API key. Other computers still need one.")
+        )
+        self.local_row.connect("notify::active", self._on_local_no_key)
+        self.net_group.add(self.local_row)
         self.add(self.net_group)
 
         self.keys_group = Adw.PreferencesGroup(title=_("API keys"))
@@ -115,6 +128,8 @@ class ServerPage(Adw.PreferencesPage):
         self.lan_row.set_active(bool(cfg.get("lan_exposed")))
         self._overrides = dict(cfg.get("overrides") or {})
         self.parallel_row.set_value(int(self._overrides.get("parallel") or 1))
+        self.profile_row.set_selected(1 if self._overrides.get("profile") == "agent" else 0)
+        self.local_row.set_active(bool(cfg.get("local_no_key")))
         self._updating = False
 
     def update(self, status, error):
@@ -241,6 +256,42 @@ class ServerPage(Adw.PreferencesPage):
             )
 
         run_async(lambda: self.ctx.client.set_config(overrides=overrides), done, self.ctx.toast_error)
+
+    def _on_profile(self, row, _pspec):
+        if self._updating:
+            return
+        overrides = dict(self._overrides)
+        if row.get_selected() == 1:
+            overrides["profile"] = "agent"
+        else:
+            overrides.pop("profile", None)
+        self._overrides = overrides
+
+        def done(result):
+            self.ctx.toast(
+                _("Restart the server for the new use to take effect.")
+                if result.get("restart_required")
+                else _("Saved")
+            )
+            self.show_plan()
+
+        run_async(lambda: self.ctx.client.set_config(overrides=overrides), done, self.ctx.toast_error)
+
+    def _on_local_no_key(self, row, _pspec):
+        if self._updating:
+            return
+        wanted = row.get_active()
+
+        def done(_result):
+            self.ctx.toast(_("Saved"))
+
+        def failed(exc):
+            self.ctx.toast_error(exc)
+            self._updating = True
+            row.set_active(not wanted)
+            self._updating = False
+
+        run_async(lambda: self.ctx.client.set_config(local_no_key=wanted), done, failed)
 
     def _on_lan(self, row, _pspec):
         if self._updating:

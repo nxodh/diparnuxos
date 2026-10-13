@@ -51,6 +51,17 @@ const (
 	minCtxOverride int64 = 256
 	// maxParallel 은 동시에 처리할 요청(슬롯) 수의 상한이다.
 	maxParallel int64 = 16
+
+	// 에이전트 프로필(코딩 에이전트처럼 긴 대화와 도구 호출을 하는 클라이언트용)의 값이다.
+	// agentCtxCap 은 슬롯당 컨텍스트 상한, agentCtxFloor 는 단계 3 이 내려가는 하한, agentGoodCtx 는 "충분하다"고 보는 값이다.
+	agentCtxCap   int64 = 32768
+	agentCtxFloor int64 = 8192
+	agentGoodCtx  int64 = 16384
+	agentParallel int64 = 2
+
+	// 프로필 이름이다. 비어 있으면 chat 이다.
+	ProfileChat  = "chat"
+	ProfileAgent = "agent"
 )
 
 // GPU는 쓸 수 있는 GPU 하나의 상태다. Index는 nvidia-smi의 index와 같다.
@@ -69,6 +80,9 @@ type Overrides struct {
 	LoadMode  *string
 	// Parallel 은 동시에 처리할 요청 수(슬롯)다. 컨텍스트(Ctx)는 슬롯 하나가 쓰는 길이이고 서버의 전체 컨텍스트는 둘의 곱이다.
 	Parallel *int
+	// Profile 은 "chat"(기본, 대화용 보수적 컨텍스트) 또는 "agent"(코딩 에이전트용: 슬롯당 컨텍스트 16K 이상을 우선하고
+	// 슬롯 2개)다. Ctx 와 Parallel 을 직접 주면 그 값이 프로필보다 우선한다.
+	Profile *string
 }
 
 // Input은 Plan이 받는 입력이다. 모르는 값은 0으로 둔다.
@@ -118,6 +132,9 @@ type norm struct {
 	ov         Overrides
 	// par 는 슬롯 수다(1 이상). 계획의 컨텍스트는 슬롯 하나의 길이이고 KV 캐시 추정은 par 배로 한다.
 	par int64
+	// agent 는 에이전트 프로필이다. floor 는 단계 3 과 4 가 컨텍스트를 줄이는 하한이다.
+	agent bool
+	floor int64
 }
 
 // choice는 단계별 선택 결과다. 재정의는 이 값을 고친 뒤 파생 값을 계산한다.
@@ -174,6 +191,9 @@ func ValidateOverrides(o Overrides) error {
 	if o.Parallel != nil && (int64(*o.Parallel) < 1 || int64(*o.Parallel) > maxParallel) {
 		errs = append(errs, fmt.Errorf("parallel override %d is out of range 1-%d", *o.Parallel, maxParallel))
 	}
+	if o.Profile != nil && *o.Profile != ProfileChat && *o.Profile != ProfileAgent {
+		errs = append(errs, fmt.Errorf("invalid profile %q (use %s or %s)", *o.Profile, ProfileChat, ProfileAgent))
+	}
 	return errors.Join(errs...)
 }
 
@@ -219,7 +239,11 @@ func ValidLoadMode(s string) bool {
 
 // normalize는 입력을 int64로 바꾸고 음수와 너무 큰 값을 자른다. 바꾼 내용은 경고로 남긴다.
 func (pl *planner) normalize(in Input) norm {
-	n := norm{desktop: in.DesktopMode, ov: in.Overrides, par: 1}
+	n := norm{desktop: in.DesktopMode, ov: in.Overrides, par: 1, floor: ctxFloor}
+	if p := in.Overrides.Profile; p != nil && *p == ProfileAgent {
+		n.agent = true
+		n.floor = agentCtxFloor
+	}
 	if p := in.Overrides.Parallel; p != nil {
 		if int64(*p) < 1 || int64(*p) > maxParallel {
 			pl.warnf("parallel override %d ignored: allowed range is 1-%d", *p, maxParallel)
@@ -288,12 +312,16 @@ func (pl *planner) normalize(in Input) norm {
 		n.gpus = append(n.gpus, g)
 	}
 	sort.Slice(n.gpus, func(i, j int) bool { return n.gpus[i].Index < n.gpus[j].Index })
+	// 에이전트 프로필은 메인 요청과 서브에이전트·제목 생성이 겹치므로 슬롯 2개를 기본으로 한다. CPU 에서는 늘려도 이득이 없다.
+	if n.agent && in.Overrides.Parallel == nil && len(n.gpus) > 0 {
+		n.par = agentParallel
+	}
 	return n
 }
 
 // choose는 자동 계획의 단계를 순서대로 시도해 처음 들어맞는 설정을 고른다.
 func (pl *planner) choose(n norm) choice {
-	ctx0 := planCtx(n.ctxTrain)
+	ctx0 := n.planCtx()
 
 	if len(n.gpus) == 0 {
 		pl.warn("no usable NVIDIA GPU; running on CPU")
@@ -343,7 +371,7 @@ func (pl *planner) choose(n norm) choice {
 		return c
 	}
 	// 단계 3: 컨텍스트를 절반씩 줄여 2048까지 q8_0, 전체 오프로드.
-	for _, ctx := range ctxLadder(ctx0) {
+	for _, ctx := range ladderFrom(ctx0, n.floor) {
 		if pl.attempt(n, "stage 3", modelMiB, ctx, "q8_0", usable) {
 			c := base
 			c.ctx = ctx
@@ -353,7 +381,7 @@ func (pl *planner) choose(n norm) choice {
 	}
 
 	// 단계 4: 부분 오프로드. 컨텍스트 2048, q8_0 KV, 남는 VRAM에 맞춘 레이어 수.
-	ctx4 := min(ctxFloor, ctx0)
+	ctx4 := min(n.floor, ctx0)
 	kv4 := kvMiB(n.layers, satMul(ctx4, n.par), n.embedding, "q8_0")
 	room := usable - kv4
 	var k int64
@@ -517,6 +545,12 @@ func (pl *planner) finish(n norm, c choice) Output {
 		pl.warn("block count unknown; KV cache size is not estimated")
 	}
 	kv := kvMiB(n.layers, satMul(c.ctx, n.par), n.embedding, c.cache)
+	if n.agent {
+		pl.rationalef("agent profile: coding agents work best with at least %d tokens per request; this plan gives %d per slot", agentGoodCtx, c.ctx)
+		if c.ctx < agentGoodCtx {
+			pl.warnf("only %d tokens per request fit; a coding agent will compact its history often. Free GPU memory, use a smaller model or one slot", c.ctx)
+		}
+	}
 	if n.par > 1 {
 		pl.rationalef("%d parallel slots with %d tokens each: the server context is %d tokens", n.par, c.ctx, satMul(c.ctx, n.par))
 		if c.cpuOnly {
@@ -582,15 +616,33 @@ func planCtx(train int64) int64 {
 }
 
 // ctxLadder는 단계 3에서 시도할 컨텍스트 목록이다. ctx0의 절반부터 2048까지 내려간다.
-func ctxLadder(ctx0 int64) []int64 {
+func ctxLadder(ctx0 int64) []int64 { return ladderFrom(ctx0, ctxFloor) }
+
+// ladderFrom 은 ctx0 의 절반부터 floor 까지 내려가는 목록이다.
+func ladderFrom(ctx0, floor int64) []int64 {
 	var out []int64
-	for v := ctx0 / 2; v > ctxFloor; v /= 2 {
+	for v := ctx0 / 2; v > floor; v /= 2 {
 		out = append(out, v)
 	}
-	if ctx0 > ctxFloor {
-		out = append(out, ctxFloor)
+	if ctx0 > floor {
+		out = append(out, floor)
 	}
 	return out
+}
+
+// planCtx 는 프로필에 맞는 슬롯당 기본 컨텍스트다. 에이전트 프로필은 학습 컨텍스트가 허락하는 만큼(최대 32768)을 먼저 시도한다.
+func (n norm) planCtx() int64 {
+	if !n.agent {
+		return planCtx(n.ctxTrain)
+	}
+	switch {
+	case n.ctxTrain == 0:
+		return agentCtxCap
+	case n.ctxTrain > agentCtxCap:
+		return agentCtxCap
+	default:
+		return n.ctxTrain
+	}
 }
 
 // kvMiB는 KV 캐시 크기의 상한(MiB)이다. 계산식은 2 * layers * ctx * embedding * 원소당 바이트 / MiB이다.

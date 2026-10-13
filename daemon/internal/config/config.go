@@ -48,6 +48,7 @@ type Overrides struct {
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
 	Parallel  *int    `json:"parallel,omitempty"`
+	Profile   *string `json:"profile,omitempty"`
 }
 
 // Default는 설정 파일이 없을 때 쓰는 기본값이다.
@@ -195,6 +196,7 @@ func (o Overrides) toAutoconf() autoconf.Overrides {
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
 		Parallel:  copyInt(o.Parallel),
+		Profile:   copyStr(o.Profile),
 	}
 }
 
@@ -207,6 +209,7 @@ func copyOverrides(o Overrides) Overrides {
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
 		Parallel:  copyInt(o.Parallel),
+		Profile:   copyStr(o.Profile),
 	}
 }
 

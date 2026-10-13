@@ -276,6 +276,9 @@ func overridesText(o client.Overrides) string {
 	if o.Parallel != nil {
 		parts = append(parts, fmt.Sprintf("parallel=%d", *o.Parallel))
 	}
+	if o.Profile != nil {
+		parts = append(parts, "profile="+*o.Profile)
+	}
 	if len(parts) == 0 {
 		return "none (automatic plan)"
 	}
@@ -285,7 +288,7 @@ func overridesText(o client.Overrides) string {
 // configSet 는 설정 한 항목을 바꾼다. hf-token 은 인자가 아니라 표준 입력에서 읽는다.
 func (c *cli) configSet(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux config set <port|lan|autostart|auto-restart|local-no-key|gateway|parallel|hf-token> [value]", "config set")
+		return c.usage("usage: diparnux config set <port|lan|autostart|auto-restart|local-no-key|gateway|parallel|profile|hf-token> [value]", "config set")
 	}
 	key, rest := args[0], args[1:]
 	switch key {
@@ -317,6 +320,8 @@ func (c *cli) configSet(args []string) int {
 		return c.applyConfig(key, patch, fmt.Sprintf("%s %s", key, rest[0]))
 	case "parallel":
 		return c.setParallel(rest)
+	case "profile":
+		return c.setProfile(rest)
 	case "hf-token":
 		if len(rest) != 0 {
 			return c.usage("hf-token takes no argument; the token is read from standard input", "config set")
@@ -353,6 +358,28 @@ func (c *cli) setParallel(args []string) int {
 		text = "parallel set to automatic (one slot)"
 	}
 	return c.applyConfig("parallel", client.ConfigPatch{Overrides: &ov}, text)
+}
+
+// setProfile 은 서버 계획의 프로필을 저장한다(chat 또는 agent). chat 은 지정을 지운다.
+func (c *cli) setProfile(args []string) int {
+	const use = "usage: diparnux config set profile <chat|agent>"
+	if len(args) != 1 || (args[0] != "chat" && args[0] != "agent") {
+		return c.usage(use, "config set")
+	}
+	ctx, cancel := c.timeout(shortTimeout)
+	cur, _, err := c.api.Config(ctx)
+	cancel()
+	if err != nil {
+		return c.fail(err)
+	}
+	ov := cur.Overrides
+	if args[0] == "chat" {
+		ov.Profile = nil
+	} else {
+		v := "agent"
+		ov.Profile = &v
+	}
+	return c.applyConfig("profile", client.ConfigPatch{Overrides: &ov}, "profile set to "+args[0])
 }
 
 // setHFToken 은 표준 입력에서 토큰을 한 줄 읽어 저장한다. 토큰은 어떤 출력에도 나오지 않는다.
@@ -513,9 +540,9 @@ var commandUsage = map[string]string{
 	"webadmin":             "Usage: diparnux webadmin [status | on|off [--port N] [--from lan|any|CIDR] | password]\n\nA small admin page for another computer's browser: server start and stop, API keys, connection info, resources and service restarts.\nIt is off by default, uses HTTPS with a self-signed certificate and has its own password (set it first with 'diparnux webadmin password').\nAccounts, SSH keys, the firewall and the VPN cannot be changed from the page.\n",
 	"exposure":             "Usage: diparnux exposure\n\nCheck what this computer offers to the network: the model server, SSH, the web admin page, remote desktop, the VPN and the firewall.\nRisky settings are listed first. Exit code 1 means there is a warning or an error.\n",
 	"serve stats":          "Usage: diparnux serve stats\n\nShow the running server: busy slots, generation and prompt speed, requests being processed, and the gateway counters.\n",
-	"serve start":          "Usage: diparnux serve start [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N] [--no-wait]\n\nShow the plan with its rationale, then start llama-server and wait for it to be ready.\n",
+	"serve start":          "Usage: diparnux serve start [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N] [--profile chat|agent] [--no-wait]\n\nShow the plan with its rationale, then start llama-server and wait for it to be ready.\n",
 	"serve stop":           "Usage: diparnux serve stop\n\nStop llama-server.\n",
-	"serve plan":           "Usage: diparnux serve plan [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N]\n\nShow the plan and its rationale without starting the server.\n",
+	"serve plan":           "Usage: diparnux serve plan [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N] [--profile chat|agent]\n\nShow the plan and its rationale without starting the server.\n",
 	"serve logs":           "Usage: diparnux serve logs [-n N]\n\nShow the last N llama-server log lines (1-2000, default 200).\n",
 	"mode":                 "Usage: diparnux mode [server|desktop]\n\nShow the current mode, or set it.\n",
 	"update":               "Usage: diparnux update [--check] [--rollback] [--status] [--reboot]\n\nInstall the kernel, NVIDIA driver and system updates together. The new kernel boots once and becomes the default only after it passes the boot check.\n\n  --check     show what would change and install nothing\n  --rollback  return to the kernel and driver from before the last update\n  --status    show the state of the last update\n  --reboot    reboot when the update succeeds\n",
@@ -534,7 +561,7 @@ var commandUsage = map[string]string{
 	"user rm":              "Usage: diparnux user rm <name>\n\nDelete an account created with Diparnux. Its home directory is kept.\n",
 	"config":               "Usage: diparnux config <show|set> [arguments]\n",
 	"config show":          "Usage: diparnux config show\n\nShow the daemon configuration. The Hugging Face token is hidden.\n",
-	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | auto-restart on|off | local-no-key on|off | gateway on|off | parallel <1-16|auto> | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n  auto-restart  start the server again (10 s, 30 s, 2 min, 5 min, 15 min) when it stops unexpectedly (default on)\n  local-no-key  requests from this computer need no API key; other computers still do (default on)\n  gateway   the daemon receives the public port and checks API keys; key changes need no restart (default on)\n  parallel  how many requests the server handles at the same time; each one gets its own context, so the KV cache grows with the count\n",
+	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | auto-restart on|off | local-no-key on|off | gateway on|off | parallel <1-16|auto> | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n  auto-restart  start the server again (10 s, 30 s, 2 min, 5 min, 15 min) when it stops unexpectedly (default on)\n  local-no-key  requests from this computer need no API key; other computers still do (default on)\n  gateway   the daemon receives the public port and checks API keys; key changes need no restart (default on)\n  profile   chat (default) or agent: coding agents need 16K+ tokens per request and 2 slots\n  parallel  how many requests the server handles at the same time; each one gets its own context, so the KV cache grows with the count\n",
 	"chat":                 "Usage: diparnux chat [--max-tokens N] <prompt...>\n\nSend one prompt to the running server and show the reply and speed.\nUse -- before a prompt that starts with a dash.\n",
 	"version":              "Usage: diparnux version\n\nShow the CLI version.\n",
 	"help":                 "Usage: diparnux help [command]\n\nShow help for all commands, or for one command.\n",
