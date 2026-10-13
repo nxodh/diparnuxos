@@ -104,6 +104,7 @@ Vedecaps 가 Diparnux 서버를 **모델 제공자**로 쓰는 것이 기본 연
 ## 4. Vedecaps 저장소에 필요한 변경(제안만, 이 저장소에서 하지 않는다)
 
 Vedecaps 는 사용자의 별도 저장소(`nxodh/vedecaps`)다. 아래는 0.5.3 의 이점을 극대화하기 위한 제안이며, 어느 것도 Diparnux 쪽 변경의 선행 조건이 아니다.
+자세한 설계(현재 동작 근거, 코드 변경 지점, 시험, 수용 기준, PR 분할)는 [vedecaps-repo-changes-design.md](vedecaps-repo-changes-design.md) 에 있다.
 
 | 번호 | 변경 | 이유 |
 |---|---|---|
