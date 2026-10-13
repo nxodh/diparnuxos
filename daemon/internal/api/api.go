@@ -132,6 +132,8 @@ type server struct {
 	d          Deps
 	mux        *http.ServeMux
 	mutationMu sync.Mutex
+	// importMu 는 모델 가져오기를 한 번에 하나로 제한한다.
+	importMu sync.Mutex
 }
 
 // New는 API 핸들러를 만든다. 반환값은 유닉스 소켓 서버에 그대로 꽂는다.
@@ -167,6 +169,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("PUT /v1/models/default", s.putDefaultModel)
 	s.mux.HandleFunc("DELETE /v1/models/{id}", s.deleteModel)
 	s.mux.HandleFunc("POST /v1/models/pull", s.pullModel)
+	s.mux.HandleFunc("PUT /v1/models/import", s.importModel)
 
 	s.mux.HandleFunc("GET /v1/jobs", s.listJobs)
 	s.mux.HandleFunc("GET /v1/jobs/{id}", s.getJob)

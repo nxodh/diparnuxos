@@ -1147,3 +1147,47 @@ func TestGatewayShowsUsagePerKey(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "gateway", res.stdout, "0.0.0.0:8080 -> 127.0.0.1:18080", "requests:", "12 (errors 2, unauthorized 3, in flight 1)", "orca", "dpx_ab12", "420", "900")
 }
+
+func TestModelImportSendsTheFileAndReportsTheResult(t *testing.T) {
+	f := newFakeDaemon(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "my-model.gguf")
+	content := "GGUF-not-really-but-the-fake-daemon-does-not-care"
+	if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.on("PUT /v1/models/import", 201, `{"model_id":"my-model.gguf","size_bytes":49,"sha256":"`+strings.Repeat("ab", 32)+`","default":true}`)
+	res := runCLI(t, f, "model", "import", file)
+	wantCode(t, res, exitOK)
+	wantContains(t, "import", res.stdout, "imported my-model.gguf", "it is now the default model")
+	if got := f.bodiesOf("PUT /v1/models/import"); len(got) != 1 || got[0] != content {
+		t.Fatalf("body = %v", got)
+	}
+	if !f.hitsContain("PUT /v1/models/import?name=my-model.gguf") {
+		t.Fatalf("hits = %v", f.hits)
+	}
+
+	// --name 으로 이름을 바꿔 보낸다. 이름이 .gguf 로 끝나지 않으면 보내지 않는다.
+	res = runCLI(t, f, "model", "import", file, "--name", "renamed.gguf")
+	wantCode(t, res, exitOK)
+	if !f.hitsContain("PUT /v1/models/import?name=renamed.gguf") {
+		t.Fatalf("renamed hits = %v", f.hits)
+	}
+	res = runCLI(t, f, "model", "import", file, "--name", "bad.bin")
+	wantCode(t, res, exitUsage)
+
+	res = runCLI(t, f, "model", "import", filepath.Join(dir, "missing.gguf"))
+	wantCode(t, res, exitFailure)
+}
+
+func TestModelImportShowsTheDaemonsRefusal(t *testing.T) {
+	f := newFakeDaemon(t)
+	file := filepath.Join(t.TempDir(), "x.gguf")
+	if err := os.WriteFile(file, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.on("PUT /v1/models/import", 409, `{"error":{"code":"name_conflict","message":"a model named x.gguf already exists"}}`)
+	res := runCLI(t, f, "model", "import", file)
+	wantCode(t, res, exitFailure)
+	wantContains(t, "conflict", res.stderr, "already exists", "name_conflict")
+}

@@ -153,6 +153,7 @@ Commands:
   gpu check                   run the GPU check again and say what to do
   model list                  list installed models
   model pull <repo>           download a GGUF model from Hugging Face
+  model import <file.gguf>    add a GGUF file you already have
   model rm <id>               delete an installed model
   model search <query>        search Hugging Face for GGUF models
   model files <repo>          list the GGUF files in a repository

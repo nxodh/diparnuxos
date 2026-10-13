@@ -2,6 +2,9 @@ package client
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -266,4 +269,35 @@ func (c *Client) Connection(ctx context.Context) (Connection, []byte, error) {
 // Gateway 는 GET /v1/gateway 로 게이트웨이 상태와 키별 사용량을 읽는다.
 func (c *Client) Gateway(ctx context.Context) (Gateway, []byte, error) {
 	return call[Gateway](ctx, c, http.MethodGet, "/v1/gateway", nil, defaultLimit)
+}
+
+// ImportModel 은 PUT /v1/models/import 로 size 바이트의 GGUF 파일을 모델 name 으로 보낸다.
+// 큰 파일이므로 시간 제한은 ctx 에 맡긴다. r 이 읽힌 만큼이 진행률이다.
+func (c *Client) ImportModel(ctx context.Context, name string, r io.Reader, size int64) (ImportResult, []byte, error) {
+	var out ImportResult
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://diparnuxd/v1/models/import?name="+url.QueryEscape(name), r)
+	if err != nil {
+		return out, nil, fmt.Errorf("build request: %w", err)
+	}
+	req.ContentLength = size
+	req.Header.Set("Content-Type", "application/octet-stream")
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return out, nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, defaultLimit+1))
+	if err != nil {
+		return out, nil, fmt.Errorf("read response: %w", err)
+	}
+	if int64(len(data)) > defaultLimit {
+		return out, nil, ErrTooLarge
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return out, nil, parseAPIError(resp.StatusCode, data)
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return out, data, fmt.Errorf("decode response from import: %w", err)
+	}
+	return out, data, nil
 }

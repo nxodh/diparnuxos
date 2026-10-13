@@ -76,6 +76,7 @@ ROUTES = {
         "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
         "keys": [{"id": "k1", "label": "orca", "prefix": "dpx_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
     ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
+    ("PUT", "/v1/models/import"): (201, {"model_id": "imported.gguf", "size_bytes": 8, "sha256": "ab" * 32, "default": False}),
     ("GET", "/v1/system/ssh"): (200, {"enabled": False, "installed": True, "active": False, "password_auth": "no", "port": 22}),
     ("GET", "/v1/users"): (200, {"users": [{"name": "alice", "admin": True, "created": "2026-10-12T00:00:00Z"}]}),
     ("POST", "/v1/users"): (201, {"name": "bob", "admin": False, "created": "2026-10-12T01:00:00Z"}),
@@ -147,6 +148,21 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("dpx_ab12", sub)
         page.check()
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
+
+    def test_models_page_imports_a_file(self):
+        import tempfile
+
+        from diparnux_cc.models import ModelsPage
+
+        page = ModelsPage(self.ctx)
+        self.assertTrue(pump(5, until=lambda: len(page._installed_rows) >= 1))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "imported.gguf")
+            with open(path, "wb") as fh:
+                fh.write(b"GGUF1234")
+            page.start_import(path)
+            self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1].startswith("/v1/models/import") for c in self.daemon.calls)))
+        self.assertTrue(pump(5, until=lambda: not page._job_rows), "the import row was not removed")
 
     def test_system_page_lists_accounts(self):
         from diparnux_cc.window import MainWindow

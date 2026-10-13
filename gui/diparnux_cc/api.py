@@ -100,6 +100,56 @@ class Client:
             return path
         return path + "?" + urllib.parse.urlencode(items)
 
+    def import_model(self, path, name=None, progress=None):
+        """사용자가 가진 GGUF 파일을 데몬으로 보내 모델로 가져온다. 사용자 권한으로 파일을 읽는다.
+
+        progress(done, total) 는 1 MiB 를 보낼 때마다 불린다(작업 스레드에서).
+        """
+        import os
+
+        name = name or os.path.basename(path)
+        size = os.path.getsize(path)
+        conn = _UnixConnection(self.socket_path, SLOW_TIMEOUT)
+        try:
+            try:
+                conn.putrequest("PUT", "/v1/models/import?" + urllib.parse.urlencode({"name": name}))
+                conn.putheader("Content-Type", "application/octet-stream")
+                conn.putheader("Content-Length", str(size))
+                conn.putheader("Accept", "application/json")
+                conn.endheaders()
+                sent = 0
+                with open(path, "rb") as fh:
+                    while True:
+                        chunk = fh.read(1 << 20)
+                        if not chunk:
+                            break
+                        conn.send(chunk)
+                        sent += len(chunk)
+                        if progress is not None:
+                            progress(sent, size)
+                resp = conn.getresponse()
+                data = resp.read()
+            except PermissionError as exc:
+                raise DaemonUnavailable("permission_denied", "permission denied on %s" % self.socket_path) from exc
+            except (FileNotFoundError, ConnectionRefusedError) as exc:
+                raise DaemonUnavailable("unavailable", "diparnuxd is not running") from exc
+            except (OSError, http.client.HTTPException) as exc:
+                raise DaemonUnavailable("unavailable", "cannot talk to diparnuxd: %s" % exc) from exc
+        finally:
+            conn.close()
+        text = data.decode("utf-8", errors="replace")
+        try:
+            body = json.loads(text) if text.strip() else {}
+        except ValueError:
+            body = {}
+        if resp.status >= 400:
+            err = body.get("error") if isinstance(body, dict) else None
+            err = err if isinstance(err, dict) else {}
+            raise DaemonError(
+                str(err.get("code", "http_%d" % resp.status)), str(err.get("message", text.strip()[:300])), resp.status
+            )
+        return body
+
     # --- 상태 ---
     def status(self):
         return self._request("GET", "/v1/status")

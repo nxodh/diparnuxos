@@ -454,3 +454,11 @@ type Gateway struct {
 	Stats      gateway.Snapshot     `json:"stats"`
 	Note       string               `json:"note"`
 }
+
+// ImportResult 는 PUT /v1/models/import 의 응답이다.
+type ImportResult struct {
+	ModelID   string `json:"model_id"`
+	SizeBytes int64  `json:"size_bytes"`
+	SHA256    string `json:"sha256"`
+	Default   bool   `json:"default"`
+}

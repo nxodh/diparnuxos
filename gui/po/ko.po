@@ -1105,3 +1105,18 @@ msgstr "필요함"
 
 msgid "this computer only"
 msgstr "이 컴퓨터에서만"
+
+msgid "Choose a GGUF model file"
+msgstr "GGUF 모델 파일 고르기"
+
+msgid "GGUF model files"
+msgstr "GGUF 모델 파일"
+
+msgid "Import a file"
+msgstr "파일 가져오기"
+
+msgid "Imported %s"
+msgstr "%s을(를) 가져왔습니다"
+
+msgid "Importing"
+msgstr "가져오는 중"

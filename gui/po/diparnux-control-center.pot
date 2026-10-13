@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 13:04+0000\n"
+"POT-Creation-Date: 2026-10-13 13:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -649,6 +649,9 @@ msgstr ""
 msgid "Installed models"
 msgstr ""
 
+msgid "Import a file"
+msgstr ""
+
 msgid "Downloads"
 msgstr ""
 
@@ -716,6 +719,19 @@ msgid "Delete this model?"
 msgstr ""
 
 msgid "Download started"
+msgstr ""
+
+msgid "Choose a GGUF model file"
+msgstr ""
+
+msgid "GGUF model files"
+msgstr ""
+
+msgid "Importing"
+msgstr ""
+
+#, python-format
+msgid "Imported %s"
 msgstr ""
 
 msgid "Token saved. Restart diparnuxd to use it."
