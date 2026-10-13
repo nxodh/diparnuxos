@@ -132,7 +132,9 @@ out/             빌드 산출물(git 제외)
 | 3 | GUI(labwc, greetd, GTK4/libadwaita). Secure Boot의 기기별 MOK 흐름과 안내 | 구현 및 CI 검증 완료(QEMU 가상 화면에서 모드 전환, greetd, labwc, Control Center). 실기 모니터·입력·Secure Boot MOK 검증 대기. 데스크톱은 0.5.0에서 Xfce로 교체됨 |
 | 4 | Calamares 설치기, 커널·드라이버 동시 업데이트와 롤백, 자체 APT 저장소 | 구현 및 CI 검증 완료(0.4.0, `main`에 병합). 0.4.1(Wi-Fi 화면, 로고 디자인, 설치기 polkit 수정)은 [PR #8](https://github.com/nxodh/diparnuxos/pull/8)에서 검토 중. 실기 설치·실제 커널 갱신 검증 대기. 저장소 호스팅과 서명 키는 사용자 결정 대기. [검증 기록](docs/verification-phase-4.md) |
 | 4.5 | 0.5.0: Xfce(Xorg) 데스크톱, lightdm, 어두운 흑백 디자인. 램 목표는 철회했다(먼저 동작, 경량화는 그다음) | 구현 및 CI 검증 완료([PR #9](https://github.com/nxodh/diparnuxos/pull/9), QEMU 가상 화면에서 자동 로그인, 로그인 화면, Xfce 세션, Control Center, 설치기 창). 설계는 [phase-5-design.md](docs/phase-5-design.md). 실기, NVIDIA 하이브리드 화면, VMware 검증 대기 |
-| 4.6 | 0.5.1: OS 이름 Diparnux, 새 로고와 디자인. 이전 이름의 흔적을 두지 않는다 | 구현 중(브랜치 `phase-5-1`). 설계는 [phase-5-1-design.md](docs/phase-5-1-design.md) |
+| 4.6 | 0.5.1: OS 이름 Diparnux, 새 로고와 디자인. 이전 이름의 흔적을 두지 않는다 | 구현 및 CI 검증 완료, `main` 에 병합됨. 설계는 [phase-5-1-design.md](docs/phase-5-1-design.md) |
+| 4.7 | 0.5.2: 경량화 일부, 설치기 비밀번호 오류 수정, 상시 가동, 한/영 전환, AI 서버 운영(게이트웨이, 동시 요청), 네트워크·방화벽·원격 접속 | 구현 완료([PR #11](https://github.com/nxodh/diparnuxos/pull/11)). 설계는 [phase-5-2-design.md](docs/phase-5-2-design.md), 검증 범위는 [phase-5-2-verification.md](docs/phase-5-2-verification.md) |
+| 4.8 | 0.5.3: Vedecaps 와의 연결성, 호환성, 시너지 | 설계 초안([phase-5-3-design.md](docs/phase-5-3-design.md)) |
 | 5 | 경량화(실측과 목표 재설정), 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
 
 ---

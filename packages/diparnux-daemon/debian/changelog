@@ -1,3 +1,12 @@
+diparnux-daemon (0.5.2) trixie; urgency=medium
+
+  * 설치기 비밀번호 오류 수정 포함(0.5.2 전체 변경의 일부: 설치기 사용자 탭 사전 검사와 sudo 그룹은 diparnux-installer).
+  * 게이트웨이(키를 서버 재시작 없이 반영, 키별 사용량), 연결 정보, 병렬 슬롯, 서버 현황, 자동 재시작, 모델 가져오기, 노출 점검.
+  * 유선 고정 IP·DNS·호스트 이름(확인 또는 자동 복구), 방화벽 규칙, SSH 고급, 서비스·자원, WireGuard VPN, 원격 데스크톱, 원격 관리 웹 페이지(모두 기본 꺼짐).
+  * 상시 가동(절전·덮개·유휴 금지, 사용자가 직접 끄는 것은 허용), 데몬 GC 조정, 권한 있는 파일 쓰기 헬퍼 diparnux-admin.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 12:00:00 +0900
+
 diparnux-daemon (0.5.1) trixie; urgency=medium
 
   * OS 이름을 Diparnux 로 바꾼다. 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다.
