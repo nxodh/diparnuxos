@@ -121,6 +121,8 @@ type Plan struct {
 	Batch          int      `json:"batch"`
 	Parallel       int      `json:"parallel"`
 	SlotCtx        int      `json:"slot_ctx"`
+	CacheReuse     int      `json:"cache_reuse"`
+	CacheRAMMiB    int      `json:"cache_ram_mib"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -447,6 +449,12 @@ type Connection struct {
 	Gateway     bool                `json:"gateway"`
 	KeyRequired bool                `json:"key_required"`
 	KeyCount    int                 `json:"key_count"`
+	// LocalNoKey 는 이 컴퓨터의 요청이 키 없이 통과하는지, LocalKeyRequired 는 이 컴퓨터에서도 키가 필요한지다.
+	LocalNoKey       bool `json:"local_no_key"`
+	LocalKeyRequired bool `json:"local_key_required"`
+	// SlotCtx 와 Parallel 은 실행 중인 서버의 계획 값이다. 멈춰 있으면 0 이다.
+	SlotCtx  int `json:"slot_ctx"`
+	Parallel int `json:"parallel"`
 	Hostname    string              `json:"hostname"`
 	LocalURL    string              `json:"local_url"`
 	Addresses   []ConnectionAddress `json:"addresses"`

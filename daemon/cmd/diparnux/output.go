@@ -163,6 +163,7 @@ Commands:
   serve plan [model]          show the plan without starting
   serve logs                  show recent llama-server log lines
   serve stats                 show busy slots and speed of the running server
+  serve toolcheck             check that the model calls tools (needed by coding agents)
   mode [server|desktop]       show or set the mode
   update [--check|--rollback] update the kernel, driver and system packages
   report                      write a diagnostic report
@@ -170,6 +171,7 @@ Commands:
   apikey list                 list API keys
   apikey rm <id>              delete an API key
   connection [examples]       show the addresses and examples for other computers to connect
+  connect vedecaps            settings that connect the Vedecaps coding agent to this server
   gateway                     show the gateway state and per-key usage
   power [on|off]              show or change always-on (no suspend or sleep)
   network [wifi ...]          show the network state, list/connect Wi-Fi

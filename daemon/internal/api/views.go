@@ -107,6 +107,8 @@ type planView struct {
 	Batch          int      `json:"batch"`
 	Parallel       int      `json:"parallel"`
 	SlotCtx        int      `json:"slot_ctx"`
+	CacheReuse     int      `json:"cache_reuse"`
+	CacheRAMMiB    int      `json:"cache_ram_mib"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -141,6 +143,8 @@ func planViewOf(o *autoconf.Output) *planView {
 		Batch:          o.Batch,
 		Parallel:       max(o.Parallel, 1),
 		SlotCtx:        slotCtxOf(o),
+		CacheReuse:     o.CacheReuse,
+		CacheRAMMiB:    o.CacheRAMMiB,
 		TensorSplit:    o.TensorSplit,
 		VisibleDevices: nonNilInts(o.VisibleDevices),
 		LoadMode:       o.LoadMode,
