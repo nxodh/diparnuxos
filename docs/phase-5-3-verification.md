@@ -38,6 +38,27 @@
 드라이버 회귀 18개(`python3 -I tests/qemu/test_cpu_inference.py`)가 가짜 QEMU 로 통과한다. 새 검사가 실제로 쓰이는지는
 고의로 값을 틀리게 한 가짜로 실패하는 것을 확인했다. 실제 ISO 위의 실행은 CI 에서 한다.
 
+## 2.1 실제 Vedecaps 실행 파일로 확인한 것
+
+`make test-vedecaps-docker`(`tests/vedecaps/`): `diparnux.conf` 에 고정한 Vedecaps 0.1.3 실행 파일을 Debian 13 컨테이너에서 실제로 돌린다.
+뒤쪽은 **실제 Diparnux 게이트웨이 코드**(`daemon/internal/gateway`)와 가짜 llama-server(Python)다. 설정 파일은 `connect vedecaps` 가 만드는 모양이다.
+
+| 시나리오 | 확인 |
+|---|---|
+| A 키 없음 | `/props` 로 서버 감지, SSE 스트리밍 응답이 화면에 나옴, 도구 14개가 요청에 실림 |
+| B 키가 있고 `local_no_key` 켬 | 키 없는 로컬 요청이 통과 |
+| C 키가 있고 `local_no_key` 끔, 키를 안 보냄 | Vedecaps 가 게이트웨이의 `error.message`("a valid API key is required")를 그대로 보여 줌 |
+| D 키 필요, 환경 변수의 맞는 키 | `{env:DIPARNUX_API_KEY}` 가 풀려 통과, 모델 서버에는 키가 전달되지 않음 |
+| E 키 필요, 틀린 키 | 거절 |
+
+같은 방법으로 확인한 것(수동 실행, 실제 `vedecaps debug`):
+
+- `connect vedecaps --mcp` 가 만든 설정을 Vedecaps 0.1.3 이 읽는다(`Providers with credentials: diparnux openai via config 1 models`). `config.schema.json` 검증도 통과한다.
+- `~/.agents/skills/diparnux` 가 스킬로 잡힌다(`Skills diparnux`).
+- `diparnux mcp` 에 Vedecaps 가 연결해 도구 9개를 읽는다(`MCP servers diparnux connected (9 tools)`).
+
+이 시험은 CI 의 `iso` 잡에서도 CUDA 빌드 전에 돈다. Vedecaps 를 올릴 때 호환이 깨지면 여기서 먼저 드러난다.
+
 ## 3. 시험 실행 결과(이 세션, 로컬 컨테이너)
 
 | 시험 | 결과 |
@@ -47,6 +68,8 @@
 | QEMU 드라이버 회귀 | 18개 통과 |
 | `make check-secrets`, `make check-legacy-name` | 통과 |
 | `diparnux-vedecaps` .deb 빌드와 실행 | 통과(Vedecaps 0.1.3, glibc 의존만) |
+| `make test-vedecaps-docker`(실제 Vedecaps) | 5개 시나리오 통과 |
+| actionlint(워크플로) | 통과 |
 
 CI 결과는 PR 에서 확인한다.
 
@@ -56,7 +79,6 @@ CI 결과는 PR 에서 확인한다.
 - agent 프로필의 컨텍스트(32768)와 슬롯(2)이 VRAM 크기별로 맞는지는 실측 전이다. 계획이 메모리를 잘못 어림할 수 있다.
 - `--cache-reuse 256` 이 Vedecaps 의 요청 모양에서 실제로 시간을 줄이는지, 모델 구조(SWA 등)에 따라 llama-server 가 이 옵션을 끄는지 확인하지 못했다.
 - 추천 목록의 "도구 호출 지원"은 모델 카드 기준이다. 이 컴퓨터에서의 동작은 `serve toolcheck` 로만 알 수 있다.
-- Vedecaps 가 Diparnux 설정 조각을 실제로 읽는지(스키마 일치)는 Vedecaps 0.1.3 의 `config.schema.json` 과 소스로 확인했고, 실행 파일로 읽어 보지는 않았다.
 - 원격 컴퓨터(LAN/VPN)에서의 Vedecaps 접속은 시험하지 않았다. 평문 HTTP 이다.
 - 실기 ISO 부팅 후 `/usr/bin/vedecaps` 의 첫 실행.
 

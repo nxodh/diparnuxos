@@ -130,7 +130,12 @@ llama-server 는 고정 커밋에서 jinja 틀을 기본으로 쓰므로 별도 
 | 도구를 부르지 않고 글로만 답한다 | `diparnux serve toolcheck`. 도구 지원이 있는 모델로 바꾼다(추천 목록의 "코딩 에이전트용") |
 | 느리다 | `diparnux serve stats` 로 슬롯 점유와 속도를 본다. CPU 폴백이면 `diparnux status` 의 GPU 상태를 본다 |
 
-## 8. 한계
+## 8. 호환 시험
+
+`make test-vedecaps-docker`: 고정 버전의 실제 Vedecaps 를 컨테이너에서 Diparnux 게이트웨이와 가짜 모델 서버에 붙여 감지, 스트리밍, 키 규칙을 확인한다.
+CI 에서도 돈다. Vedecaps 버전을 올릴 때(`diparnux.conf`)는 이 시험을 먼저 돌린다.
+
+## 9. 한계
 
 - Vedecaps 는 0.1.x 로 빠르게 바뀐다. 이미지는 고정 버전을 쓰며, 새 버전으로 올릴 때는 `diparnux.conf` 의 값과 E2E 호환 시험을 함께 갱신한다.
 - 게이트웨이는 평문 HTTP 다. TLS 는 0.5.4 이후에 다룬다(Vedecaps 쪽 CA 옵션과 짝). 그때까지는 VPN 안에서 쓴다.

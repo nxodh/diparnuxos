@@ -66,6 +66,12 @@ func (c *cli) connectVedecaps(args []string) int {
 	if model == "" {
 		model = conn.ModelID
 	}
+	if model == "" {
+		// 서버가 멈춰 있으면 기본 모델을, 그것도 없으면 첫 모델을 쓴다.
+		if list, _, lerr := c.api.Models(ctx); lerr == nil {
+			model = list.Default
+		}
+	}
 	if model == "" && len(conn.Models) > 0 {
 		model = conn.Models[0]
 	}

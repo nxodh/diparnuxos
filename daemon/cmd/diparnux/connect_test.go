@@ -246,3 +246,17 @@ func TestConnectVedecapsTurnsOffSelfUpdateForThePackagedInstall(t *testing.T) {
 		t.Fatalf("autoupdate written without the packaged binary: %s", res.stdout)
 	}
 }
+
+func TestConnectVedecapsUsesTheDefaultModelWhenTheServerIsStopped(t *testing.T) {
+	f := newFakeDaemon(t)
+	stopped := strings.Replace(strings.Replace(strings.Replace(connRunning, `"server_state":"running"`, `"server_state":"stopped"`, 1),
+		`"model_id":"qwen3-14b.gguf"`, `"model_id":""`, 1), `"models":["qwen3-14b.gguf"]`, `"models":["a.gguf","b.gguf"]`, 1)
+	f.on("GET /v1/connection", 200, stopped)
+	f.on("GET /v1/models", 200, `{"default":"b.gguf","models":[{"id":"a.gguf"},{"id":"b.gguf"}]}`)
+	f.on("GET /v1/server/plan", 200, `{"model_id":"b.gguf","plan":{"ngl":"0","ctx":8192,"slot_ctx":8192,"parallel":1,"rationale":[],"warnings":[],"advice":[],"visible_devices":[]},"input":{},"gpu":{}}`)
+	res := runCLI(t, f, "connect", "vedecaps")
+	wantCode(t, res, exitOK)
+	if decodeOut(t, res.stdout)["model"] != "diparnux/b.gguf" {
+		t.Fatalf("output = %s", res.stdout)
+	}
+}
