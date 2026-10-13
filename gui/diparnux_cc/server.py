@@ -127,9 +127,7 @@ class ServerPage(Adw.PreferencesPage):
             label += " · " + server["model_id"]
         self.state_row.set_subtitle(label)
         notes = list(server.get("warnings") or [])
-        last = server.get("last_error")
-        if last:
-            notes.append("%s: %s" % (last.get("code", ""), last.get("message", "")))
+        notes.extend(logic.server_failure_notes(server))
         notes.extend(logic.server_advice(status))
         self.warn_row.set_visible(bool(notes))
         self.warn_row.set_subtitle("\n".join(notes))

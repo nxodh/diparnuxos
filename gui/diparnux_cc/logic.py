@@ -187,6 +187,41 @@ def job_is_final(job):
     return job.get("state") in ("done", "failed", "canceled")
 
 
+def _failure_hints():
+    return {
+        "gpu_offload_failed": _("The model did not load on the GPU as planned. Lower the context or the number of simultaneous requests, or free GPU memory."),
+        "cuda_backend": _("The CUDA backend did not load. Check the GPU in the Dashboard and run the GPU check."),
+        "health_timeout": _("The server did not become ready in time. A large model can take a while to load; check the server log below."),
+        "server_exited": _("The server stopped by itself. The log below shows the last lines it wrote."),
+        "unit_start_failed": _("The system could not start the server unit. Check the server log below."),
+    }
+
+
+def server_failure_notes(server):
+    """서버의 마지막 오류와 자동 재시작 진행을 사용자가 읽을 문장으로 바꾼다."""
+    server = server or {}
+    out = []
+    last = server.get("last_error")
+    if last:
+        code = last.get("code", "")
+        message = (last.get("message") or "").strip().replace("\n", " ")
+        if len(message) > 400:
+            message = message[:400] + "…"
+        out.append("%s: %s" % (code, message) if message else code)
+        hint = _failure_hints().get(code)
+        if hint:
+            out.append(hint)
+    restart = server.get("restart")
+    if restart:
+        if restart.get("gave_up"):
+            out.append(_("The server stopped and %d automatic restarts failed. Start it again yourself after fixing the cause.") % restart.get("max", 0))
+        else:
+            out.append(
+                _("Automatic restart: attempt %(done)d of %(max)d.") % {"done": restart.get("attempt", 0), "max": restart.get("max", 0)}
+            )
+    return out
+
+
 def server_advice(status):
     """데스크톱 모드에서 큰 모델을 돌릴 때 서버 모드를 권장할 근거를 모은다."""
     if (status or {}).get("mode") != "desktop":

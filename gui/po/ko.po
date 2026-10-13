@@ -1150,3 +1150,24 @@ msgstr "요청"
 
 msgid "Speed"
 msgstr "속도"
+
+msgid "Automatic restart: attempt %(done)d of %(max)d."
+msgstr "자동 재시작: %(max)d번 중 %(done)d번째 시도입니다."
+
+msgid "The CUDA backend did not load. Check the GPU in the Dashboard and run the GPU check."
+msgstr "CUDA 백엔드를 불러오지 못했습니다. 대시보드에서 GPU 상태를 확인하고 GPU 점검을 실행하세요."
+
+msgid "The model did not load on the GPU as planned. Lower the context or the number of simultaneous requests, or free GPU memory."
+msgstr "모델이 계획대로 GPU에 올라가지 않았습니다. 컨텍스트나 동시 요청 수를 줄이거나 GPU 메모리를 비우세요."
+
+msgid "The server did not become ready in time. A large model can take a while to load; check the server log below."
+msgstr "서버가 제시간에 준비되지 않았습니다. 큰 모델은 불러오는 데 시간이 걸릴 수 있습니다. 아래 서버 로그를 확인하세요."
+
+msgid "The server stopped and %d automatic restarts failed. Start it again yourself after fixing the cause."
+msgstr "서버가 멈췄고 자동 재시작 %d번이 모두 실패했습니다. 원인을 해결한 뒤 직접 다시 시작하세요."
+
+msgid "The server stopped by itself. The log below shows the last lines it wrote."
+msgstr "서버가 스스로 멈췄습니다. 아래 로그에 마지막으로 남긴 줄이 있습니다."
+
+msgid "The system could not start the server unit. Check the server log below."
+msgstr "시스템이 서버를 시작하지 못했습니다. 아래 서버 로그를 확인하세요."

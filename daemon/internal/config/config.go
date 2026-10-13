@@ -19,12 +19,14 @@ import (
 
 // Config는 관리자가 정하는 데몬 설정이다.
 type Config struct {
-	Port       int    `json:"port"`        // llama-server 의 API 포트, 기본 8080. LAN 공개 시 방화벽이 여는 포트다. 데몬 자신은 유닉스 소켓만 쓴다
-	LANExposed bool   `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
-	Autostart  bool   `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
-	SSHEnabled bool   `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
-	ModelsDir  string `json:"models_dir"`  // 절대 경로, 기본 /var/lib/diparnux/models
-	HFToken    string `json:"hf_token"`    // Hugging Face 토큰, 진단 리포트에서는 가린다
+	Port       int  `json:"port"`        // llama-server 의 API 포트, 기본 8080. LAN 공개 시 방화벽이 여는 포트다. 데몬 자신은 유닉스 소켓만 쓴다
+	LANExposed bool `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
+	Autostart  bool `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
+	// AutoRestart 가 true 이면 서버가 예상 밖으로 멈췄을 때 데몬이 대기 시간을 늘려 가며 다시 시작한다.
+	AutoRestart bool   `json:"auto_restart"`
+	SSHEnabled  bool   `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
+	ModelsDir   string `json:"models_dir"`  // 절대 경로, 기본 /var/lib/diparnux/models
+	HFToken     string `json:"hf_token"`    // Hugging Face 토큰, 진단 리포트에서는 가린다
 	// Gateway 가 true 이면 데몬이 공개 포트(Port)를 받아 키를 확인하고 llama-server 로 넘긴다. llama-server 는
 	// 127.0.0.1:InternalPort 에서만 연다. 키 변경이 서버 재시작 없이 반영되고 키별 사용량을 알 수 있다. false 이면
 	// 예전처럼 llama-server 가 Port 를 직접 받는다. 바꾸면 서버를 다시 시작해야 반영된다.
@@ -48,6 +50,7 @@ func Default() Config {
 	return Config{
 		Port:         8080,
 		Autostart:    true,
+		AutoRestart:  true,
 		ModelsDir:    "/var/lib/diparnux/models",
 		Gateway:      true,
 		InternalPort: 18080,

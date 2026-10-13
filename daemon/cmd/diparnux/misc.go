@@ -248,6 +248,7 @@ func (c *cli) configShow(args []string) int {
 		token = "set (hidden)"
 	}
 	kv(c.env.stdout, "hf-token", token)
+	kv(c.env.stdout, "auto-restart", yesNo(cfg.AutoRestart))
 	kv(c.env.stdout, "gateway", yesNo(cfg.Gateway))
 	kv(c.env.stdout, "overrides", overridesText(cfg.Overrides))
 	return exitOK
@@ -283,7 +284,7 @@ func overridesText(o client.Overrides) string {
 // configSet 는 설정 한 항목을 바꾼다. hf-token 은 인자가 아니라 표준 입력에서 읽는다.
 func (c *cli) configSet(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux config set <port|lan|autostart|gateway|parallel|hf-token> [value]", "config set")
+		return c.usage("usage: diparnux config set <port|lan|autostart|auto-restart|gateway|parallel|hf-token> [value]", "config set")
 	}
 	key, rest := args[0], args[1:]
 	switch key {
@@ -296,7 +297,7 @@ func (c *cli) configSet(args []string) int {
 			return c.usage("port must be a number from 1 to 65535", "config set")
 		}
 		return c.applyConfig(key, client.ConfigPatch{Port: &n}, fmt.Sprintf("port set to %d", n))
-	case "lan", "autostart", "gateway":
+	case "lan", "autostart", "auto-restart", "gateway":
 		if len(rest) != 1 || (rest[0] != "on" && rest[0] != "off") {
 			return c.usage(fmt.Sprintf("usage: diparnux config set %s on|off", key), "config set")
 		}
@@ -307,6 +308,8 @@ func (c *cli) configSet(args []string) int {
 			patch = client.ConfigPatch{Autostart: &v}
 		case "gateway":
 			patch = client.ConfigPatch{Gateway: &v}
+		case "auto-restart":
+			patch = client.ConfigPatch{AutoRestart: &v}
 		}
 		return c.applyConfig(key, patch, fmt.Sprintf("%s %s", key, rest[0]))
 	case "parallel":
@@ -520,7 +523,7 @@ var commandUsage = map[string]string{
 	"user rm":              "Usage: diparnux user rm <name>\n\nDelete an account created with Diparnux. Its home directory is kept.\n",
 	"config":               "Usage: diparnux config <show|set> [arguments]\n",
 	"config show":          "Usage: diparnux config show\n\nShow the daemon configuration. The Hugging Face token is hidden.\n",
-	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | gateway on|off | parallel <1-16|auto> | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n  gateway   the daemon receives the public port and checks API keys; key changes need no restart (default on)\n  parallel  how many requests the server handles at the same time; each one gets its own context, so the KV cache grows with the count\n",
+	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | auto-restart on|off | gateway on|off | parallel <1-16|auto> | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n  auto-restart  start the server again (10 s, 30 s, 2 min, 5 min, 15 min) when it stops unexpectedly (default on)\n  gateway   the daemon receives the public port and checks API keys; key changes need no restart (default on)\n  parallel  how many requests the server handles at the same time; each one gets its own context, so the KV cache grows with the count\n",
 	"chat":                 "Usage: diparnux chat [--max-tokens N] <prompt...>\n\nSend one prompt to the running server and show the reply and speed.\nUse -- before a prompt that starts with a dash.\n",
 	"version":              "Usage: diparnux version\n\nShow the CLI version.\n",
 	"help":                 "Usage: diparnux help [command]\n\nShow help for all commands, or for one command.\n",

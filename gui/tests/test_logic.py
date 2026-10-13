@@ -56,6 +56,24 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(logic.fmt_mib(-1), "-")
 
 
+class ServerFailureTests(unittest.TestCase):
+    def test_last_error_gets_a_hint(self):
+        notes = logic.server_failure_notes({"last_error": {"code": "gpu_offload_failed", "message": "offloaded 0/33 layers\nmore"}})
+        self.assertEqual(notes[0], "gpu_offload_failed: offloaded 0/33 layers more")
+        self.assertIn("simultaneous requests", notes[1])
+
+    def test_unknown_code_has_no_hint_and_long_messages_are_cut(self):
+        notes = logic.server_failure_notes({"last_error": {"code": "weird", "message": "x" * 900}})
+        self.assertEqual(len(notes), 1)
+        self.assertTrue(notes[0].endswith("…"))
+        self.assertLess(len(notes[0]), 420)
+
+    def test_restart_progress_and_giving_up(self):
+        self.assertIn("attempt 2 of 5", logic.server_failure_notes({"restart": {"attempt": 2, "max": 5}})[0])
+        self.assertIn("5 automatic restarts failed", logic.server_failure_notes({"restart": {"attempt": 5, "max": 5, "gave_up": True}})[0])
+        self.assertEqual(logic.server_failure_notes(None), [])
+
+
 class UsageTests(unittest.TestCase):
     def test_fmt_count(self):
         self.assertEqual(logic.fmt_count(0), "0")

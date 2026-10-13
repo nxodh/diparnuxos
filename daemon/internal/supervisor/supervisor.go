@@ -110,6 +110,8 @@ type Status struct {
 	Offload          Offload          `json:"offload"`
 	Warnings         []string         `json:"warnings"`
 	LastError        *Error           `json:"last_error,omitempty"`
+	// Restart 는 서버가 예상 밖으로 멈춘 뒤 데몬이 다시 시작하는 중일 때의 진행 상황이다.
+	Restart *RestartInfo `json:"restart,omitempty"`
 }
 
 // StartRequest는 Start와 StartAsync의 입력이다. ModelID 가 비어 있으면 기본 모델을 쓴다.
@@ -201,6 +203,8 @@ type Supervisor struct {
 	// pendingReclaimPIDs 는 systemd 가 MainPID 를 해제했지만 NVML 에서 아직
 	// 보이는 이전 서버 PID다. 취소된 시작 다음 재시도에서도 VRAM 계획 전에 회수한다.
 	pendingReclaimPIDs []uint32
+	// restart 는 자동 재시작의 진행 상황이다(restart.go).
+	restart restartState
 }
 
 // New는 Supervisor를 만든다. 비워 둔 옵션은 기본값으로 채운다. 필수 의존성이 없어도 패닉하지 않고 오류로 보고한다.
@@ -273,7 +277,9 @@ func defaultSleep(ctx context.Context, d time.Duration) error {
 func (s *Supervisor) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return copyStatus(s.st)
+	out := copyStatus(s.st)
+	out.Restart = s.restart.info()
+	return out
 }
 
 // copyStatus는 Status 를 복사한다. Warnings 슬라이스를 따로 복사하고 나머지 포인터는 읽기 전용으로 공유한다.
@@ -426,6 +432,7 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	s.st = Status{State: StateStopped, Warnings: []string{}}
 	s.priorStatus = nil
+	s.restart = restartState{} // 사용자가 멈췄으므로 자동 재시작 순서를 끝낸다.
 	s.mu.Unlock()
 	return nil
 }
@@ -491,14 +498,15 @@ func (s *Supervisor) Autostart(ctx context.Context) {
 	s.logf("autostart finished")
 }
 
-// Watch는 실행 중인 유닛이 살아 있는지 30초마다 확인한다. 죽었으면 failed(server_exited)로 바꾼다.
-// 자동으로 다시 시작하지 않는다. ctx 가 끝나면 돌아온다.
+// Watch는 실행 중인 유닛이 살아 있는지 30초마다 확인한다. 죽었으면 failed(server_exited)로 바꾸고,
+// 설정(auto_restart)이 켜져 있으면 대기 시간을 늘려 가며 다시 시작한다(restart.go). ctx 가 끝나면 돌아온다.
 func (s *Supervisor) Watch(ctx context.Context) {
 	for {
 		if err := s.opts.Sleep(ctx, watchInterval); err != nil {
 			return
 		}
 		s.watchOnce(ctx)
+		s.restartTick(ctx)
 	}
 }
 

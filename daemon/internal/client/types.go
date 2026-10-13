@@ -318,25 +318,27 @@ type ChatReply struct {
 
 // Config 는 데몬 설정이다. GET /v1/config 의 응답이고, hf_token 은 가려져 있다.
 type Config struct {
-	Port       int       `json:"port"`
-	LANExposed bool      `json:"lan_exposed"`
-	Autostart  bool      `json:"autostart"`
-	SSHEnabled bool      `json:"ssh_enabled"`
-	ModelsDir  string    `json:"models_dir"`
-	HFToken    string    `json:"hf_token"`
-	Gateway    bool      `json:"gateway"`
-	Overrides  Overrides `json:"overrides"`
+	Port        int       `json:"port"`
+	LANExposed  bool      `json:"lan_exposed"`
+	Autostart   bool      `json:"autostart"`
+	SSHEnabled  bool      `json:"ssh_enabled"`
+	ModelsDir   string    `json:"models_dir"`
+	HFToken     string    `json:"hf_token"`
+	Gateway     bool      `json:"gateway"`
+	AutoRestart bool      `json:"auto_restart"`
+	Overrides   Overrides `json:"overrides"`
 }
 
 // ConfigPatch 는 PUT /v1/config 의 부분 갱신 본문이다. nil 인 필드는 그대로 둔다.
 type ConfigPatch struct {
-	Port       *int       `json:"port,omitempty"`
-	LANExposed *bool      `json:"lan_exposed,omitempty"`
-	Autostart  *bool      `json:"autostart,omitempty"`
-	ModelsDir  *string    `json:"models_dir,omitempty"`
-	HFToken    *string    `json:"hf_token,omitempty"`
-	Gateway    *bool      `json:"gateway,omitempty"`
-	Overrides  *Overrides `json:"overrides,omitempty"`
+	Port        *int       `json:"port,omitempty"`
+	LANExposed  *bool      `json:"lan_exposed,omitempty"`
+	Autostart   *bool      `json:"autostart,omitempty"`
+	ModelsDir   *string    `json:"models_dir,omitempty"`
+	HFToken     *string    `json:"hf_token,omitempty"`
+	Gateway     *bool      `json:"gateway,omitempty"`
+	AutoRestart *bool      `json:"auto_restart,omitempty"`
+	Overrides   *Overrides `json:"overrides,omitempty"`
 }
 
 // ConfigUpdate 는 PUT /v1/config 의 응답이다.
