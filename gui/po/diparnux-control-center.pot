@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 17:48+0000\n"
+"POT-Creation-Date: 2026-10-13 17:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1823,6 +1823,14 @@ msgstr ""
 msgid ""
 "Choose your own user name and password for the console, the login screen and "
 "SSH."
+msgstr ""
+
+msgid "How will you use the model?"
+msgstr ""
+
+msgid ""
+"Coding agents such as Vedecaps need a long context for each request. You can "
+"change this later in the Server page."
 msgstr ""
 
 #, python-format

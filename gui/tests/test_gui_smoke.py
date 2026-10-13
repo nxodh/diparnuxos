@@ -462,6 +462,27 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(puts[0][2]["done"], True)
         win.destroy()
 
+    def test_wizard_model_step_lets_the_user_pick_the_use(self):
+        from diparnux_cc import logic
+        from diparnux_cc.window import MainWindow
+        from diparnux_cc.wizard import WizardWindow
+
+        win = MainWindow(self.app, self.ctx)
+        wiz = WizardWindow(self.ctx, parent=win)
+        wiz.present()
+        self.assertTrue(pump(5, until=lambda: wiz._data.get("status") is not None))
+        wiz._index = logic.STEPS.index("model")
+        wiz._render()
+        self.assertTrue(hasattr(wiz, "_use"), "the model step has no use selector")
+        # 시험 설정의 저장된 용도는 agent 다. 선택기도 그것을 보여 준다.
+        self.assertEqual(wiz._use.get_selected(), 1)
+        before = len([c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"])
+        wiz._use.set_selected(0)
+        self.assertTrue(pump(5, until=lambda: len([c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"]) > before))
+        put = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1]
+        self.assertEqual(put[2], {"overrides": {"parallel": 3}})
+        win.destroy()
+
 
 if __name__ == "__main__":
     unittest.main()

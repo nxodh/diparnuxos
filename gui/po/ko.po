@@ -1669,3 +1669,9 @@ msgstr "모델, 컨텍스트 크기, Diparnux 도구를 Vedecaps 설정에 씁�
 
 msgid "vedecaps.json"
 msgstr "vedecaps.json"
+
+msgid "How will you use the model?"
+msgstr "모델을 어떻게 사용하시겠습니까?"
+
+msgid "Coding agents such as Vedecaps need a long context for each request. You can change this later in the Server page."
+msgstr "Vedecaps 같은 코딩 에이전트는 요청마다 긴 컨텍스트가 필요합니다. 나중에 서버 페이지에서 바꿀 수 있습니다."
