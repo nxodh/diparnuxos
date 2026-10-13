@@ -73,6 +73,19 @@ class SystemPage(Adw.PreferencesPage):
         self.users_group.set_header_suffix(text_button(_("Create account"), self.create_account, "suggested-action"))
         self.add(self.users_group)
 
+        power_group = Adw.PreferencesGroup(title=_("Always on"))
+        self.power_row = Adw.SwitchRow(title=_("Keep the computer on"))
+        self.power_row.set_subtitle(_("Never suspend or shut down when the lid is closed or after a long idle time."))
+        self.power_row.connect("notify::active", self._on_power)
+        power_group.add(self.power_row)
+        self.power_info = action_row(_("Power status"), "")
+        power_group.add(self.power_info)
+        self.power_note = action_row(_("Note"), "")
+        self.power_note.set_visible(False)
+        power_group.add(self.power_note)
+        self.add(power_group)
+        self._power_loaded = 0.0
+
         ssh_group = Adw.PreferencesGroup(title=_("Remote access"))
         self.ssh_row = Adw.SwitchRow(title=_("SSH server"))
         self.ssh_row.connect("notify::active", self._on_ssh)
@@ -130,6 +143,7 @@ class SystemPage(Adw.PreferencesPage):
 
         ctx.subscribe(self._on_status)
         run_async(ctx.client.ssh, self._on_ssh_state, lambda e: None)
+        self.load_power()
         self.load_users()
         self.refresh_update()
 
@@ -189,6 +203,11 @@ class SystemPage(Adw.PreferencesPage):
             self._updating = True
             self.mode_combo.set_selected(0 if mode == "server" else 1)
             self._updating = False
+        # 상시 가동 상태는 자주 바뀌지 않는다. 데몬이 매번 logind 에 묻지 않도록 1분에 한 번만 읽는다.
+        import time
+
+        if time.monotonic() - self._power_loaded > 60:
+            self.load_power()
 
     def _on_mode(self, combo, _pspec):
         if self._updating:
@@ -228,6 +247,47 @@ class SystemPage(Adw.PreferencesPage):
             go,
             on_cancel=lambda: set_combo(self._mode),
         )
+
+    # --- 상시 가동 ---
+    def load_power(self):
+        import time
+
+        self._power_loaded = time.monotonic()
+        run_async(self.ctx.client.power, self._on_power_state, lambda e: None)
+
+    def _on_power_state(self, state):
+        self._updating = True
+        self.power_row.set_active(bool(state.get("always_on")))
+        parts = []
+        lid = state.get("lid")
+        if lid in ("open", "closed"):
+            parts.append(_("Lid: %s") % (_("open") if lid == "open" else _("closed")))
+        if state.get("has_battery"):
+            percent = state.get("battery_percent", -1)
+            source = _("battery") if state.get("on_battery") else _("AC power")
+            parts.append(_("Power: %(source)s") % {"source": source} + (" %d%%" % percent if percent >= 0 else ""))
+        up = logic.fmt_uptime(state.get("uptime_seconds"))
+        if up != "-":
+            parts.append(_("Up for %s") % up)
+        failed = logic.power_failed_checks(state)
+        if failed:
+            parts.append(_("Not effective: %s") % ", ".join(failed))
+        self.power_info.set_subtitle(" · ".join(parts) or "-")
+        notes = [n for n in (state.get("notes") or []) if n]
+        self.power_note.set_visible(bool(notes))
+        self.power_note.set_subtitle("\n".join(notes))
+        self._updating = False
+
+    def _on_power(self, row, _pspec):
+        if self._updating:
+            return
+        wanted = row.get_active()
+
+        def failed(exc):
+            self.ctx.toast_error(exc)
+            self.load_power()
+
+        run_async(lambda: self.ctx.client.set_power(wanted), self._on_power_state, failed)
 
     # --- SSH ---
     def _on_ssh_state(self, state):

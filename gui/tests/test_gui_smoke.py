@@ -62,6 +62,10 @@ ROUTES = {
         {"ssid": "Office 5G", "security": "psk", "signal": 30, "signal_dbm": -73, "connected": False, "known": False}]}),
     ("POST", "/v1/network/wifi/scan"): (202, {"scanning": True}),
     ("GET", "/v1/server/logs"): (200, {"lines": 1, "log": "server log line\n"}),
+    ("GET", "/v1/system/power"): (200, {"always_on": True, "enabled": True, "checks": [], "lid": "closed", "has_battery": True,
+        "on_battery": False, "battery_percent": 88, "uptime_seconds": 90061, "notes": []}),
+    ("PUT", "/v1/system/power"): (200, {"always_on": False, "enabled": False, "checks": [], "lid": "open", "has_battery": False,
+        "on_battery": False, "battery_percent": -1, "uptime_seconds": 5, "notes": ["Always-on is turned off."]}),
     ("GET", "/v1/system/ssh"): (200, {"enabled": False, "installed": True, "active": False, "password_auth": "no", "port": 22}),
     ("GET", "/v1/users"): (200, {"users": [{"name": "alice", "admin": True, "created": "2026-10-12T00:00:00Z"}]}),
     ("POST", "/v1/users"): (201, {"name": "bob", "admin": False, "created": "2026-10-12T01:00:00Z"}),
@@ -124,6 +128,22 @@ class SmokeTests(unittest.TestCase):
         win.present()
         system = win.stack.get_child_by_name("system")
         self.assertTrue(pump(5, until=lambda: any("alice" in r.get_title() for r in system._user_rows)))
+        win.destroy()
+
+    def test_system_page_shows_always_on_state_and_toggles(self):
+        from diparnux_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        system = win.stack.get_child_by_name("system")
+        self.assertTrue(pump(5, until=lambda: system.power_row.get_active()), "always-on state was not shown")
+        sub = system.power_info.get_subtitle()
+        self.assertIn("1d 1h 1m", sub)
+        self.assertIn("88%", sub)
+        system.power_row.set_active(False)
+        self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1] == "/v1/system/power" for c in self.daemon.calls)))
+        puts = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/system/power"]
+        self.assertEqual(puts[0][2], {"always_on": False})
         win.destroy()
 
     def test_create_account_dialog_validates_and_posts(self):

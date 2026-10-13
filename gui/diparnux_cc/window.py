@@ -7,7 +7,6 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
-from .chat import ChatPage  # noqa: E402
 from .dashboard import DashboardPage  # noqa: E402
 from .i18n import _  # noqa: E402
 from .models import ModelsPage  # noqa: E402
@@ -34,7 +33,6 @@ class MainWindow(Adw.ApplicationWindow):
         self.stack.add_titled_with_icon(DashboardPage(ctx), "dashboard", _("Dashboard"), "utilities-system-monitor-symbolic")
         self.stack.add_titled_with_icon(ModelsPage(ctx), "models", _("Models"), "folder-download-symbolic")
         self.stack.add_titled_with_icon(ServerPage(ctx), "server", _("Server"), "network-server-symbolic")
-        self.stack.add_titled_with_icon(ChatPage(ctx), "chat", _("Chat"), "chat-message-new-symbolic")
         self.stack.add_titled_with_icon(NetworkPage(ctx), "network", _("Network"), "network-wireless-symbolic")
         self.stack.add_titled_with_icon(SystemPage(ctx, self.open_wizard), "system", _("System"), "preferences-system-symbolic")
 

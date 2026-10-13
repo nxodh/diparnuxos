@@ -30,6 +30,8 @@ override_dh_auto_install:
 	install -D -m 644 daemon/dist/diparnux.sysusers.conf debian/diparnux-daemon/usr/lib/sysusers.d/diparnux.conf
 	install -D -m 644 daemon/dist/diparnux-daemon.tmpfiles.conf debian/diparnux-daemon/usr/lib/tmpfiles.d/diparnux-daemon.conf
 	install -D -m 644 daemon/dist/firewall-default.nft debian/diparnux-daemon/usr/share/diparnux/firewall-default.nft
+	install -D -m 644 daemon/dist/50-diparnux-always-on.logind.conf debian/diparnux-daemon/usr/lib/systemd/logind.conf.d/50-diparnux-always-on.conf
+	install -D -m 644 daemon/dist/50-diparnux-always-on.sleep.conf debian/diparnux-daemon/usr/lib/systemd/sleep.conf.d/50-diparnux-always-on.conf
 	install -D -m 644 daemon/vendor/github.com/NVIDIA/go-nvml/LICENSE debian/diparnux-daemon/usr/share/doc/diparnux-daemon/go-nvml.LICENSE
 	install -d debian/diparnux-daemon/usr/lib/systemd/system
 	install -m 644 daemon/dist/*.service daemon/dist/*.socket debian/diparnux-daemon/usr/lib/systemd/system/

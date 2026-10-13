@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/power"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
 )
 
@@ -245,4 +246,14 @@ func (c *Client) SSH(ctx context.Context) (SSH, []byte, error) {
 // SetSSH 는 PUT /v1/system/ssh 로 SSH 서버를 켜거나 끈다.
 func (c *Client) SetSSH(ctx context.Context, enabled bool) (SSH, []byte, error) {
 	return call[SSH](ctx, c, http.MethodPut, "/v1/system/ssh", map[string]bool{"enabled": enabled}, defaultLimit)
+}
+
+// Power 는 GET /v1/system/power 로 상시 가동 상태를 읽는다.
+func (c *Client) Power(ctx context.Context) (power.Status, []byte, error) {
+	return call[power.Status](ctx, c, http.MethodGet, "/v1/system/power", nil, defaultLimit)
+}
+
+// SetPower 는 PUT /v1/system/power 로 상시 가동을 켜거나 끈다.
+func (c *Client) SetPower(ctx context.Context, alwaysOn bool) (power.Status, []byte, error) {
+	return call[power.Status](ctx, c, http.MethodPut, "/v1/system/power", map[string]bool{"always_on": alwaysOn}, defaultLimit)
 }

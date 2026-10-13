@@ -505,3 +505,28 @@ def check_wifi_password(password):
     if any(ord(c) < 0x20 or ord(c) > 0x7E for c in password):
         return _("Use only letters, digits and symbols from the keyboard (no Korean or accented characters).")
     return None
+
+
+def fmt_uptime(seconds):
+    """초를 "3d 4h 12m" 같은 짧은 문자열로 바꾼다. 알 수 없으면 "-"."""
+    try:
+        seconds = int(seconds)
+    except (TypeError, ValueError):
+        return "-"
+    if seconds <= 0:
+        return "-"
+    d, h, m = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
+    if d:
+        return "%dd %dh %dm" % (d, h, m)
+    if h:
+        return "%dh %dm" % (h, m)
+    return "%dm" % m
+
+
+def power_failed_checks(state):
+    """상시 가동 검사에서 통과하지 못한 항목을 "이름=값" 목록으로 돌려준다."""
+    out = []
+    for check in state.get("checks") or []:
+        if not check.get("ok"):
+            out.append("%s=%s" % (check.get("name", "?"), check.get("got") or "unknown"))
+    return out

@@ -292,3 +292,19 @@ class NetworkLogicTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PowerLogicTests(unittest.TestCase):
+    def test_fmt_uptime(self):
+        self.assertEqual(logic.fmt_uptime(90061), "1d 1h 1m")
+        self.assertEqual(logic.fmt_uptime(3700), "1h 1m")
+        self.assertEqual(logic.fmt_uptime(120), "2m")
+        self.assertEqual(logic.fmt_uptime(0), "-")
+        self.assertEqual(logic.fmt_uptime(None), "-")
+
+    def test_power_failed_checks(self):
+        state = {"checks": [{"name": "HandleLidSwitch", "got": "suspend", "ok": False},
+                            {"name": "CanSuspend", "got": "yes", "ok": False},
+                            {"name": "IdleAction", "got": "ignore", "ok": True}]}
+        self.assertEqual(logic.power_failed_checks(state), ["HandleLidSwitch=suspend", "CanSuspend=yes"])
+        self.assertEqual(logic.power_failed_checks({}), [])

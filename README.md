@@ -150,6 +150,7 @@ out/             빌드 산출물(git 제외)
 | [docs/phase-4-design.md](docs/phase-4-design.md) | Phase 4 설계 |
 | [docs/phase-5-design.md](docs/phase-5-design.md) | 0.5.0 설계(Xfce 데스크톱, 어두운 흑백 디자인, 램 목표 철회) |
 | [docs/phase-5-1-design.md](docs/phase-5-1-design.md) | 0.5.1 설계(OS 이름 Diparnux, 새 로고, 흔적 검사) |
+| [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |
 | [docs/desktop-troubleshooting.md](docs/desktop-troubleshooting.md) | 데스크톱 모드 문제 해결(로그인 화면, 세션, 입력기, 브라우저) |
 | [docs/drivers.md](docs/drivers.md) | NVIDIA 드라이버 구성과 Phase 1 검증 |
 | [docs/verification-phase-1.md](docs/verification-phase-1.md) | 이번 단계에서 실제로 확인한 내용과 남은 한계 |

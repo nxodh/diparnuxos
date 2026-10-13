@@ -27,7 +27,7 @@ ProtectSystem=full
 # 모델 디렉터리(모델, .default, 사이드카, firewall.nft 가 있는 곳)와 설정 디렉터리(/etc/diparnux/diparnuxd.json)에 쓴다.
 # /var/lib/iwd 는 Wi-Fi 비밀번호 설정 파일(네트워크 GUI 와 diparnux network wifi connect 가 쓴다)이다. iwd 가 시작하기 전에는
 # 없을 수 있으므로 앞의 - 로 없어도 시작하게 한다.
-ReadWritePaths=/var/lib/diparnux /etc/diparnux -/var/lib/iwd
+ReadWritePaths=/var/lib/diparnux /etc/diparnux -/var/lib/iwd -/etc/systemd/logind.conf.d -/etc/systemd/sleep.conf.d
 # /proc/sys 와 /sys 의 튜너블을 읽기 전용으로 만든다. 데몬은 sysctl 을 바꾸지 않는다.
 ProtectKernelTunables=yes
 # cgroup 파일 시스템을 읽기 전용으로 만든다. cgroup 은 systemd 가 관리하므로 데몬이 쓸 일이 없다.

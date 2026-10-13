@@ -50,26 +50,7 @@ msgstr ""
 msgid "Account %s created"
 msgstr ""
 
-msgid "Type a message"
-msgstr ""
-
-msgid "Send"
-msgstr ""
-
-msgid "Clear"
-msgstr ""
-
-msgid "You"
-msgstr ""
-
-msgid "Waiting for the model…"
-msgstr ""
-
 msgid "Model"
-msgstr ""
-
-#, python-format
-msgid "%(tokens)d tokens · %(speed).1f tokens/s"
 msgstr ""
 
 msgid "Dashboard"
@@ -757,9 +738,6 @@ msgstr ""
 msgid "Diparnux Control Center"
 msgstr ""
 
-msgid "Chat"
-msgstr ""
-
 msgid "Graphics card"
 msgstr ""
 
@@ -1067,4 +1045,40 @@ msgid "Wi-Fi is turned off."
 msgstr ""
 
 msgid "Wired"
+msgstr ""
+
+msgid "Always on"
+msgstr ""
+
+msgid "Keep the computer on"
+msgstr ""
+
+msgid "Never suspend or shut down when the lid is closed or after a long idle time."
+msgstr ""
+
+msgid "Power status"
+msgstr ""
+
+msgid "Lid: %s"
+msgstr ""
+
+msgid "open"
+msgstr ""
+
+msgid "closed"
+msgstr ""
+
+msgid "battery"
+msgstr ""
+
+msgid "AC power"
+msgstr ""
+
+msgid "Power: %(source)s"
+msgstr ""
+
+msgid "Up for %s"
+msgstr ""
+
+msgid "Not effective: %s"
 msgstr ""

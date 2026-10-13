@@ -150,6 +150,8 @@ func TestEveryMethodUsesItsRoute(t *testing.T) {
 		{"DeleteAPIKey", "DELETE", "/v1/apikeys/k1", func(c *Client) error { _, _, err := c.DeleteAPIKey(ctx, "k1"); return err }},
 		{"SSH", "GET", "/v1/system/ssh", func(c *Client) error { _, _, err := c.SSH(ctx); return err }},
 		{"SetSSH", "PUT", "/v1/system/ssh", func(c *Client) error { _, _, err := c.SetSSH(ctx, true); return err }},
+		{"Power", "GET", "/v1/system/power", func(c *Client) error { _, _, err := c.Power(ctx); return err }},
+		{"SetPower", "PUT", "/v1/system/power", func(c *Client) error { _, _, err := c.SetPower(ctx, true); return err }},
 		{"Users", "GET", "/v1/users", func(c *Client) error { _, _, err := c.Users(ctx); return err }},
 		{"CreateUser", "POST", "/v1/users", func(c *Client) error {
 			_, _, err := c.CreateUser(ctx, UserCreateRequest{Name: "alice", Password: "correct-horse-9"})

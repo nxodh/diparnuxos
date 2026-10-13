@@ -28,6 +28,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/power"
 	"github.com/nxodh/diparnuxos/daemon/internal/nvml"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 	"github.com/nxodh/diparnuxos/daemon/internal/report"
@@ -159,6 +160,7 @@ func run(args []string) error {
 		Accounts:      accountsMgr,
 		Updates:       &updatectl.Controller{Runner: cmds},
 		Network:       &network.Manager{Runner: cmds},
+		Power:         &power.Manager{Runner: cmds},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,

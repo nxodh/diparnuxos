@@ -41,26 +41,8 @@ msgstr "이 계정이 sudo를 쓸 수 있게 합니다."
 msgid "Account %s created"
 msgstr "계정 %s을(를) 만들었습니다"
 
-msgid "Type a message"
-msgstr "메시지를 입력하세요"
-
-msgid "Send"
-msgstr "보내기"
-
-msgid "Clear"
-msgstr "지우기"
-
-msgid "You"
-msgstr "나"
-
-msgid "Waiting for the model…"
-msgstr "모델의 응답을 기다리는 중…"
-
 msgid "Model"
 msgstr "모델"
-
-msgid "%(tokens)d tokens · %(speed).1f tokens/s"
-msgstr "%(tokens)d 토큰 · 초당 %(speed).1f 토큰"
 
 msgid "Dashboard"
 msgstr "대시보드"
@@ -701,9 +683,6 @@ msgstr "확인"
 msgid "Diparnux Control Center"
 msgstr "Diparnux 제어 센터"
 
-msgid "Chat"
-msgstr "채팅"
-
 msgid "Graphics card"
 msgstr "그래픽 카드"
 
@@ -1006,3 +985,39 @@ msgstr "Wi-Fi가 꺼져 있습니다."
 
 msgid "Wired"
 msgstr "유선"
+
+msgid "Always on"
+msgstr "상시 가동"
+
+msgid "Keep the computer on"
+msgstr "컴퓨터를 계속 켜 둠"
+
+msgid "Never suspend or shut down when the lid is closed or after a long idle time."
+msgstr "덮개를 닫거나 오래 두어도 절전이나 종료로 멈추지 않습니다."
+
+msgid "Power status"
+msgstr "전원 상태"
+
+msgid "Lid: %s"
+msgstr "덮개: %s"
+
+msgid "open"
+msgstr "열림"
+
+msgid "closed"
+msgstr "닫힘"
+
+msgid "battery"
+msgstr "배터리"
+
+msgid "AC power"
+msgstr "전원 연결"
+
+msgid "Power: %(source)s"
+msgstr "전원: %(source)s"
+
+msgid "Up for %s"
+msgstr "가동 %s"
+
+msgid "Not effective: %s"
+msgstr "적용되지 않음: %s"

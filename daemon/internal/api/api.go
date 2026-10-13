@@ -95,6 +95,8 @@ type Deps struct {
 	Accounts AccountManager
 	// Network 는 인터넷 연결 상태와 Wi-Fi 다. nil 이면 네트워크 API 는 network_unavailable 을 돌려준다.
 	Network NetworkManager
+	// Power 는 상시 가동(절전과 종료 금지)이다. nil 이면 전원 API 는 power_unavailable 을 돌려준다.
+	Power PowerManager
 	// Updates 는 커널과 드라이버 갱신이다. nil 이면 갱신 API 는 update_unavailable 을 돌려준다.
 	Updates UpdateController
 	// GPU 는 NVML 프로버다. nil 이면 NVML 을 쓸 수 없는 것으로 본다.
@@ -186,6 +188,8 @@ func (s *server) routes() {
 
 	s.mux.HandleFunc("GET /v1/system/ssh", s.getSSH)
 	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
+	s.mux.HandleFunc("GET /v1/system/power", s.getPower)
+	s.mux.HandleFunc("PUT /v1/system/power", s.putPower)
 	s.mux.HandleFunc("GET /v1/users", s.listUsers)
 	s.mux.HandleFunc("POST /v1/users", s.createUser)
 	s.mux.HandleFunc("DELETE /v1/users/{name}", s.deleteUser)

@@ -17,7 +17,7 @@ override_dh_auto_install:
 	install -D -m 644 src/xdg/xfce4/panel/genmon-5.rc $(X)/panel/genmon-5.rc
 	install -D -m 644 src/xdg/xfce4/whiskermenu/defaults.rc $(X)/whiskermenu/defaults.rc
 	install -D -m 644 src/xdg/xfce4/terminal/terminalrc $(X)/terminal/terminalrc
-	set -e; for f in xsettings xfwm4 xfce4-desktop; do \
+	set -e; for f in xsettings xfwm4 xfce4-desktop xfce4-power-manager; do \
 	  install -D -m 644 src/xdg/xfce4/xfconf/xfce-perchannel-xml/$$f.xml $(X)/xfconf/xfce-perchannel-xml/$$f.xml; \
 	done
 	install -D -m 644 src/xsession/55diparnux-xdg $(D)/etc/X11/Xsession.d/55diparnux-xdg

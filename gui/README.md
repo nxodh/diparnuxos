@@ -11,7 +11,7 @@ GTK4 + libadwaita(PyGObject) 앱이다. `diparnuxd` 의 유닉스 소켓 API 만
 |---|---|
 | `diparnux_cc/api.py` | 표준 라이브러리만 쓰는 데몬 클라이언트. GTK 에 의존하지 않는다 |
 | `diparnux_cc/logic.py` | GPU 상태 해석, 형식 변환, 첫 부팅 마법사 단계 판단. GTK 에 의존하지 않는다 |
-| `diparnux_cc/window.py`, `dashboard.py`, `models.py`, `server.py`, `chat.py`, `system.py`, `wizard.py` | 화면 |
+| `diparnux_cc/window.py`, `dashboard.py`, `models.py`, `server.py`, `system.py`, `wizard.py` | 화면 |
 | `po/` | gettext 카탈로그. 원문은 영어이고 `ko.po` 가 한국어 번역이다 |
 | `tests/` | 단위 테스트, 가짜 데몬(`fakedaemon.py`), GTK 스모크 테스트 |
 

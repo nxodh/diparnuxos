@@ -186,6 +186,12 @@ class Client:
     def set_ssh(self, enabled):
         return self._request("PUT", "/v1/system/ssh", {"enabled": bool(enabled)}, timeout=60.0)
 
+    def power(self):
+        return self._request("GET", "/v1/system/power")
+
+    def set_power(self, always_on):
+        return self._request("PUT", "/v1/system/power", {"always_on": bool(always_on)}, timeout=30.0)
+
     def update_info(self):
         return self._request("GET", "/v1/update")
 

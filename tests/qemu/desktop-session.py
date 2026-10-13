@@ -244,6 +244,22 @@ def scenario(console, monitor, budgets, logs, workdir):
         cmd,
     )
 
+    # 상시 가동: 노트북을 서버로 쓸 때 덮개를 닫거나 오래 두어도 절전이나 종료로 서버가 멈추지 않아야 한다.
+    # 데몬이 실행 중인 logind 에 속성과 가능 여부(CanSuspend 등)를 물어 확인한 결과다.
+    console.command("always-on-default", "diparnux --json power | grep -Eq '\"always_on\": ?true'", cmd)
+    console.command("always-on-checks", "diparnux power", cmd)
+    console.command(
+        "always-on-logind-properties",
+        "for p in HandleLidSwitch HandleLidSwitchExternalPower HandleLidSwitchDocked HandleSuspendKey HandleHibernateKey HandlePowerKey IdleAction; do "
+        "busctl --json=short get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager $p | grep -q '\"ignore\"' || { echo \"$p is not ignore\"; exit 1; }; done",
+        cmd,
+    )
+    # 끄고 다시 켠다. logind 가 설정을 다시 읽는 데 시간이 걸릴 수 있어 상태가 바뀔 때까지 기다린다.
+    console.command("always-on-off", "diparnux power off", cmd + 30)
+    poll_command(console, "always-on-off-effective", "diparnux --json power | grep -Eq '\"always_on\": ?false'", 30)
+    console.command("always-on-on", "diparnux power on", cmd + 30)
+    poll_command(console, "always-on-on-effective", "diparnux --json power | grep -Eq '\"always_on\": ?true'", 30)
+
     # 사용자가 정한 이름과 비밀번호로 계정을 만든다. 비밀번호는 표준 입력으로만 넘긴다.
     created = console.command(
         "account-create",
