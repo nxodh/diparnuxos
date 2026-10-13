@@ -193,6 +193,10 @@ class DriverTests(unittest.TestCase):
                 self.assertTrue(event["command"].startswith("diparnux --json "))
                 self.assertNotIn("sudo", event["command"])
 
+    def test_kernel_log_lines_in_command_output_do_not_break_json(self):
+        result, _commands = self.run_fixture("kernel-noise", expected_exit=0)
+        self.assertEqual(result["outcome"], "succeeded")
+
     def test_trained_context_is_taken_from_the_actual_plan(self):
         result, commands = self.run_fixture("trained-context-128", expected_exit=0)
         self.assertEqual(result["outcome"], "succeeded")
