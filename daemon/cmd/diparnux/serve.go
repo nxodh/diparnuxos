@@ -12,7 +12,7 @@ import (
 // serve 는 serve 명령 묶음이다.
 func (c *cli) serve(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux serve <start|stop|plan|logs>", "serve")
+		return c.usage("usage: diparnux serve <start|stop|plan|logs|stats>", "serve")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -24,6 +24,8 @@ func (c *cli) serve(args []string) int {
 		return c.servePlan(rest)
 	case "logs":
 		return c.serveLogs(rest)
+	case "stats":
+		return c.serveStats(rest)
 	}
 	return c.usage(fmt.Sprintf("unknown serve command %q", sub), "serve")
 }
@@ -35,6 +37,7 @@ type overrideFlags struct {
 	cacheType *string
 	batch     *int
 	loadMode  *string
+	parallel  *int
 }
 
 // addOverrideFlags 는 재정의 플래그를 등록한다.
@@ -45,6 +48,7 @@ func addOverrideFlags(fs *flag.FlagSet) *overrideFlags {
 		cacheType: fs.String("cache-type", "", "KV cache type, such as f16 or q8_0"),
 		batch:     fs.Int("batch", 0, "batch size"),
 		loadMode:  fs.String("load-mode", "", "model load mode"),
+		parallel:  fs.Int("parallel", 0, "requests handled at the same time (slots); --ctx is the context of one slot"),
 	}
 }
 
@@ -72,6 +76,10 @@ func (o *overrideFlags) overrides(fs *flag.FlagSet) client.Overrides {
 	if set["load-mode"] {
 		v := *o.loadMode
 		ov.LoadMode = &v
+	}
+	if set["parallel"] {
+		v := *o.parallel
+		ov.Parallel = &v
 	}
 	return ov
 }
@@ -258,6 +266,9 @@ func writePlanBlock(w io.Writer, model string, p *client.Plan) {
 	}
 	fmt.Fprintf(w, "plan for %s\n", orDash(model))
 	kv(w, "  GPU layers", orDash(p.NGL))
+	if p.Parallel > 1 {
+		kv(w, "  slots", fmt.Sprintf("%d (context per slot %d)", p.Parallel, p.SlotCtx))
+	}
 	kv(w, "  context", fmt.Sprintf("%d", p.Ctx))
 	kv(w, "  KV cache", fmt.Sprintf("K %s, V %s", orDash(p.CacheTypeK), orDash(p.CacheTypeV)))
 	kv(w, "  flash attention", yesNo(p.FlashAttn))
@@ -326,5 +337,47 @@ func (c *cli) serveLogs(args []string) int {
 		return exitOK
 	}
 	fmt.Fprintln(c.env.stdout, strings.TrimRight(logs.Log, "\n"))
+	return exitOK
+}
+
+// serveStats 는 서버 현황을 보여 준다. 서버가 돌고 있을 때만 슬롯과 처리 속도가 있다.
+func (c *cli) serveStats(args []string) int {
+	if len(args) != 0 {
+		return c.usage("serve stats takes no arguments", "serve stats")
+	}
+	ctx, cancel := c.timeout(metaTimeout)
+	defer cancel()
+	st, raw, err := c.api.ServerStats(ctx)
+	if err != nil {
+		return c.fail(err)
+	}
+	if c.asJSON {
+		return c.printJSON(raw)
+	}
+	w := c.env.stdout
+	kv(w, "state", orDash(st.State))
+	if !st.Running {
+		fmt.Fprintln(w, "the server is not running; start it with: diparnux serve start")
+		return exitOK
+	}
+	kv(w, "model", orDash(st.ModelID))
+	kv(w, "uptime", formatDuration(st.UptimeSeconds))
+	if st.Slots.Available {
+		kv(w, "slots", fmt.Sprintf("%d busy of %d (context per slot %d)", st.Slots.Busy, st.Slots.Total, st.SlotCtx))
+	} else {
+		kv(w, "slots", "unavailable: "+orDash(st.Slots.Reason))
+	}
+	if st.Metrics.Available {
+		kv(w, "generation", fmt.Sprintf("%.1f tokens/s", st.Metrics.GenTokensPerSec))
+		kv(w, "prompt", fmt.Sprintf("%.1f tokens/s", st.Metrics.PromptTokensPerSec))
+		kv(w, "requests", fmt.Sprintf("%.0f processing, %.0f deferred", st.Metrics.RequestsProcessing, st.Metrics.RequestsDeferred))
+		kv(w, "tokens so far", fmt.Sprintf("%.0f prompt, %.0f generated", st.Metrics.PromptTokensTotal, st.Metrics.GeneratedTotal))
+	} else {
+		kv(w, "metrics", "unavailable: "+orDash(st.Metrics.Reason))
+	}
+	if st.Gateway != nil {
+		kv(w, "gateway", fmt.Sprintf("%d requests, %d errors, %d refused, %d in flight",
+			st.Gateway.Requests, st.Gateway.Errors, st.Gateway.Unauthorized, st.Gateway.InFlight))
+	}
 	return exitOK
 }

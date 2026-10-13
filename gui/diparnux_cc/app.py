@@ -77,7 +77,7 @@ def parse_args(argv):
     p = argparse.ArgumentParser(prog="diparnux-control-center")
     p.add_argument("--autostart", action="store_true", help="open only when the first-boot wizard is not done")
     p.add_argument("--wizard", action="store_true", help="open the first-boot wizard")
-    p.add_argument("--page", default=None, help="page to open: dashboard, models, server, chat, network or system")
+    p.add_argument("--page", default=None, help="page to open: dashboard, models, server, network or system")
     p.add_argument("--socket", default=api.DEFAULT_SOCKET, help="path of the diparnuxd socket")
     p.add_argument("--localedir", default=None, help="directory with translation catalogs")
     return p.parse_args(argv)

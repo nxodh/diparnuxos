@@ -12,6 +12,8 @@ Type=simple
 ExecStart=/usr/sbin/diparnuxd
 # 새 모델 파일은 디렉터리의 그룹을 상속하며 그룹만 읽는다.
 UMask=0027
+# 메모리: 가비지 컬렉터를 더 일찍 돌려 사용 메모리를 줄인다(폴링 부하 실험에서 16 → 13 MiB). GOMEMLIMIT 는 부하가 몰릴 때의 상한이다.
+Environment=GOGC=40 GOMEMLIMIT=48MiB
 # 비정상 종료만 다시 시작한다. 정상 종료(관리자가 멈춤)는 다시 띄우지 않는다.
 Restart=on-failure
 # 데몬과 그 자식(systemctl, nft)이 권한을 올리지 못하게 한다. 둘 다 setuid 바이너리에 기대지 않는다.
@@ -27,7 +29,7 @@ ProtectSystem=full
 # 모델 디렉터리(모델, .default, 사이드카, firewall.nft 가 있는 곳)와 설정 디렉터리(/etc/diparnux/diparnuxd.json)에 쓴다.
 # /var/lib/iwd 는 Wi-Fi 비밀번호 설정 파일(네트워크 GUI 와 diparnux network wifi connect 가 쓴다)이다. iwd 가 시작하기 전에는
 # 없을 수 있으므로 앞의 - 로 없어도 시작하게 한다.
-ReadWritePaths=/var/lib/diparnux /etc/diparnux -/var/lib/iwd
+ReadWritePaths=/var/lib/diparnux /etc/diparnux -/var/lib/iwd -/etc/systemd/logind.conf.d -/etc/systemd/sleep.conf.d
 # /proc/sys 와 /sys 의 튜너블을 읽기 전용으로 만든다. 데몬은 sysctl 을 바꾸지 않는다.
 ProtectKernelTunables=yes
 # cgroup 파일 시스템을 읽기 전용으로 만든다. cgroup 은 systemd 가 관리하므로 데몬이 쓸 일이 없다.

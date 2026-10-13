@@ -23,6 +23,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
 )
@@ -96,10 +97,12 @@ type Offload struct {
 
 // Status는 llama-server의 현재 상태다. Plan 은 API 계층이 JSON으로 바꾼다.
 type Status struct {
-	State            State            `json:"state"`
-	ModelID          string           `json:"model_id"`
-	Host             string           `json:"host"`
-	Port             int              `json:"port"`
+	State   State  `json:"state"`
+	ModelID string `json:"model_id"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	// BackendPort 는 llama-server 가 실제로 여는 포트다. 게이트웨이를 쓰면 내부 포트(127.0.0.1)이고 Port 는 공개 포트다.
+	BackendPort      int              `json:"backend_port"`
 	LANExposed       bool             `json:"lan_exposed"`
 	PID              int              `json:"pid"`
 	UnitUnverifiable bool             `json:"unit_unverifiable,omitempty"`
@@ -108,6 +111,8 @@ type Status struct {
 	Offload          Offload          `json:"offload"`
 	Warnings         []string         `json:"warnings"`
 	LastError        *Error           `json:"last_error,omitempty"`
+	// Restart 는 서버가 예상 밖으로 멈춘 뒤 데몬이 다시 시작하는 중일 때의 진행 상황이다.
+	Restart *RestartInfo `json:"restart,omitempty"`
 }
 
 // StartRequest는 Start와 StartAsync의 입력이다. ModelID 가 비어 있으면 기본 모델을 쓴다.
@@ -154,6 +159,8 @@ type Options struct {
 	Unit string
 	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/diparnux/firewall.nft.
 	FirewallPath string
+	// FirewallExtras 는 규칙 파일에 더할 것을 돌려준다: 켜진 기능이 여는 포트와 사용자 규칙. nil 이면 둘 다 없다.
+	FirewallExtras func() firewall.Extras
 	// HTTP 는 /health 확인에 쓰는 클라이언트다. nil 이면 기본 클라이언트를 쓴다.
 	HTTP *http.Client
 	// Now 는 현재 시각이다. nil 이면 time.Now 를 쓴다.
@@ -199,6 +206,8 @@ type Supervisor struct {
 	// pendingReclaimPIDs 는 systemd 가 MainPID 를 해제했지만 NVML 에서 아직
 	// 보이는 이전 서버 PID다. 취소된 시작 다음 재시도에서도 VRAM 계획 전에 회수한다.
 	pendingReclaimPIDs []uint32
+	// restart 는 자동 재시작의 진행 상황이다(restart.go).
+	restart restartState
 }
 
 // New는 Supervisor를 만든다. 비워 둔 옵션은 기본값으로 채운다. 필수 의존성이 없어도 패닉하지 않고 오류로 보고한다.
@@ -271,7 +280,9 @@ func defaultSleep(ctx context.Context, d time.Duration) error {
 func (s *Supervisor) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return copyStatus(s.st)
+	out := copyStatus(s.st)
+	out.Restart = s.restart.info()
+	return out
 }
 
 // copyStatus는 Status 를 복사한다. Warnings 슬라이스를 따로 복사하고 나머지 포인터는 읽기 전용으로 공유한다.
@@ -313,7 +324,8 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 	}
 
 	apiKeyFile := ""
-	if len(keySnapshot) > 0 {
+	// 게이트웨이를 쓰면 키 확인을 데몬이 하므로 llama-server 에 키 파일을 주지 않는다.
+	if len(keySnapshot) > 0 && !cfg.Gateway {
 		var snapshotErr error
 		apiKeyFile, snapshotErr = s.writeKeySnapshot(keySnapshot)
 		if snapshotErr != nil {
@@ -340,13 +352,14 @@ func (s *Supervisor) StartAsync(req StartRequest) (Status, error) {
 		s.priorStatus = nil
 	}
 	s.st = Status{
-		State:      StateStarting,
-		ModelID:    m.ID,
-		Host:       host,
-		Port:       cfg.Port,
-		LANExposed: cfg.LANExposed,
-		Since:      s.opts.Now(),
-		Warnings:   []string{},
+		State:       StateStarting,
+		ModelID:     m.ID,
+		Host:        host,
+		Port:        cfg.Port,
+		BackendPort: cfg.BackendPort(),
+		LANExposed:  cfg.LANExposed,
+		Since:       s.opts.Now(),
+		Warnings:    []string{},
 	}
 	if s.priorStatus != nil {
 		s.st.UnitUnverifiable = true
@@ -422,6 +435,7 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	s.st = Status{State: StateStopped, Warnings: []string{}}
 	s.priorStatus = nil
+	s.restart = restartState{} // 사용자가 멈췄으므로 자동 재시작 순서를 끝낸다.
 	s.mu.Unlock()
 	return nil
 }
@@ -487,14 +501,15 @@ func (s *Supervisor) Autostart(ctx context.Context) {
 	s.logf("autostart finished")
 }
 
-// Watch는 실행 중인 유닛이 살아 있는지 30초마다 확인한다. 죽었으면 failed(server_exited)로 바꾼다.
-// 자동으로 다시 시작하지 않는다. ctx 가 끝나면 돌아온다.
+// Watch는 실행 중인 유닛이 살아 있는지 30초마다 확인한다. 죽었으면 failed(server_exited)로 바꾸고,
+// 설정(auto_restart)이 켜져 있으면 대기 시간을 늘려 가며 다시 시작한다(restart.go). ctx 가 끝나면 돌아온다.
 func (s *Supervisor) Watch(ctx context.Context) {
 	for {
 		if err := s.opts.Sleep(ctx, watchInterval); err != nil {
 			return
 		}
 		s.watchOnce(ctx)
+		s.restartTick(ctx)
 	}
 }
 

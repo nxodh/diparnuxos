@@ -11,30 +11,43 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
+	"github.com/nxodh/diparnuxos/daemon/internal/admin"
 	"github.com/nxodh/diparnuxos/daemon/internal/api"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
+	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/nvml"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/power"
+	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/report"
 	"github.com/nxodh/diparnuxos/daemon/internal/runner"
+	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
+	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/webadmin"
+	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
 // version 은 빌드 때 -ldflags "-X main.version=..." 으로 넣는다.
@@ -115,23 +128,53 @@ func run(args []string) error {
 	})
 	defer jobMgr.Close()
 
+	fwRules := &firewall.Store{Path: *stateDir + "/firewall-rules.json"}
+	waMgr := &webadmin.Manager{StateDir: *stateDir, Logf: log.Printf, Addresses: localAddresses}
+	rdpMgr := &rdpctl.Manager{Runner: cmds, StatePath: *stateDir + "/remote-desktop.json"}
+	wgAdmin := &admin.Client{Runner: cmds}
+	wgMgr := &wireguard.Manager{Files: wgAdmin, Runner: cmds, StatePath: *stateDir + "/wireguard.json"}
 	sup := supervisor.New(supervisor.Options{
-		Runner:         cmds,
-		GPU:            gpu,
-		Store:          store,
-		Keys:           keys,
-		Config:         src.get,
-		MemInfo:        mem,
-		GPUStatusPath:  gpuStatusPath,
-		EnvFilePath:    envFilePath,
-		ServerBinary:   llamaBinary,
-		Unit:           llamaUnit,
-		FirewallPath:   *stateDir + "/firewall.nft",
+		Runner:        cmds,
+		GPU:           gpu,
+		Store:         store,
+		Keys:          keys,
+		Config:        src.get,
+		MemInfo:       mem,
+		GPUStatusPath: gpuStatusPath,
+		EnvFilePath:   envFilePath,
+		ServerBinary:  llamaBinary,
+		Unit:          llamaUnit,
+		FirewallPath:  *stateDir + "/firewall.nft",
+		FirewallExtras: func() firewall.Extras {
+			rules, _ := fwRules.List()
+			x := firewall.Extras{Rules: rules}
+			if port, iface, ok := wgMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "WireGuard VPN", Protocol: "udp", Port: port, Source: firewall.SourceAny, Reason: "the VPN is on"})
+				x.Trusted = append(x.Trusted, iface)
+			}
+			if port, src, ok := waMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "Web admin (HTTPS)", Protocol: "tcp", Port: port, Source: src, Reason: "the web admin page is on"})
+			}
+			if port, src, ok := rdpMgr.Opens(); ok {
+				x.Open = append(x.Open, firewall.Open{Name: "Remote desktop (RDP)", Protocol: "tcp", Port: port, Source: src, Reason: "remote desktop is on"})
+			}
+			return x
+		},
 		KeySnapshotDir: *stateDir,
 		KeySnapshotGID: uint32(keyGID),
 		ChownKeyFile:   chownKeyFile,
 		Now:            time.Now,
 	})
+
+	wgMgr.Reapply = sup.ApplyFirewall
+	rdpMgr.Reapply = sup.ApplyFirewall
+	waMgr.Reapply = sup.ApplyFirewall
+	wgMgr.DefaultEndpoint = func() string {
+		if h, err := os.Hostname(); err == nil && h != "" {
+			return h + ".local"
+		}
+		return ""
+	}
 
 	rep := report.Deps{
 		Version:       version,
@@ -149,7 +192,42 @@ func run(args []string) error {
 		OSReleasePath: osReleasePath,
 	}
 
+	gw := &gateway.Gateway{
+		Keys:       keys,
+		LANExposed: func() bool { return src.get().LANExposed },
+		UsagePath:  *stateDir + "/api-usage.json",
+	}
+	gwMgr := &gateway.Manager{
+		G: gw,
+		Wanted: func() (bool, string, int) {
+			c := src.get()
+			host := "127.0.0.1"
+			if c.LANExposed {
+				host = "0.0.0.0"
+			}
+			return c.Gateway, net.JoinHostPort(host, strconv.Itoa(c.Port)), c.Port
+		},
+		Backend: func() (int, bool) {
+			st := sup.Status()
+			if st.State != supervisor.StateRunning && st.State != supervisor.StateRunningCPU {
+				return 0, false
+			}
+			if st.BackendPort != 0 {
+				return st.BackendPort, true
+			}
+			return st.Port, true
+		},
+		Logf: log.Printf,
+	}
+
 	accountsMgr := &accounts.Manager{Runner: cmds, ListPath: *stateDir + "/users.list"}
+	adminHelper := &admin.Client{Runner: cmds}
+	netMgr := &network.Manager{Runner: cmds}
+	sshConf := &sshconf.Manager{
+		Files: adminHelper, Keys: adminHelper, Runner: cmds,
+		Users: func() []string { return loginUsers(accountsMgr) },
+	}
+	netConf := &netconf.Manager{Files: adminHelper, Runner: cmds, Lister: netMgr, PendingPath: *stateDir + "/netconf-pending.json"}
 	handler := api.New(api.Deps{
 		Supervisor:    sup,
 		Jobs:          jobMgr,
@@ -158,7 +236,17 @@ func run(args []string) error {
 		HF:            hfProxy{cfg: src.get},
 		Accounts:      accountsMgr,
 		Updates:       &updatectl.Controller{Runner: cmds},
-		Network:       &network.Manager{Runner: cmds},
+		Network:       netMgr,
+		NetConf:       netConf,
+		SSHConf:       sshConf,
+		VPN:           wgMgr,
+		RDP:           rdpMgr,
+		WebAdmin:      waMgr,
+		Services:      &svcctl.Manager{Runner: cmds},
+		Stats:         &sysstat.Reader{},
+		FirewallRules: fwRules,
+		Power:         &power.Manager{Runner: cmds},
+		Gateway:       gwMgr,
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
@@ -184,6 +272,15 @@ func run(args []string) error {
 		log.Printf("llama startup reconciliation failed: %v", err)
 	}
 	restoreSSH(ctx, *configPath, sup, accountsMgr)
+	// 확인을 기다리던 네트워크 변경이 있는 채로 다시 시작했다면 이전 설정으로 되돌린다.
+	if err := netConf.Recover(ctx); err != nil {
+		log.Printf("network change recovery failed: %v", err)
+	}
+
+	// 웹 관리는 소켓 API 와 같은 핸들러를 쓴다. 켜져 있으면 리스너를 연다.
+	waMgr.API = handler
+	waMgr.Start()
+	defer waMgr.Close()
 
 	ln, created, err := socketListener(*socketPath, *socketGroup)
 	if err != nil {
@@ -207,7 +304,11 @@ func run(args []string) error {
 	go func() { serveErr <- srv.Serve(ln) }()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		gwMgr.Run(ctx)
+	}()
 	go func() {
 		defer wg.Done()
 		sup.Autostart(ctx)
@@ -334,4 +435,49 @@ func restoreSSH(ctx context.Context, configPath string, sup *supervisor.Supervis
 	if err := sup.SetSSHUnit(ctx, true); err != nil {
 		log.Printf("ssh was enabled in the config, but the server did not start: %v", err)
 	}
+}
+
+// loginUsers 는 공개 키를 관리할 수 있는 로그인 계정이다: 시스템의 일반 사용자(uid 1000-59999, 로그인 셸이 있음).
+// Diparnux 가 만든 계정과 설치기가 만든 관리자 계정이 모두 들어간다.
+func loginUsers(_ *accounts.Manager) []string {
+	data, err := os.ReadFile("/etc/passwd")
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Split(line, ":")
+		if len(f) < 7 {
+			continue
+		}
+		uid, err := strconv.Atoi(f[2])
+		if err != nil || uid < 1000 || uid >= 60000 {
+			continue
+		}
+		if strings.HasSuffix(f[6], "nologin") || strings.HasSuffix(f[6], "/false") || f[6] == "" {
+			continue
+		}
+		out = append(out, f[0])
+	}
+	return out
+}
+
+// localAddresses 는 이 컴퓨터의 호스트 이름과 전역 IPv4 주소다. 웹 관리 인증서와 주소 안내에 쓴다.
+func localAddresses() []string {
+	var out []string
+	if h, err := os.Hostname(); err == nil && h != "" {
+		out = append(out, h+".local", h)
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return out
+	}
+	for _, a := range addrs {
+		ipn, ok := a.(*net.IPNet)
+		if !ok || ipn.IP.IsLoopback() || ipn.IP.IsLinkLocalUnicast() || ipn.IP.To4() == nil {
+			continue
+		}
+		out = append(out, ipn.IP.String())
+	}
+	return out
 }

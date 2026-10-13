@@ -187,16 +187,25 @@ func (s *Supervisor) adoptActive(ctx context.Context, pid uint32) (Status, error
 		return Status{}, errors.New("unit MainPID runtime changed during adoption")
 	}
 	status := Status{
-		State:      map[bool]State{true: StateRunningCPU, false: StateRunning}[output.CPUOnly],
-		ModelID:    modelID,
-		Host:       settings.Host,
-		Port:       port,
-		LANExposed: lan,
-		PID:        int(pid),
-		Since:      s.now(),
-		Plan:       &output,
-		Offload:    off,
-		Warnings:   warnings,
+		State:       map[bool]State{true: StateRunningCPU, false: StateRunning}[output.CPUOnly],
+		ModelID:     modelID,
+		Host:        settings.Host,
+		Port:        port,
+		BackendPort: port,
+		LANExposed:  lan,
+		PID:         int(pid),
+		Since:       s.now(),
+		Plan:        &output,
+		Offload:     off,
+		Warnings:    warnings,
+	}
+	// 게이트웨이 모드로 시작된 서버는 내부 포트에서 loopback 으로만 듣는다. 사용자에게 보이는 포트와 공개 여부는 설정을 따른다.
+	if cfg := s.opts.Config(); cfg.Gateway && port == cfg.InternalPort && loopbackHost(settings.Host) {
+		status.Port = cfg.Port
+		status.LANExposed = cfg.LANExposed
+		if cfg.LANExposed {
+			status.Host = "0.0.0.0"
+		}
 	}
 	if output.CPUOnly {
 		s.mu.Lock()
@@ -302,7 +311,17 @@ func runtimePlan(env map[string]string) (autoconf.Output, llamaargs.ServerSettin
 		}
 		metrics = true
 	}
+	parallel := 1
+	if value, ok := env["LLAMA_ARG_N_PARALLEL"]; ok {
+		p, err := strconv.Atoi(value)
+		if err != nil || p < 2 || p > 16 || ctx%p != 0 {
+			return autoconf.Output{}, llamaargs.ServerSettings{}, errors.New("runtime parallel slot setting is invalid")
+		}
+		parallel = p
+	}
 	out := autoconf.Output{
+		Parallel:       parallel,
+		SlotCtx:        ctx / parallel,
 		NGL:            ngl,
 		Ctx:            ctx,
 		CacheTypeK:     env["LLAMA_ARG_CACHE_TYPE_K"],
@@ -641,6 +660,7 @@ func (s *Supervisor) recordFailedState(ctx context.Context, err *Error) *Error {
 				s.st.ModelID = prior.ModelID
 				s.st.Host = prior.Host
 				s.st.Port = prior.Port
+				s.st.BackendPort = prior.BackendPort
 				s.st.LANExposed = prior.LANExposed
 				s.st.Plan = prior.Plan
 				s.st.Offload = prior.Offload

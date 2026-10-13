@@ -20,7 +20,10 @@ class _Handler(BaseHTTPRequestHandler):
     def _serve(self):
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else b""
-        parsed = json.loads(body) if body else None
+        try:
+            parsed = json.loads(body) if body else None
+        except ValueError:
+            parsed = body  # 파일 내용 같은 바이너리 본문은 그대로 기록한다.
         self.server.calls.append((self.command, self.path, parsed))
         route = self.server.routes.get((self.command, self.path.split("?")[0]))
         if route is None:

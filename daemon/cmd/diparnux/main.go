@@ -149,6 +149,26 @@ func execute(e runEnv, args []string) int {
 		return c.user(cargs)
 	case "ssh":
 		return c.ssh(cargs)
+	case "power":
+		return c.power(cargs)
+	case "firewall":
+		return c.firewall(cargs)
+	case "exposure":
+		return c.exposure(cargs)
+	case "webadmin":
+		return c.webadmin(cargs)
+	case "vpn":
+		return c.vpn(cargs)
+	case "remote-desktop":
+		return c.remoteDesktop(cargs)
+	case "services":
+		return c.services(cargs)
+	case "resources":
+		return c.resources(cargs)
+	case "connection":
+		return c.connection(cargs)
+	case "gateway":
+		return c.gateway(cargs)
 	case "network":
 		return c.network(cargs)
 	case "config":

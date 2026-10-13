@@ -49,6 +49,8 @@ const (
 	maxCtx         int64 = 1 << 22
 	maxBatch       int64 = 1 << 16
 	minCtxOverride int64 = 256
+	// maxParallel 은 동시에 처리할 요청(슬롯) 수의 상한이다.
+	maxParallel int64 = 16
 )
 
 // GPU는 쓸 수 있는 GPU 하나의 상태다. Index는 nvidia-smi의 index와 같다.
@@ -65,6 +67,8 @@ type Overrides struct {
 	CacheType *string
 	Batch     *int
 	LoadMode  *string
+	// Parallel 은 동시에 처리할 요청 수(슬롯)다. 컨텍스트(Ctx)는 슬롯 하나가 쓰는 길이이고 서버의 전체 컨텍스트는 둘의 곱이다.
+	Parallel *int
 }
 
 // Input은 Plan이 받는 입력이다. 모르는 값은 0으로 둔다.
@@ -88,6 +92,8 @@ type Output struct {
 	CacheTypeV     string   // V 캐시 타입
 	FlashAttn      bool     // 양자화 KV 캐시에는 필수다
 	Batch          int      // 배치 크기
+	Parallel       int      // 동시에 처리할 요청 수(슬롯). 0 이나 1 이면 하나다
+	SlotCtx        int      // 슬롯 하나의 컨텍스트. Ctx 는 SlotCtx 와 Parallel 의 곱이다
 	TensorSplit    string   // GPU가 둘 이상일 때만 값이 있다
 	VisibleDevices []int    // CUDA에 보일 GPU index 목록, 오름차순
 	LoadMode       string   // 모델 로드 방식
@@ -110,6 +116,8 @@ type norm struct {
 	gpus       []GPU
 	desktop    bool
 	ov         Overrides
+	// par 는 슬롯 수다(1 이상). 계획의 컨텍스트는 슬롯 하나의 길이이고 KV 캐시 추정은 par 배로 한다.
+	par int64
 }
 
 // choice는 단계별 선택 결과다. 재정의는 이 값을 고친 뒤 파생 값을 계산한다.
@@ -163,6 +171,9 @@ func ValidateOverrides(o Overrides) error {
 	if o.LoadMode != nil && !ValidLoadMode(*o.LoadMode) {
 		errs = append(errs, fmt.Errorf("invalid load mode override %q", *o.LoadMode))
 	}
+	if o.Parallel != nil && (int64(*o.Parallel) < 1 || int64(*o.Parallel) > maxParallel) {
+		errs = append(errs, fmt.Errorf("parallel override %d is out of range 1-%d", *o.Parallel, maxParallel))
+	}
 	return errors.Join(errs...)
 }
 
@@ -208,7 +219,14 @@ func ValidLoadMode(s string) bool {
 
 // normalize는 입력을 int64로 바꾸고 음수와 너무 큰 값을 자른다. 바꾼 내용은 경고로 남긴다.
 func (pl *planner) normalize(in Input) norm {
-	n := norm{desktop: in.DesktopMode, ov: in.Overrides}
+	n := norm{desktop: in.DesktopMode, ov: in.Overrides, par: 1}
+	if p := in.Overrides.Parallel; p != nil {
+		if int64(*p) < 1 || int64(*p) > maxParallel {
+			pl.warnf("parallel override %d ignored: allowed range is 1-%d", *p, maxParallel)
+		} else {
+			n.par = int64(*p)
+		}
+	}
 
 	n.modelBytes = in.ModelBytes
 	if n.modelBytes < 0 {
@@ -336,7 +354,7 @@ func (pl *planner) choose(n norm) choice {
 
 	// 단계 4: 부분 오프로드. 컨텍스트 2048, q8_0 KV, 남는 VRAM에 맞춘 레이어 수.
 	ctx4 := min(ctxFloor, ctx0)
-	kv4 := kvMiB(n.layers, ctx4, n.embedding, "q8_0")
+	kv4 := kvMiB(n.layers, satMul(ctx4, n.par), n.embedding, "q8_0")
 	room := usable - kv4
 	var k int64
 	if room > 0 {
@@ -363,14 +381,18 @@ func (pl *planner) choose(n norm) choice {
 
 // attempt는 한 단계의 적합 여부를 계산하고 근거를 남긴다.
 func (pl *planner) attempt(n norm, label string, modelMiB, ctx int64, typ string, usable int64) bool {
-	kv := kvMiB(n.layers, ctx, n.embedding, typ)
+	kv := kvMiB(n.layers, satMul(ctx, n.par), n.embedding, typ)
 	total := satAdd(modelMiB, kv)
 	ok := total != math.MaxInt64 && total <= usable
 	verdict := "rejected"
 	if ok {
 		verdict = "accepted"
 	}
-	pl.rationalef("%s %s: ctx %d, %s KV %d MiB, full offload needs %d MiB of %d MiB usable", label, verdict, ctx, typ, kv, total, usable)
+	if n.par > 1 {
+		pl.rationalef("%s %s: ctx %d x %d slots, %s KV %d MiB, full offload needs %d MiB of %d MiB usable", label, verdict, ctx, n.par, typ, kv, total, usable)
+	} else {
+		pl.rationalef("%s %s: ctx %d, %s KV %d MiB, full offload needs %d MiB of %d MiB usable", label, verdict, ctx, typ, kv, total, usable)
+	}
 	return ok
 }
 
@@ -457,7 +479,9 @@ func (pl *planner) applyOverrides(n norm, c *choice) {
 func (pl *planner) finish(n norm, c choice) Output {
 	out := Output{
 		NGL:        c.ngl,
-		Ctx:        int(c.ctx),
+		Ctx:        int(satMul(c.ctx, n.par)),
+		Parallel:   int(n.par),
+		SlotCtx:    int(c.ctx),
 		CacheTypeK: c.cache,
 		CacheTypeV: c.cache,
 		FlashAttn:  c.cache != "f16",
@@ -492,7 +516,13 @@ func (pl *planner) finish(n norm, c choice) Output {
 	if n.layers == 0 {
 		pl.warn("block count unknown; KV cache size is not estimated")
 	}
-	kv := kvMiB(n.layers, c.ctx, n.embedding, c.cache)
+	kv := kvMiB(n.layers, satMul(c.ctx, n.par), n.embedding, c.cache)
+	if n.par > 1 {
+		pl.rationalef("%d parallel slots with %d tokens each: the server context is %d tokens", n.par, c.ctx, satMul(c.ctx, n.par))
+		if c.cpuOnly {
+			pl.warn("parallel slots on the CPU share the same cores; throughput does not grow with the slot count")
+		}
+	}
 
 	var estVRAM, estRAM int64
 	modelMiB := ceilDiv(n.modelBytes, MiB)

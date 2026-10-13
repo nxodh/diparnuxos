@@ -248,6 +248,8 @@ func (c *cli) configShow(args []string) int {
 		token = "set (hidden)"
 	}
 	kv(c.env.stdout, "hf-token", token)
+	kv(c.env.stdout, "auto-restart", yesNo(cfg.AutoRestart))
+	kv(c.env.stdout, "gateway", yesNo(cfg.Gateway))
 	kv(c.env.stdout, "overrides", overridesText(cfg.Overrides))
 	return exitOK
 }
@@ -270,6 +272,9 @@ func overridesText(o client.Overrides) string {
 	if o.LoadMode != nil {
 		parts = append(parts, "load-mode="+*o.LoadMode)
 	}
+	if o.Parallel != nil {
+		parts = append(parts, fmt.Sprintf("parallel=%d", *o.Parallel))
+	}
 	if len(parts) == 0 {
 		return "none (automatic plan)"
 	}
@@ -279,7 +284,7 @@ func overridesText(o client.Overrides) string {
 // configSet 는 설정 한 항목을 바꾼다. hf-token 은 인자가 아니라 표준 입력에서 읽는다.
 func (c *cli) configSet(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux config set <port|lan|autostart|hf-token> [value]", "config set")
+		return c.usage("usage: diparnux config set <port|lan|autostart|auto-restart|gateway|parallel|hf-token> [value]", "config set")
 	}
 	key, rest := args[0], args[1:]
 	switch key {
@@ -292,16 +297,23 @@ func (c *cli) configSet(args []string) int {
 			return c.usage("port must be a number from 1 to 65535", "config set")
 		}
 		return c.applyConfig(key, client.ConfigPatch{Port: &n}, fmt.Sprintf("port set to %d", n))
-	case "lan", "autostart":
+	case "lan", "autostart", "auto-restart", "gateway":
 		if len(rest) != 1 || (rest[0] != "on" && rest[0] != "off") {
 			return c.usage(fmt.Sprintf("usage: diparnux config set %s on|off", key), "config set")
 		}
 		v := rest[0] == "on"
 		patch := client.ConfigPatch{LANExposed: &v}
-		if key == "autostart" {
+		switch key {
+		case "autostart":
 			patch = client.ConfigPatch{Autostart: &v}
+		case "gateway":
+			patch = client.ConfigPatch{Gateway: &v}
+		case "auto-restart":
+			patch = client.ConfigPatch{AutoRestart: &v}
 		}
 		return c.applyConfig(key, patch, fmt.Sprintf("%s %s", key, rest[0]))
+	case "parallel":
+		return c.setParallel(rest)
 	case "hf-token":
 		if len(rest) != 0 {
 			return c.usage("hf-token takes no argument; the token is read from standard input", "config set")
@@ -309,6 +321,35 @@ func (c *cli) configSet(args []string) int {
 		return c.setHFToken()
 	}
 	return c.usage(fmt.Sprintf("unknown setting %q", key), "config set")
+}
+
+// setParallel 은 동시에 처리할 요청 수(슬롯)를 저장한다. auto 는 지정을 지운다. 다른 재정의는 그대로 둔다.
+func (c *cli) setParallel(args []string) int {
+	const use = "usage: diparnux config set parallel <1-16|auto>"
+	if len(args) != 1 {
+		return c.usage(use, "config set")
+	}
+	var want *int
+	if args[0] != "auto" {
+		n, err := strconv.Atoi(args[0])
+		if err != nil || n < 1 || n > 16 {
+			return c.usage(use, "config set")
+		}
+		want = &n
+	}
+	ctx, cancel := c.timeout(shortTimeout)
+	cur, _, err := c.api.Config(ctx)
+	cancel()
+	if err != nil {
+		return c.fail(err)
+	}
+	ov := cur.Overrides
+	ov.Parallel = want
+	text := "parallel set to " + args[0]
+	if want == nil {
+		text = "parallel set to automatic (one slot)"
+	}
+	return c.applyConfig("parallel", client.ConfigPatch{Overrides: &ov}, text)
 }
 
 // setHFToken 은 표준 입력에서 토큰을 한 줄 읽어 저장한다. 토큰은 어떤 출력에도 나오지 않는다.
@@ -447,17 +488,31 @@ var commandUsage = map[string]string{
 	"status":               "Usage: diparnux status\n\nShow the version, mode, GPU, memory, and server state.\n",
 	"gpu":                  "Usage: diparnux gpu check\n\nRun the GPU check again and say what to do for the result.\n",
 	"gpu check":            "Usage: diparnux gpu check\n\nRun the GPU check again. Exit 0 if a GPU is usable or none exists, 1 if a GPU exists but cannot be used.\n",
-	"model":                "Usage: diparnux model <list|pull|rm|search|files|default> [arguments]\n",
+	"model":                "Usage: diparnux model <list|pull|import|rm|search|files|default> [arguments]\n",
 	"model list":           "Usage: diparnux model list\n\nList installed models.\n",
 	"model pull":           "Usage: diparnux model pull <repo> [--file F] [--revision R] [--no-wait]\n\nShow the repository license and gated state, start a download, and follow it.\nThe same command followed again picks up the running download.\n",
+	"model import":         "Usage: diparnux model import <file.gguf> [--name NAME]\n\nCopy a GGUF file you already have into the model directory. The file is read with your permissions and sent to the daemon.\nThe SHA-256 is computed while copying and the GGUF header is checked. An existing model is never replaced.\nThe first model you add becomes the default.\n",
 	"model rm":             "Usage: diparnux model rm <id>\n\nDelete an installed model.\n",
 	"model search":         "Usage: diparnux model search <query> [--limit N]\n\nSearch Hugging Face for GGUF models.\n",
 	"model files":          "Usage: diparnux model files <repo> [--revision R]\n\nList the GGUF files in a repository.\n",
 	"model default":        "Usage: diparnux model default <id>\n\nSet the default model.\n",
-	"serve":                "Usage: diparnux serve <start|stop|plan|logs> [arguments]\n",
-	"serve start":          "Usage: diparnux serve start [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--no-wait]\n\nShow the plan with its rationale, then start llama-server and wait for it to be ready.\n",
+	"power":                "Usage: diparnux power [on|off]\n\nShow whether the computer is kept always on (no suspend when the lid is closed or after a long idle time), or turn that on or off.\nShutting down and rebooting yourself (power button, poweroff, the menu) is never blocked.\nAlways-on is the default. The status asks the running systemd-logind, so another setting that overrides it is reported.\n",
+	"connection":           "Usage: diparnux connection [examples]\n\nShow the URLs other computers use to reach this computer's model server (OpenAI-compatible API), whether an API key is required, and warnings.\n'examples' prints ready-made settings for curl, the OpenAI Python client and environment variables.\nThe API key itself is never shown here; it is shown only once when it is created.\n",
+	"gateway":              "Usage: diparnux gateway\n\nShow the gateway that checks API keys, with requests, errors and tokens per key.\n",
+	"serve":                "Usage: diparnux serve <start|stop|plan|logs|stats> [arguments]\n",
+	"network":              "Usage: diparnux network [status|config|set|confirm|revert|hostname|wol|diagnose|wifi ...]\n\n  status                       interfaces, addresses and Wi-Fi\n  config                       the wired settings, host name and wake-on-lan\n  set <iface> --dhcp | --address CIDR [--gateway IP] [--dns A,B] [--domains X] [--confirm SECONDS]\n                               change a wired interface; unless you confirm in time it reverts\n  confirm | revert             keep or undo the change that is waiting\n  hostname [name]              show or change the host name\n  wol [on|off]                 show or change wake-on-lan (applies from the next boot)\n  diagnose                     check the address, route, gateway, DNS and internet\n",
+	"firewall":             "Usage: diparnux firewall [list|add|rm|enable|disable]\n\n  list                                 the ports features open and your rules (the default is to block)\n  add <name> <tcp|udp> <port|a-b> [--from any|lan|CIDR]\n  rm <id> | enable <id> | disable <id>\n",
+	"ssh keys":             "Usage: diparnux ssh keys list <user> | add <user> [--file F] | rm <user> <fingerprint>\n\nManage the public keys that may log in as a user. 'add' reads one public key line from standard input or --file.\n",
+	"services":             "Usage: diparnux services [list | start|stop|restart|enable|disable <unit> | logs <unit> [-n N]]\n\nShow the services Diparnux manages (the model server, SSH, remote desktop, networking) and control them.\nOnly the listed services can be controlled; the daemon itself can only be viewed.\n",
+	"resources":            "Usage: diparnux resources\n\nMeasure CPU, memory, disks, network speed, temperatures and the GPU once. Nothing runs in the background.\n",
+	"vpn":                  "Usage: diparnux vpn [status | on|off [--address CIDR] [--port N] | peer add <name> [--public-key K] [--endpoint HOST] [--out FILE] | peer rm <name>]\n\nA WireGuard VPN (interface wg0). It is off by default. Turning it on opens its UDP port and trusts the wg0 interface.\n'peer add' makes a key pair for the new device and prints its client configuration once, or use --public-key with a key the device made itself.\nThe private keys are never shown again and the server key never leaves this computer.\n",
+	"remote-desktop":       "Usage: diparnux remote-desktop [on|off] [--from lan|any|CIDR]\n\nLet another computer open this computer's desktop with an RDP client (xrdp). It is off by default.\nTurning it on starts the service and opens 3389/tcp only for the allowed range (the local network by default).\n",
+	"webadmin":             "Usage: diparnux webadmin [status | on|off [--port N] [--from lan|any|CIDR] | password]\n\nA small admin page for another computer's browser: server start and stop, API keys, connection info, resources and service restarts.\nIt is off by default, uses HTTPS with a self-signed certificate and has its own password (set it first with 'diparnux webadmin password').\nAccounts, SSH keys, the firewall and the VPN cannot be changed from the page.\n",
+	"exposure":             "Usage: diparnux exposure\n\nCheck what this computer offers to the network: the model server, SSH, the web admin page, remote desktop, the VPN and the firewall.\nRisky settings are listed first. Exit code 1 means there is a warning or an error.\n",
+	"serve stats":          "Usage: diparnux serve stats\n\nShow the running server: busy slots, generation and prompt speed, requests being processed, and the gateway counters.\n",
+	"serve start":          "Usage: diparnux serve start [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N] [--no-wait]\n\nShow the plan with its rationale, then start llama-server and wait for it to be ready.\n",
 	"serve stop":           "Usage: diparnux serve stop\n\nStop llama-server.\n",
-	"serve plan":           "Usage: diparnux serve plan [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M]\n\nShow the plan and its rationale without starting the server.\n",
+	"serve plan":           "Usage: diparnux serve plan [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--parallel N]\n\nShow the plan and its rationale without starting the server.\n",
 	"serve logs":           "Usage: diparnux serve logs [-n N]\n\nShow the last N llama-server log lines (1-2000, default 200).\n",
 	"mode":                 "Usage: diparnux mode [server|desktop]\n\nShow the current mode, or set it.\n",
 	"update":               "Usage: diparnux update [--check] [--rollback] [--status] [--reboot]\n\nInstall the kernel, NVIDIA driver and system updates together. The new kernel boots once and becomes the default only after it passes the boot check.\n\n  --check     show what would change and install nothing\n  --rollback  return to the kernel and driver from before the last update\n  --status    show the state of the last update\n  --reboot    reboot when the update succeeds\n",
@@ -466,8 +521,7 @@ var commandUsage = map[string]string{
 	"apikey create":        "Usage: diparnux apikey create [label]\n\nCreate an API key. The key is shown only once.\n",
 	"apikey list":          "Usage: diparnux apikey list\n\nList API keys. Keys are not shown.\n",
 	"apikey rm":            "Usage: diparnux apikey rm <id>\n\nDelete an API key.\n",
-	"ssh":                  "Usage: diparnux ssh [on|off]\n\nShow the SSH server state, or turn it on or off.\nTurning it on opens port 22. Password login is allowed only for accounts created with 'diparnux user add'.\n",
-	"network":              "Usage: diparnux network [status|wifi <list|scan|connect|disconnect|forget|on|off>]\n\nShow the network interfaces and the wireless state, or manage Wi-Fi.\n",
+	"ssh":                  "Usage: diparnux ssh [on|off|advanced|port N|password on|off|keys ...|log]\n\nShow the SSH server state, or turn it on or off.\nTurning it on opens the SSH port. Password login is allowed only for accounts created with 'diparnux user add'.\n  advanced       the port, password-login setting, key count and the host key fingerprints\n  port N         change the SSH port (the firewall follows)\n  password on|off   allow or refuse password login (off needs at least one public key)\n  keys ...       manage public keys\n  log            recent logins and failed attempts\n",
 	"network wifi":         "Usage: diparnux network wifi <list|scan|connect <ssid>|disconnect|forget <ssid>|on|off>\n\nconnect asks for the password on the terminal, or reads it with --password-stdin.\n",
 	"network wifi connect": "Usage: diparnux network wifi connect <ssid> [--password-stdin]\n\nConnect to a wireless network. Open and saved networks need no password.\n",
 	"network wifi forget":  "Usage: diparnux network wifi forget <ssid>\n\nDelete the saved password of a network.\n",
@@ -477,7 +531,7 @@ var commandUsage = map[string]string{
 	"user rm":              "Usage: diparnux user rm <name>\n\nDelete an account created with Diparnux. Its home directory is kept.\n",
 	"config":               "Usage: diparnux config <show|set> [arguments]\n",
 	"config show":          "Usage: diparnux config show\n\nShow the daemon configuration. The Hugging Face token is hidden.\n",
-	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n",
+	"config set":           "Usage: diparnux config set port <N> | lan on|off | autostart on|off | auto-restart on|off | gateway on|off | parallel <1-16|auto> | hf-token\n\nChange one setting. The Hugging Face token is read from standard input, never from an argument.\n  auto-restart  start the server again (10 s, 30 s, 2 min, 5 min, 15 min) when it stops unexpectedly (default on)\n  gateway   the daemon receives the public port and checks API keys; key changes need no restart (default on)\n  parallel  how many requests the server handles at the same time; each one gets its own context, so the KV cache grows with the count\n",
 	"chat":                 "Usage: diparnux chat [--max-tokens N] <prompt...>\n\nSend one prompt to the running server and show the reply and speed.\nUse -- before a prompt that starts with a dash.\n",
 	"version":              "Usage: diparnux version\n\nShow the CLI version.\n",
 	"help":                 "Usage: diparnux help [command]\n\nShow help for all commands, or for one command.\n",

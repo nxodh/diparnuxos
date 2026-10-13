@@ -22,6 +22,16 @@ stopped = True
 default = ""
 autostart = True
 daemon_restarts = 0
+FAKE_KEY = "dpx_" + "f" * 40
+key_created = False
+gateway_requests = 0
+gateway_refused = 0
+fw_rule = False
+ssh_key = False
+webadmin_password = False
+webadmin_on = False
+vpn_on = False
+vpn_peers = 0
 
 
 def emit(text):
@@ -58,7 +68,8 @@ def status():
 
 
 def result(command):
-    global autostart, daemon_restarts, stopped, default
+    global autostart, daemon_restarts, stopped, default, key_created, gateway_requests, gateway_refused
+    global fw_rule, ssh_key, webadmin_password, webadmin_on, vpn_on, vpn_peers
     if command.startswith("stty "):
         return "", 0
     if command.startswith("attempt=0; while [ \"$attempt\" -lt 10 ]; do"):
@@ -101,12 +112,123 @@ def result(command):
         return ("0" * 64 if mode == "bad-sha" else sha) + "  /var/lib/diparnux/models/" + model, 0
     if command.startswith("sudo -n journalctl"):
         return "Diparnux test journal", 0
+    if command.startswith("sudo -n nft list table inet diparnux"):
+        return "table inet diparnux {\n\tchain input {\n\t\tiif lo accept\n" + (
+            "\t\tip saddr { 10.0.0.0/8 } tcp dport 39999 accept\n" if fw_rule else "") + "\t}\n}", 0
+    if command.startswith("ss -H -ltn 'sport = :18443'"):
+        return ("LISTEN 0 4096 *:18443 *:*" if webadmin_on else ""), 0
+    if command.startswith("systemctl is-enabled xrdp.service"):
+        return "disabled", 0
+    if command.startswith("rm -f /tmp/e2e_key /tmp/e2e_key.pub; ssh-keygen"):
+        return "", 0
+    if command.startswith("printf '%s\\n' 'e2e-correct-horse-battery' | diparnux --json webadmin password"):
+        webadmin_password = True
+        return json.dumps({"password_set": True}), 0
+    if command.startswith("python3 -I -c 'import ssl,json,http.client"):
+        return "401 200 200 403", 0
+    if command.startswith("diparnux vpn peer add e2e-peer --out"):
+        vpn_peers += 1
+        return "peer e2e-peer added with address 10.8.0.2/32\nclient configuration written to /tmp/e2e-peer.conf", 0
+    if command.startswith("stat -c %a /tmp/e2e-peer.conf"):
+        return "600", 0
+    if command.startswith("for i in 1 2 3 4 5 6 7 8; do ip -br link show wg0"):
+        return "wg0 UNKNOWN 10.8.0.1/24", 0
+    if command.startswith("rm -f /tmp/e2e-peer.conf"):
+        return "", 0
+    if command.startswith("ss -H -ltn"):
+        return "LISTEN 0 4096 127.0.0.1:8080 0.0.0.0:*\nLISTEN 0 4096 127.0.0.1:18080 0.0.0.0:*", 0
+    if command.startswith("python3 -I -c "):
+        # 게이트웨이 상태 코드 확인: python3 -I -c '<script>' URL [헤더...]
+        words = shlex.split(command)
+        url, headers = words[4], words[5:]
+        if url.endswith("/health"):
+            return "200", 0
+        if not key_created:
+            gateway_requests += 1
+            return "200", 0
+        if any(h in ("Authorization: Bearer " + FAKE_KEY, "X-Api-Key: " + FAKE_KEY) for h in headers):
+            gateway_requests += 1
+            return "200", 0
+        gateway_refused += 1
+        return "401", 0
     args = command.removeprefix("diparnux --json ")
     if args.startswith("config set autostart "):
         autostart = args.rsplit(" ", 1)[1] == "on"
         return json.dumps({"config": {"autostart": autostart}, "restart_required": False}), 0
     if args == "status":
         return json.dumps(status()), 0
+    if args == "firewall":
+        return json.dumps({"policy": "drop", "builtin": [], "rules": ([{"id": "r1", "name": "e2e-rule", "protocol": "tcp", "port": 39999, "source": "lan", "enabled": True}] if fw_rule else []), "max_rule": 64}), 0
+    if args.startswith("firewall add e2e-rule "):
+        fw_rule = True
+        return json.dumps({"id": "r1", "name": "e2e-rule", "protocol": "tcp", "port": 39999, "source": "lan", "enabled": True}), 0
+    if args.startswith("firewall rm "):
+        fw_rule = False
+        return json.dumps({"id": "r1", "deleted": True}), 0
+    if args == "services":
+        return json.dumps({"services": [
+            {"unit": "diparnuxd.service", "title": "Diparnux daemon", "installed": True, "active": "active", "actions": []},
+            {"unit": "ssh.service", "title": "SSH server", "installed": True, "active": "inactive", "actions": ["start", "stop", "restart"]}]}), 0
+    if args == "services stop diparnuxd.service":
+        return "diparnux: Diparnux daemon cannot be stopped from here (action_not_allowed)", 1
+    if args == "services stop cron.service":
+        return "diparnux: this service is not managed here (service_not_allowed)", 1
+    if args == "resources":
+        return json.dumps({"system": {"memory": {"total_mib": 3900, "available_mib": 3300, "used_mib": 600}, "cpu": {"cores": 2}}, "gpus": []}), 0
+    if args.startswith("exposure"):
+        return json.dumps({"level": "ok", "findings": [{"level": "ok", "title": "The model server is reachable only from this computer", "detail": ""}]}), 0
+    if args == "network config":
+        return json.dumps({"hostname": "diparnux", "wake_on_lan": False, "pending": None, "interfaces": []}), 0
+    if args.startswith("network diagnose"):
+        return json.dumps({"checks": [{"name": "address", "ok": True, "detail": "enp0s3 10.0.2.15/24"}]}), 0
+    if args == "remote-desktop":
+        return json.dumps({"installed": True, "enabled": False, "active": False, "port": 3389, "source": "lan"}), 0
+    if args == "ssh advanced":
+        return json.dumps({"enabled": False, "port": 22, "key_count": 1 if ssh_key else 0, "host_keys": []}), 0
+    if args.startswith("ssh keys add user"):
+        ssh_key = True
+        return json.dumps({"key": {"type": "ssh-ed25519", "fingerprint": "SHA256:e2e"}, "added": True}), 0
+    if args == "ssh keys list user":
+        return json.dumps({"user": "user", "keys": ([{"type": "ssh-ed25519", "fingerprint": "SHA256:e2e", "comment": "e2e@test"}] if ssh_key else [])}), 0
+    if args.startswith("ssh keys rm user "):
+        ssh_key = False
+        return json.dumps({"deleted": True}), 0
+    if args.startswith("webadmin on"):
+        if not webadmin_password:
+            return "diparnux: set the web admin password first (password_required)", 1
+        webadmin_on = True
+        return json.dumps({"enabled": True, "running": True, "port": 18443, "source": "lan", "password_set": True, "cert_fingerprint": "AA:BB"}), 0
+    if args == "webadmin off":
+        webadmin_on = False
+        return json.dumps({"enabled": False, "running": False, "port": 18443, "source": "lan", "password_set": True}), 0
+    if args == "vpn on":
+        vpn_on = True
+        body = json.dumps({"enabled": True, "interface": "wg0", "address": "10.8.0.1/24", "listen_port": 51820, "public_key": "A" * 43 + "=", "peers": []}, indent=2)
+        if mode == "kernel-noise":
+            # 모듈을 올릴 때 커널이 직렬 콘솔에 쓰는 줄이 명령 출력 앞에 끼어든다(CI 에서 실제로 일어났다).
+            body = ("[   28.187070] wireguard: WireGuard 1.0.0 loaded. See www.wireguard.com for information.\n"
+                    "[   28.188399] wireguard: Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n") + body
+        return body, 0
+    if args == "vpn":
+        return json.dumps({"enabled": vpn_on, "interface": "wg0", "peers": [{"name": "e2e-peer"}] * vpn_peers}), 0
+    if args == "vpn off":
+        vpn_on = False
+        return json.dumps({"enabled": False, "peers": []}), 0
+    if args == "connection":
+        return json.dumps({"server_state": "stopped" if stopped else "running_cpu_fallback", "model_id": model,
+                           "gateway": True, "public_port": 8080, "lan_exposed": False,
+                           "key_count": 1 if key_created else 0, "key_required": key_created,
+                           "local_url": "http://127.0.0.1:8080/v1", "addresses": [], "warnings": [], "examples": {}}), 0
+    if args == "gateway":
+        keys = [{"id": "k1", "label": "e2e-gateway", "prefix": "dpx_ffff", "requests": gateway_requests}] if key_created else []
+        return json.dumps({"enabled": True, "public_port": 8080, "state": {"listening": True, "addr": "127.0.0.1:8080", "backend_port": 18080},
+                           "stats": {"requests": gateway_requests, "unauthorized": gateway_refused, "keys": keys}}), 0
+    if args == "apikey create e2e-gateway":
+        key_created = True
+        return json.dumps({"id": "k1", "label": "e2e-gateway", "prefix": "dpx_ffff", "key": FAKE_KEY, "restart_required": False}), 0
+    if args == "apikey rm k1":
+        key_created = False
+        return json.dumps({"id": "k1", "deleted": True, "restart_required": False}), 0
     if args == "serve start e2e-missing.gguf":
         return "diparnux: model was not found (no_model)", 1
     if args.startswith("model pull "):
@@ -180,4 +302,4 @@ for line in sys.stdin:
     if mode == "serial-timeout" and command.startswith("diparnux --json model pull"):
         time.sleep(60)
     output, rc = result(command)
-    emit(f"\n__LLX_{token}_BEGIN__\n{output}\n__LLX_{token}_END__:{rc}\n")
+    emit(f"\n__DPX_{token}_BEGIN__\n{output}\n__DPX_{token}_END__:{rc}\n")

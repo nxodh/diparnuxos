@@ -19,13 +19,22 @@ import (
 
 // Config는 관리자가 정하는 데몬 설정이다.
 type Config struct {
-	Port       int       `json:"port"`        // llama-server 의 API 포트, 기본 8080. LAN 공개 시 방화벽이 여는 포트다. 데몬 자신은 유닉스 소켓만 쓴다
-	LANExposed bool      `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
-	Autostart  bool      `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
-	SSHEnabled bool      `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
-	ModelsDir  string    `json:"models_dir"`  // 절대 경로, 기본 /var/lib/diparnux/models
-	HFToken    string    `json:"hf_token"`    // Hugging Face 토큰, 진단 리포트에서는 가린다
-	Overrides  Overrides `json:"overrides"`   // 자동 계획을 덮어쓰는 수동 값
+	Port       int  `json:"port"`        // llama-server 의 API 포트, 기본 8080. LAN 공개 시 방화벽이 여는 포트다. 데몬 자신은 유닉스 소켓만 쓴다
+	LANExposed bool `json:"lan_exposed"` // true이면 API를 LAN에 연다(API 키 필수)
+	Autostart  bool `json:"autostart"`   // 부팅 때 모델 서버를 띄운다
+	// AutoRestart 가 true 이면 서버가 예상 밖으로 멈췄을 때 데몬이 대기 시간을 늘려 가며 다시 시작한다.
+	AutoRestart bool `json:"auto_restart"`
+	SSHEnabled  bool `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
+	// SSHPort 는 SSH 서버 포트다. 0 이면 22 다. sshd 설정(Port)과 방화벽이 같은 값을 쓴다.
+	SSHPort   int    `json:"ssh_port"`
+	ModelsDir string `json:"models_dir"` // 절대 경로, 기본 /var/lib/diparnux/models
+	HFToken   string `json:"hf_token"`   // Hugging Face 토큰, 진단 리포트에서는 가린다
+	// Gateway 가 true 이면 데몬이 공개 포트(Port)를 받아 키를 확인하고 llama-server 로 넘긴다. llama-server 는
+	// 127.0.0.1:InternalPort 에서만 연다. 키 변경이 서버 재시작 없이 반영되고 키별 사용량을 알 수 있다. false 이면
+	// 예전처럼 llama-server 가 Port 를 직접 받는다. 바꾸면 서버를 다시 시작해야 반영된다.
+	Gateway      bool      `json:"gateway"`
+	InternalPort int       `json:"internal_port"` // 게이트웨이를 쓸 때 llama-server 가 여는 포트(127.0.0.1), 기본 18080
+	Overrides    Overrides `json:"overrides"`     // 자동 계획을 덮어쓰는 수동 값
 }
 
 // Overrides는 autoconf의 재정의와 같은 항목이다. nil이면 자동 계획을 쓴다.
@@ -35,15 +44,27 @@ type Overrides struct {
 	CacheType *string `json:"cache_type,omitempty"`
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
+	Parallel  *int    `json:"parallel,omitempty"`
 }
 
 // Default는 설정 파일이 없을 때 쓰는 기본값이다.
 func Default() Config {
 	return Config{
-		Port:      8080,
-		Autostart: true,
-		ModelsDir: "/var/lib/diparnux/models",
+		Port:         8080,
+		Autostart:    true,
+		AutoRestart:  true,
+		ModelsDir:    "/var/lib/diparnux/models",
+		Gateway:      true,
+		InternalPort: 18080,
 	}
+}
+
+// BackendPort 는 llama-server 가 실제로 여는 포트다. 게이트웨이를 쓰면 InternalPort, 아니면 Port 다.
+func (c Config) BackendPort() int {
+	if c.Gateway {
+		return c.InternalPort
+	}
+	return c.Port
 }
 
 // Load는 file의 설정 파일을 읽는다. 파일이 없으면 기본값을 돌려준다.
@@ -132,6 +153,16 @@ func (c Config) Validate() error {
 	if c.Port < 1 || c.Port > 65535 {
 		errs = append(errs, fmt.Errorf("port %d is out of range 1-65535", c.Port))
 	}
+	if c.Gateway {
+		if c.InternalPort < 1 || c.InternalPort > 65535 {
+			errs = append(errs, fmt.Errorf("internal_port %d is out of range 1-65535", c.InternalPort))
+		} else if c.InternalPort == c.Port {
+			errs = append(errs, fmt.Errorf("internal_port must differ from port %d", c.Port))
+		}
+	}
+	if c.SSHPort < 0 || c.SSHPort > 65535 {
+		errs = append(errs, fmt.Errorf("ssh_port %d is out of range 0-65535", c.SSHPort))
+	}
 	if !path.IsAbs(c.ModelsDir) {
 		errs = append(errs, fmt.Errorf("models_dir %q must be an absolute path", c.ModelsDir))
 	}
@@ -159,6 +190,7 @@ func (o Overrides) toAutoconf() autoconf.Overrides {
 		CacheType: copyStr(o.CacheType),
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
+		Parallel:  copyInt(o.Parallel),
 	}
 }
 
@@ -170,6 +202,7 @@ func copyOverrides(o Overrides) Overrides {
 		CacheType: copyStr(o.CacheType),
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
+		Parallel:  copyInt(o.Parallel),
 	}
 }
 

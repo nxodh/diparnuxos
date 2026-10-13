@@ -57,8 +57,8 @@ func TestEmptyNameIsAnError(t *testing.T) {
 func TestEnvIsAppended(t *testing.T) {
 	res, err := Exec{}.Run(context.Background(), platform.Command{
 		Name: "sh",
-		Args: []string{"-c", `printf "%s|%s" "$LLX_TEST_VALUE" "$PATH"`},
-		Env:  []string{"LLX_TEST_VALUE=yes"},
+		Args: []string{"-c", `printf "%s|%s" "$DPX_TEST_VALUE" "$PATH"`},
+		Env:  []string{"DPX_TEST_VALUE=yes"},
 	})
 	if err != nil {
 		t.Fatalf("Run: %v", err)

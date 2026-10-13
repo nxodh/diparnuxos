@@ -42,6 +42,9 @@ jobs:
       - name: Check that no trace of the old name remains in tracked files
         run: make check-legacy-name
 
+      - name: Check that no secret is committed to this public repository
+        run: make check-secrets
+
       - name: Test GPU diagnostics without hardware
         run: make test-gpu-check
 

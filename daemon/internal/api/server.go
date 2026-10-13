@@ -37,16 +37,17 @@ type overridesJSON struct {
 	CacheType *string `json:"cache_type"`
 	Batch     *int    `json:"batch"`
 	LoadMode  *string `json:"load_mode"`
+	Parallel  *int    `json:"parallel"`
 }
 
 // toAutoconf 는 요청 재정의를 autoconf 타입으로 바꾼다.
 func (o overridesJSON) toAutoconf() autoconf.Overrides {
-	return autoconf.Overrides{NGL: o.NGL, Ctx: o.Ctx, CacheType: o.CacheType, Batch: o.Batch, LoadMode: o.LoadMode}
+	return autoconf.Overrides{NGL: o.NGL, Ctx: o.Ctx, CacheType: o.CacheType, Batch: o.Batch, LoadMode: o.LoadMode, Parallel: o.Parallel}
 }
 
-// getPlan 은 계획을 계산해 돌려준다. 재정의는 쿼리로 받는다: ngl, ctx, cache_type, batch, load_mode.
+// getPlan 은 계획을 계산해 돌려준다. 재정의는 쿼리로 받는다: ngl, ctx, cache_type, batch, load_mode, parallel.
 func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
-	if !rejectUnknownQuery(w, r, "model", "ngl", "ctx", "cache_type", "batch", "load_mode") {
+	if !rejectUnknownQuery(w, r, "model", "ngl", "ctx", "cache_type", "batch", "load_mode", "parallel") {
 		return
 	}
 	q := r.URL.Query()
@@ -76,6 +77,13 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ov.Batch = &v
+	}
+	if q.Has("parallel") {
+		v, ok := intQuery(w, r, "parallel", 0, -1<<31, 1<<31-1)
+		if !ok {
+			return
+		}
+		ov.Parallel = &v
 	}
 	pr, err := s.d.Supervisor.Plan(r.Context(), q.Get("model"), ov.toAutoconf())
 	if err != nil {
@@ -225,7 +233,11 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), chatTimeout)
 	defer cancel()
-	up, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:"+strconv.Itoa(st.Port)+"/v1/chat/completions", strings.NewReader(string(payload)))
+	backendPort := st.BackendPort
+	if backendPort == 0 {
+		backendPort = st.Port
+	}
+	up, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://127.0.0.1:"+strconv.Itoa(backendPort)+"/v1/chat/completions", strings.NewReader(string(payload)))
 	if err != nil {
 		writeErr(w, err)
 		return

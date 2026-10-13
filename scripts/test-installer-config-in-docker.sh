@@ -10,6 +10,6 @@ command -v docker >/dev/null 2>&1 || { echo "test-installer-config: docker is re
 
 docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" -e DEBIAN_FRONTEND=noninteractive "${IMAGE}" bash -euc '
 apt-get update -qq >/dev/null
-apt-get install -y -qq --no-install-recommends calamares python3-yaml python3-jsonschema >/dev/null
+apt-get install -y -qq --no-install-recommends calamares python3-yaml python3-jsonschema libpwquality-tools >/dev/null
 python3 -B /src/packages/diparnux-installer/tests/config.py /src/packages/diparnux-installer/src
 '

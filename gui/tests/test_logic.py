@@ -56,6 +56,65 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(logic.fmt_mib(-1), "-")
 
 
+class ServerFailureTests(unittest.TestCase):
+    def test_last_error_gets_a_hint(self):
+        notes = logic.server_failure_notes({"last_error": {"code": "gpu_offload_failed", "message": "offloaded 0/33 layers\nmore"}})
+        self.assertEqual(notes[0], "gpu_offload_failed: offloaded 0/33 layers more")
+        self.assertIn("simultaneous requests", notes[1])
+
+    def test_unknown_code_has_no_hint_and_long_messages_are_cut(self):
+        notes = logic.server_failure_notes({"last_error": {"code": "weird", "message": "x" * 900}})
+        self.assertEqual(len(notes), 1)
+        self.assertTrue(notes[0].endswith("…"))
+        self.assertLess(len(notes[0]), 420)
+
+    def test_restart_progress_and_giving_up(self):
+        self.assertIn("attempt 2 of 5", logic.server_failure_notes({"restart": {"attempt": 2, "max": 5}})[0])
+        self.assertIn("5 automatic restarts failed", logic.server_failure_notes({"restart": {"attempt": 5, "max": 5, "gave_up": True}})[0])
+        self.assertEqual(logic.server_failure_notes(None), [])
+
+
+class RemoteHelperTests(unittest.TestCase):
+    def test_fmt_rate(self):
+        self.assertEqual(logic.fmt_rate(0), "0 B/s")
+        self.assertEqual(logic.fmt_rate(2048), "2.0 KiB/s")
+        self.assertEqual(logic.fmt_rate(5 * 1024 * 1024), "5.0 MiB/s")
+        self.assertEqual(logic.fmt_rate(None), "-")
+
+    def test_ports_and_sources(self):
+        self.assertEqual(logic.port_text(80), "80")
+        self.assertEqual(logic.port_text(6000, 6010), "6000-6010")
+        self.assertEqual(logic.port_text(80, 80), "80")
+        self.assertEqual(logic.source_label("lan"), "the local network")
+        self.assertEqual(logic.source_label("any"), "any address")
+        self.assertEqual(logic.source_label("10.0.0.0/8"), "10.0.0.0/8")
+        self.assertEqual(logic.rule_subtitle({"protocol": "udp", "port": 5, "port_end": 9, "source": "lan"}), "udp 5-9 · the local network")
+
+    def test_split_list_and_service_state(self):
+        self.assertEqual(logic.split_list("1.1.1.1, 9.9.9.9  8.8.8.8"), ["1.1.1.1", "9.9.9.9", "8.8.8.8"])
+        self.assertEqual(logic.split_list(""), [])
+        self.assertEqual(logic.service_state_text({"active": "active", "sub": "running"}), "active (running)")
+        self.assertEqual(logic.service_state_text({"active": "inactive", "sub": "inactive"}), "inactive")
+        self.assertEqual(logic.service_state_text({"installed": False}), "not installed")
+        self.assertEqual(logic.exposure_level_icon("warning"), "dialog-warning-symbolic")
+
+
+class UsageTests(unittest.TestCase):
+    def test_fmt_count(self):
+        self.assertEqual(logic.fmt_count(0), "0")
+        self.assertEqual(logic.fmt_count(None), "0")
+        self.assertEqual(logic.fmt_count(999), "999")
+        self.assertEqual(logic.fmt_count(1500), "1.5K")
+        self.assertEqual(logic.fmt_count(2400000), "2.4M")
+
+    def test_key_usage_text(self):
+        text = logic.key_usage_text({"prefix": "dpx_ab12", "requests": 3, "errors": 0, "prompt_tokens": 10, "completion_tokens": 5,
+                                     "last_used": "2026-10-13T01:02:03Z"})
+        self.assertEqual(text, "dpx_ab12… · 3 requests · 0 errors · 15 tokens · last used 2026-10-13 01:02:03")
+        unused = logic.key_usage_text({"requests": 0, "last_used": "0001-01-01T00:00:00Z"})
+        self.assertIn("never used", unused)
+
+
 class DashboardTests(unittest.TestCase):
     def test_ready_has_no_banner(self):
         self.assertIsNone(logic.gpu_banner(status("ready")))
@@ -292,3 +351,19 @@ class NetworkLogicTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PowerLogicTests(unittest.TestCase):
+    def test_fmt_uptime(self):
+        self.assertEqual(logic.fmt_uptime(90061), "1d 1h 1m")
+        self.assertEqual(logic.fmt_uptime(3700), "1h 1m")
+        self.assertEqual(logic.fmt_uptime(120), "2m")
+        self.assertEqual(logic.fmt_uptime(0), "-")
+        self.assertEqual(logic.fmt_uptime(None), "-")
+
+    def test_power_failed_checks(self):
+        state = {"checks": [{"name": "HandleLidSwitch", "got": "suspend", "ok": False},
+                            {"name": "CanSuspend", "got": "yes", "ok": False},
+                            {"name": "IdleAction", "got": "ignore", "ok": True}]}
+        self.assertEqual(logic.power_failed_checks(state), ["HandleLidSwitch=suspend", "CanSuspend=yes"])
+        self.assertEqual(logic.power_failed_checks({}), [])

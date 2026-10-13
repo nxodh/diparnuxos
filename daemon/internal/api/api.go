@@ -28,14 +28,20 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
+	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
+	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
 	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
 )
 
 // 요청과 응답의 크기 상한이다.
@@ -95,6 +101,28 @@ type Deps struct {
 	Accounts AccountManager
 	// Network 는 인터넷 연결 상태와 Wi-Fi 다. nil 이면 네트워크 API 는 network_unavailable 을 돌려준다.
 	Network NetworkManager
+	// FirewallRules 는 사용자 방화벽 규칙 저장소다. nil 이면 방화벽 규칙 API 는 firewall_unavailable 을 돌려준다.
+	FirewallRules *firewall.Store
+	// FirewallOpens 는 켜진 기능이 여는 포트를 돌려준다(WireGuard, 원격 데스크톱, 웹 관리). nil 이면 없다.
+	FirewallOpens func() []firewall.Open
+	// WebAdmin 은 원격 관리 웹 페이지다. nil 이면 해당 API 는 webadmin_unavailable 을 돌려준다.
+	WebAdmin WebAdminManager
+	// RDP 는 원격 데스크톱(xrdp)이다. nil 이면 해당 API 는 remote_desktop_unavailable 을 돌려준다.
+	RDP RDPManager
+	// VPN 은 WireGuard VPN 이다. nil 이면 해당 API 는 vpn_unavailable 을 돌려준다.
+	VPN VPNManager
+	// Services 는 서비스 목록과 제어(허용 목록)다. nil 이면 해당 API 는 services_unavailable 을 돌려준다.
+	Services ServiceManager
+	// Stats 는 자원 사용량 측정이다. nil 이면 해당 API 는 resources_unavailable 을 돌려준다.
+	Stats StatReader
+	// SSHConf 는 SSH 포트, 비밀번호 로그인, 공개 키다. nil 이면 해당 API 는 ssh_unavailable 을 돌려준다.
+	SSHConf SSHConfManager
+	// NetConf 는 유선 IP 설정, 호스트 이름, 깨우기다. nil 이면 해당 API 는 network_unavailable 을 돌려준다.
+	NetConf NetConfManager
+	// Gateway 는 모델 서버 앞의 프록시(키 확인, 사용량)다. nil 이면 게이트웨이 API 는 gateway_unavailable 을 돌려준다.
+	Gateway GatewayView
+	// Power 는 상시 가동(절전과 종료 금지)이다. nil 이면 전원 API 는 power_unavailable 을 돌려준다.
+	Power PowerManager
 	// Updates 는 커널과 드라이버 갱신이다. nil 이면 갱신 API 는 update_unavailable 을 돌려준다.
 	Updates UpdateController
 	// GPU 는 NVML 프로버다. nil 이면 NVML 을 쓸 수 없는 것으로 본다.
@@ -128,6 +156,8 @@ type server struct {
 	d          Deps
 	mux        *http.ServeMux
 	mutationMu sync.Mutex
+	// importMu 는 모델 가져오기를 한 번에 하나로 제한한다.
+	importMu sync.Mutex
 }
 
 // New는 API 핸들러를 만든다. 반환값은 유닉스 소켓 서버에 그대로 꽂는다.
@@ -163,6 +193,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("PUT /v1/models/default", s.putDefaultModel)
 	s.mux.HandleFunc("DELETE /v1/models/{id}", s.deleteModel)
 	s.mux.HandleFunc("POST /v1/models/pull", s.pullModel)
+	s.mux.HandleFunc("PUT /v1/models/import", s.importModel)
 
 	s.mux.HandleFunc("GET /v1/jobs", s.listJobs)
 	s.mux.HandleFunc("GET /v1/jobs/{id}", s.getJob)
@@ -186,6 +217,11 @@ func (s *server) routes() {
 
 	s.mux.HandleFunc("GET /v1/system/ssh", s.getSSH)
 	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
+	s.mux.HandleFunc("GET /v1/system/power", s.getPower)
+	s.mux.HandleFunc("GET /v1/gateway", s.getGateway)
+	s.mux.HandleFunc("GET /v1/server/stats", s.getServerStats)
+	s.mux.HandleFunc("GET /v1/connection", s.getConnection)
+	s.mux.HandleFunc("PUT /v1/system/power", s.putPower)
 	s.mux.HandleFunc("GET /v1/users", s.listUsers)
 	s.mux.HandleFunc("POST /v1/users", s.createUser)
 	s.mux.HandleFunc("DELETE /v1/users/{name}", s.deleteUser)
@@ -201,6 +237,37 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/network/wifi/disconnect", s.wifiDisconnect)
 	s.mux.HandleFunc("POST /v1/network/wifi/forget", s.wifiForget)
 	s.mux.HandleFunc("PUT /v1/network/wifi/power", s.wifiPower)
+	s.mux.HandleFunc("GET /v1/exposure", s.getExposure)
+	s.mux.HandleFunc("GET /v1/webadmin", s.getWebAdmin)
+	s.mux.HandleFunc("PUT /v1/webadmin", s.putWebAdmin)
+	s.mux.HandleFunc("PUT /v1/webadmin/password", s.putWebAdminPassword)
+	s.mux.HandleFunc("GET /v1/remote-desktop", s.getRemoteDesktop)
+	s.mux.HandleFunc("PUT /v1/remote-desktop", s.putRemoteDesktop)
+	s.mux.HandleFunc("GET /v1/vpn", s.getVPN)
+	s.mux.HandleFunc("PUT /v1/vpn", s.putVPN)
+	s.mux.HandleFunc("POST /v1/vpn/peers", s.postVPNPeer)
+	s.mux.HandleFunc("DELETE /v1/vpn/peers/{id}", s.deleteVPNPeer)
+	s.mux.HandleFunc("GET /v1/services", s.listServices)
+	s.mux.HandleFunc("POST /v1/services/{unit}/{action}", s.postServiceAction)
+	s.mux.HandleFunc("GET /v1/services/{unit}/logs", s.getServiceLogs)
+	s.mux.HandleFunc("GET /v1/resources", s.getResources)
+	s.mux.HandleFunc("GET /v1/ssh/advanced", s.getSSHAdvanced)
+	s.mux.HandleFunc("PUT /v1/ssh/advanced", s.putSSHAdvanced)
+	s.mux.HandleFunc("GET /v1/ssh/keys", s.listSSHKeys)
+	s.mux.HandleFunc("POST /v1/ssh/keys", s.postSSHKey)
+	s.mux.HandleFunc("DELETE /v1/ssh/keys", s.deleteSSHKey)
+	s.mux.HandleFunc("GET /v1/ssh/log", s.getSSHLog)
+	s.mux.HandleFunc("GET /v1/firewall", s.getFirewall)
+	s.mux.HandleFunc("POST /v1/firewall/rules", s.postFirewallRule)
+	s.mux.HandleFunc("PUT /v1/firewall/rules/{id}", s.putFirewallRule)
+	s.mux.HandleFunc("DELETE /v1/firewall/rules/{id}", s.deleteFirewallRule)
+	s.mux.HandleFunc("GET /v1/network/config", s.getNetworkConfig)
+	s.mux.HandleFunc("PUT /v1/network/interfaces/{name}", s.putInterfaceConfig)
+	s.mux.HandleFunc("POST /v1/network/confirm", s.postNetworkConfirm)
+	s.mux.HandleFunc("POST /v1/network/revert", s.postNetworkRevert)
+	s.mux.HandleFunc("PUT /v1/network/hostname", s.putHostname)
+	s.mux.HandleFunc("PUT /v1/network/wol", s.putWakeOnLAN)
+	s.mux.HandleFunc("POST /v1/network/diagnose", s.postNetworkDiagnose)
 	s.mux.HandleFunc("GET /v1/update", s.getUpdate)
 	s.mux.HandleFunc("POST /v1/update", s.postUpdate)
 	s.mux.HandleFunc("GET /v1/report", s.getReport)
@@ -318,6 +385,56 @@ func writeErr(w http.ResponseWriter, err error) {
 			return
 		}
 		writeError(w, status, ne.Code, "%s", ne.Message)
+		return
+	}
+	var rde *rdpctl.Error
+	if errors.As(err, &rde) {
+		status := http.StatusInternalServerError
+		switch rde.Code {
+		case rdpctl.CodeInvalidInput:
+			status = http.StatusBadRequest
+		case rdpctl.CodeNotInstalled:
+			status = http.StatusConflict
+		}
+		writeError(w, status, rde.Code, "%s", rde.Message)
+		return
+	}
+	var wge *wireguard.Error
+	if errors.As(err, &wge) {
+		status := vpnStatus(wge.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: vpn error: %v", err)
+			writeError(w, status, wge.Code, "VPN configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, wge.Code, "%s", wge.Message)
+		return
+	}
+	var sve *svcctl.Error
+	if errors.As(err, &sve) {
+		writeError(w, svcStatus(sve.Code), sve.Code, "%s", sve.Message)
+		return
+	}
+	var sce *sshconf.Error
+	if errors.As(err, &sce) {
+		status := sshconfStatus(sce.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: ssh configuration error: %v", err)
+			writeError(w, status, sce.Code, "SSH configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, sce.Code, "%s", sce.Message)
+		return
+	}
+	var nce *netconf.Error
+	if errors.As(err, &nce) {
+		status := netconfStatus(nce.Code)
+		if status == http.StatusInternalServerError {
+			log.Printf("api: network configuration error: %v", err)
+			writeError(w, status, nce.Code, "network configuration failed; see the daemon log")
+			return
+		}
+		writeError(w, status, nce.Code, "%s", nce.Message)
 		return
 	}
 	var ue *updatectl.Error
@@ -483,22 +600,27 @@ func (s *server) gpuView(ctx context.Context) gpuInfo {
 			out.DriverVersion = snap.DriverVersion
 		}
 		for _, d := range snap.Devices {
-			out.NVML.Devices = append(out.NVML.Devices, deviceView{
-				Index:          d.Index,
-				Name:           d.Name,
-				Arch:           d.Arch,
-				ComputeCap:     d.ComputeCap,
-				MemTotalMiB:    d.MemTotalMiB,
-				MemFreeMiB:     d.MemFreeMiB,
-				MemUsedMiB:     d.MemUsedMiB,
-				TemperatureC:   d.TemperatureC,
-				PowerMilliwatt: d.PowerMilliwatt,
-				UtilGPUPercent: d.UtilGPUPercent,
-				UtilMemPercent: d.UtilMemPercent,
-			})
+			out.NVML.Devices = append(out.NVML.Devices, deviceViewOf(d))
 		}
 	}
 	return out
+}
+
+// deviceViewOf 는 NVML 장치 하나를 JSON 모양으로 바꾼다.
+func deviceViewOf(d platform.GPUDevice) deviceView {
+	return deviceView{
+		Index:          d.Index,
+		Name:           d.Name,
+		Arch:           d.Arch,
+		ComputeCap:     d.ComputeCap,
+		MemTotalMiB:    d.MemTotalMiB,
+		MemFreeMiB:     d.MemFreeMiB,
+		MemUsedMiB:     d.MemUsedMiB,
+		TemperatureC:   d.TemperatureC,
+		PowerMilliwatt: d.PowerMilliwatt,
+		UtilGPUPercent: d.UtilGPUPercent,
+		UtilMemPercent: d.UtilMemPercent,
+	}
 }
 
 // openModule 은 상태 파일의 상태로 오픈 모듈 여부를 추정한다. ready 는 독점 모듈이 감지되지 않았다는 뜻으로 본다.

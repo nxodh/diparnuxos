@@ -1,3 +1,10 @@
+diparnux-control-center (0.5.2) trixie; urgency=medium
+
+  * 채팅 페이지를 없애고 사이드바 창으로 바꾼다. 연결, 방화벽, 원격 접속, 서비스, 자원 페이지와 유선 설정, 동시 요청 수, 모델 가져오기, 서버 현황을 더한다.
+  * GSK_RENDERER=cairo 로 실행해 메모리를 줄인다.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 12:00:00 +0900
+
 diparnux-control-center (0.5.1) trixie; urgency=medium
 
   * OS 이름을 Diparnux 로 바꾼다. 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다.

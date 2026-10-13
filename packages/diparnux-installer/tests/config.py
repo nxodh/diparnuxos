@@ -45,6 +45,45 @@ def module_dir(name):
     return None
 
 
+def check_password_quality(options):
+    """users.conf 의 libpwquality 옵션으로 실제 비밀번호 검사를 돌린다(컨테이너에는 cracklib 사전이 없다).
+
+    설정 없이는 "error loading dictionary" 로 거절되어야 하고(이 시험이 실제 문제를 재현하는지 확인한다),
+    users.conf 의 옵션을 적용하면 규칙에 맞는 비밀번호가 통과해야 한다.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("pwscore") is None:
+        print("note: pwscore is not installed; password quality run skipped")
+        return
+    conf_dir = "/etc/security/pwquality.conf.d"
+    conf = os.path.join(conf_dir, "diparnux-test.conf")
+    sample = "Hel10-wOrld-77\n"
+
+    def run():
+        return subprocess.run(["pwscore"], input=sample, text=True, capture_output=True)
+
+    if os.path.exists(conf):
+        os.remove(conf)
+    baseline = run()
+    if baseline.returncode == 0 or "dictionary" not in (baseline.stdout + baseline.stderr):
+        print("note: the container has a cracklib dictionary; the negative control was skipped")
+    os.makedirs(conf_dir, exist_ok=True)
+    try:
+        with open(conf, "w", encoding="utf-8") as fh:
+            for item in options:
+                fh.write(item.replace("=", " = ", 1) + "\n")
+        applied = run()
+    finally:
+        if os.path.exists(conf):
+            os.remove(conf)
+    if applied.returncode != 0:
+        fail(f"a valid password is rejected with the users.conf options: {(applied.stdout + applied.stderr).strip()}")
+    else:
+        print("ok: users.conf options accept a valid password without a cracklib dictionary")
+
+
 def main():
     if not MODULE_DIRS:
         print("FAIL: the calamares package is not installed in this container")
@@ -125,6 +164,21 @@ def main():
     m = re.search(r"gs\[packagechooser_([a-z0-9]+)\]", prepare)
     if not m or f"packagechooser@{m.group(1)}" not in instances:
         fail("diparnux-prepare.conf does not read the key of the mode chooser instance")
+
+    # 이미지에는 cracklib 사전이 없다. 사전 검사가 켜져 있으면 비밀번호가 항상 거절된다("error loading dictionary").
+    users = yaml.safe_load(open(os.path.join(ROOT, "modules", "users.conf"), encoding="utf-8"))
+    options = (users.get("passwordRequirements") or {}).get("libpwquality") or []
+    if "dictcheck=0" not in options:
+        fail("users.conf must set dictcheck=0 (the image has no cracklib dictionary)")
+    check_password_quality(options)
+    # sudoersGroup 은 sudoers 파일만 쓴다. 계정이 그 그룹에 들어가려면 defaultGroups 에도 있어야 한다.
+    sudoers_group = users.get("sudoersGroup")
+    groups = [g.get("name") if isinstance(g, dict) else g for g in (users.get("defaultGroups") or [])]
+    if sudoers_group and sudoers_group not in groups:
+        fail(f"users.conf defaultGroups must contain {sudoers_group}: the created account would not be an administrator")
+    for required in ("diparnux", "video", "render"):
+        if required not in groups:
+            fail(f"users.conf defaultGroups must contain {required}")
 
     if failures:
         print(f"{len(failures)} problem(s)")

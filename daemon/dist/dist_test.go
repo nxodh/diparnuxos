@@ -207,3 +207,37 @@ func TestSysusersDefinesGroupAndUser(t *testing.T) {
 		t.Error("sysusers lacks the diparnux-llm user with no home and nologin shell")
 	}
 }
+
+// TestAlwaysOnDropinsNeverBlockUserShutdown 은 상시 가동 설정이 절전만 막고, 사용자가 직접 끄는 길(전원 버튼, poweroff 명령)을
+// 막지 않는지 확인한다. 전원 키와 종료 관련 키는 이 설정에 나오면 안 된다.
+func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
+	for _, name := range []string{"50-diparnux-always-on.logind.conf", "50-diparnux-always-on.sleep.conf"} {
+		b, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "#") || line == "" {
+				continue
+			}
+			for _, forbidden := range []string{"HandlePowerKey", "HandleRebootKey", "PowerOff", "Reboot", "InhibitorsMax"} {
+				if strings.HasPrefix(line, forbidden) {
+					t.Errorf("%s must not set %s: %q", name, forbidden, line)
+				}
+			}
+		}
+	}
+	logind, _ := os.ReadFile("50-diparnux-always-on.logind.conf")
+	for _, want := range []string{"HandleLidSwitch=ignore", "HandleLidSwitchExternalPower=ignore", "HandleLidSwitchDocked=ignore", "HandleSuspendKey=ignore", "HandleHibernateKey=ignore", "IdleAction=ignore"} {
+		if !strings.Contains(string(logind), want+"\n") {
+			t.Errorf("logind drop-in is missing %s", want)
+		}
+	}
+	sleep, _ := os.ReadFile("50-diparnux-always-on.sleep.conf")
+	for _, want := range []string{"AllowSuspend=no", "AllowHibernation=no", "AllowHybridSleep=no", "AllowSuspendThenHibernate=no"} {
+		if !strings.Contains(string(sleep), want+"\n") {
+			t.Errorf("sleep drop-in is missing %s", want)
+		}
+	}
+}

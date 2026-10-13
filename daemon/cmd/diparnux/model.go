@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/client"
@@ -11,7 +13,7 @@ import (
 // model 은 model 명령 묶음이다.
 func (c *cli) model(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux model <list|pull|rm|search|files|default>", "model")
+		return c.usage("usage: diparnux model <list|pull|import|rm|search|files|default>", "model")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -27,6 +29,8 @@ func (c *cli) model(args []string) int {
 		return c.modelFiles(rest)
 	case "default":
 		return c.modelDefault(rest)
+	case "import":
+		return c.modelImport(rest)
 	}
 	return c.usage(fmt.Sprintf("unknown model command %q", sub), "model")
 }
@@ -365,5 +369,89 @@ func (c *cli) modelDefault(args []string) int {
 		return c.printJSON(raw)
 	}
 	fmt.Fprintf(c.env.stdout, "default model: %s\n", res.Default)
+	return exitOK
+}
+
+// countingReader 는 읽힌 바이트 수를 세어 진행률을 알린다.
+type countingReader struct {
+	r      io.Reader
+	done   int64
+	report func(done int64)
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	if n > 0 {
+		c.done += int64(n)
+		c.report(c.done)
+	}
+	return n, err
+}
+
+// modelImport 는 내려받아 둔 GGUF 파일을 모델 디렉터리로 가져온다.
+// 파일은 이 명령이 사용자 권한으로 열어 데몬에 보내므로, 읽을 수 있는 파일만 가져올 수 있다.
+func (c *cli) modelImport(args []string) int {
+	fs := newFlags("model import")
+	name := fs.String("name", "", "model name to store it under (default: the file name)")
+	pos, code, ok := c.parse(fs, "model import", args)
+	if !ok {
+		return code
+	}
+	if len(pos) != 1 {
+		return c.usage("usage: diparnux model import <file.gguf> [--name NAME]", "model import")
+	}
+	path := pos[0]
+	id := *name
+	if id == "" {
+		id = filepath.Base(path)
+	}
+	if !strings.HasSuffix(id, ".gguf") || len(id) <= len(".gguf") || strings.ContainsAny(id, `/\`) {
+		return c.usage("the model name must end in .gguf and contain no slash; give one with --name", "model import")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		c.errorLine(err.Error())
+		return exitFailure
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		c.errorLine(err.Error())
+		return exitFailure
+	}
+	if !info.Mode().IsRegular() || info.Size() == 0 {
+		c.errorLine(path + " is not a non-empty regular file")
+		return exitFailure
+	}
+	size := info.Size()
+
+	last := -1
+	rd := &countingReader{r: f, report: func(done int64) {
+		if c.asJSON {
+			return
+		}
+		pct := int(done * 100 / size)
+		switch {
+		case c.env.stdoutTTY:
+			fmt.Fprintf(c.env.stdout, "\rimporting %s: %s of %s (%d%%)   ", id, humanBytes(done), humanBytes(size), pct)
+		case pct/10 > last:
+			last = pct / 10
+			fmt.Fprintf(c.env.stdout, "importing %s: %d%%\n", id, pct)
+		}
+	}}
+	res, raw, err := c.api.ImportModel(c.env.ctx, id, rd, size)
+	if c.env.stdoutTTY && !c.asJSON && rd.done > 0 {
+		fmt.Fprintln(c.env.stdout)
+	}
+	if err != nil {
+		return c.fail(err)
+	}
+	if c.asJSON {
+		return c.printJSON(raw)
+	}
+	fmt.Fprintf(c.env.stdout, "imported %s (%s, sha256 %s)\n", res.ModelID, humanBytes(res.SizeBytes), res.SHA256)
+	if res.Default {
+		fmt.Fprintln(c.env.stdout, "it is now the default model")
+	}
 	return exitOK
 }

@@ -141,8 +141,8 @@ func TestKeyFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if !strings.HasPrefix(plain, "llx_") {
-		t.Fatalf("key %q lacks llx_ prefix", plain)
+	if !strings.HasPrefix(plain, "dpx_") {
+		t.Fatalf("key %q lacks dpx_ prefix", plain)
 	}
 	if len(plain) != 47 {
 		t.Fatalf("key length = %d, want 47", len(plain))
@@ -173,7 +173,7 @@ func TestDeterministicEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if want := "llx_" + strings.Repeat("A", 43); plain != want {
+	if want := "dpx_" + strings.Repeat("A", 43); plain != want {
 		t.Fatalf("plain = %q, want %q", plain, want)
 	}
 	if k.ID != strings.Repeat("0", 32) {
@@ -316,7 +316,7 @@ func TestBrokenMetaFile(t *testing.T) {
 		{"not JSON", "{not json"},
 		{"empty file", ""},
 		{"unknown field", `{"keys":[],"extra":1}`},
-		{"bad id", `{"keys":[{"id":"zz","label":"a","created":"2026-10-11T00:00:00Z","prefix":"llx_abcd","sha256":"` + strings.Repeat("a", 64) + `"}]}`},
+		{"bad id", `{"keys":[{"id":"zz","label":"a","created":"2026-10-11T00:00:00Z","prefix":"dpx_abcd","sha256":"` + strings.Repeat("a", 64) + `"}]}`},
 		{"trailing data", `{"keys":[]} {}`},
 	}
 	for _, tc := range tests {
@@ -420,7 +420,7 @@ func TestSnapshotRejectsMismatchMalformedDuplicatesAndReadErrors(t *testing.T) {
 	})
 	t.Run("malformed key", func(t *testing.T) {
 		s := newStore(t)
-		if err := os.WriteFile(s.KeyFile, []byte("llx_not-a-valid-key\n"), 0o640); err != nil {
+		if err := os.WriteFile(s.KeyFile, []byte("dpx_not-a-valid-key\n"), 0o640); err != nil {
 			t.Fatal("write malformed key:", err)
 		}
 		assertStoreRejectsInconsistency(t, s)

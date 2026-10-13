@@ -1,3 +1,9 @@
+diparnux-installer (0.5.2) trixie; urgency=medium
+
+  * 설치기 비밀번호 오류 수정 포함: 사용자 탭의 비밀번호 사전 검사가 모든 비밀번호를 거절하던 문제(dictcheck 끔)와 설치한 관리자 계정이 sudo 그룹에 들지 않던 문제.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 12:00:00 +0900
+
 diparnux-installer (0.5.1) trixie; urgency=medium
 
   * OS 이름을 Diparnux 로 바꾼다. 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다.

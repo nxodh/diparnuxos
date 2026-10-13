@@ -60,6 +60,38 @@ printf '%s\n' "$PASSWORD" | sudo diparnux-install run \
 - 설치기(Calamares 와 의존 라이브러리)는 설치된 시스템에서 지워진다.
 - Secure Boot 가 켜진 기기에서 NVIDIA 모듈을 쓰려면 한 번 `sudo diparnux-mok` 로 키를 등록한다([secure-boot.md](secure-boot.md)). 이 흐름은 설치된 시스템에서만 끝까지 간다.
 
+## 설치기에서 비밀번호가 거절될 때
+
+0.5.1 이미지의 그래픽 설치기에서 사용자 탭의 비밀번호가 "암호가 사전 검사에 실패했습니다 - error loading dictionary" 로 거절되면, 이미지에 비밀번호 사전 파일(cracklib)이 없어서 어떤 비밀번호도 거절되는 문제다. 0.5.2 부터는 설치기가 사전 검사를 끈다(규칙은 8~128자의 출력 가능한 ASCII).
+
+0.5.1 이미지에서 지금 설치하려면 다음 중 하나를 쓴다.
+
+```sh
+# 방법 1: 네트워크가 있을 때. 사전을 설치한 뒤 같은 창에서 비밀번호를 다시 입력한다.
+sudo apt-get update
+sudo apt-get install -y cracklib-runtime wamerican
+
+# 방법 2: 콘솔 설치기(그래픽 설치기를 쓰지 않는다. 같은 설치 결과다).
+sudo diparnux-install run
+```
+
+## 설치기로 만든 계정이 sudo 를 못 쓸 때
+
+0.5.1 이미지의 그래픽 설치기로 만든 계정이 `sudo` 에서 "is not in the sudoers file" 로 거절되면, 설치기가 계정을 `sudo` 그룹에 넣지 않은 것이다. Calamares 3.3 은 `/etc/sudoers.d/10-installer` 에 `%sudo ALL=(ALL) ALL` 만 쓰고 계정을 그 그룹에 넣지 않으며, 그룹은 `defaultGroups` 에 적어야 한다. 0.5.2 부터 설치기가 `sudo` 그룹을 넣는다(설치기에서 만드는 계정은 관리자 하나다).
+
+0.5.1 로 이미 설치한 시스템은 다음 중 하나로 고친다.
+
+```sh
+# 방법 1: 계정이 diparnux 그룹에는 들어 있으므로, 데몬으로 관리자 계정을 하나 더 만든다.
+printf '%s\n' '새-비밀번호' | diparnux user add admin2 --admin --password-stdin
+# 그 계정으로 로그인한 뒤 원래 계정을 관리자로 만든다.
+sudo usermod -aG sudo 원래계정이름
+
+# 방법 2: 라이브 ISO 로 부팅해 설치한 디스크를 마운트하고 chroot 한다.
+sudo mount /dev/설치한_루트_파티션 /mnt
+sudo chroot /mnt usermod -aG sudo 원래계정이름
+```
+
 ## 알려진 한계
 
 - 실기에서 설치해 본 적이 없다. 노트북 펌웨어가 부팅 항목(NVRAM)을 받아들이지 않으면 설치기는 항목 등록 없이 파일만 설치하고 대체 경로(`EFI/BOOT/BOOTX64.EFI`)에 의존한다. 이 경우 펌웨어 메뉴에서 디스크를 직접 고른다.

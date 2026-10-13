@@ -153,6 +153,7 @@ Commands:
   gpu check                   run the GPU check again and say what to do
   model list                  list installed models
   model pull <repo>           download a GGUF model from Hugging Face
+  model import <file.gguf>    add a GGUF file you already have
   model rm <id>               delete an installed model
   model search <query>        search Hugging Face for GGUF models
   model files <repo>          list the GGUF files in a repository
@@ -161,13 +162,25 @@ Commands:
   serve stop                  stop llama-server
   serve plan [model]          show the plan without starting
   serve logs                  show recent llama-server log lines
+  serve stats                 show busy slots and speed of the running server
   mode [server|desktop]       show or set the mode
   update [--check|--rollback] update the kernel, driver and system packages
   report                      write a diagnostic report
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys
   apikey rm <id>              delete an API key
+  connection [examples]       show the addresses and examples for other computers to connect
+  gateway                     show the gateway state and per-key usage
+  power [on|off]              show or change always-on (no suspend or sleep)
   network [wifi ...]          show the network state, list/connect Wi-Fi
+  network set|confirm|hostname|wol|diagnose   wired IP, DNS, host name, wake-on-lan, checks
+  firewall [add|rm|enable|disable]   show and change the firewall rules
+  exposure                    what this computer offers to the network, with warnings
+  webadmin [on|off|password]   remote admin web page (HTTPS, off by default)
+  remote-desktop [on|off]     remote desktop (RDP, off by default)
+  vpn [on|off|peer add|peer rm]   WireGuard VPN (off by default)
+  services [start|stop|restart|enable|disable|logs] <unit>   managed services and their logs
+  resources                   CPU, memory, disks, network, temperature and GPU
   ssh [on|off]                show or change the SSH server
   user add <name>             create a login account (prompts for a password)
   user list                   list accounts created with Diparnux

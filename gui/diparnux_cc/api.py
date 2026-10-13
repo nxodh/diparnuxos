@@ -100,6 +100,56 @@ class Client:
             return path
         return path + "?" + urllib.parse.urlencode(items)
 
+    def import_model(self, path, name=None, progress=None):
+        """사용자가 가진 GGUF 파일을 데몬으로 보내 모델로 가져온다. 사용자 권한으로 파일을 읽는다.
+
+        progress(done, total) 는 1 MiB 를 보낼 때마다 불린다(작업 스레드에서).
+        """
+        import os
+
+        name = name or os.path.basename(path)
+        size = os.path.getsize(path)
+        conn = _UnixConnection(self.socket_path, SLOW_TIMEOUT)
+        try:
+            try:
+                conn.putrequest("PUT", "/v1/models/import?" + urllib.parse.urlencode({"name": name}))
+                conn.putheader("Content-Type", "application/octet-stream")
+                conn.putheader("Content-Length", str(size))
+                conn.putheader("Accept", "application/json")
+                conn.endheaders()
+                sent = 0
+                with open(path, "rb") as fh:
+                    while True:
+                        chunk = fh.read(1 << 20)
+                        if not chunk:
+                            break
+                        conn.send(chunk)
+                        sent += len(chunk)
+                        if progress is not None:
+                            progress(sent, size)
+                resp = conn.getresponse()
+                data = resp.read()
+            except PermissionError as exc:
+                raise DaemonUnavailable("permission_denied", "permission denied on %s" % self.socket_path) from exc
+            except (FileNotFoundError, ConnectionRefusedError) as exc:
+                raise DaemonUnavailable("unavailable", "diparnuxd is not running") from exc
+            except (OSError, http.client.HTTPException) as exc:
+                raise DaemonUnavailable("unavailable", "cannot talk to diparnuxd: %s" % exc) from exc
+        finally:
+            conn.close()
+        text = data.decode("utf-8", errors="replace")
+        try:
+            body = json.loads(text) if text.strip() else {}
+        except ValueError:
+            body = {}
+        if resp.status >= 400:
+            err = body.get("error") if isinstance(body, dict) else None
+            err = err if isinstance(err, dict) else {}
+            raise DaemonError(
+                str(err.get("code", "http_%d" % resp.status)), str(err.get("message", text.strip()[:300])), resp.status
+            )
+        return body
+
     # --- 상태 ---
     def status(self):
         return self._request("GET", "/v1/status")
@@ -173,6 +223,152 @@ class Client:
     def delete_key(self, key_id):
         return self._request("DELETE", "/v1/apikeys/" + urllib.parse.quote(key_id, safe=""))
 
+    def server_stats(self):
+        return self._request("GET", "/v1/server/stats")
+
+    def connection(self):
+        return self._request("GET", "/v1/connection")
+
+    def gateway(self):
+        return self._request("GET", "/v1/gateway")
+
+    # --- 방화벽 ---
+    def firewall(self):
+        return self._request("GET", "/v1/firewall")
+
+    def add_firewall_rule(self, name, protocol, port, port_end=0, source="any"):
+        body = {"name": name, "protocol": protocol, "port": int(port), "source": source}
+        if port_end:
+            body["port_end"] = int(port_end)
+        return self._request("POST", "/v1/firewall/rules", body, timeout=30.0)
+
+    def update_firewall_rule(self, rule):
+        body = {k: rule[k] for k in ("name", "protocol", "port", "port_end", "source", "enabled") if k in rule}
+        return self._request("PUT", "/v1/firewall/rules/" + urllib.parse.quote(rule["id"], safe=""), body, timeout=30.0)
+
+    def delete_firewall_rule(self, rule_id):
+        return self._request("DELETE", "/v1/firewall/rules/" + urllib.parse.quote(rule_id, safe=""), timeout=30.0)
+
+    # --- 네트워크 설정 ---
+    def network_config(self):
+        return self._request("GET", "/v1/network/config")
+
+    def set_wired(self, name, mode, addresses=None, gateway="", dns=None, domains=None, confirm_seconds=60):
+        body = {"mode": mode, "confirm_seconds": confirm_seconds}
+        if addresses:
+            body["addresses"] = addresses
+        if gateway:
+            body["gateway"] = gateway
+        if dns:
+            body["dns"] = dns
+        if domains:
+            body["domains"] = domains
+        return self._request("PUT", "/v1/network/interfaces/" + urllib.parse.quote(name, safe=""), body, timeout=60.0)
+
+    def confirm_network(self):
+        return self._request("POST", "/v1/network/confirm", {}, timeout=30.0)
+
+    def revert_network(self):
+        return self._request("POST", "/v1/network/revert", {}, timeout=60.0)
+
+    def set_hostname(self, name):
+        return self._request("PUT", "/v1/network/hostname", {"name": name}, timeout=30.0)
+
+    def set_wol(self, enabled):
+        return self._request("PUT", "/v1/network/wol", {"enabled": bool(enabled)}, timeout=30.0)
+
+    def diagnose(self):
+        return self._request("POST", "/v1/network/diagnose", {}, timeout=60.0)
+
+    # --- 원격 접속 ---
+    def ssh_advanced(self):
+        return self._request("GET", "/v1/ssh/advanced")
+
+    def set_ssh_advanced(self, port=None, password_login=None):
+        body = {}
+        if port is not None:
+            body["port"] = int(port)
+        if password_login is not None:
+            body["password_login"] = bool(password_login)
+        return self._request("PUT", "/v1/ssh/advanced", body, timeout=60.0)
+
+    def ssh_keys(self, user):
+        return self._request("GET", self._query("/v1/ssh/keys", user=user))
+
+    def add_ssh_key(self, user, key):
+        return self._request("POST", "/v1/ssh/keys", {"user": user, "key": key}, timeout=30.0)
+
+    def remove_ssh_key(self, user, fingerprint):
+        return self._request("DELETE", "/v1/ssh/keys", {"user": user, "fingerprint": fingerprint}, timeout=30.0)
+
+    def ssh_log(self, limit=50):
+        return self._request("GET", self._query("/v1/ssh/log", limit=limit))
+
+    def remote_desktop(self):
+        return self._request("GET", "/v1/remote-desktop")
+
+    def set_remote_desktop(self, enabled, source=None):
+        body = {"enabled": bool(enabled)}
+        if source:
+            body["source"] = source
+        return self._request("PUT", "/v1/remote-desktop", body, timeout=90.0)
+
+    def vpn(self):
+        return self._request("GET", "/v1/vpn")
+
+    def set_vpn(self, enabled=None, address=None, port=None):
+        body = {}
+        if enabled is not None:
+            body["enabled"] = bool(enabled)
+        if address:
+            body["address"] = address
+        if port:
+            body["listen_port"] = int(port)
+        return self._request("PUT", "/v1/vpn", body, timeout=60.0)
+
+    def add_vpn_peer(self, name, public_key="", endpoint=""):
+        body = {"name": name}
+        if public_key:
+            body["public_key"] = public_key
+        if endpoint:
+            body["endpoint"] = endpoint
+        return self._request("POST", "/v1/vpn/peers", body, timeout=60.0)
+
+    def remove_vpn_peer(self, ident):
+        return self._request("DELETE", "/v1/vpn/peers/" + urllib.parse.quote(ident, safe=""), timeout=60.0)
+
+    def webadmin(self):
+        return self._request("GET", "/v1/webadmin")
+
+    def set_webadmin(self, enabled=None, port=None, source=None):
+        body = {}
+        if enabled is not None:
+            body["enabled"] = bool(enabled)
+        if port:
+            body["port"] = int(port)
+        if source:
+            body["source"] = source
+        return self._request("PUT", "/v1/webadmin", body, timeout=60.0)
+
+    def set_webadmin_password(self, password):
+        return self._request("PUT", "/v1/webadmin/password", {"password": password}, timeout=60.0)
+
+    # --- 서비스, 자원, 점검 ---
+    def services(self):
+        return self._request("GET", "/v1/services")
+
+    def service_action(self, unit, action):
+        return self._request("POST", "/v1/services/%s/%s" % (urllib.parse.quote(unit, safe=""), action), {}, timeout=120.0)
+
+    def service_logs(self, unit, lines=200):
+        return self._request("GET", self._query("/v1/services/%s/logs" % urllib.parse.quote(unit, safe=""), lines=lines))
+
+    def resources(self):
+        return self._request("GET", "/v1/resources", timeout=10.0)
+
+    def exposure(self):
+        return self._request("GET", "/v1/exposure")
+
     # --- 시스템 ---
     def mode(self):
         return self._request("GET", "/v1/mode")
@@ -185,6 +381,12 @@ class Client:
 
     def set_ssh(self, enabled):
         return self._request("PUT", "/v1/system/ssh", {"enabled": bool(enabled)}, timeout=60.0)
+
+    def power(self):
+        return self._request("GET", "/v1/system/power")
+
+    def set_power(self, always_on):
+        return self._request("PUT", "/v1/system/power", {"always_on": bool(always_on)}, timeout=30.0)
 
     def update_info(self):
         return self._request("GET", "/v1/update")

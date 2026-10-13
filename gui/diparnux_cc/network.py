@@ -9,6 +9,7 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
 from .widgets import action_row, clear_group, confirm, error_text, run_async, text_button  # noqa: E402
+from .wired import WiredSettings  # noqa: E402
 
 # 페이지가 보이는 동안 상태를 다시 읽는 간격(초).
 REFRESH_SECONDS = 5
@@ -106,6 +107,8 @@ class NetworkPage(Adw.PreferencesPage):
         self.iface_group = Adw.PreferencesGroup(title=_("Adapters"))
         self.add(self.iface_group)
 
+        self.wired = WiredSettings(self, ctx)
+
         self.wifi_group = Adw.PreferencesGroup(title=_("Wi-Fi"))
         self.wifi_group.set_header_suffix(text_button(_("Scan"), self.scan))
         self.power_row = Adw.SwitchRow(title=_("Wi-Fi"))
@@ -153,6 +156,8 @@ class NetworkPage(Adw.PreferencesPage):
                 except Exception:  # noqa: BLE001 - 목록을 못 읽어도 상태는 보인다
                     nets = []
             return net, nets
+
+        self.wired.reload()
 
         def done(result):
             self._busy = False

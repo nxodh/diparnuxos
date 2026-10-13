@@ -1,10 +1,12 @@
 """모델 페이지: 추천, 설치된 모델, 내려받기, Hugging Face 검색."""
 
+import os
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -33,6 +35,7 @@ class ModelsPage(Adw.PreferencesPage):
         self.rec_group = Adw.PreferencesGroup(title=_("Recommended for this machine"))
         self.rec_group.set_description(_("An estimate from the file size; the real plan is computed after the download."))
         self.installed_group = Adw.PreferencesGroup(title=_("Installed models"))
+        self.installed_group.set_header_suffix(text_button(_("Import a file"), self.import_file))
         self.jobs_group = Adw.PreferencesGroup(title=_("Downloads"))
         self.search_group = Adw.PreferencesGroup(title=_("Search Hugging Face"))
         self.token_group = Adw.PreferencesGroup(title=_("Hugging Face access"))
@@ -127,6 +130,61 @@ class ModelsPage(Adw.PreferencesPage):
             self._track_job(job)
 
         run_async(lambda: self.ctx.client.pull(repo, file, revision), started, self.ctx.toast_error)
+
+    # --- 파일 가져오기 ---
+    def import_file(self):
+        """내려받아 둔 .gguf 파일을 골라 모델로 가져온다."""
+        dialog = Gtk.FileDialog(title=_("Choose a GGUF model file"))
+        flt = Gtk.FileFilter()
+        flt.set_name(_("GGUF model files"))
+        flt.add_pattern("*.gguf")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(flt)
+        dialog.set_filters(filters)
+
+        def chosen(dlg, result):
+            try:
+                gfile = dlg.open_finish(result)
+            except GLib.Error:
+                return  # 사용자가 닫았다.
+            path = gfile.get_path() if gfile is not None else None
+            if path:
+                self.start_import(path)
+
+        dialog.open(self.ctx.window, None, chosen)
+
+    def start_import(self, path):
+        name = os.path.basename(path)
+        bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, hexpand=False)
+        bar.set_size_request(160, -1)
+        row = action_row(name, _("Importing"))
+        row.add_suffix(bar)
+        self.jobs_group.add(row)
+        self._job_rows.append(row)
+
+        def progress(done, total):
+            GLib.idle_add(self._import_progress, row, bar, done, total)
+
+        def finished(_result):
+            self._drop_row(row)
+            self.ctx.toast(_("Imported %s") % name)
+            self.reload()
+
+        def failed(exc):
+            self._drop_row(row)
+            self.ctx.toast_error(exc)
+
+        run_async(lambda: self.ctx.client.import_model(path, name, progress), finished, failed)
+
+    def _import_progress(self, row, bar, done, total):
+        bar.set_fraction(done / total if total else 0.0)
+        row.set_subtitle(_("Importing") + " · %s / %s" % (logic.fmt_bytes(done), logic.fmt_bytes(total)))
+        return GLib.SOURCE_REMOVE
+
+    def _drop_row(self, row):
+        if row in self._job_rows:
+            self._job_rows.remove(row)
+            self.jobs_group.remove(row)
 
     def save_token(self):
         token = self.token_entry.get_text().strip()

@@ -105,6 +105,8 @@ type planView struct {
 	CacheTypeV     string   `json:"cache_type_v"`
 	FlashAttn      bool     `json:"flash_attn"`
 	Batch          int      `json:"batch"`
+	Parallel       int      `json:"parallel"`
+	SlotCtx        int      `json:"slot_ctx"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -115,6 +117,14 @@ type planView struct {
 	Rationale      []string `json:"rationale"`
 	Warnings       []string `json:"warnings"`
 	Advice         []string `json:"advice"`
+}
+
+// slotCtxOf 는 슬롯 하나의 컨텍스트다. 값이 없으면 전체 컨텍스트를 슬롯 수로 나눈다.
+func slotCtxOf(o *autoconf.Output) int {
+	if o.SlotCtx > 0 {
+		return o.SlotCtx
+	}
+	return o.Ctx / max(o.Parallel, 1)
 }
 
 // planViewOf 는 계획을 JSON 모양으로 바꾼다. 계획이 없으면 nil 이다.
@@ -129,6 +139,8 @@ func planViewOf(o *autoconf.Output) *planView {
 		CacheTypeV:     o.CacheTypeV,
 		FlashAttn:      o.FlashAttn,
 		Batch:          o.Batch,
+		Parallel:       max(o.Parallel, 1),
+		SlotCtx:        slotCtxOf(o),
 		TensorSplit:    o.TensorSplit,
 		VisibleDevices: nonNilInts(o.VisibleDevices),
 		LoadMode:       o.LoadMode,

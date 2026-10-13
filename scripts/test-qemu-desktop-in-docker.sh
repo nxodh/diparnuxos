@@ -51,7 +51,7 @@ run_args=(--rm --init --platform linux/amd64 --name "$container_name" --cidfile 
 if [[ -r /dev/kvm && -w /dev/kvm ]]; then
     run_args+=(--device /dev/kvm)
 fi
-for env_name in QEMU_ACCEL BOOT_TIMEOUT COMMAND_TIMEOUT START_TIMEOUT E2E_TIMEOUT; do
+for env_name in QEMU_ACCEL BOOT_TIMEOUT COMMAND_TIMEOUT START_TIMEOUT E2E_TIMEOUT E2E_SCENARIO; do
     if [[ -n "${!env_name:-}" ]]; then
         run_args+=(-e "${env_name}=${!env_name}")
     fi

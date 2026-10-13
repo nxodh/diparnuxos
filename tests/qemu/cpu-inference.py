@@ -150,13 +150,13 @@ class Console:
     def command(self, label, command, timeout, expected=0):
         self.counter += 1
         token = secrets.token_hex(8)
-        stem = f"__LLX_{token}"
+        stem = f"__DPX_{token}"
         begin, end = stem + "_BEGIN__", stem + "_END__"
         # 마커를 두 문자열로 만들어 tty 입력 에코가 완료 마커로 오인되지 않게 한다.
         line = (
-            f"printf '\\n%s%s\\n' '__LLX_' '{token}_BEGIN__'; "
+            f"printf '\\n%s%s\\n' '__DPX_' '{token}_BEGIN__'; "
             f"LC_ALL=C TERM=dumb timeout --foreground --verbose --kill-after=5s {timeout}s sh -c {shlex.quote(command)}; "
-            f"llx_rc=$?; printf '\\n%s%s:%s\\n' '__LLX_' '{token}_END__' \"$llx_rc\""
+            f"dpx_rc=$?; printf '\\n%s%s:%s\\n' '__DPX_' '{token}_END__' \"$dpx_rc\""
         )
         self.commands.write(json.dumps({"event": "start", "label": label, "command": command,
                                         "timeout_seconds": timeout, "expected_exit": expected}) + "\n")
@@ -168,6 +168,9 @@ class Console:
         )
         output, rc = match.group(1).strip(), int(match.group(2))
         (self.logs / f"{self.counter:02d}-{label}.txt").write_text(output + "\n", encoding="utf-8")
+        # 직렬 콘솔에는 커널 메시지(예: 모듈을 올릴 때의 "[   28.18] wireguard: ...")가 명령 출력 사이에 끼어든다.
+        # 원문은 위 파일에 남기고, 판정에는 커널 줄을 뺀 출력을 쓴다.
+        output = "\n".join(line for line in output.splitlines() if not KERNEL_LOG_LINE.match(line)).strip()
         self.commands.write(json.dumps({"event": "finish", "label": label, "exit_code": rc}) + "\n")
         if rc == 124 or (rc == 137 and "timeout: sending signal" in output):
             raise Failure("command_timeout", f"Guest command {label} timed out (exit {rc})")
@@ -359,6 +362,9 @@ def scenario(console, budgets):
                 restart_chat["tokens_per_second"] > 0,
                 f"Chat after autostart {setting} daemon restart returned no generation speed")
 
+    check_gateway(console, budgets)
+    check_features(console, budgets)
+
     console.cli("serve-logs", "serve logs -n 80", cmd)
     stop = console.cli("serve-stop", "serve stop", cmd)
     require(stop.get("state") == "stopped", "Stop did not return stopped")
@@ -372,6 +378,171 @@ def scenario(console, budgets):
     after = console.command("chat-after-stop", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in after, "Stopped server accepted chat")
     console.command("journal", "sudo -n journalctl --no-pager -b -n 160 " + " ".join("-u " + unit for unit in UNITS), cmd)
+
+
+# 커널 로그 한 줄의 앞부분이다: "[   28.187070] wireguard: ..."
+KERNEL_LOG_LINE = re.compile(r"^\[\s*\d+\.\d+\]\s")
+
+# 라이브 이미지에는 curl 이 없으므로 python3(Control Center 가 들여온다)로 HTTP 상태 코드만 읽는다. 직렬 콘솔로 보내므로 한 줄이어야 한다.
+HTTP_STATUS = (
+    "python3 -I -c 'import sys,http.client as h,urllib.parse as u; p=u.urlparse(sys.argv[1]); "
+    "c=h.HTTPConnection(p.netloc,timeout=30); "
+    "c.request(\"GET\",p.path or \"/\",headers=dict(x.split(\":\",1) for x in sys.argv[2:])); "
+    "print(c.getresponse().status)'"
+)
+
+
+def http_status(console, label, url, timeout, *headers):
+    out = console.command(label, HTTP_STATUS + " " + shlex.quote(url) + "".join(" " + shlex.quote(h) for h in headers),
+                          timeout)
+    require(out.strip().isdigit(), f"{label} did not print an HTTP status: {out!r}")
+    return int(out.strip())
+
+
+def check_gateway(console, budgets):
+    """공개 포트는 게이트웨이가 받고 llama-server 는 내부 포트에서만 듣는다. 키는 게이트웨이가 검사한다."""
+    cmd = budgets["COMMAND_TIMEOUT"]
+    conn = console.cli("connection", "connection", cmd)
+    require(conn.get("server_state") == "running_cpu_fallback", "Connection info reports the wrong server state")
+    require(conn.get("gateway") is True and conn.get("public_port") == 8080, "Gateway must be on with public port 8080")
+    require(conn.get("local_url") == "http://127.0.0.1:8080/v1", "Connection info local URL is wrong")
+    require(conn.get("key_count") == 0 and conn.get("key_required") is False,
+            "A fresh image has no key and no LAN exposure, so no key is required")
+    require(conn.get("addresses") == [], "LAN exposure is off, so no remote address may be advertised")
+    gw = console.cli("gateway", "gateway", cmd)
+    state = gw.get("state", {})
+    require(gw.get("enabled") is True and state.get("listening") is True, "Gateway is not listening")
+    require(state.get("backend_port") == 18080, "Gateway must forward to the internal port 18080")
+    ports = console.command("listening-ports", "ss -H -ltn 'sport = :8080 or sport = :18080'", cmd)
+    require("127.0.0.1:18080" in ports, "llama-server must listen on the internal port on 127.0.0.1")
+    require("8080" in ports.replace("18080", ""), "The gateway must listen on the public port")
+
+    base = "http://127.0.0.1:8080"
+    require(http_status(console, "gateway-health", base + "/health", cmd) == 200, "/health must answer without a key")
+    require(http_status(console, "gateway-models-no-key", base + "/v1/models", cmd) == 200,
+            "Without any API key and LAN exposure, local requests need no key")
+
+    created = console.cli("gateway-key-create", "apikey create e2e-gateway", cmd)
+    key = created.get("key", "")
+    require(key.startswith("dpx_") and created.get("restart_required") is False,
+            "A new key must take effect without a restart when the gateway checks keys")
+    time.sleep(3)  # 게이트웨이의 키 캐시는 2초다.
+    require(http_status(console, "gateway-models-missing-key", base + "/v1/models", cmd) == 401,
+            "Once a key exists, a request without a key must be refused")
+    require(http_status(console, "gateway-models-wrong-key", base + "/v1/models", cmd,
+                        "Authorization: Bearer dpx_not-a-real-key") == 401, "A wrong key must be refused")
+    require(http_status(console, "gateway-models-bearer", base + "/v1/models", cmd,
+                        "Authorization: Bearer " + key) == 200, "A valid Bearer key must be accepted")
+    require(http_status(console, "gateway-models-x-api-key", base + "/v1/models", cmd, "X-Api-Key: " + key) == 200,
+            "A valid X-Api-Key must be accepted")
+    require(http_status(console, "gateway-health-no-key", base + "/health", cmd) == 200,
+            "/health must stay open when keys exist")
+    # 데몬 자신의 채팅 경로는 소켓 권한으로 보호되므로 키가 있어도 그대로 동작해야 한다.
+    still = console.cli("chat-with-key", "chat --max-tokens 4 'gateway check'", budgets["CHAT_TIMEOUT"])
+    require(isinstance(still.get("content"), str) and bool(still["content"].strip()), "Chat broke after a key was created")
+    usage = console.cli("gateway-usage", "gateway", cmd)
+    mine = [k for k in usage.get("stats", {}).get("keys", []) if k.get("label") == "e2e-gateway"]
+    require(len(mine) == 1 and mine[0].get("requests", 0) >= 2, "Gateway did not count the key's requests")
+    require(usage["stats"].get("unauthorized", 0) >= 2, "Gateway did not count the refused requests")
+    require(key not in json.dumps(usage) and key not in json.dumps(conn), "A plaintext key appeared in an API answer")
+    removed = console.cli("gateway-key-rm", "apikey rm " + created["id"], cmd)
+    require(removed.get("deleted") is True, "The test key was not removed")
+
+
+WEBADMIN_PASSWORD = "e2e-correct-horse-battery"
+# 웹 관리 로그인 흐름을 한 줄로: 익명 401, 로그인 후 상태 200, 허용된 읽기 200, 허용 목록 밖 403 을 차례로 찍는다.
+WEBADMIN_FLOW = (
+    "python3 -I -c 'import ssl,json,http.client as h; x=ssl._create_unverified_context(); "
+    "c=h.HTTPSConnection(\"127.0.0.1\",18443,timeout=20,context=x); H={\"X-Diparnux-Admin\":\"1\",\"Content-Type\":\"application/json\"}; "
+    "c.request(\"GET\",\"/v1/status\"); a=c.getresponse(); a.read(); "
+    "c.request(\"POST\",\"/auth/login\",json.dumps({\"password\":\"" + WEBADMIN_PASSWORD + "\"}),H); r=c.getresponse(); r.read(); "
+    "k=r.getheader(\"Set-Cookie\").split(\";\")[0]; "
+    "c.request(\"GET\",\"/v1/status\",headers={\"Cookie\":k}); b=c.getresponse(); b.read(); "
+    "c.request(\"GET\",\"/v1/resources\",headers={\"Cookie\":k}); d=c.getresponse(); d.read(); "
+    "c.request(\"GET\",\"/v1/users\",headers={\"Cookie\":k}); e=c.getresponse(); e.read(); "
+    "print(a.status,b.status,d.status,e.status)'"
+)
+
+
+def check_features(console, budgets):
+    """0.5.2 의 운영 기능을 실제 데몬으로 확인한다: 방화벽 규칙, 서비스, 자원, 노출 점검, 네트워크, SSH, 웹 관리, VPN."""
+    cmd = budgets["COMMAND_TIMEOUT"]
+
+    # 방화벽 규칙: 추가하면 nft 에 나타나고 지우면 사라진다.
+    fw = console.cli("firewall-list", "firewall", cmd)
+    require(fw.get("policy") == "drop" and isinstance(fw.get("rules"), list), "The firewall must default to drop")
+    added = console.cli("firewall-add", "firewall add e2e-rule tcp 39999 --from lan", cmd)
+    rule_id = added.get("id", "")
+    require(bool(rule_id) and added.get("port") == 39999 and added.get("source") == "lan", "Firewall rule was not created")
+    listing = console.command("nft-with-rule", "sudo -n nft list table inet diparnux", cmd)
+    require("dport 39999" in listing and "saddr" in listing, "The new rule is not in the nftables table")
+    console.cli("firewall-rm", "firewall rm " + rule_id, cmd)
+    listing = console.command("nft-without-rule", "sudo -n nft list table inet diparnux", cmd)
+    require("dport 39999" not in listing, "The deleted rule is still in the nftables table")
+
+    # 서비스: 데몬은 볼 수만 있고 멈출 수 없다. 허용 목록 밖은 거부한다.
+    services = console.cli("services", "services", cmd)
+    by_unit = {s.get("unit"): s for s in services.get("services", [])}
+    require("ssh.service" in by_unit and "diparnuxd.service" in by_unit, "Managed service list is incomplete")
+    require(by_unit["diparnuxd.service"].get("actions") == [], "The daemon must not offer stop or restart")
+    denied = console.command("service-protected", "diparnux --json services stop diparnuxd.service", cmd, expected=1)
+    require("action_not_allowed" in denied, "Stopping the daemon must be refused with a clear code")
+    outside = console.command("service-outside", "diparnux --json services stop cron.service", cmd, expected=1)
+    require("service_not_allowed" in outside, "A service outside the allow list must be refused")
+
+    # 자원과 노출 점검과 네트워크 설정.
+    resources = console.cli("resources", "resources", cmd)
+    require(resources.get("system", {}).get("memory", {}).get("total_mib", 0) > 0, "Resource measurement is empty")
+    exposure = json.loads(console.command("exposure", "diparnux --json exposure; true", cmd))
+    require(exposure.get("level") in ("ok", "warning", "error") and exposure.get("findings"), "Exposure check returned nothing")
+    netcfg = console.cli("network-config", "network config", cmd)
+    require(bool(netcfg.get("hostname")), "Network configuration lacks the host name")
+    diag = json.loads(console.command("network-diagnose", "diparnux --json network diagnose; true", cmd))
+    require(diag.get("checks", [{}])[0].get("name") == "address", "Network diagnosis did not start with the address check")
+
+    # 원격 데스크톱은 이미지에 있고 꺼져 있다. 서비스가 부팅 때 켜져 있으면 안 된다.
+    rdp = console.cli("remote-desktop", "remote-desktop", cmd)
+    require(rdp.get("installed") is True and rdp.get("enabled") is False, "Remote desktop must be installed and off")
+    enabled = console.command("xrdp-boot-state", "systemctl is-enabled xrdp.service; true", cmd)
+    require("enabled" not in enabled.split(), f"xrdp must not be enabled at boot (got {enabled!r})")
+
+    # SSH 고급: 공개 키 등록, 목록, 삭제.
+    adv = console.cli("ssh-advanced", "ssh advanced", cmd)
+    require(adv.get("port") == 22 and isinstance(adv.get("key_count"), int), "SSH advanced settings are missing")
+    console.command("ssh-keygen", "rm -f /tmp/e2e_key /tmp/e2e_key.pub; ssh-keygen -q -t ed25519 -N '' -C e2e@test -f /tmp/e2e_key", cmd)
+    console.cli("ssh-key-add", "ssh keys add user --file /tmp/e2e_key.pub", cmd)
+    keys = console.cli("ssh-key-list", "ssh keys list user", cmd)
+    listed = keys.get("keys", [])
+    require(len(listed) == 1 and listed[0].get("fingerprint", "").startswith("SHA256:"), "The registered SSH key is not listed")
+    console.cli("ssh-key-rm", "ssh keys rm user " + listed[0]["fingerprint"], cmd)
+    require(console.cli("ssh-key-list-empty", "ssh keys list user", cmd).get("keys") == [], "The SSH key was not removed")
+
+    # 웹 관리: 비밀번호 없이는 켜지지 않는다. 켜면 HTTPS 로 로그인할 수 있고 허용 목록 밖은 막힌다.
+    refused = console.command("webadmin-needs-password", "diparnux --json webadmin on --port 18443", cmd, expected=1)
+    require("password_required" in refused, "The web admin page must not start without a password")
+    console.command("webadmin-password", f"printf '%s\\n' '{WEBADMIN_PASSWORD}' | diparnux --json webadmin password", cmd)
+    on = console.cli("webadmin-on", "webadmin on --port 18443", cmd)
+    require(on.get("enabled") is True and on.get("running") is True and bool(on.get("cert_fingerprint")), "The web admin page did not start")
+    flow = console.command("webadmin-flow", WEBADMIN_FLOW, cmd)
+    require(flow.split()[-4:] == ["401", "200", "200", "403"], f"Web admin access control is wrong: {flow!r}")
+    off = console.cli("webadmin-off", "webadmin off", cmd)
+    require(off.get("enabled") is False, "The web admin page did not turn off")
+    closed = console.command("webadmin-closed", "ss -H -ltn 'sport = :18443'", cmd)
+    require(closed.strip() == "", "The web admin port is still listening after turning it off")
+
+    # VPN: 키는 서버가 만들고 개인 키는 응답에 나오지 않는다. 클라이언트 설정은 0600 파일로만 받는다.
+    vpn = console.cli("vpn-on", "vpn on", cmd)
+    require(vpn.get("enabled") is True and len(vpn.get("public_key", "")) == 44, "The VPN did not start with a key")
+    require("private" not in json.dumps(vpn).lower(), "The VPN status shows a private key")
+    console.command("vpn-peer", "diparnux vpn peer add e2e-peer --out /tmp/e2e-peer.conf", cmd)
+    mode = console.command("vpn-peer-mode", "stat -c %a /tmp/e2e-peer.conf", cmd)
+    require(mode.strip() == "600", f"The client configuration must be mode 0600 (got {mode!r})")
+    peers = console.cli("vpn-status", "vpn", cmd)
+    require(len(peers.get("peers", [])) == 1, "The VPN peer is not listed")
+    # 인터페이스는 커널 모듈과 networkd 에 달려 있다. 결과는 기록만 하고 판정하지 않는다(실기 확인 항목).
+    console.command("vpn-link", "for i in 1 2 3 4 5 6 7 8; do ip -br link show wg0 && exit 0; sleep 1; done; echo wg0-missing; exit 0", cmd)
+    console.cli("vpn-off", "vpn off", cmd)
+    console.command("vpn-cleanup", "rm -f /tmp/e2e-peer.conf /tmp/e2e_key /tmp/e2e_key.pub", cmd)
 
 
 def firmware(name, default):

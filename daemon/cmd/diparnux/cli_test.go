@@ -677,9 +677,9 @@ func TestAPIKeyCreatePrintsKeyOnce(t *testing.T) {
 }
 
 func TestAPIKeyCreateWhileRunningShowsRestartInstruction(t *testing.T) {
-	const key = "llx_test-created-key"
+	const key = "dpx_test-created-key"
 	f := newFakeDaemon(t)
-	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_test","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"dpx_test","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
 	res := runCLI(t, f, "apikey", "create", "laptop")
 	wantCode(t, res, exitOK)
 	wantContains(t, "create", res.stdout, "API key created.", key, "shown only once", "restart the server for the new API key to take effect", "diparnux serve stop, then diparnux serve start")
@@ -689,9 +689,9 @@ func TestAPIKeyCreateWhileRunningShowsRestartInstruction(t *testing.T) {
 }
 
 func TestAPIKeyCreateJSONKeepsRestartContract(t *testing.T) {
-	const key = "llx_json-created-key"
+	const key = "dpx_json-created-key"
 	f := newFakeDaemon(t)
-	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"llx_json","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
+	f.on("POST /v1/apikeys", 201, fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"dpx_json","created":"2026-10-11T09:00:00Z","key":%q,"note":"the key is shown only once; store it now","restart_required":true}`, key))
 	res := runCLI(t, f, "--json", "apikey", "create", "laptop")
 	wantCode(t, res, exitOK)
 	var response map[string]any
@@ -1123,4 +1123,281 @@ func TestWifiListEscapesNonASCIINames(t *testing.T) {
 	res := runCLI(t, f, "network", "wifi", "list") // 출력이 ASCII 가 아니면 runCLI 가 실패시킨다
 	wantCode(t, res, exitOK)
 	wantContains(t, "list", res.stdout, "WiFi")
+}
+
+func TestConnectionShowsAddressesWarningsAndExamples(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"gemma.gguf","models":["gemma.gguf"],"public_port":8080,"lan_exposed":true,"gateway":true,"key_required":true,"key_count":0,"hostname":"diparnux","local_url":"http://127.0.0.1:8080/v1","addresses":[{"interface":"enp3s0","address":"192.168.0.23","family":"ipv4","url":"http://192.168.0.23:8080/v1"}],"mdns_url":"http://diparnux.local:8080/v1","warnings":["No API key exists. Create one (diparnux apikey create <label>); LAN connections are refused without a key."],"examples":{"curl":"curl http://192.168.0.23:8080/v1/chat/completions -H 'Authorization: Bearer <your API key>'","settings":"Base URL: http://192.168.0.23:8080/v1"}}`)
+	res := runCLI(t, f, "connection")
+	wantCode(t, res, exitOK)
+	wantContains(t, "connection", res.stdout, "http://192.168.0.23:8080/v1", "diparnux.local", "warning: No API key exists", "gemma.gguf")
+
+	res = runCLI(t, f, "connection", "examples")
+	wantCode(t, res, exitOK)
+	wantContains(t, "examples", res.stdout, "# curl", "<your API key>")
+
+	res = runCLI(t, f, "connection", "bogus")
+	wantCode(t, res, exitUsage)
+}
+
+func TestGatewayShowsUsagePerKey(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/gateway", 200, `{"enabled":true,"public_port":8080,"lan_exposed":true,"state":{"listening":true,"addr":"0.0.0.0:8080","backend_port":18080},"stats":{"in_flight":1,"requests":12,"errors":2,"unauthorized":3,"since":"2026-10-13T00:00:00Z","keys":[{"id":"k1","label":"orca","prefix":"dpx_ab12","requests":10,"errors":1,"prompt_tokens":420,"completion_tokens":900,"last_used":"2026-10-13T01:02:03Z"}],"recent":[]}}`)
+	res := runCLI(t, f, "gateway")
+	wantCode(t, res, exitOK)
+	wantContains(t, "gateway", res.stdout, "0.0.0.0:8080 -> 127.0.0.1:18080", "requests:", "12 (errors 2, unauthorized 3, in flight 1)", "orca", "dpx_ab12", "420", "900")
+}
+
+func TestModelImportSendsTheFileAndReportsTheResult(t *testing.T) {
+	f := newFakeDaemon(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "my-model.gguf")
+	content := "GGUF-not-really-but-the-fake-daemon-does-not-care"
+	if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.on("PUT /v1/models/import", 201, `{"model_id":"my-model.gguf","size_bytes":49,"sha256":"`+strings.Repeat("ab", 32)+`","default":true}`)
+	res := runCLI(t, f, "model", "import", file)
+	wantCode(t, res, exitOK)
+	wantContains(t, "import", res.stdout, "imported my-model.gguf", "it is now the default model")
+	if got := f.bodiesOf("PUT /v1/models/import"); len(got) != 1 || got[0] != content {
+		t.Fatalf("body = %v", got)
+	}
+	if !f.hitsContain("PUT /v1/models/import?name=my-model.gguf") {
+		t.Fatalf("hits = %v", f.hits)
+	}
+
+	// --name 으로 이름을 바꿔 보낸다. 이름이 .gguf 로 끝나지 않으면 보내지 않는다.
+	res = runCLI(t, f, "model", "import", file, "--name", "renamed.gguf")
+	wantCode(t, res, exitOK)
+	if !f.hitsContain("PUT /v1/models/import?name=renamed.gguf") {
+		t.Fatalf("renamed hits = %v", f.hits)
+	}
+	res = runCLI(t, f, "model", "import", file, "--name", "bad.bin")
+	wantCode(t, res, exitUsage)
+
+	res = runCLI(t, f, "model", "import", filepath.Join(dir, "missing.gguf"))
+	wantCode(t, res, exitFailure)
+}
+
+func TestModelImportShowsTheDaemonsRefusal(t *testing.T) {
+	f := newFakeDaemon(t)
+	file := filepath.Join(t.TempDir(), "x.gguf")
+	if err := os.WriteFile(file, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.on("PUT /v1/models/import", 409, `{"error":{"code":"name_conflict","message":"a model named x.gguf already exists"}}`)
+	res := runCLI(t, f, "model", "import", file)
+	wantCode(t, res, exitFailure)
+	wantContains(t, "conflict", res.stderr, "already exists", "name_conflict")
+}
+
+func TestServeStatsShowsSlotsAndSpeed(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/server/stats", 200, `{"running":true,"state":"running","model_id":"m.gguf","uptime_seconds":3700,"parallel":2,"slot_ctx":2048,"slots":{"available":true,"total":2,"busy":1,"items":[]},"metrics":{"available":true,"generated_tokens_per_second":31.5,"prompt_tokens_per_second":700,"requests_processing":1,"requests_deferred":0,"prompt_tokens_total":1200,"generated_tokens_total":3400},"gateway":{"requests":12,"errors":1,"unauthorized":2,"in_flight":1}}`)
+	res := runCLI(t, f, "serve", "stats")
+	wantCode(t, res, exitOK)
+	wantContains(t, "stats", res.stdout, "1 busy of 2 (context per slot 2048)", "31.5 tokens/s", "12 requests, 1 errors, 2 refused, 1 in flight", "1h 1m")
+
+	f.on("GET /v1/server/stats", 200, `{"running":false,"state":"stopped","slots":{"available":false,"items":[]},"metrics":{"available":false}}`)
+	res = runCLI(t, f, "serve", "stats")
+	wantCode(t, res, exitOK)
+	wantContains(t, "stopped", res.stdout, "not running")
+}
+
+func TestNetworkSetStaticAndConfirm(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/network/interfaces/enp3s0", 200, `{"config":{"interface":"enp3s0","mode":"static","addresses":["192.168.0.50/24"],"gateway":"192.168.0.1","dns":["1.1.1.1"],"managed":true},"pending":{"interface":"enp3s0","deadline":"2026-10-13T12:01:00Z"},"confirm_seconds":60}`)
+	res := runCLI(t, f, "network", "set", "enp3s0", "--address", "192.168.0.50/24", "--gateway", "192.168.0.1", "--dns", "1.1.1.1")
+	wantCode(t, res, exitOK)
+	wantContains(t, "set", res.stdout, "static 192.168.0.50/24, gateway 192.168.0.1", "diparnux network confirm", "60 seconds")
+	got := f.bodiesOf("PUT /v1/network/interfaces/enp3s0")
+	if len(got) != 1 || !strings.Contains(got[0], `"mode":"static"`) || !strings.Contains(got[0], `"addresses":["192.168.0.50/24"]`) || !strings.Contains(got[0], `"confirm_seconds":60`) {
+		t.Fatalf("body = %v", got)
+	}
+
+	f.on("POST /v1/network/confirm", 200, `{"confirmed":true}`)
+	res = runCLI(t, f, "network", "confirm")
+	wantCode(t, res, exitOK)
+	wantContains(t, "confirm", res.stdout, "confirmed")
+
+	res = runCLI(t, f, "network", "set", "enp3s0")
+	wantCode(t, res, exitUsage)
+	res = runCLI(t, f, "network", "set", "enp3s0", "--dhcp", "--address", "10.0.0.2/24")
+	wantCode(t, res, exitUsage)
+}
+
+func TestNetworkDiagnoseFailsWhenACheckFails(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/network/diagnose", 200, `{"checks":[{"name":"address","ok":true,"detail":"enp3s0 192.168.0.23/24"},{"name":"dns","ok":false,"detail":"huggingface.co could not be resolved"},{"name":"gateway","ok":false,"skipped":true,"detail":"ping is not available"}]}`)
+	res := runCLI(t, f, "network", "diagnose")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "diagnose", res.stdout, "ok    address", "FAIL  dns", "skip  gateway")
+}
+
+func TestFirewallListAddAndToggle(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/firewall", 200, `{"policy":"drop","builtin":[{"name":"SSH","protocol":"tcp","port":22,"source":"any","reason":"the SSH server is on"}],"rules":[{"id":"r1","name":"WebUI","protocol":"tcp","port":3000,"source":"lan","enabled":true}],"max_rule":64}`)
+	res := runCLI(t, f, "firewall")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "SSH", "the SSH server is on", "r1", "WebUI", "lan")
+
+	f.on("POST /v1/firewall/rules", 201, `{"id":"r2","name":"Range","protocol":"udp","port":6000,"port_end":6010,"source":"10.0.0.0/8","enabled":true}`)
+	res = runCLI(t, f, "firewall", "add", "Range", "udp", "6000-6010", "--from", "10.0.0.0/8")
+	wantCode(t, res, exitOK)
+	wantContains(t, "add", res.stdout, "rule r2 added", "udp/6000-6010")
+	body := f.bodiesOf("POST /v1/firewall/rules")
+	if len(body) != 1 || !strings.Contains(body[0], `"port":6000`) || !strings.Contains(body[0], `"port_end":6010`) {
+		t.Fatalf("body = %v", body)
+	}
+
+	f.on("PUT /v1/firewall/rules/r1", 200, `{"id":"r1","name":"WebUI","protocol":"tcp","port":3000,"source":"lan","enabled":false}`)
+	res = runCLI(t, f, "firewall", "disable", "r1")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/firewall/rules/r1"); len(b) != 1 || !strings.Contains(b[0], `"enabled":false`) {
+		t.Fatalf("body = %v", b)
+	}
+	res = runCLI(t, f, "firewall", "disable", "r9")
+	wantCode(t, res, exitFailure)
+	res = runCLI(t, f, "firewall", "add", "x", "tcp", "abc")
+	wantCode(t, res, exitUsage)
+}
+
+func TestSSHAdvancedCommands(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/ssh/advanced", 200, `{"enabled":true,"port":2222,"password_login_configured":false,"key_count":2,"host_keys":[{"type":"ssh-ed25519","fingerprint":"SHA256:abc","comment":"ssh_host_ed25519_key.pub"}]}`)
+	res := runCLI(t, f, "ssh", "advanced")
+	wantCode(t, res, exitOK)
+	wantContains(t, "advanced", res.stdout, "2222", "password login:", "off", "public keys:", "SHA256:abc")
+
+	f.on("PUT /v1/ssh/advanced", 200, `{"enabled":true,"port":2200,"key_count":2,"host_keys":[]}`)
+	res = runCLI(t, f, "ssh", "port", "2200")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/ssh/advanced"); len(b) != 1 || b[0] != `{"port":2200}` {
+		t.Fatalf("body = %v", b)
+	}
+	res = runCLI(t, f, "ssh", "password", "off")
+	wantCode(t, res, exitOK)
+	res = runCLI(t, f, "ssh", "port", "99999")
+	wantCode(t, res, exitUsage)
+
+	f.on("PUT /v1/ssh/advanced", 409, `{"error":{"code":"no_keys","message":"add a public key to an account first"}}`)
+	res = runCLI(t, f, "ssh", "password", "off")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "no keys", res.stderr, "add a public key", "no_keys")
+
+	f.on("POST /v1/ssh/keys", 201, `{"key":{"type":"ssh-ed25519","fingerprint":"SHA256:x"},"added":true}`)
+	res = runCLIWith(t, f, cliOpts{stdin: "ssh-ed25519 AAAAC3 alice@laptop\n"}, "ssh", "keys", "add", "alice")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("POST /v1/ssh/keys"); len(b) != 1 || !strings.Contains(b[0], `"user":"alice"`) || !strings.Contains(b[0], "AAAAC3") {
+		t.Fatalf("body = %v", b)
+	}
+	f.on("GET /v1/ssh/log", 200, `{"events":[{"time":"2026-10-13T12:00:00+0900","result":"accepted","user":"alice","method":"publickey","from":"192.168.0.5"}]}`)
+	res = runCLI(t, f, "ssh", "log")
+	wantCode(t, res, exitOK)
+	wantContains(t, "log", res.stdout, "alice", "publickey", "192.168.0.5")
+}
+
+func TestServicesAndResources(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/services", 200, `{"services":[{"unit":"ssh.service","title":"SSH server","installed":true,"active":"active","sub":"running","enabled":"enabled","pid":10,"memory_mib":4,"actions":["restart"]},{"unit":"xrdp.service","title":"Remote desktop (RDP)","installed":false,"active":"inactive","sub":"dead","enabled":"not-found","actions":[]}]}`)
+	res := runCLI(t, f, "services")
+	wantCode(t, res, exitOK)
+	wantContains(t, "list", res.stdout, "ssh.service", "active/running", "enabled", "xrdp.service", "not-found")
+
+	f.on("POST /v1/services/ssh.service/restart", 200, `{"unit":"ssh.service","action":"restart","done":true}`)
+	res = runCLI(t, f, "services", "restart", "ssh.service")
+	wantCode(t, res, exitOK)
+	f.on("POST /v1/services/diparnuxd.service/stop", 403, `{"error":{"code":"action_not_allowed","message":"Diparnux daemon cannot be stopped from here"}}`)
+	res = runCLI(t, f, "services", "stop", "diparnuxd.service")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "protected", res.stderr, "action_not_allowed")
+
+	f.on("GET /v1/services/ssh.service/logs", 200, `{"unit":"ssh.service","log":"2026-10-13 sshd started\n"}`)
+	res = runCLI(t, f, "services", "logs", "ssh.service", "-n", "20")
+	wantCode(t, res, exitOK)
+	wantContains(t, "logs", res.stdout, "sshd started")
+
+	f.on("GET /v1/resources", 200, `{"system":{"uptime_seconds":90061,"cpu":{"cores":8,"used_percent":12.5,"load1":0.5,"load5":0.4,"load15":0.3},"memory":{"total_mib":16000,"available_mib":8000,"used_mib":8000,"swap_total_mib":0,"swap_used_mib":0},"disks":[{"mount":"/","fs_type":"ext4","total_mib":100000,"used_mib":40000,"used_percent":40}],"network":[{"name":"enp3s0","rx_bytes_per_second":2048,"tx_bytes_per_second":0}],"temperatures":[{"name":"x86_pkg_temp","celsius":52.5}],"top_processes":[{"pid":4242,"name":"llama-server","rss_mib":3000}]},"gpus":[{"index":0,"name":"RTX 3060","memory_total_mib":6144,"memory_used_mib":3000,"util_gpu_percent":5,"temperature_c":50,"power_mw":20000}],"gpu_available":true}`)
+	res = runCLI(t, f, "resources")
+	wantCode(t, res, exitOK)
+	wantContains(t, "resources", res.stdout, "12.5% of 8 cores", "disk /", "net enp3s0", "52.5 C", "RTX 3060", "llama-server")
+}
+
+func TestVPNPeerAddShowsTheClientConfigOnce(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/vpn/peers", 201, `{"peer":{"name":"phone","public_key":"pub","allowed_ips":["10.8.0.2/32"]},"client_config":"[Interface]\nPrivateKey = CLIENTSECRET\nAddress = 10.8.0.2/32\n","note":"shown only once"}`)
+	res := runCLI(t, f, "vpn", "peer", "add", "phone")
+	wantCode(t, res, exitOK)
+	wantContains(t, "peer add", res.stdout, "peer phone added", "CLIENTSECRET", "shown only once")
+
+	out := filepath.Join(t.TempDir(), "phone.conf")
+	res = runCLI(t, f, "vpn", "peer", "add", "phone", "--out", out)
+	wantCode(t, res, exitOK)
+	if strings.Contains(res.stdout, "CLIENTSECRET") {
+		t.Fatal("the private key was printed although --out was given")
+	}
+	st, err := os.Stat(out)
+	if err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("out file: %v %v", st, err)
+	}
+
+	f.on("GET /v1/vpn", 200, `{"enabled":true,"interface":"wg0","address":"10.8.0.1/24","listen_port":51820,"public_key":"serverpub","peers":[{"name":"phone","public_key":"pub","allowed_ips":["10.8.0.2/32"]}]}`)
+	res = runCLI(t, f, "vpn")
+	wantCode(t, res, exitOK)
+	wantContains(t, "status", res.stdout, "wg0", "51820/udp", "serverpub", "phone")
+}
+
+func TestRemoteDesktopOnAndStatus(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/remote-desktop", 200, `{"installed":true,"enabled":true,"active":true,"port":3389,"source":"192.168.1.0/24"}`)
+	res := runCLI(t, f, "remote-desktop", "on", "--from", "192.168.1.0/24")
+	wantCode(t, res, exitOK)
+	wantContains(t, "on", res.stdout, "remote desktop:", "yes", "3389/tcp", "192.168.1.0/24")
+	if b := f.bodiesOf("PUT /v1/remote-desktop"); len(b) != 1 || !strings.Contains(b[0], `"source":"192.168.1.0/24"`) {
+		t.Fatalf("body = %v", b)
+	}
+	f.on("GET /v1/remote-desktop", 200, `{"installed":false,"enabled":false,"active":false,"port":3389,"source":"lan","note":"xrdp is not installed in this image"}`)
+	res = runCLI(t, f, "remote-desktop")
+	wantCode(t, res, exitOK)
+	wantContains(t, "off", res.stdout, "not installed")
+	res = runCLI(t, f, "remote-desktop", "maybe")
+	wantCode(t, res, exitUsage)
+}
+
+func TestWebAdminStatusOnAndPassword(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("PUT /v1/webadmin", 200, `{"enabled":true,"running":true,"port":8443,"source":"lan","password_set":true,"cert_fingerprint":"AA:BB","urls":["https://192.168.0.23:8443/"]}`)
+	res := runCLI(t, f, "webadmin", "on", "--port", "9443", "--from", "lan")
+	wantCode(t, res, exitOK)
+	wantContains(t, "on", res.stdout, "web admin:", "yes", "AA:BB", "https://192.168.0.23:8443/", "self-signed")
+	if b := f.bodiesOf("PUT /v1/webadmin"); len(b) != 1 || !strings.Contains(b[0], `"port":9443`) || !strings.Contains(b[0], `"enabled":true`) {
+		t.Fatalf("body = %v", b)
+	}
+
+	f.on("PUT /v1/webadmin", 409, `{"error":{"code":"password_required","message":"set the web admin password first"}}`)
+	res = runCLI(t, f, "webadmin", "on")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "password", res.stderr, "set the web admin password first")
+
+	f.on("PUT /v1/webadmin/password", 200, `{"password_set":true}`)
+	res = runCLIWith(t, f, cliOpts{stdin: "correct horse battery\n"}, "webadmin", "password")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/webadmin/password"); len(b) != 1 || b[0] != `{"password":"correct horse battery"}` {
+		t.Fatalf("body = %v", b)
+	}
+	if strings.Contains(res.stdout+res.stderr, "correct horse battery") {
+		t.Fatal("the password was echoed")
+	}
+}
+
+func TestExposureExitCodeFollowsTheFindings(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/exposure", 200, `{"level":"warning","findings":[{"level":"warning","title":"SSH accepts password logins","detail":"Keys are safer."},{"level":"ok","title":"The model server is reachable only from this computer"}]}`)
+	res := runCLI(t, f, "exposure")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "warn", res.stdout, "WARN  SSH accepts password logins", "Keys are safer.", "ok    The model server")
+	f.on("GET /v1/exposure", 200, `{"level":"ok","findings":[{"level":"ok","title":"fine"}]}`)
+	res = runCLI(t, f, "exposure")
+	wantCode(t, res, exitOK)
 }

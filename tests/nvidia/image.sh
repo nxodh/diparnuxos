@@ -164,8 +164,8 @@ require_path 'squashfs-root/etc/systemd/resolved[.]conf[.]d/diparnux[.]conf$' 'r
 unsquashfs -cat "$WORK/rootfs.squashfs" etc/systemd/resolved.conf.d/diparnux.conf > "$WORK/resolved.conf"
 grep -qx '\[Resolve\]' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks [Resolve]'
 grep -qx 'LLMNR=no' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks LLMNR=no'
-grep -qx 'MulticastDNS=no' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks MulticastDNS=no'
-echo 'PASS: systemd-resolved LLMNR and MulticastDNS are disabled'
+grep -qx 'MulticastDNS=yes' "$WORK/resolved.conf" || check_fail 'resolved drop-in lacks MulticastDNS=yes'
+echo 'PASS: systemd-resolved has LLMNR off and mDNS on (the firewall opens 5353 only for LAN exposure)'
 
 # 로그인 배너(minor 6). /etc/issue 첫 줄은 Diparnux 한 줄이고 agetty 이스케이프 \n \l 을 유지하며 ASCII 만 쓴다.
 expected_banner="Diparnux ${DIPARNUX_VERSION} (based on Debian ${DEBIAN_VERSION})"
@@ -228,6 +228,19 @@ unsquashfs -cat "$WORK/rootfs.squashfs" etc/lightdm/lightdm.conf > "$WORK/lightd
 if grep -Eq '^[[:space:]]*autologin-user=.+' "$WORK/lightdm.conf"; then
     check_fail 'autologin is enabled in the image lightdm.conf'
 fi
+# 상시 가동: 덮개를 닫거나 오래 두어도 절전과 종료로 서버가 멈추지 않게 하는 systemd 설정이 이미지에 있다.
+require_path 'squashfs-root/(usr/)?lib/systemd/logind[.]conf[.]d/50-diparnux-always-on[.]conf$' 'always-on logind drop-in'
+require_path 'squashfs-root/(usr/)?lib/systemd/sleep[.]conf[.]d/50-diparnux-always-on[.]conf$' 'always-on sleep drop-in'
+unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/logind.conf.d/50-diparnux-always-on.conf > "$WORK/always-on-logind"
+for key in HandleLidSwitch HandleLidSwitchExternalPower HandleLidSwitchDocked HandleSuspendKey HandleHibernateKey IdleAction; do
+    grep -qx "$key=ignore" "$WORK/always-on-logind" || check_fail "always-on logind drop-in does not set $key=ignore"
+done
+unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/sleep.conf.d/50-diparnux-always-on.conf > "$WORK/always-on-sleep"
+for key in AllowSuspend AllowHibernation AllowSuspendThenHibernate AllowHybridSleep; do
+    grep -qx "$key=no" "$WORK/always-on-sleep" || check_fail "always-on sleep drop-in does not set $key=no"
+done
+echo 'PASS: always-on drop-ins are in the image'
+
 # 0.5.1 부터 옛 이름의 흔적이 없어야 한다. 패턴은 두 조각으로 나누어 이 파일 자신이 걸리지 않게 한다.
 legacy="light""lix"
 if grep -i -q -- "$legacy" "$WORK/files"; then

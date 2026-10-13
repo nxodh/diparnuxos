@@ -11,6 +11,36 @@ from tests.fakedaemon import FakeDaemon  # noqa: E402
 
 
 class ClientTests(unittest.TestCase):
+    def test_import_model_streams_the_file_and_reports_progress(self):
+        import tempfile
+
+        payload = b"GGUF" + bytes(range(256)) * 5000  # 1 MiB 보다 크게 만들어 청크가 여러 번 나가게 한다.
+        routes = {("PUT", "/v1/models/import"): (201, {"model_id": "m.gguf", "size_bytes": len(payload), "sha256": "ab" * 32, "default": True})}
+        seen = []
+        with tempfile.TemporaryDirectory() as tmp, FakeDaemon(routes) as d:
+            path = os.path.join(tmp, "m.gguf")
+            with open(path, "wb") as fh:
+                fh.write(payload)
+            res = api.Client(d.path).import_model(path, "m.gguf", progress=lambda done, total: seen.append((done, total)))
+        self.assertEqual(res["model_id"], "m.gguf")
+        self.assertEqual(seen[-1], (len(payload), len(payload)))
+        self.assertEqual(d.calls[0][0], "PUT")
+        self.assertEqual(d.calls[0][1], "/v1/models/import?name=m.gguf")
+        self.assertEqual(d.calls[0][2], payload)
+
+    def test_import_model_error_keeps_the_daemons_code(self):
+        import tempfile
+
+        routes = {("PUT", "/v1/models/import"): (409, {"error": {"code": "name_conflict", "message": "a model named m.gguf already exists"}})}
+        with tempfile.TemporaryDirectory() as tmp, FakeDaemon(routes) as d:
+            path = os.path.join(tmp, "m.gguf")
+            with open(path, "wb") as fh:
+                fh.write(b"GGUF....")
+            with self.assertRaises(api.DaemonError) as cm:
+                api.Client(d.path).import_model(path)
+        self.assertEqual(cm.exception.code, "name_conflict")
+        self.assertEqual(cm.exception.status, 409)
+
     def test_status_roundtrip(self):
         routes = {("GET", "/v1/status"): (200, {"version": "0.2.0", "mode": "server"})}
         with FakeDaemon(routes) as d:

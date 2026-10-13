@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diparnux Admin</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><h1>Diparnux</h1><button id="logout" hidden>Log out</button></header>
+<main id="login">
+  <form id="login-form">
+    <h2>Log in</h2>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Log in</button>
+    <p id="login-error" class="error"></p>
+  </form>
+</main>
+<main id="app" hidden>
+  <section><h2>Server</h2><div id="server"></div></section>
+  <section><h2>Connect other computers</h2><div id="connection"></div></section>
+  <section><h2>API keys</h2><div id="keys"></div></section>
+  <section><h2>Resources</h2><div id="resources"></div></section>
+  <section><h2>Services</h2><div id="services"></div></section>
+</main>
+<p id="toast" role="status"></p>
+<script src="/app.js"></script>
+</body>
+</html>

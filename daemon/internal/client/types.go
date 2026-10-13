@@ -1,6 +1,10 @@
 package client
 
-import "time"
+import (
+	"time"
+
+	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
+)
 
 // Status 는 GET /v1/status 의 응답이다.
 type Status struct {
@@ -115,6 +119,8 @@ type Plan struct {
 	CacheTypeV     string   `json:"cache_type_v"`
 	FlashAttn      bool     `json:"flash_attn"`
 	Batch          int      `json:"batch"`
+	Parallel       int      `json:"parallel"`
+	SlotCtx        int      `json:"slot_ctx"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -172,6 +178,7 @@ type Overrides struct {
 	CacheType *string `json:"cache_type,omitempty"`
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
+	Parallel  *int    `json:"parallel,omitempty"`
 }
 
 // StartRequest 는 POST /v1/server/start 의 본문이다.
@@ -311,23 +318,27 @@ type ChatReply struct {
 
 // Config 는 데몬 설정이다. GET /v1/config 의 응답이고, hf_token 은 가려져 있다.
 type Config struct {
-	Port       int       `json:"port"`
-	LANExposed bool      `json:"lan_exposed"`
-	Autostart  bool      `json:"autostart"`
-	SSHEnabled bool      `json:"ssh_enabled"`
-	ModelsDir  string    `json:"models_dir"`
-	HFToken    string    `json:"hf_token"`
-	Overrides  Overrides `json:"overrides"`
+	Port        int       `json:"port"`
+	LANExposed  bool      `json:"lan_exposed"`
+	Autostart   bool      `json:"autostart"`
+	SSHEnabled  bool      `json:"ssh_enabled"`
+	ModelsDir   string    `json:"models_dir"`
+	HFToken     string    `json:"hf_token"`
+	Gateway     bool      `json:"gateway"`
+	AutoRestart bool      `json:"auto_restart"`
+	Overrides   Overrides `json:"overrides"`
 }
 
 // ConfigPatch 는 PUT /v1/config 의 부분 갱신 본문이다. nil 인 필드는 그대로 둔다.
 type ConfigPatch struct {
-	Port       *int       `json:"port,omitempty"`
-	LANExposed *bool      `json:"lan_exposed,omitempty"`
-	Autostart  *bool      `json:"autostart,omitempty"`
-	ModelsDir  *string    `json:"models_dir,omitempty"`
-	HFToken    *string    `json:"hf_token,omitempty"`
-	Overrides  *Overrides `json:"overrides,omitempty"`
+	Port        *int       `json:"port,omitempty"`
+	LANExposed  *bool      `json:"lan_exposed,omitempty"`
+	Autostart   *bool      `json:"autostart,omitempty"`
+	ModelsDir   *string    `json:"models_dir,omitempty"`
+	HFToken     *string    `json:"hf_token,omitempty"`
+	Gateway     *bool      `json:"gateway,omitempty"`
+	AutoRestart *bool      `json:"auto_restart,omitempty"`
+	Overrides   *Overrides `json:"overrides,omitempty"`
 }
 
 // ConfigUpdate 는 PUT /v1/config 의 응답이다.
@@ -413,4 +424,81 @@ type SSH struct {
 	LoginUsers   []string `json:"login_users"`
 	Port         int      `json:"port"`
 	Warning      string   `json:"warning,omitempty"`
+}
+
+// ConnectionAddress 는 다른 컴퓨터가 접속할 때 쓸 주소 하나다.
+type ConnectionAddress struct {
+	Interface string `json:"interface"`
+	Address   string `json:"address"`
+	Family    string `json:"family"`
+	URL       string `json:"url"`
+}
+
+// Connection 은 GET /v1/connection 의 응답이다. 평문 API 키는 없다.
+type Connection struct {
+	ServerState string              `json:"server_state"`
+	ModelID     string              `json:"model_id"`
+	Models      []string            `json:"models"`
+	PublicPort  int                 `json:"public_port"`
+	LANExposed  bool                `json:"lan_exposed"`
+	Gateway     bool                `json:"gateway"`
+	KeyRequired bool                `json:"key_required"`
+	KeyCount    int                 `json:"key_count"`
+	Hostname    string              `json:"hostname"`
+	LocalURL    string              `json:"local_url"`
+	Addresses   []ConnectionAddress `json:"addresses"`
+	MDNSURL     string              `json:"mdns_url"`
+	Warnings    []string            `json:"warnings"`
+	Examples    map[string]string   `json:"examples"`
+}
+
+// ServerStats 는 GET /v1/server/stats 의 응답이다.
+type ServerStats struct {
+	Running       bool   `json:"running"`
+	State         string `json:"state"`
+	ModelID       string `json:"model_id"`
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	Parallel      int    `json:"parallel"`
+	SlotCtx       int    `json:"slot_ctx"`
+	Slots         struct {
+		Available bool   `json:"available"`
+		Reason    string `json:"reason"`
+		Total     int    `json:"total"`
+		Busy      int    `json:"busy"`
+	} `json:"slots"`
+	Metrics struct {
+		Available          bool    `json:"available"`
+		Reason             string  `json:"reason"`
+		PromptTokensTotal  float64 `json:"prompt_tokens_total"`
+		GeneratedTotal     float64 `json:"generated_tokens_total"`
+		PromptTokensPerSec float64 `json:"prompt_tokens_per_second"`
+		GenTokensPerSec    float64 `json:"generated_tokens_per_second"`
+		RequestsProcessing float64 `json:"requests_processing"`
+		RequestsDeferred   float64 `json:"requests_deferred"`
+		KVCacheUsageRatio  float64 `json:"kv_cache_usage_ratio"`
+	} `json:"metrics"`
+	Gateway *struct {
+		Requests     int64 `json:"requests"`
+		Errors       int64 `json:"errors"`
+		Unauthorized int64 `json:"unauthorized"`
+		InFlight     int64 `json:"in_flight"`
+	} `json:"gateway"`
+}
+
+// Gateway 는 GET /v1/gateway 의 응답이다.
+type Gateway struct {
+	Enabled    bool                 `json:"enabled"`
+	PublicPort int                  `json:"public_port"`
+	LANExposed bool                 `json:"lan_exposed"`
+	State      gateway.ManagerState `json:"state"`
+	Stats      gateway.Snapshot     `json:"stats"`
+	Note       string               `json:"note"`
+}
+
+// ImportResult 는 PUT /v1/models/import 의 응답이다.
+type ImportResult struct {
+	ModelID   string `json:"model_id"`
+	SizeBytes int64  `json:"size_bytes"`
+	SHA256    string `json:"sha256"`
+	Default   bool   `json:"default"`
 }

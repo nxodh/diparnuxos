@@ -1,3 +1,10 @@
+diparnux-desktop (0.5.2) trixie; urgency=medium
+
+  * fcitx5 자동 시작과 한/영 전환 키(Hangul, 오른쪽 Alt, Shift+Space, Ctrl+Space), 서버 모드에서 소리 서비스를 시작하지 않는다, 전원 관리자 기본값을 상시 가동에 맞춘다.
+  * 원격 데스크톱(xrdp, xorgxrdp)을 넣고 서비스는 꺼 둔다.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 12:00:00 +0900
+
 diparnux-desktop (0.5.1) trixie; urgency=medium
 
   * 이름을 Diparnux 로 바꾸고 새 로고에 맞춰 시작 메뉴 단추, 로그인 아바타, 배경 마크를 바꾼다. xfwm4 테마 이미지를 다시 만든다.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 04:21+0000\n"
+"POT-Creation-Date: 2026-10-13 17:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,26 +50,109 @@ msgstr ""
 msgid "Account %s created"
 msgstr ""
 
-msgid "Type a message"
+msgid "Connection"
 msgstr ""
 
-msgid "Send"
+msgid "Use this computer as an AI server"
 msgstr ""
 
-msgid "Clear"
+msgid ""
+"Other computers, such as Orca, Open WebUI or an editor plugin, connect with "
+"an OpenAI-compatible URL and an API key."
 msgstr ""
 
-msgid "You"
+msgid "Server"
 msgstr ""
 
-msgid "Waiting for the model…"
+msgid "API keys"
 msgstr ""
 
-msgid "Model"
+msgid "Notes"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Addresses"
+msgstr ""
+
+msgid "Use one of these as the base URL on the other computer."
+msgstr ""
+
+msgid "Examples"
+msgstr ""
+
+msgid ""
+"Replace “your API key” with a key you created. A key is shown only once, "
+"when it is created."
+msgstr ""
+
+msgid "Check"
+msgstr ""
+
+msgid "Send a short request to the server"
+msgstr ""
+
+msgid "Checks that the model answers."
+msgstr ""
+
+msgid "Safety check"
+msgstr ""
+
+msgid ""
+"What this computer offers to the network, with warnings for risky settings."
+msgstr ""
+
+msgid "Check again"
+msgstr ""
+
+msgid "Usage per key"
+msgstr ""
+
+msgid "Counted by the gateway since the daemon started."
+msgstr ""
+
+msgid "required"
+msgstr ""
+
+msgid "not required"
+msgstr ""
+
+msgid "by name"
+msgstr ""
+
+msgid "this computer only"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Settings for an app"
+msgstr ""
+
+msgid "curl"
+msgstr ""
+
+msgid "OpenAI Python client"
+msgstr ""
+
+msgid "Environment variables"
+msgstr ""
+
+msgid "No API keys"
+msgstr ""
+
+msgid "Total"
 msgstr ""
 
 #, python-format
-msgid "%(tokens)d tokens · %(speed).1f tokens/s"
+msgid "%(requests)d requests · %(errors)d errors · %(unauthorized)d refused"
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+msgid "The server answered."
 msgstr ""
 
 msgid "Dashboard"
@@ -99,6 +182,9 @@ msgstr ""
 msgid "Secure Boot"
 msgstr ""
 
+msgid "Live session storage"
+msgstr ""
+
 msgid "Memory"
 msgstr ""
 
@@ -108,13 +194,10 @@ msgstr ""
 msgid "State"
 msgstr ""
 
+msgid "Model"
+msgstr ""
+
 msgid "GPU offload"
-msgstr ""
-
-msgid "No GPU"
-msgstr ""
-
-msgid "No NVIDIA GPU was detected."
 msgstr ""
 
 msgid "NVIDIA open kernel module"
@@ -136,6 +219,12 @@ msgstr ""
 msgid "%(used)s used of %(total)s"
 msgstr ""
 
+#, python-format
+msgid ""
+"%(used)s used of %(total)s. Files written in this session are kept in memory "
+"and disappear on reboot."
+msgstr ""
+
 msgid "Desktop mode"
 msgstr ""
 
@@ -144,6 +233,97 @@ msgstr ""
 
 #, python-format
 msgid "%(n)d of %(total)d layers on the GPU"
+msgstr ""
+
+msgid "No GPU"
+msgstr ""
+
+msgid "No NVIDIA GPU was detected."
+msgstr ""
+
+msgid "Firewall"
+msgstr ""
+
+msgid "Incoming connections"
+msgstr ""
+
+msgid ""
+"Everything that is not listed here is blocked. Answers to connections this "
+"computer starts always work."
+msgstr ""
+
+msgid "Opened by features"
+msgstr ""
+
+msgid "These ports open and close with the feature that needs them."
+msgstr ""
+
+msgid "Your rules"
+msgstr ""
+
+msgid "Add a rule"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Protocol"
+msgstr ""
+
+msgid "Port or range, such as 3000 or 6000-6010"
+msgstr ""
+
+msgid "Who may connect"
+msgstr ""
+
+msgid "The local network"
+msgstr ""
+
+msgid "Any address"
+msgstr ""
+
+msgid "An address range"
+msgstr ""
+
+msgid "Address range, such as 192.168.1.0/24"
+msgstr ""
+
+msgid "Add rule"
+msgstr ""
+
+msgid "Nothing is open"
+msgstr ""
+
+msgid "Turn on LAN exposure, SSH or another feature to open its port."
+msgstr ""
+
+msgid "No rules yet"
+msgstr ""
+
+msgid ""
+"Add one below, for example to let a web interface on this computer be "
+"reached."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Rule saved"
+msgstr ""
+
+msgid "Rule deleted"
+msgstr ""
+
+msgid "Delete this rule?"
+msgstr ""
+
+msgid "Enter a port number or a range such as 6000-6010."
+msgstr ""
+
+msgid "Give the rule a name."
+msgstr ""
+
+msgid "Rule added"
 msgstr ""
 
 msgid "No NVIDIA GPU found"
@@ -235,6 +415,34 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
+msgid "any address"
+msgstr ""
+
+msgid "the local network"
+msgstr ""
+
+msgid "not installed"
+msgstr ""
+
+#, python-format
+msgid "%(requests)s requests"
+msgstr ""
+
+#, python-format
+msgid "%(errors)s errors"
+msgstr ""
+
+#, python-format
+msgid "%(tokens)s tokens"
+msgstr ""
+
+#, python-format
+msgid "last used %(when)s"
+msgstr ""
+
+msgid "never used"
+msgstr ""
+
 msgid "Unknown architecture"
 msgstr ""
 
@@ -250,6 +458,38 @@ msgstr ""
 
 #, python-format
 msgid "Unknown GPU state: %s"
+msgstr ""
+
+msgid ""
+"The model did not load on the GPU as planned. Lower the context or the "
+"number of simultaneous requests, or free GPU memory."
+msgstr ""
+
+msgid ""
+"The CUDA backend did not load. Check the GPU in the Dashboard and run the "
+"GPU check."
+msgstr ""
+
+msgid ""
+"The server did not become ready in time. A large model can take a while to "
+"load; check the server log below."
+msgstr ""
+
+msgid ""
+"The server stopped by itself. The log below shows the last lines it wrote."
+msgstr ""
+
+msgid "The system could not start the server unit. Check the server log below."
+msgstr ""
+
+#, python-format
+msgid ""
+"The server stopped and %d automatic restarts failed. Start it again yourself "
+"after fixing the cause."
+msgstr ""
+
+#, python-format
+msgid "Automatic restart: attempt %(done)d of %(max)d."
 msgstr ""
 
 msgid "Run the GPU check to detect your GPU."
@@ -386,6 +626,152 @@ msgstr ""
 msgid "Other computers cannot connect."
 msgstr ""
 
+msgid "Refreshing the package lists"
+msgstr ""
+
+msgid "Planning the update"
+msgstr ""
+
+msgid "Preparing the boot entry"
+msgstr ""
+
+msgid "Installing and building the new kernel"
+msgstr ""
+
+msgid "Installing the updates"
+msgstr ""
+
+msgid "Verifying the driver build"
+msgstr ""
+
+msgid "Removing the failed kernel"
+msgstr ""
+
+msgid "Restoring the previous versions"
+msgstr ""
+
+msgid "Restoring the previous driver"
+msgstr ""
+
+msgid "Finishing"
+msgstr ""
+
+msgid "Update status is not available"
+msgstr ""
+
+msgid "Updates are only available on an installed system"
+msgstr ""
+
+msgid ""
+"This is a live session. Install Diparnux to receive kernel and driver "
+"updates."
+msgstr ""
+
+msgid "The update helper is not installed"
+msgstr ""
+
+msgid "Updating"
+msgstr ""
+
+msgid "Restart to finish the update"
+msgstr ""
+
+#, python-format
+msgid ""
+"The new kernel %s starts once. It becomes the default only after it passes "
+"the boot check."
+msgstr ""
+
+msgid "The new driver is loaded after the restart."
+msgstr ""
+
+msgid "The last update failed"
+msgstr ""
+
+msgid "Rolled back"
+msgstr ""
+
+msgid "Restart to use the previous kernel and driver."
+msgstr ""
+
+msgid "The last check failed"
+msgstr ""
+
+msgid "Not checked yet"
+msgstr ""
+
+msgid "Check for updates to see what is available."
+msgstr ""
+
+msgid "Everything is up to date"
+msgstr ""
+
+#, python-format
+msgid "%d package updates are available"
+msgstr ""
+
+#, python-format
+msgid "New kernel %s"
+msgstr ""
+
+#, python-format
+msgid "NVIDIA driver %(old)s to %(new)s"
+msgstr ""
+
+msgid "No wireless adapter was found."
+msgstr ""
+
+msgid "The wireless service is not running."
+msgstr ""
+
+msgid "Network status is not available"
+msgstr ""
+
+msgid "Wired"
+msgstr ""
+
+msgid "Wi-Fi"
+msgstr ""
+
+#, python-format
+msgid "Connected: %(label)s (%(address)s)"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Not connected to the internet"
+msgstr ""
+
+msgid "Wi-Fi is not available."
+msgstr ""
+
+msgid "Wi-Fi is turned off."
+msgstr ""
+
+msgid "Strong"
+msgstr ""
+
+msgid "Good"
+msgstr ""
+
+msgid "Weak"
+msgstr ""
+
+msgid "Enter the password of the network."
+msgstr ""
+
+msgid "The password must be at least 8 characters."
+msgstr ""
+
+msgid "The password must be at most 63 characters."
+msgstr ""
+
+msgid ""
+"Use only letters, digits and symbols from the keyboard (no Korean or "
+"accented characters)."
+msgstr ""
+
 msgid "Models"
 msgstr ""
 
@@ -397,6 +783,9 @@ msgid ""
 msgstr ""
 
 msgid "Installed models"
+msgstr ""
+
+msgid "Import a file"
 msgstr ""
 
 msgid "Downloads"
@@ -433,9 +822,6 @@ msgstr ""
 msgid "Set default"
 msgstr ""
 
-msgid "Delete"
-msgstr ""
-
 #, python-format
 msgid "Based on %s of GPU memory"
 msgstr ""
@@ -466,6 +852,19 @@ msgid "Delete this model?"
 msgstr ""
 
 msgid "Download started"
+msgstr ""
+
+msgid "Choose a GGUF model file"
+msgstr ""
+
+msgid "GGUF model files"
+msgstr ""
+
+msgid "Importing"
+msgstr ""
+
+#, python-format
+msgid "Imported %s"
 msgstr ""
 
 msgid "Token saved. Restart diparnuxd to use it."
@@ -509,13 +908,300 @@ msgstr ""
 msgid "No GGUF files in this repository"
 msgstr ""
 
-msgid "Server"
+#, python-format
+msgid "Connect to %s"
 msgstr ""
 
-msgid "Notes"
+msgid "Connect"
+msgstr ""
+
+#, python-format
+msgid "Connected to %s"
+msgstr ""
+
+msgid "Network"
+msgstr ""
+
+msgid "Internet"
+msgstr ""
+
+msgid "Adapters"
+msgstr ""
+
+msgid "Scan"
+msgstr ""
+
+msgid "Note"
+msgstr ""
+
+msgid "Available networks"
+msgstr ""
+
+msgid "Other"
+msgstr ""
+
+msgid "Up"
+msgstr ""
+
+msgid "Down"
+msgstr ""
+
+msgid "No network adapters"
+msgstr ""
+
+msgid "No networks found"
+msgstr ""
+
+msgid "Press Scan to search again."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Secured"
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Disconnect"
+msgstr ""
+
+msgid "Forget"
+msgstr ""
+
+msgid "Searching for networks…"
+msgstr ""
+
+msgid "Enterprise networks are not supported here."
+msgstr ""
+
+#, python-format
+msgid "Connecting to %s…"
+msgstr ""
+
+msgid "Forget this network?"
+msgstr ""
+
+#, python-format
+msgid "The saved password of %s is deleted."
+msgstr ""
+
+msgid "Remote access"
+msgstr ""
+
+msgid "SSH"
+msgstr ""
+
+msgid ""
+"Open a terminal on this computer from another computer. Turn the server on "
+"or off in System."
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Allow password login"
+msgstr ""
+
+msgid ""
+"Turn it off to accept public keys only. At least one key must be registered "
+"first."
+msgstr ""
+
+msgid "Public keys"
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Paste a public key (ssh-ed25519 AAAA…) and press Enter"
+msgstr ""
+
+msgid "Server fingerprints"
+msgstr ""
+
+msgid ""
+"Compare one of these with the fingerprint your SSH client shows the first "
+"time you connect."
+msgstr ""
+
+msgid "Recent logins"
+msgstr ""
+
+msgid "Remote desktop"
+msgstr ""
+
+msgid ""
+"Open this computer's desktop from another computer with an RDP client. It is "
+"off by default."
+msgstr ""
+
+msgid "Allow remote desktop"
+msgstr ""
+
+msgid "VPN (WireGuard)"
+msgstr ""
+
+msgid ""
+"Reach this computer from outside your home network. Devices that join are "
+"trusted like the local network."
+msgstr ""
+
+msgid "Turn the VPN on"
+msgstr ""
+
+msgid "This computer"
+msgstr ""
+
+msgid "VPN devices"
+msgstr ""
+
+msgid "Name of a new device, such as phone"
+msgstr ""
+
+msgid "Admin web page"
+msgstr ""
+
+msgid ""
+"Manage this computer from another computer's browser. It has its own "
+"password and is off by default."
+msgstr ""
+
+msgid "Turn the admin web page on"
+msgstr ""
+
+msgid "New web admin password (at least 10 characters)"
+msgstr ""
+
+msgid "Address"
+msgstr ""
+
+msgid "No host keys yet"
+msgstr ""
+
+msgid "They are created the first time SSH is turned on."
+msgstr ""
+
+msgid "No keys for this account"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Nothing in the recent log"
+msgstr ""
+
+msgid "signed in"
+msgstr ""
+
+msgid "failed"
+msgstr ""
+
+msgid "It is turned on but the service is not running."
+msgstr ""
+
+#, python-format
+msgid "Public key: %s"
+msgstr ""
+
+#, python-format
+msgid "Certificate: %s"
+msgstr ""
+
+msgid "Set a password first."
+msgstr ""
+
+#, python-format
+msgid "SSH port changed to %d"
+msgstr ""
+
+msgid "Key added"
+msgstr ""
+
+msgid "Remove this key?"
+msgstr ""
+
+msgid "The computer that uses it can no longer sign in."
+msgstr ""
+
+#, python-format
+msgid "Settings for %s"
+msgstr ""
+
+msgid ""
+"Open this in the WireGuard app on the device. It contains the device's "
+"private key and is shown only once."
+msgstr ""
+
+msgid "Remove this device?"
+msgstr ""
+
+msgid "Password saved. Everyone is signed out of the web page."
+msgstr ""
+
+msgid "Resources"
+msgstr ""
+
+msgid "Processor"
+msgstr ""
+
+msgid "Running for"
+msgstr ""
+
+msgid "Disks"
+msgstr ""
+
+msgid "Temperatures"
+msgstr ""
+
+msgid "Graphics card"
+msgstr ""
+
+msgid "Using the most memory"
+msgstr ""
+
+#, python-format
+msgid "%(used).1f%% of %(cores)d cores · load %(l1).2f %(l5).2f %(l15).2f"
+msgstr ""
+
+#, python-format
+msgid "swap %s"
+msgstr ""
+
+#, python-format
+msgid "%(used)s used of %(total)s (%(pct)d%%)"
+msgstr ""
+
+#, python-format
+msgid "in %(rx)s · out %(tx)s"
+msgstr ""
+
+#, python-format
+msgid "%(used)s of %(total)s · %(busy)d%% busy · %(temp)d °C · %(power).0f W"
+msgstr ""
+
+msgid "Live status"
+msgstr ""
+
+msgid "Requests"
+msgstr ""
+
+msgid "Speed"
 msgstr ""
 
 msgid "Run a model"
+msgstr ""
+
+msgid "Simultaneous requests"
+msgstr ""
+
+msgid ""
+"How many requests the server answers at the same time. Each one gets its own "
+"context, so more requests need more memory. Restart the server to apply."
 msgstr ""
 
 msgid "Show plan"
@@ -530,9 +1216,6 @@ msgstr ""
 msgid "Plan"
 msgstr ""
 
-msgid "Network"
-msgstr ""
-
 msgid "Allow other computers to connect"
 msgstr ""
 
@@ -541,19 +1224,28 @@ msgid ""
 "on."
 msgstr ""
 
-msgid "API keys"
-msgstr ""
-
 msgid "New key label"
 msgstr ""
 
 msgid "Server log"
 msgstr ""
 
-msgid "Refresh"
+#, python-format
+msgid "%(busy)d of %(total)d slots busy · %(ctx)s tokens per slot"
+msgstr ""
+
+msgid "Not available"
+msgstr ""
+
+#, python-format
+msgid "%(gen).1f tokens/s generated · %(prompt).1f tokens/s prompt · %(up)s up"
 msgstr ""
 
 msgid "CPU only"
+msgstr ""
+
+#, python-format
+msgid "%(slots)d slots × ctx %(slot_ctx)s"
 msgstr ""
 
 #, python-format
@@ -582,13 +1274,15 @@ msgstr ""
 msgid "Server stopped"
 msgstr ""
 
+msgid ""
+"Restart the server for the new number of simultaneous requests to take "
+"effect."
+msgstr ""
+
 msgid "Restart the server for the network setting to take effect."
 msgstr ""
 
 msgid "Network setting saved"
-msgstr ""
-
-msgid "No API keys"
 msgstr ""
 
 msgid "Your new API key"
@@ -601,6 +1295,36 @@ msgid "Delete this API key?"
 msgstr ""
 
 msgid "Clients using it will stop working."
+msgstr ""
+
+msgid "No log lines."
+msgstr ""
+
+msgid "Services"
+msgstr ""
+
+msgid "Managed services"
+msgstr ""
+
+msgid ""
+"Only these services can be controlled here. The Diparnux daemon itself can "
+"be viewed but not stopped."
+msgstr ""
+
+#, python-format
+msgid "at boot: %s"
+msgstr ""
+
+msgid "Show the log"
+msgstr ""
+
+msgid "Start at boot"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Stop this service?"
 msgstr ""
 
 msgid ""
@@ -621,13 +1345,20 @@ msgid ""
 "default live account for daily use."
 msgstr ""
 
-msgid "Remote access"
+msgid "Always on"
+msgstr ""
+
+msgid "Keep the computer on"
+msgstr ""
+
+msgid ""
+"Never suspend or shut down when the lid is closed or after a long idle time."
+msgstr ""
+
+msgid "Power status"
 msgstr ""
 
 msgid "SSH server"
-msgstr ""
-
-msgid "Note"
 msgstr ""
 
 msgid "Appearance"
@@ -645,10 +1376,22 @@ msgstr ""
 msgid "Dark"
 msgstr ""
 
-msgid "Maintenance"
+msgid "Updates"
 msgstr ""
 
-msgid "Check"
+msgid "System updates"
+msgstr ""
+
+msgid "Install the kernel, NVIDIA driver and system updates together."
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Roll back"
+msgstr ""
+
+msgid "Maintenance"
 msgstr ""
 
 msgid "GPU check"
@@ -673,9 +1416,6 @@ msgid "Setup wizard"
 msgstr ""
 
 msgid "Walk through the first-boot checks again."
-msgstr ""
-
-msgid "Open"
 msgstr ""
 
 msgid "About"
@@ -721,6 +1461,34 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
+#, python-format
+msgid "Lid: %s"
+msgstr ""
+
+msgid "open"
+msgstr ""
+
+msgid "closed"
+msgstr ""
+
+msgid "battery"
+msgstr ""
+
+msgid "AC power"
+msgstr ""
+
+#, python-format
+msgid "Power: %(source)s"
+msgstr ""
+
+#, python-format
+msgid "Up for %s"
+msgstr ""
+
+#, python-format
+msgid "Not effective: %s"
+msgstr ""
+
 msgid "Opens port 22 in the firewall."
 msgstr ""
 
@@ -728,6 +1496,21 @@ msgid "The SSH server is not installed in this image."
 msgstr ""
 
 msgid "Update started"
+msgstr ""
+
+msgid "Install updates?"
+msgstr ""
+
+msgid ""
+"The kernel and the NVIDIA driver are updated together. A restart is needed "
+"afterwards."
+msgstr ""
+
+msgid "Roll back the last update?"
+msgstr ""
+
+msgid ""
+"The previous kernel and driver are restored. A restart is needed afterwards."
 msgstr ""
 
 msgid "Running the GPU check…"
@@ -757,16 +1540,141 @@ msgstr ""
 msgid "Diparnux Control Center"
 msgstr ""
 
-msgid "Chat"
+msgid "Diparnux"
 msgstr ""
 
-msgid "Graphics card"
+msgid "Show the page list"
+msgstr ""
+
+msgid "Change waiting for your confirmation"
+msgstr ""
+
+msgid "Keep the new settings?"
+msgstr ""
+
+msgid "Keep"
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+msgid "Wired settings"
+msgstr ""
+
+msgid ""
+"Change how a wired adapter gets its address. If you cannot confirm the "
+"change in time, the old settings come back by themselves."
+msgstr ""
+
+msgid "This computer on the network"
+msgstr ""
+
+msgid "Host name"
+msgstr ""
+
+msgid "Wake on LAN"
+msgstr ""
+
+msgid ""
+"Let another computer wake this one with a magic packet. It applies from the "
+"next start and needs support in the adapter and the firmware."
+msgstr ""
+
+msgid "Check the connection"
+msgstr ""
+
+msgid "Test the address, route, name lookup and internet"
+msgstr ""
+
+msgid "Run the check"
+msgstr ""
+
+#, python-format
+msgid ""
+"The change to %(iface)s is applied. It is undone at %(when)s unless you keep "
+"it."
+msgstr ""
+
+msgid "No wired adapter"
+msgstr ""
+
+msgid "Wi-Fi addresses are assigned automatically."
+msgstr ""
+
+msgid "Automatic (DHCP)"
+msgstr ""
+
+msgid "Fixed address"
+msgstr ""
+
+msgid "Address with prefix, such as 192.168.0.50/24"
+msgstr ""
+
+msgid "Gateway"
+msgstr ""
+
+msgid "DNS servers, separated by commas"
+msgstr ""
+
+msgid "Search domains, separated by commas"
+msgstr ""
+
+#, python-format
+msgid "Fixed address %s"
+msgstr ""
+
+#, python-format
+msgid "gateway %s"
+msgstr ""
+
+msgid "Enter an address with its prefix length, such as 192.168.0.50/24."
+msgstr ""
+
+#, python-format
+msgid "Applied. Keep the change within %d seconds or it is undone."
+msgstr ""
+
+#, python-format
+msgid "Change the address of %s?"
+msgstr ""
+
+msgid ""
+"You may lose the connection to this computer. If you do not keep the change "
+"within a minute it is undone automatically."
+msgstr ""
+
+msgid "Kept"
+msgstr ""
+
+msgid "Undone"
+msgstr ""
+
+#, python-format
+msgid "Host name changed to %s"
+msgstr ""
+
+msgid "Saved. It applies from the next start."
+msgstr ""
+
+msgid "Checking…"
+msgstr ""
+
+msgid "Route to the network"
+msgstr ""
+
+msgid "Gateway answers"
+msgstr ""
+
+msgid "Name lookup"
+msgstr ""
+
+msgid "skipped"
+msgstr ""
+
+msgid "Problem"
 msgstr ""
 
 msgid "NVIDIA driver"
-msgstr ""
-
-msgid "Account"
 msgstr ""
 
 msgid "Network access"
@@ -795,9 +1703,6 @@ msgstr ""
 
 #, python-format
 msgid "Step %(n)d of %(total)d"
-msgstr ""
-
-msgid "Check again"
 msgstr ""
 
 msgid "Run the GPU diagnostic once more."
@@ -830,241 +1735,4 @@ msgid "Who can use the API"
 msgstr ""
 
 msgid "Needs an API key. Leave this off if you only use this machine."
-msgstr ""
-
-msgid "%d package updates are available"
-msgstr ""
-
-msgid "Check for updates to see what is available."
-msgstr ""
-
-msgid "Everything is up to date"
-msgstr ""
-
-msgid "Finishing"
-msgstr ""
-
-msgid "Install"
-msgstr ""
-
-msgid "Install the kernel, NVIDIA driver and system updates together."
-msgstr ""
-
-msgid "Install updates?"
-msgstr ""
-
-msgid "Installing and building the new kernel"
-msgstr ""
-
-msgid "Installing the updates"
-msgstr ""
-
-msgid "NVIDIA driver %(old)s to %(new)s"
-msgstr ""
-
-msgid "New kernel %s"
-msgstr ""
-
-msgid "Not checked yet"
-msgstr ""
-
-msgid "Planning the update"
-msgstr ""
-
-msgid "Preparing the boot entry"
-msgstr ""
-
-msgid "Refreshing the package lists"
-msgstr ""
-
-msgid "Removing the failed kernel"
-msgstr ""
-
-msgid "Restart to finish the update"
-msgstr ""
-
-msgid "Restart to use the previous kernel and driver."
-msgstr ""
-
-msgid "Restoring the previous driver"
-msgstr ""
-
-msgid "Restoring the previous versions"
-msgstr ""
-
-msgid "Roll back"
-msgstr ""
-
-msgid "Roll back the last update?"
-msgstr ""
-
-msgid "Rolled back"
-msgstr ""
-
-msgid "System updates"
-msgstr ""
-
-msgid "The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."
-msgstr ""
-
-msgid "The last check failed"
-msgstr ""
-
-msgid "The last update failed"
-msgstr ""
-
-msgid "The new driver is loaded after the restart."
-msgstr ""
-
-msgid "The new kernel %s starts once. It becomes the default only after it passes the boot check."
-msgstr ""
-
-msgid "The previous kernel and driver are restored. A restart is needed afterwards."
-msgstr ""
-
-msgid "The update helper is not installed"
-msgstr ""
-
-msgid "This is a live session. Install Diparnux to receive kernel and driver updates."
-msgstr ""
-
-msgid "Update status is not available"
-msgstr ""
-
-msgid "Updates"
-msgstr ""
-
-msgid "Updates are only available on an installed system"
-msgstr ""
-
-msgid "Updating"
-msgstr ""
-
-msgid "Verifying the driver build"
-msgstr ""
-
-msgid "%(used)s used of %(total)s. Files written in this session are kept in memory and disappear on reboot."
-msgstr ""
-
-msgid "Adapters"
-msgstr ""
-
-msgid "Available networks"
-msgstr ""
-
-msgid "Connect"
-msgstr ""
-
-msgid "Connect to %s"
-msgstr ""
-
-msgid "Connected"
-msgstr ""
-
-msgid "Connected to %s"
-msgstr ""
-
-msgid "Connected: %(label)s (%(address)s)"
-msgstr ""
-
-msgid "Connecting to %s…"
-msgstr ""
-
-msgid "Connection"
-msgstr ""
-
-msgid "Disconnect"
-msgstr ""
-
-msgid "Down"
-msgstr ""
-
-msgid "Enter the password of the network."
-msgstr ""
-
-msgid "Enterprise networks are not supported here."
-msgstr ""
-
-msgid "Forget"
-msgstr ""
-
-msgid "Forget this network?"
-msgstr ""
-
-msgid "Good"
-msgstr ""
-
-msgid "Internet"
-msgstr ""
-
-msgid "Live session storage"
-msgstr ""
-
-msgid "Network status is not available"
-msgstr ""
-
-msgid "No network adapters"
-msgstr ""
-
-msgid "No networks found"
-msgstr ""
-
-msgid "No wireless adapter was found."
-msgstr ""
-
-msgid "Not connected to the internet"
-msgstr ""
-
-msgid "Other"
-msgstr ""
-
-msgid "Press Scan to search again."
-msgstr ""
-
-msgid "Saved"
-msgstr ""
-
-msgid "Scan"
-msgstr ""
-
-msgid "Searching for networks…"
-msgstr ""
-
-msgid "Secured"
-msgstr ""
-
-msgid "Strong"
-msgstr ""
-
-msgid "The password must be at least 8 characters."
-msgstr ""
-
-msgid "The password must be at most 63 characters."
-msgstr ""
-
-msgid "The saved password of %s is deleted."
-msgstr ""
-
-msgid "The wireless service is not running."
-msgstr ""
-
-msgid "Up"
-msgstr ""
-
-msgid "Use only letters, digits and symbols from the keyboard (no Korean or accented characters)."
-msgstr ""
-
-msgid "Weak"
-msgstr ""
-
-msgid "Wi-Fi"
-msgstr ""
-
-msgid "Wi-Fi is not available."
-msgstr ""
-
-msgid "Wi-Fi is turned off."
-msgstr ""
-
-msgid "Wired"
 msgstr ""

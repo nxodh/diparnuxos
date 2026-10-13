@@ -56,6 +56,81 @@ def fmt_mib(n):
     return "%d MiB" % n
 
 
+def fmt_rate(bytes_per_second):
+    """초당 바이트를 1.5 MiB/s 처럼 쓴다."""
+    try:
+        n = float(bytes_per_second)
+    except (TypeError, ValueError):
+        return "-"
+    for unit in ("B/s", "KiB/s", "MiB/s", "GiB/s"):
+        if n < 1024 or unit == "GiB/s":
+            return ("%d %s" % (n, unit)) if unit == "B/s" else ("%.1f %s" % (n, unit))
+        n /= 1024.0
+    return "-"
+
+
+def port_text(port, port_end=0):
+    return "%d-%d" % (port, port_end) if port_end and port_end != port else str(port)
+
+
+def source_label(source):
+    """방화벽 출발지 값을 사용자 문장으로 바꾼다."""
+    if source in (None, "", "any"):
+        return _("any address")
+    if source == "lan":
+        return _("the local network")
+    return source
+
+
+def rule_subtitle(rule):
+    return "%s %s · %s" % (rule.get("protocol", "tcp"), port_text(rule.get("port", 0), rule.get("port_end", 0)), source_label(rule.get("source")))
+
+
+def split_list(text):
+    """쉼표나 공백으로 나눈 목록. 빈 항목은 뺀다."""
+    return [p for p in (text or "").replace(",", " ").split() if p]
+
+
+def service_state_text(service):
+    active = service.get("active") or "-"
+    sub = service.get("sub") or ""
+    if not service.get("installed", True):
+        return _("not installed")
+    return "%s (%s)" % (active, sub) if sub and sub != active else active
+
+
+def exposure_level_icon(level):
+    return {"ok": "emblem-ok-symbolic", "info": "dialog-information-symbolic", "warning": "dialog-warning-symbolic", "error": "dialog-error-symbolic"}.get(
+        level, "dialog-information-symbolic"
+    )
+
+
+def fmt_count(n):
+    """큰 수를 1.2K, 3.4M 처럼 줄여 쓴다."""
+    n = int(n or 0)
+    if n >= 1000000:
+        return "%.1fM" % (n / 1000000.0)
+    if n >= 1000:
+        return "%.1fK" % (n / 1000.0)
+    return str(n)
+
+
+def key_usage_text(key):
+    """게이트웨이의 키별 사용량을 한 줄로 쓴다."""
+    last = key.get("last_used") or ""
+    if last.startswith("0001-"):
+        last = ""
+    parts = [
+        _("%(requests)s requests") % {"requests": fmt_count(key.get("requests"))},
+        _("%(errors)s errors") % {"errors": fmt_count(key.get("errors"))},
+        _("%(tokens)s tokens") % {"tokens": fmt_count((key.get("prompt_tokens") or 0) + (key.get("completion_tokens") or 0))},
+        _("last used %(when)s") % {"when": last.replace("T", " ").rstrip("Z")} if last else _("never used"),
+    ]
+    if key.get("prefix"):
+        parts.insert(0, key["prefix"] + "…")
+    return " · ".join(parts)
+
+
 def server_state_label(state):
     fn = _SERVER_STATE_TEXT.get(state)
     return fn() if fn else str(state or "-")
@@ -159,6 +234,41 @@ def progress_fraction(job):
 
 def job_is_final(job):
     return job.get("state") in ("done", "failed", "canceled")
+
+
+def _failure_hints():
+    return {
+        "gpu_offload_failed": _("The model did not load on the GPU as planned. Lower the context or the number of simultaneous requests, or free GPU memory."),
+        "cuda_backend": _("The CUDA backend did not load. Check the GPU in the Dashboard and run the GPU check."),
+        "health_timeout": _("The server did not become ready in time. A large model can take a while to load; check the server log below."),
+        "server_exited": _("The server stopped by itself. The log below shows the last lines it wrote."),
+        "unit_start_failed": _("The system could not start the server unit. Check the server log below."),
+    }
+
+
+def server_failure_notes(server):
+    """서버의 마지막 오류와 자동 재시작 진행을 사용자가 읽을 문장으로 바꾼다."""
+    server = server or {}
+    out = []
+    last = server.get("last_error")
+    if last:
+        code = last.get("code", "")
+        message = (last.get("message") or "").strip().replace("\n", " ")
+        if len(message) > 400:
+            message = message[:400] + "…"
+        out.append("%s: %s" % (code, message) if message else code)
+        hint = _failure_hints().get(code)
+        if hint:
+            out.append(hint)
+    restart = server.get("restart")
+    if restart:
+        if restart.get("gave_up"):
+            out.append(_("The server stopped and %d automatic restarts failed. Start it again yourself after fixing the cause.") % restart.get("max", 0))
+        else:
+            out.append(
+                _("Automatic restart: attempt %(done)d of %(max)d.") % {"done": restart.get("attempt", 0), "max": restart.get("max", 0)}
+            )
+    return out
 
 
 def server_advice(status):
@@ -505,3 +615,28 @@ def check_wifi_password(password):
     if any(ord(c) < 0x20 or ord(c) > 0x7E for c in password):
         return _("Use only letters, digits and symbols from the keyboard (no Korean or accented characters).")
     return None
+
+
+def fmt_uptime(seconds):
+    """초를 "3d 4h 12m" 같은 짧은 문자열로 바꾼다. 알 수 없으면 "-"."""
+    try:
+        seconds = int(seconds)
+    except (TypeError, ValueError):
+        return "-"
+    if seconds <= 0:
+        return "-"
+    d, h, m = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
+    if d:
+        return "%dd %dh %dm" % (d, h, m)
+    if h:
+        return "%dh %dm" % (h, m)
+    return "%dm" % m
+
+
+def power_failed_checks(state):
+    """상시 가동 검사에서 통과하지 못한 항목을 "이름=값" 목록으로 돌려준다."""
+    out = []
+    for check in state.get("checks") or []:
+        if not check.get("ok"):
+            out.append("%s=%s" % (check.get("name", "?"), check.get("got") or "unknown"))
+    return out

@@ -375,6 +375,8 @@ func newFixture(t *testing.T, snap platform.GPUSnapshot, gpuState string) *fixtu
 	f.cfg = config.Default()
 	f.cfg.Port = port
 	f.cfg.ModelsDir = dir
+	// 기존 시험은 llama-server 가 공개 포트를 직접 받는 구성을 검사한다. 게이트웨이 구성은 아래의 전용 시험이 본다.
+	f.cfg.Gateway = false
 	f.sup = New(Options{
 		Runner:         f.sys,
 		GPU:            gpuProbe,
@@ -1053,7 +1055,7 @@ func TestStartLANWithKeyBindsAllInterfaces(t *testing.T) {
 	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+snapshots[0]+`"`) || strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+f.keys.KeyFile+`"`) {
 		t.Fatalf("env file lacks key file path: %s", env)
 	}
-	if strings.Contains(string(env), "llx_") {
+	if strings.Contains(string(env), "dpx_") {
 		t.Fatal("env file must not contain a plaintext key")
 	}
 	snapshot, err := os.ReadFile(snapshots[0])
@@ -2173,5 +2175,53 @@ func TestSSHStatusReadsPasswordAuthentication(t *testing.T) {
 	st, _ = f.sup.SSHStatus(context.Background())
 	if st.PasswordAuth != "unknown" {
 		t.Fatalf("sshd -T failure must give unknown, got %+v", st)
+	}
+}
+
+// TestGatewayModeKeepsTheServerOnTheInternalLoopbackPort 는 게이트웨이를 쓰면 llama-server 가 내부 포트에서 loopback 으로만
+// 듣고, LAN 공개와 키가 있어도 키 파일을 받지 않으며, 상태의 Port 는 공개 포트로 남는지 확인한다.
+func TestGatewayModeKeepsTheServerOnTheInternalLoopbackPort(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	internal := f.cfg.Port // 가짜 /health 가 이 포트에서 답한다.
+	f.cfg.Gateway = true
+	f.cfg.InternalPort = internal
+	f.cfg.Port = internal + 1 // 공개 포트
+	f.cfg.LANExposed = true
+	if _, _, err := f.keys.Create("laptop"); err != nil {
+		t.Fatal(err)
+	}
+	st, err := f.startSync(StartRequest{})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if st.Port != f.cfg.Port || st.BackendPort != internal || !st.LANExposed {
+		t.Fatalf("status ports = public %d backend %d lan %v", st.Port, st.BackendPort, st.LANExposed)
+	}
+	env, err := os.ReadFile(f.envPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(env)
+	if !strings.Contains(text, `LLAMA_ARG_HOST="127.0.0.1"`) || !strings.Contains(text, `LLAMA_ARG_PORT="`+strconv.Itoa(internal)+`"`) {
+		t.Fatalf("the server must listen on loopback at the internal port:\n%s", text)
+	}
+	if strings.Contains(text, "LLAMA_ARG_API_KEY_FILE") {
+		t.Fatalf("the gateway checks keys, the server must not get a key file:\n%s", text)
+	}
+	snapshots, _ := filepath.Glob(filepath.Join(f.dir, "api-keys.start-*.key"))
+	if len(snapshots) != 0 {
+		t.Fatalf("no key snapshot may be written in gateway mode: %v", snapshots)
+	}
+}
+
+// TestGatewayModeStillRequiresAKeyForLANExposure 는 LAN 공개에 키가 하나도 없으면 시작을 거절하는 규칙이 그대로인지 본다.
+func TestGatewayModeStillRequiresAKeyForLANExposure(t *testing.T) {
+	f := newFixture(t, readyGPU(), "ready")
+	f.cfg.Gateway = true
+	f.cfg.InternalPort = f.cfg.Port
+	f.cfg.Port++
+	f.cfg.LANExposed = true
+	if _, err := f.startSync(StartRequest{}); err == nil || !strings.Contains(err.Error(), CodeAPIKeyRequired) {
+		t.Fatalf("expected %s, got %v", CodeAPIKeyRequired, err)
 	}
 }

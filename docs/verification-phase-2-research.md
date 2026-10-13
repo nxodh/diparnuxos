@@ -542,5 +542,5 @@ warning: consult docs/build.md for compilation instructions
 
 - 내 작업 컨테이너 `c967c1a41b5d`(이름 `ll-test2`)를 삭제했다.
 - 임시 디렉터리를 모두 삭제했다. `/tmp/ll_work`와 `mktemp -d`로 만든 6개(tarball, Packages, deb, go-nvml 소스, HF 응답, 시험 모델).
-- 다른 에이전트의 컨테이너 `b9dfd484e6d3`(`llx-review-tools`)은 건드리지 않았고 그대로 실행 중이다.
+- 다른 에이전트의 컨테이너 `b9dfd484e6d3`(`dpx-review-tools`)은 건드리지 않았고 그대로 실행 중이다.
 - 하네스가 큰 출력을 `~/.claude/projects/…/tool-results/`에 자동 보관한 파일은 내가 만든 것이 아니라 지우지 않았다.
