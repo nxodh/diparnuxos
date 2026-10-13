@@ -226,6 +226,8 @@ def scenario(console, monitor, budgets, logs, workdir):
     require("lightdm" in unit, "lightdm unit was not found")
     console.command("lightdm-not-active", "! systemctl is-active --quiet lightdm.service", cmd)
     console.command("no-x-server-in-server-mode", "! pgrep -x Xorg && ! pgrep -x lightdm", cmd)
+    # 서버 모드에서는 소리 서비스(PipeWire, WirePlumber)가 상주하지 않는다.
+    console.command("no-sound-daemons-in-server-mode", "! pgrep -x pipewire && ! pgrep -x wireplumber && ! pgrep -x pipewire-pulse", cmd)
     console.command(
         "desktop-files",
         "test -x /usr/bin/xfce4-session && test -x /usr/bin/xfwm4 && test -x /usr/sbin/lightdm "
@@ -393,6 +395,8 @@ def scenario(console, monitor, budgets, logs, workdir):
         "| grep -x \"XDG_CURRENT_DESKTOP=XFCE\" && tr \"\\0\" \"\\n\" < /proc/$pid/environ | grep -q \"^XDG_CONFIG_DIRS=/etc/xdg/diparnux:\"'",
         cmd,
     )
+    # 데스크톱 세션에서는 소리 서비스가 소켓 활성화로 뜬다(패널의 소리 플러그인이 접속한다).
+    poll_command(console, "pipewire-running", f"pgrep -u {TEST_USER} -x pipewire", budgets["START_TIMEOUT"])
     # 한글 입력: fcitx5 가 세션에서 떠 있고, 오른쪽 Alt 가 Hangul 키로 바뀌어 있어야 한다(Xorg InputClass).
     poll_command(console, "fcitx5-running", f"pgrep -u {TEST_USER} -x fcitx5", budgets["START_TIMEOUT"])
     console.command(

@@ -12,6 +12,8 @@ Type=simple
 ExecStart=/usr/sbin/diparnuxd
 # 새 모델 파일은 디렉터리의 그룹을 상속하며 그룹만 읽는다.
 UMask=0027
+# 메모리: 가비지 컬렉터를 더 일찍 돌려 사용 메모리를 줄인다(폴링 부하 실험에서 16 → 13 MiB). GOMEMLIMIT 는 부하가 몰릴 때의 상한이다.
+Environment=GOGC=40 GOMEMLIMIT=48MiB
 # 비정상 종료만 다시 시작한다. 정상 종료(관리자가 멈춤)는 다시 띄우지 않는다.
 Restart=on-failure
 # 데몬과 그 자식(systemctl, nft)이 권한을 올리지 못하게 한다. 둘 다 setuid 바이너리에 기대지 않는다.
