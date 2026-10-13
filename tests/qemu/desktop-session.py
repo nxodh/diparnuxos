@@ -250,8 +250,15 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("always-on-checks", "diparnux power", cmd)
     console.command(
         "always-on-logind-properties",
-        "for p in HandleLidSwitch HandleLidSwitchExternalPower HandleLidSwitchDocked HandleSuspendKey HandleHibernateKey HandlePowerKey IdleAction; do "
+        "for p in HandleLidSwitch HandleLidSwitchExternalPower HandleLidSwitchDocked HandleSuspendKey HandleHibernateKey IdleAction; do "
         "busctl --json=short get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager $p | grep -q '\"ignore\"' || { echo \"$p is not ignore\"; exit 1; }; done",
+        cmd,
+    )
+    # 사용자가 직접 끄는 길은 막지 않는다: 전원 버튼은 기본 동작(poweroff)이어야 한다.
+    console.command(
+        "always-on-power-key-not-ignored",
+        "busctl --json=short get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager HandlePowerKey "
+        "| grep -vq '\"ignore\"'",
         cmd,
     )
     # 끄고 다시 켠다. logind 가 설정을 다시 읽는 데 시간이 걸릴 수 있어 상태가 바뀔 때까지 기다린다.

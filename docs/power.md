@@ -11,12 +11,24 @@
 |---|---|---|
 | 덮개를 닫음(배터리, 전원 연결, 도킹) | `logind` `HandleLidSwitch*` | `ignore` |
 | 절전 키, 최대 절전 키 | `HandleSuspendKey`, `HandleHibernateKey` | `ignore` |
-| 전원 버튼을 잠깐 누름(종료) | `HandlePowerKey` | `ignore` |
 | 오래 둠(유휴) | `IdleAction` | `ignore` |
 | 명령, 데스크톱, 앱이 절전을 요청 | `sleep.conf` `AllowSuspend`, `AllowHibernation`, `AllowHybridSleep`, `AllowSuspendThenHibernate` | `no` |
 | Xfce 전원 관리자의 덮개·유휴·버튼·배터리 동작 | `xfce4-power-manager` 기본값 | 아무것도 안 함, 유휴 없음 |
 
 시스템 수준(systemd)에서 막으므로 데스크톱 세션이 없어도, 어떤 프로그램이 절전을 요청해도 거절된다.
+
+## 사용자가 직접 끄는 것은 막지 않는다
+
+상시 가동은 **절전과 최대 절전, 덮개와 유휴로 인한 동작**만 막는다. 사용자가 일부러 끄는 길은 모두 그대로다.
+
+| 방법 | 동작 |
+|---|---|
+| 시작 메뉴 → 종료, 다시 시작 | 동작한다 |
+| 터미널: `sudo poweroff`, `sudo shutdown -h now`, `sudo reboot` | 동작한다 |
+| 전원 버튼을 눌러서 끔 | 동작한다(Diparnux 가 이 설정을 바꾸지 않는다) |
+| 전원 버튼 길게 누름 | 하드웨어 강제 종료다 |
+
+즉 막는 대상은 "사용자가 의도하지 않은 절전과 종료"이고 "사용자가 의도한 종료"는 막지 않는다.
 
 설정 파일은 두 개다. `/usr/lib/systemd/logind.conf.d/50-diparnux-always-on.conf` 와 `/usr/lib/systemd/sleep.conf.d/50-diparnux-always-on.conf`. 끄면 `/etc/systemd/` 의 같은 이름 자리에 `/dev/null` 로 연결된 링크가 생겨 위 파일을 덮는다(systemd 의 표준 방법).
 
@@ -39,7 +51,7 @@ diparnux power on       # 다시 켠다(기본)
 | 배터리 방전 | 전원 어댑터 없이 배터리로만 돌면 배터리가 다 되었을 때 꺼진다. **서버로 쓸 때는 어댑터를 연결해 둔다.** 배터리로 돌 때는 상태 화면에 안내가 나온다 |
 | 발열 | 덮개를 닫으면 통풍이 나빠지는 노트북이 많다. 오래 부하를 주면 온도가 올라가 CPU/GPU 가 속도를 낮추거나 하드웨어 보호로 꺼질 수 있다. 책상 위에서 환기구를 막지 않게 둔다 |
 | 펌웨어 | 일부 노트북은 펌웨어(BIOS)가 덮개를 닫을 때 자체적으로 절전하는 설정이 있다. 그런 모델은 BIOS 설정에서 해당 항목을 꺼야 한다 |
-| 전원 버튼 길게 누름 | 하드웨어 강제 종료(보통 4초 이상)는 소프트웨어가 막을 수 없다 |
+| 전원 버튼 길게 누름 | 하드웨어 강제 종료(보통 4초 이상)는 소프트웨어가 막을 수 없고 막지도 않는다 |
 | Wi-Fi 절전 | 무선 어댑터의 절전 모드는 지연을 늘릴 수 있다. 서버로 쓸 때는 유선 연결을 권한다 |
 
 ## 확인 방법(실기)

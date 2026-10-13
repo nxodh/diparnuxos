@@ -4,7 +4,8 @@
 // 이 설정은 systemd 의 두 드롭인이 만든다. 패키지가 /usr/lib/systemd 에 두며(기본으로 켜져 있다), 끄려면 /etc 에서
 // 같은 이름의 파일을 /dev/null 로 연결해 덮는다(systemd 의 표준 방법).
 //
-//   - logind.conf.d/50-diparnux-always-on.conf: 덮개, 절전 키, 최대 절전 키, 전원 키, 유휴 동작을 무시한다.
+//   - logind.conf.d/50-diparnux-always-on.conf: 덮개, 절전 키, 최대 절전 키, 유휴 동작을 무시한다.
+//     전원 버튼과 사용자가 직접 내리는 종료·재부팅 명령은 막지 않는다(사용자가 끄는 길은 항상 열려 있다).
 //   - sleep.conf.d/50-diparnux-always-on.conf:  절전, 최대 절전, 하이브리드, 절전 후 최대 절전을 허용하지 않는다.
 //
 // 파일이 있다는 것만으로는 부족하다. 다른 설정이 값을 덮을 수 있으므로 Status 는 실행 중인 logind 에 속성과
@@ -58,7 +59,6 @@ var logindWant = []string{
 	"HandleLidSwitchDocked",
 	"HandleSuspendKey",
 	"HandleHibernateKey",
-	"HandlePowerKey",
 	"IdleAction",
 }
 
