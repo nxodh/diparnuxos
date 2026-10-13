@@ -42,7 +42,7 @@ class ConnectionPage(Adw.PreferencesPage):
 
         self.example_group = Adw.PreferencesGroup(
             title=_("Examples"),
-            description=_("Replace <your API key> with a key you created. A key is shown only once, when it is created."),
+            description=_("Replace “your API key” with a key you created. A key is shown only once, when it is created."),
         )
         self.add(self.example_group)
 

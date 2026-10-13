@@ -311,3 +311,22 @@ func TestHasNoGPUWarning(t *testing.T) {
 		t.Fatalf("false positive")
 	}
 }
+
+func TestEnvParallelSlots(t *testing.T) {
+	p := gpuPlan()
+	env, err := Env(p, lanSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := env["LLAMA_ARG_N_PARALLEL"]; ok {
+		t.Fatal("a single slot must not set LLAMA_ARG_N_PARALLEL")
+	}
+	p.Parallel = 4
+	env, err = Env(p, lanSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env["LLAMA_ARG_N_PARALLEL"] != "4" {
+		t.Fatalf("env = %v", env)
+	}
+}

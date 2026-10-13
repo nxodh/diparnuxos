@@ -679,3 +679,54 @@ func TestKVEstimate(t *testing.T) {
 		t.Errorf("kvMiB with unsupported type = %d, want 0", got)
 	}
 }
+
+func TestParallelSlotsMultiplyTheContextAndTheKVEstimate(t *testing.T) {
+	// 참조 모델(5018 MiB)에 VRAM 이 충분한 GPU 하나.
+	one := Plan(withGPUs(refModel(), gpu(0, 24000)))
+	in := withGPUs(refModel(), gpu(0, 24000))
+	in.Overrides.Parallel = intp(4)
+	four := Plan(in)
+
+	if four.Parallel != 4 || four.SlotCtx != one.Ctx {
+		t.Fatalf("parallel = %d, slot ctx = %d, single ctx = %d", four.Parallel, four.SlotCtx, one.Ctx)
+	}
+	if four.Ctx != four.SlotCtx*4 {
+		t.Fatalf("server ctx %d must be 4 x slot ctx %d", four.Ctx, four.SlotCtx)
+	}
+	if four.EstVRAMMiB <= one.EstVRAMMiB {
+		t.Fatalf("four slots must need more VRAM: %d vs %d", four.EstVRAMMiB, one.EstVRAMMiB)
+	}
+	if !contains(four.Rationale, "4 parallel slots") {
+		t.Fatalf("rationale does not explain the slots: %v", four.Rationale)
+	}
+}
+
+func TestParallelSlotsShrinkTheContextWhenVRAMIsTight(t *testing.T) {
+	tight := withGPUs(refModel(), gpu(0, 7000))
+	single := Plan(tight)
+	tight.Overrides.Parallel = intp(4)
+	multi := Plan(tight)
+	if multi.SlotCtx > single.SlotCtx {
+		t.Fatalf("slot ctx grew with more slots: %d > %d", multi.SlotCtx, single.SlotCtx)
+	}
+	if multi.Ctx != multi.SlotCtx*4 {
+		t.Fatalf("server ctx = %d, slot ctx = %d", multi.Ctx, multi.SlotCtx)
+	}
+}
+
+func TestParallelOverrideIsValidated(t *testing.T) {
+	for _, bad := range []int{0, -1, 17} {
+		if err := ValidateOverrides(Overrides{Parallel: intp(bad)}); err == nil {
+			t.Fatalf("parallel %d accepted", bad)
+		}
+	}
+	if err := ValidateOverrides(Overrides{Parallel: intp(8)}); err != nil {
+		t.Fatal(err)
+	}
+	in := withGPUs(refModel(), gpu(0, 24000))
+	in.Overrides.Parallel = intp(99)
+	out := Plan(in)
+	if out.Parallel != 1 || !contains(out.Warnings, "parallel override 99 ignored") {
+		t.Fatalf("parallel = %d, warnings = %v", out.Parallel, out.Warnings)
+	}
+}

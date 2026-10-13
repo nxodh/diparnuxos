@@ -27,6 +27,7 @@ class ServerPage(Adw.PreferencesPage):
         self._plan_rows = []
         self._key_rows = []
         self._updating = False
+        self._overrides = {}
 
         self.state_group = Adw.PreferencesGroup(title=_("Server"))
         self.state_row = action_row(_("State"), "-")
@@ -40,6 +41,13 @@ class ServerPage(Adw.PreferencesPage):
         self.model_combo = Adw.ComboRow(title=_("Model"))
         self.model_combo.set_model(Gtk.StringList.new([]))
         self.run_group.add(self.model_combo)
+        self.parallel_row = Adw.SpinRow.new_with_range(1, 16, 1)
+        self.parallel_row.set_title(_("Simultaneous requests"))
+        self.parallel_row.set_subtitle(
+            _("How many requests the server answers at the same time. Each one gets its own context, so more requests need more memory. Restart the server to apply.")
+        )
+        self.parallel_row.connect("notify::value", self._on_parallel)
+        self.run_group.add(self.parallel_row)
         buttons = Gtk.Box(spacing=8, halign=Gtk.Align.END, margin_top=6)
         buttons.append(text_button(_("Show plan"), self.show_plan))
         self.start_btn = text_button(_("Start"), self.start, "suggested-action")
@@ -97,6 +105,8 @@ class ServerPage(Adw.PreferencesPage):
     def _on_config(self, cfg):
         self._updating = True
         self.lan_row.set_active(bool(cfg.get("lan_exposed")))
+        self._overrides = dict(cfg.get("overrides") or {})
+        self.parallel_row.set_value(int(self._overrides.get("parallel") or 1))
         self._updating = False
 
     def update(self, status, error):
@@ -136,8 +146,12 @@ class ServerPage(Adw.PreferencesPage):
         inp = result.get("input") or {}
         self.plan_group.set_visible(True)
         place = _("CPU only") if plan.get("cpu_only") else _("GPU offload")
+        slots = plan.get("parallel") or 1
+        ctx_text = "ctx %s" % plan.get("ctx")
+        if slots > 1:
+            ctx_text = _("%(slots)d slots × ctx %(slot_ctx)s") % {"slots": slots, "slot_ctx": plan.get("slot_ctx")}
         head = action_row(
-            "%s · ctx %s · batch %s" % (place, plan.get("ctx"), plan.get("batch")),
+            "%s · %s · batch %s" % (place, ctx_text, plan.get("batch")),
             _("Estimated VRAM %(vram)s · RAM %(ram)s")
             % {"vram": logic.fmt_mib(plan.get("est_vram_mib", -1)), "ram": logic.fmt_mib(plan.get("est_ram_mib", -1))},
         )
@@ -175,6 +189,26 @@ class ServerPage(Adw.PreferencesPage):
             lambda _r: (self.ctx.toast(_("Server stopped")), self.ctx.refresh()),
             lambda e: (self.ctx.toast_error(e), self.ctx.refresh()),
         )
+
+    def _on_parallel(self, row, _pspec):
+        if self._updating:
+            return
+        count = int(row.get_value())
+        overrides = dict(self._overrides)
+        if count > 1:
+            overrides["parallel"] = count
+        else:
+            overrides.pop("parallel", None)
+        self._overrides = overrides
+
+        def done(result):
+            self.ctx.toast(
+                _("Restart the server for the new number of simultaneous requests to take effect.")
+                if result.get("restart_required")
+                else _("Saved")
+            )
+
+        run_async(lambda: self.ctx.client.set_config(overrides=overrides), done, self.ctx.toast_error)
 
     def _on_lan(self, row, _pspec):
         if self._updating:

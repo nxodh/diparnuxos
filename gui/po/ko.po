@@ -1061,8 +1061,8 @@ msgstr "OpenAI Python 클라이언트"
 msgid "Other computers, such as Orca, Open WebUI or an editor plugin, connect with an OpenAI-compatible URL and an API key."
 msgstr "Orca, Open WebUI, 편집기 플러그인 같은 다른 컴퓨터는 OpenAI 호환 주소와 API 키로 접속합니다."
 
-msgid "Replace <your API key> with a key you created. A key is shown only once, when it is created."
-msgstr "<your API key> 자리에 직접 만든 키를 넣으세요. 키는 만들 때 한 번만 보입니다."
+msgid "Replace “your API key” with a key you created. A key is shown only once, when it is created."
+msgstr "“your API key” 자리에 직접 만든 키를 넣으세요. 키는 만들 때 한 번만 보입니다."
 
 msgid "Send a short request to the server"
 msgstr "서버에 짧은 요청 보내기"
@@ -1120,3 +1120,15 @@ msgstr "%s을(를) 가져왔습니다"
 
 msgid "Importing"
 msgstr "가져오는 중"
+
+msgid "%(slots)d slots × ctx %(slot_ctx)s"
+msgstr "슬롯 %(slots)d개 × 컨텍스트 %(slot_ctx)s"
+
+msgid "How many requests the server answers at the same time. Each one gets its own context, so more requests need more memory. Restart the server to apply."
+msgstr "서버가 동시에 답하는 요청 수입니다. 요청마다 컨텍스트가 따로 있어 많을수록 메모리를 더 씁니다. 적용하려면 서버를 다시 시작하세요."
+
+msgid "Restart the server for the new number of simultaneous requests to take effect."
+msgstr "동시 요청 수를 적용하려면 서버를 다시 시작하세요."
+
+msgid "Simultaneous requests"
+msgstr "동시 요청 수"

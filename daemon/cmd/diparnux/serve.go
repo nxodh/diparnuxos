@@ -35,6 +35,7 @@ type overrideFlags struct {
 	cacheType *string
 	batch     *int
 	loadMode  *string
+	parallel  *int
 }
 
 // addOverrideFlags 는 재정의 플래그를 등록한다.
@@ -45,6 +46,7 @@ func addOverrideFlags(fs *flag.FlagSet) *overrideFlags {
 		cacheType: fs.String("cache-type", "", "KV cache type, such as f16 or q8_0"),
 		batch:     fs.Int("batch", 0, "batch size"),
 		loadMode:  fs.String("load-mode", "", "model load mode"),
+		parallel:  fs.Int("parallel", 0, "requests handled at the same time (slots); --ctx is the context of one slot"),
 	}
 }
 
@@ -72,6 +74,10 @@ func (o *overrideFlags) overrides(fs *flag.FlagSet) client.Overrides {
 	if set["load-mode"] {
 		v := *o.loadMode
 		ov.LoadMode = &v
+	}
+	if set["parallel"] {
+		v := *o.parallel
+		ov.Parallel = &v
 	}
 	return ov
 }
@@ -258,6 +264,9 @@ func writePlanBlock(w io.Writer, model string, p *client.Plan) {
 	}
 	fmt.Fprintf(w, "plan for %s\n", orDash(model))
 	kv(w, "  GPU layers", orDash(p.NGL))
+	if p.Parallel > 1 {
+		kv(w, "  slots", fmt.Sprintf("%d (context per slot %d)", p.Parallel, p.SlotCtx))
+	}
 	kv(w, "  context", fmt.Sprintf("%d", p.Ctx))
 	kv(w, "  KV cache", fmt.Sprintf("K %s, V %s", orDash(p.CacheTypeK), orDash(p.CacheTypeV)))
 	kv(w, "  flash attention", yesNo(p.FlashAttn))

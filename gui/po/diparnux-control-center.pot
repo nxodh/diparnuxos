@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 13:16+0000\n"
+"POT-Creation-Date: 2026-10-13 13:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -83,7 +83,7 @@ msgid "Examples"
 msgstr ""
 
 msgid ""
-"Replace <your API key> with a key you created. A key is shown only once, "
+"Replace “your API key” with a key you created. A key is shown only once, "
 "when it is created."
 msgstr ""
 
@@ -857,6 +857,14 @@ msgstr ""
 msgid "Run a model"
 msgstr ""
 
+msgid "Simultaneous requests"
+msgstr ""
+
+msgid ""
+"How many requests the server answers at the same time. Each one gets its own "
+"context, so more requests need more memory. Restart the server to apply."
+msgstr ""
+
 msgid "Show plan"
 msgstr ""
 
@@ -887,6 +895,10 @@ msgid "CPU only"
 msgstr ""
 
 #, python-format
+msgid "%(slots)d slots × ctx %(slot_ctx)s"
+msgstr ""
+
+#, python-format
 msgid "Estimated VRAM %(vram)s · RAM %(ram)s"
 msgstr ""
 
@@ -910,6 +922,11 @@ msgid "Server is starting"
 msgstr ""
 
 msgid "Server stopped"
+msgstr ""
+
+msgid ""
+"Restart the server for the new number of simultaneous requests to take "
+"effect."
 msgstr ""
 
 msgid "Restart the server for the network setting to take effect."

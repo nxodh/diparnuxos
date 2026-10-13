@@ -119,6 +119,8 @@ type Plan struct {
 	CacheTypeV     string   `json:"cache_type_v"`
 	FlashAttn      bool     `json:"flash_attn"`
 	Batch          int      `json:"batch"`
+	Parallel       int      `json:"parallel"`
+	SlotCtx        int      `json:"slot_ctx"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -176,6 +178,7 @@ type Overrides struct {
 	CacheType *string `json:"cache_type,omitempty"`
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
+	Parallel  *int    `json:"parallel,omitempty"`
 }
 
 // StartRequest 는 POST /v1/server/start 의 본문이다.
@@ -321,6 +324,7 @@ type Config struct {
 	SSHEnabled bool      `json:"ssh_enabled"`
 	ModelsDir  string    `json:"models_dir"`
 	HFToken    string    `json:"hf_token"`
+	Gateway    bool      `json:"gateway"`
 	Overrides  Overrides `json:"overrides"`
 }
 
@@ -331,6 +335,7 @@ type ConfigPatch struct {
 	Autostart  *bool      `json:"autostart,omitempty"`
 	ModelsDir  *string    `json:"models_dir,omitempty"`
 	HFToken    *string    `json:"hf_token,omitempty"`
+	Gateway    *bool      `json:"gateway,omitempty"`
 	Overrides  *Overrides `json:"overrides,omitempty"`
 }
 

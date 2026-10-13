@@ -311,7 +311,17 @@ func runtimePlan(env map[string]string) (autoconf.Output, llamaargs.ServerSettin
 		}
 		metrics = true
 	}
+	parallel := 1
+	if value, ok := env["LLAMA_ARG_N_PARALLEL"]; ok {
+		p, err := strconv.Atoi(value)
+		if err != nil || p < 2 || p > 16 || ctx%p != 0 {
+			return autoconf.Output{}, llamaargs.ServerSettings{}, errors.New("runtime parallel slot setting is invalid")
+		}
+		parallel = p
+	}
 	out := autoconf.Output{
+		Parallel:       parallel,
+		SlotCtx:        ctx / parallel,
 		NGL:            ngl,
 		Ctx:            ctx,
 		CacheTypeK:     env["LLAMA_ARG_CACHE_TYPE_K"],

@@ -93,6 +93,9 @@ func (c *Client) Plan(ctx context.Context, model string, ov Overrides) (PlanResu
 	if ov.LoadMode != nil {
 		q.Set("load_mode", *ov.LoadMode)
 	}
+	if ov.Parallel != nil {
+		q.Set("parallel", strconv.Itoa(*ov.Parallel))
+	}
 	return call[PlanResult](ctx, c, http.MethodGet, withQuery("/v1/server/plan", q), nil, defaultLimit)
 }
 

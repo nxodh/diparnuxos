@@ -30,6 +30,7 @@ const (
 	envNGL         = "LLAMA_ARG_N_GPU_LAYERS"     // arg.cpp:2808, -ngl
 	envCtx         = "LLAMA_ARG_CTX_SIZE"         // arg.cpp:1651, -c/--ctx-size
 	envBatch       = "LLAMA_ARG_BATCH"            // arg.cpp:1677, -b/--batch-size
+	envParallel    = "LLAMA_ARG_N_PARALLEL"       // -np/--parallel N: 동시에 처리할 슬롯 수. 전체 컨텍스트를 슬롯이 나눠 쓴다
 	envCacheTypeK  = "LLAMA_ARG_CACHE_TYPE_K"     // arg.cpp:2451, -ctk
 	envCacheTypeV  = "LLAMA_ARG_CACHE_TYPE_V"     // arg.cpp:2464, -ctv
 	envFlashAttn   = "LLAMA_ARG_FLASH_ATTN"       // arg.cpp:1771, -fa/--flash-attn [on|off|auto]
@@ -107,6 +108,9 @@ func Env(p autoconf.Output, s ServerSettings) (map[string]string, error) {
 	}
 	if p.TensorSplit != "" {
 		env[envTensorSplit] = p.TensorSplit
+	}
+	if p.Parallel > 1 {
+		env[envParallel] = strconv.Itoa(p.Parallel)
 	}
 	return env, nil
 }

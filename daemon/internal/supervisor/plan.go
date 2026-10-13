@@ -172,6 +172,7 @@ func mergeOverrides(cfg config.Overrides, req autoconf.Overrides) autoconf.Overr
 		CacheType: copyStrPtr(cfg.CacheType),
 		Batch:     copyIntPtr(cfg.Batch),
 		LoadMode:  copyStrPtr(cfg.LoadMode),
+		Parallel:  copyIntPtr(cfg.Parallel),
 	}
 	if req.NGL != nil {
 		out.NGL = copyStrPtr(req.NGL)
@@ -187,6 +188,9 @@ func mergeOverrides(cfg config.Overrides, req autoconf.Overrides) autoconf.Overr
 	}
 	if req.LoadMode != nil {
 		out.LoadMode = copyStrPtr(req.LoadMode)
+	}
+	if req.Parallel != nil {
+		out.Parallel = copyIntPtr(req.Parallel)
 	}
 	return out
 }

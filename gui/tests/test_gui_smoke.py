@@ -50,7 +50,8 @@ ROUTES = {
     ("GET", "/v1/recommendations"): (200, {"basis": "gpu", "hardware": {"vram_mib": 6144, "ram_mib": 16000, "gpu_state": "ready"},
         "recommended": 0, "models": [{"name": "Gemma 3 4B IT", "repo": "r/g", "file": "g.gguf", "params": "4B", "size_mib": 2374,
         "license": "gemma", "fits": True, "placement": "gpu", "need_mib": 3400}]}),
-    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "overrides": {}}),
+    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "overrides": {"parallel": 3}}),
+    ("PUT", "/v1/config"): (200, {"config": {}, "restart_required": True}),
     ("GET", "/v1/apikeys"): (200, {"keys": []}),
     ("GET", "/v1/network"): (200, {
         "interfaces": [{"name": "wlan0", "kind": "wifi", "state": "up", "addresses": ["192.168.0.23/24"], "gateway": "192.168.0.1"}],
@@ -128,6 +129,11 @@ class SmokeTests(unittest.TestCase):
 
         server = win.stack.get_child_by_name("server")
         self.assertTrue(pump(5, until=lambda: server._models == ["a.gguf"]))
+        self.assertTrue(pump(5, until=lambda: server.parallel_row.get_value() == 3), "the saved slot count was not shown")
+        server.parallel_row.set_value(4)
+        self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1] == "/v1/config" for c in self.daemon.calls)))
+        put = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1]
+        self.assertEqual(put[2], {"overrides": {"parallel": 4}})
         self.assertIn("server log line", server.log_view.get_buffer().get_text(
             server.log_view.get_buffer().get_start_iter(), server.log_view.get_buffer().get_end_iter(), False))
         win.destroy()

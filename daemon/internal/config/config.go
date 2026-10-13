@@ -40,6 +40,7 @@ type Overrides struct {
 	CacheType *string `json:"cache_type,omitempty"`
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
+	Parallel  *int    `json:"parallel,omitempty"`
 }
 
 // Default는 설정 파일이 없을 때 쓰는 기본값이다.
@@ -181,6 +182,7 @@ func (o Overrides) toAutoconf() autoconf.Overrides {
 		CacheType: copyStr(o.CacheType),
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
+		Parallel:  copyInt(o.Parallel),
 	}
 }
 
@@ -192,6 +194,7 @@ func copyOverrides(o Overrides) Overrides {
 		CacheType: copyStr(o.CacheType),
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
+		Parallel:  copyInt(o.Parallel),
 	}
 }
 
