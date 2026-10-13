@@ -526,6 +526,125 @@ def scenario(console, monitor, budgets, logs, workdir):
     console.command("ssh-policy-removed", "! sudo -n test -e /etc/ssh/sshd_config.d/50-diparnux.conf", cmd)
 
 
+COLLECT_SCRIPT = r"""#!/bin/sh
+echo "## meminfo"
+grep -E '^(MemTotal|MemFree|MemAvailable|Buffers|Cached|Shmem|AnonPages|Slab|SReclaimable|SUnreclaim|KernelStack|PageTables|Mapped):' /proc/meminfo
+echo "## pss"
+for d in /proc/[0-9]*; do
+  [ -r "$d/smaps_rollup" ] || continue
+  pss=$(awk '/^Pss:/{print $2}' "$d/smaps_rollup" 2>/dev/null)
+  [ -n "$pss" ] || continue
+  rss=$(awk '/^Rss:/{print $2}' "$d/smaps_rollup" 2>/dev/null)
+  printf '%s %s %s %s\n' "$pss" "$rss" "${d#/proc/}" "$(cat "$d/comm" 2>/dev/null)"
+done
+echo "## services"
+systemctl list-units --type=service --state=running --no-legend --no-pager | awk '{print $1}'
+echo "## df"
+df -k / /run /tmp 2>/dev/null
+echo "## zram"
+cat /sys/block/zram0/mm_stat 2>/dev/null || true
+echo "## end"
+"""
+
+
+def parse_profile(text):
+    """collect 스크립트의 출력을 읽어 메모리 현황 사전으로 만든다(KiB)."""
+    sections, current = {}, None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            current = line[3:].strip()
+            sections[current] = []
+        elif current:
+            sections[current].append(line)
+    meminfo = {}
+    for line in sections.get("meminfo", []):
+        m = re.match(r"(\w+):\s+(\d+) kB", line)
+        if m:
+            meminfo[m.group(1)] = int(m.group(2))
+    by_comm = {}
+    total_pss = 0
+    for line in sections.get("pss", []):
+        parts = line.split(None, 3)
+        if len(parts) < 4 or not parts[0].isdigit():
+            continue
+        pss, rss, _pid, comm = int(parts[0]), int(parts[1]), parts[2], parts[3].strip()
+        entry = by_comm.setdefault(comm, {"pss": 0, "rss": 0, "count": 0})
+        entry["pss"] += pss
+        entry["rss"] += rss
+        entry["count"] += 1
+        total_pss += pss
+    used = meminfo.get("MemTotal", 0) - meminfo.get("MemAvailable", 0)
+    top = sorted(by_comm.items(), key=lambda kv: -kv[1]["pss"])
+    return {
+        "meminfo_kib": meminfo,
+        "used_kib": used,
+        "userland_pss_kib": total_pss,
+        "other_kib": used - total_pss,
+        "services": [x.strip() for x in sections.get("services", []) if x.strip()],
+        "processes": [{"comm": k, **v} for k, v in top],
+    }
+
+
+def profile_scenario(console, monitor, budgets, logs, workdir):
+    """서버 모드와 데스크톱 모드(자동 로그인)의 메모리 사용을 프로세스별 PSS 로 기록한다. 램 목표의 판정이 아니라 측정이다."""
+    import base64
+
+    cmd = budgets["COMMAND_TIMEOUT"]
+    console.login(budgets["BOOT_TIMEOUT"])
+    monitor.connect()
+    encoded = base64.b64encode(COLLECT_SCRIPT.encode()).decode()
+    console.command("install-collector", f"printf '%s' '{encoded}' | base64 -d > /tmp/collect.sh && chmod +x /tmp/collect.sh", cmd)
+    result = {}
+
+    def collect(label):
+        text = console.command(f"collect-{label}", "sudo -n sh /tmp/collect.sh", cmd + 60)
+        info = parse_profile(text)
+        result[label] = info
+        top = ", ".join(f"{p['comm']}={p['pss'] // 1024}M" for p in info["processes"][:8])
+        print(f"profile: {label}: used={info['used_kib'] // 1024} MiB userland_pss={info['userland_pss_kib'] // 1024} MiB "
+              f"other={info['other_kib'] // 1024} MiB top: {top}", flush=True)
+        return info
+
+    # 서버 모드: 로그인 직후의 일시적 값을 피하려고 잠시 기다린다.
+    time.sleep(90)
+    console.command("boot-time", "systemd-analyze 2>&1 | head -n 3; systemd-analyze blame --no-pager 2>&1 | head -n 15; true", cmd)
+    collect("server")
+
+    # 데스크톱 모드: 자동 로그인 세션이 안정될 때까지 기다린 뒤 잰다. 첫 설정 마법사(Control Center)가 켜진 채로 한 번 잰다.
+    console.command("mode-desktop", "diparnux --json mode desktop", budgets["START_TIMEOUT"])
+    poll_command(console, "session", "pgrep -u user -x xfce4-session", budgets["START_TIMEOUT"])
+    poll_command(console, "panel", "pgrep -u user -x xfce4-panel", budgets["START_TIMEOUT"])
+    time.sleep(90)
+    collect("desktop-with-control-center")
+    capture(console, monitor, logs, "profile-desktop", workdir)
+
+    # Control Center 를 끄면 Xfce 세션 자체의 비용이 드러난다.
+    console.command("stop-control-center", "pkill -u user -f diparnux-control-center; sleep 5; true", cmd)
+    time.sleep(30)
+    collect("desktop-session-only")
+
+    out = logs / "memory-profile.json"
+    out.write_text(json.dumps(result, indent=1) + "\n", encoding="ascii")
+    lines = ["# Memory profile (QEMU, live session, KiB values shown in MiB)", ""]
+    for label, info in result.items():
+        lines.append(f"## {label}: used {info['used_kib'] // 1024} MiB (userland PSS {info['userland_pss_kib'] // 1024} MiB, "
+                     f"kernel/tmpfs/other {info['other_kib'] // 1024} MiB)")
+        mi = info["meminfo_kib"]
+        lines.append(f"MemTotal {mi.get('MemTotal', 0) // 1024}, MemAvailable {mi.get('MemAvailable', 0) // 1024}, "
+                     f"Shmem {mi.get('Shmem', 0) // 1024}, Cached {mi.get('Cached', 0) // 1024}, "
+                     f"Slab {mi.get('Slab', 0) // 1024}, AnonPages {mi.get('AnonPages', 0) // 1024}")
+        lines.append("")
+        lines.append("| process | PSS MiB | RSS MiB | count |")
+        lines.append("|---|---|---|---|")
+        for p in info["processes"][:25]:
+            lines.append(f"| {p['comm']} | {p['pss'] / 1024:.1f} | {p['rss'] / 1024:.1f} | {p['count']} |")
+        lines.append("")
+        lines.append("running services: " + ", ".join(info["services"]))
+        lines.append("")
+    (logs / "memory-profile.md").write_text("\n".join(lines) + "\n", encoding="ascii")
+    print(f"desktop-session: memory profile written to {out}", flush=True)
+
+
 def main():
     sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
     sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
@@ -587,7 +706,8 @@ def main():
             console = Console(argv, logs, start + budgets["E2E_TIMEOUT"])
             console.start()
             monitor = Monitor(mon_path)
-            scenario(console, monitor, budgets, logs, work)
+            run = profile_scenario if os.environ.get("E2E_SCENARIO") == "memory-profile" else scenario
+            run(console, monitor, budgets, logs, work)
         result.update({"outcome": "succeeded", "kind": "pass", "message": "Desktop session started and stopped"})
         exit_code = 0
         print("PASS: server mode boot, autologin, lightdm greeter, Xfce session, Control Center, back to server", flush=True)

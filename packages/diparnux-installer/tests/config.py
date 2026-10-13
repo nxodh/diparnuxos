@@ -126,6 +126,12 @@ def main():
     if not m or f"packagechooser@{m.group(1)}" not in instances:
         fail("diparnux-prepare.conf does not read the key of the mode chooser instance")
 
+    # 이미지에는 cracklib 사전이 없다. 사전 검사가 켜져 있으면 비밀번호가 항상 거절된다("error loading dictionary").
+    users = yaml.safe_load(open(os.path.join(ROOT, "modules", "users.conf"), encoding="utf-8"))
+    options = (users.get("passwordRequirements") or {}).get("libpwquality") or []
+    if "dictcheck=0" not in options:
+        fail("users.conf must set dictcheck=0 (the image has no cracklib dictionary)")
+
     if failures:
         print(f"{len(failures)} problem(s)")
         return 1
