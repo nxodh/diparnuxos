@@ -170,6 +170,20 @@ class SmokeTests(unittest.TestCase):
             self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1].startswith("/v1/models/import") for c in self.daemon.calls)))
         self.assertTrue(pump(5, until=lambda: not page._job_rows), "the import row was not removed")
 
+    def test_server_page_renders_live_stats(self):
+        from diparnux_cc.server import ServerPage
+
+        page = ServerPage(self.ctx)
+        page._render_stats({
+            "slots": {"available": True, "total": 4, "busy": 1}, "slot_ctx": 2048, "uptime_seconds": 3700,
+            "metrics": {"available": True, "generated_tokens_per_second": 31.5, "prompt_tokens_per_second": 700.0},
+        })
+        self.assertIn("1 of 4 slots busy", page.slots_row.get_subtitle())
+        self.assertIn("31.5 tokens/s", page.speed_row.get_subtitle())
+        self.assertIn("1h 1m", page.speed_row.get_subtitle())
+        page._render_stats({"slots": {"available": False}, "metrics": {"available": False}})
+        self.assertEqual(page.slots_row.get_subtitle(), "Not available")
+
     def test_system_page_lists_accounts(self):
         from diparnux_cc.window import MainWindow
 

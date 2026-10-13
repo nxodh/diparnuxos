@@ -269,6 +269,11 @@ func (c *Client) Connection(ctx context.Context) (Connection, []byte, error) {
 	return call[Connection](ctx, c, http.MethodGet, "/v1/connection", nil, defaultLimit)
 }
 
+// ServerStats 는 GET /v1/server/stats 로 서버 현황(슬롯, 처리 속도)을 읽는다.
+func (c *Client) ServerStats(ctx context.Context) (ServerStats, []byte, error) {
+	return call[ServerStats](ctx, c, http.MethodGet, "/v1/server/stats", nil, defaultLimit)
+}
+
 // Gateway 는 GET /v1/gateway 로 게이트웨이 상태와 키별 사용량을 읽는다.
 func (c *Client) Gateway(ctx context.Context) (Gateway, []byte, error) {
 	return call[Gateway](ctx, c, http.MethodGet, "/v1/gateway", nil, defaultLimit)

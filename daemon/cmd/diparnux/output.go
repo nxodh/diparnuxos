@@ -162,6 +162,7 @@ Commands:
   serve stop                  stop llama-server
   serve plan [model]          show the plan without starting
   serve logs                  show recent llama-server log lines
+  serve stats                 show busy slots and speed of the running server
   mode [server|desktop]       show or set the mode
   update [--check|--rollback] update the kernel, driver and system packages
   report                      write a diagnostic report

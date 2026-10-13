@@ -1132,3 +1132,21 @@ msgstr "동시 요청 수를 적용하려면 서버를 다시 시작하세요."
 
 msgid "Simultaneous requests"
 msgstr "동시 요청 수"
+
+msgid "%(busy)d of %(total)d slots busy · %(ctx)s tokens per slot"
+msgstr "슬롯 %(total)d개 중 %(busy)d개 사용 중 · 슬롯당 %(ctx)s토큰"
+
+msgid "%(gen).1f tokens/s generated · %(prompt).1f tokens/s prompt · %(up)s up"
+msgstr "생성 %(gen).1f토큰/초 · 입력 처리 %(prompt).1f토큰/초 · 가동 %(up)s"
+
+msgid "Live status"
+msgstr "실시간 현황"
+
+msgid "Not available"
+msgstr "사용할 수 없음"
+
+msgid "Requests"
+msgstr "요청"
+
+msgid "Speed"
+msgstr "속도"

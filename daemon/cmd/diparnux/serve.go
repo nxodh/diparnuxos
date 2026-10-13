@@ -12,7 +12,7 @@ import (
 // serve 는 serve 명령 묶음이다.
 func (c *cli) serve(args []string) int {
 	if len(args) == 0 {
-		return c.usage("usage: diparnux serve <start|stop|plan|logs>", "serve")
+		return c.usage("usage: diparnux serve <start|stop|plan|logs|stats>", "serve")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -24,6 +24,8 @@ func (c *cli) serve(args []string) int {
 		return c.servePlan(rest)
 	case "logs":
 		return c.serveLogs(rest)
+	case "stats":
+		return c.serveStats(rest)
 	}
 	return c.usage(fmt.Sprintf("unknown serve command %q", sub), "serve")
 }
@@ -335,5 +337,47 @@ func (c *cli) serveLogs(args []string) int {
 		return exitOK
 	}
 	fmt.Fprintln(c.env.stdout, strings.TrimRight(logs.Log, "\n"))
+	return exitOK
+}
+
+// serveStats 는 서버 현황을 보여 준다. 서버가 돌고 있을 때만 슬롯과 처리 속도가 있다.
+func (c *cli) serveStats(args []string) int {
+	if len(args) != 0 {
+		return c.usage("serve stats takes no arguments", "serve stats")
+	}
+	ctx, cancel := c.timeout(metaTimeout)
+	defer cancel()
+	st, raw, err := c.api.ServerStats(ctx)
+	if err != nil {
+		return c.fail(err)
+	}
+	if c.asJSON {
+		return c.printJSON(raw)
+	}
+	w := c.env.stdout
+	kv(w, "state", orDash(st.State))
+	if !st.Running {
+		fmt.Fprintln(w, "the server is not running; start it with: diparnux serve start")
+		return exitOK
+	}
+	kv(w, "model", orDash(st.ModelID))
+	kv(w, "uptime", formatDuration(st.UptimeSeconds))
+	if st.Slots.Available {
+		kv(w, "slots", fmt.Sprintf("%d busy of %d (context per slot %d)", st.Slots.Busy, st.Slots.Total, st.SlotCtx))
+	} else {
+		kv(w, "slots", "unavailable: "+orDash(st.Slots.Reason))
+	}
+	if st.Metrics.Available {
+		kv(w, "generation", fmt.Sprintf("%.1f tokens/s", st.Metrics.GenTokensPerSec))
+		kv(w, "prompt", fmt.Sprintf("%.1f tokens/s", st.Metrics.PromptTokensPerSec))
+		kv(w, "requests", fmt.Sprintf("%.0f processing, %.0f deferred", st.Metrics.RequestsProcessing, st.Metrics.RequestsDeferred))
+		kv(w, "tokens so far", fmt.Sprintf("%.0f prompt, %.0f generated", st.Metrics.PromptTokensTotal, st.Metrics.GeneratedTotal))
+	} else {
+		kv(w, "metrics", "unavailable: "+orDash(st.Metrics.Reason))
+	}
+	if st.Gateway != nil {
+		kv(w, "gateway", fmt.Sprintf("%d requests, %d errors, %d refused, %d in flight",
+			st.Gateway.Requests, st.Gateway.Errors, st.Gateway.Unauthorized, st.Gateway.InFlight))
+	}
 	return exitOK
 }

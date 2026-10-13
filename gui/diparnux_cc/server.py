@@ -37,6 +37,14 @@ class ServerPage(Adw.PreferencesPage):
         self.state_group.add(self.warn_row)
         self.add(self.state_group)
 
+        self.live_group = Adw.PreferencesGroup(title=_("Live status"))
+        self.live_group.set_visible(False)
+        self.slots_row = action_row(_("Requests"), "-")
+        self.speed_row = action_row(_("Speed"), "-")
+        self.live_group.add(self.slots_row)
+        self.live_group.add(self.speed_row)
+        self.add(self.live_group)
+
         self.run_group = Adw.PreferencesGroup(title=_("Run a model"))
         self.model_combo = Adw.ComboRow(title=_("Model"))
         self.model_combo.set_model(Gtk.StringList.new([]))
@@ -128,6 +136,32 @@ class ServerPage(Adw.PreferencesPage):
         running = state in ("starting", "running", "running_cpu_fallback")
         self.start_btn.set_sensitive(not running and bool(self._models))
         self.stop_btn.set_sensitive(running)
+        # 현황은 화면이 보이는 동안에만 조회한다(경량화 원칙).
+        self.live_group.set_visible(state in ("running", "running_cpu_fallback"))
+        if state in ("running", "running_cpu_fallback") and self.get_mapped():
+            run_async(self.ctx.client.server_stats, self._render_stats, lambda e: None)
+
+    def _render_stats(self, st):
+        slots = st.get("slots") or {}
+        if slots.get("available"):
+            self.slots_row.set_subtitle(
+                _("%(busy)d of %(total)d slots busy · %(ctx)s tokens per slot")
+                % {"busy": slots.get("busy", 0), "total": slots.get("total", 0), "ctx": st.get("slot_ctx", 0)}
+            )
+        else:
+            self.slots_row.set_subtitle(_("Not available"))
+        m = st.get("metrics") or {}
+        if m.get("available"):
+            self.speed_row.set_subtitle(
+                _("%(gen).1f tokens/s generated · %(prompt).1f tokens/s prompt · %(up)s up")
+                % {
+                    "gen": m.get("generated_tokens_per_second", 0.0),
+                    "prompt": m.get("prompt_tokens_per_second", 0.0),
+                    "up": logic.fmt_uptime(st.get("uptime_seconds", 0)),
+                }
+            )
+        else:
+            self.speed_row.set_subtitle(_("Not available"))
 
     def _selected_model(self):
         idx = self.model_combo.get_selected()

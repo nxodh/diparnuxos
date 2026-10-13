@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: diparnux-control-center\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 13:23+0000\n"
+"POT-Creation-Date: 2026-10-13 13:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -854,6 +854,15 @@ msgstr ""
 msgid "The saved password of %s is deleted."
 msgstr ""
 
+msgid "Live status"
+msgstr ""
+
+msgid "Requests"
+msgstr ""
+
+msgid "Speed"
+msgstr ""
+
 msgid "Run a model"
 msgstr ""
 
@@ -889,6 +898,17 @@ msgid "New key label"
 msgstr ""
 
 msgid "Server log"
+msgstr ""
+
+#, python-format
+msgid "%(busy)d of %(total)d slots busy · %(ctx)s tokens per slot"
+msgstr ""
+
+msgid "Not available"
+msgstr ""
+
+#, python-format
+msgid "%(gen).1f tokens/s generated · %(prompt).1f tokens/s prompt · %(up)s up"
 msgstr ""
 
 msgid "CPU only"

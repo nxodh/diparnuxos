@@ -1191,3 +1191,16 @@ func TestModelImportShowsTheDaemonsRefusal(t *testing.T) {
 	wantCode(t, res, exitFailure)
 	wantContains(t, "conflict", res.stderr, "already exists", "name_conflict")
 }
+
+func TestServeStatsShowsSlotsAndSpeed(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/server/stats", 200, `{"running":true,"state":"running","model_id":"m.gguf","uptime_seconds":3700,"parallel":2,"slot_ctx":2048,"slots":{"available":true,"total":2,"busy":1,"items":[]},"metrics":{"available":true,"generated_tokens_per_second":31.5,"prompt_tokens_per_second":700,"requests_processing":1,"requests_deferred":0,"prompt_tokens_total":1200,"generated_tokens_total":3400},"gateway":{"requests":12,"errors":1,"unauthorized":2,"in_flight":1}}`)
+	res := runCLI(t, f, "serve", "stats")
+	wantCode(t, res, exitOK)
+	wantContains(t, "stats", res.stdout, "1 busy of 2 (context per slot 2048)", "31.5 tokens/s", "12 requests, 1 errors, 2 refused, 1 in flight", "1h 1m")
+
+	f.on("GET /v1/server/stats", 200, `{"running":false,"state":"stopped","slots":{"available":false,"items":[]},"metrics":{"available":false}}`)
+	res = runCLI(t, f, "serve", "stats")
+	wantCode(t, res, exitOK)
+	wantContains(t, "stopped", res.stdout, "not running")
+}

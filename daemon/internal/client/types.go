@@ -450,6 +450,39 @@ type Connection struct {
 	Examples    map[string]string   `json:"examples"`
 }
 
+// ServerStats 는 GET /v1/server/stats 의 응답이다.
+type ServerStats struct {
+	Running       bool   `json:"running"`
+	State         string `json:"state"`
+	ModelID       string `json:"model_id"`
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	Parallel      int    `json:"parallel"`
+	SlotCtx       int    `json:"slot_ctx"`
+	Slots         struct {
+		Available bool   `json:"available"`
+		Reason    string `json:"reason"`
+		Total     int    `json:"total"`
+		Busy      int    `json:"busy"`
+	} `json:"slots"`
+	Metrics struct {
+		Available          bool    `json:"available"`
+		Reason             string  `json:"reason"`
+		PromptTokensTotal  float64 `json:"prompt_tokens_total"`
+		GeneratedTotal     float64 `json:"generated_tokens_total"`
+		PromptTokensPerSec float64 `json:"prompt_tokens_per_second"`
+		GenTokensPerSec    float64 `json:"generated_tokens_per_second"`
+		RequestsProcessing float64 `json:"requests_processing"`
+		RequestsDeferred   float64 `json:"requests_deferred"`
+		KVCacheUsageRatio  float64 `json:"kv_cache_usage_ratio"`
+	} `json:"metrics"`
+	Gateway *struct {
+		Requests     int64 `json:"requests"`
+		Errors       int64 `json:"errors"`
+		Unauthorized int64 `json:"unauthorized"`
+		InFlight     int64 `json:"in_flight"`
+	} `json:"gateway"`
+}
+
 // Gateway 는 GET /v1/gateway 의 응답이다.
 type Gateway struct {
 	Enabled    bool                 `json:"enabled"`

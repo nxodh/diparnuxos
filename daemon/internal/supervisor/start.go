@@ -25,6 +25,8 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 		Host:       host,
 		Port:       job.cfg.BackendPort(),
 		APIKeyFile: job.apiKeyFile,
+		// /metrics 는 서버 현황(처리 속도, 대기 요청)에 쓴다. 게이트웨이가 있으면 내부 포트(127.0.0.1)로만 열린다.
+		Metrics: true,
 	}
 	if err := autoconf.ValidateOverrides(mergeOverrides(job.cfg.Overrides, job.ov)); err != nil {
 		s.discardKeySnapshot(job.apiKeyFile)
