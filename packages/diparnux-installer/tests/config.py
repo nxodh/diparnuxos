@@ -45,6 +45,45 @@ def module_dir(name):
     return None
 
 
+def check_password_quality(options):
+    """users.conf 의 libpwquality 옵션으로 실제 비밀번호 검사를 돌린다(컨테이너에는 cracklib 사전이 없다).
+
+    설정 없이는 "error loading dictionary" 로 거절되어야 하고(이 시험이 실제 문제를 재현하는지 확인한다),
+    users.conf 의 옵션을 적용하면 규칙에 맞는 비밀번호가 통과해야 한다.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("pwscore") is None:
+        print("note: pwscore is not installed; password quality run skipped")
+        return
+    conf_dir = "/etc/security/pwquality.conf.d"
+    conf = os.path.join(conf_dir, "diparnux-test.conf")
+    sample = "Hel10-wOrld-77\n"
+
+    def run():
+        return subprocess.run(["pwscore"], input=sample, text=True, capture_output=True)
+
+    if os.path.exists(conf):
+        os.remove(conf)
+    baseline = run()
+    if baseline.returncode == 0 or "dictionary" not in (baseline.stdout + baseline.stderr):
+        print("note: the container has a cracklib dictionary; the negative control was skipped")
+    os.makedirs(conf_dir, exist_ok=True)
+    try:
+        with open(conf, "w", encoding="utf-8") as fh:
+            for item in options:
+                fh.write(item.replace("=", " = ", 1) + "\n")
+        applied = run()
+    finally:
+        if os.path.exists(conf):
+            os.remove(conf)
+    if applied.returncode != 0:
+        fail(f"a valid password is rejected with the users.conf options: {(applied.stdout + applied.stderr).strip()}")
+    else:
+        print("ok: users.conf options accept a valid password without a cracklib dictionary")
+
+
 def main():
     if not MODULE_DIRS:
         print("FAIL: the calamares package is not installed in this container")
@@ -131,6 +170,7 @@ def main():
     options = (users.get("passwordRequirements") or {}).get("libpwquality") or []
     if "dictcheck=0" not in options:
         fail("users.conf must set dictcheck=0 (the image has no cracklib dictionary)")
+    check_password_quality(options)
 
     if failures:
         print(f"{len(failures)} problem(s)")

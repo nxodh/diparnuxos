@@ -600,6 +600,7 @@ def profile_scenario(console, monitor, budgets, logs, workdir):
         text = console.command(f"collect-{label}", "sudo -n sh /tmp/collect.sh", cmd + 60)
         info = parse_profile(text)
         result[label] = info
+        (logs / "memory-profile.json").write_text(json.dumps(result, indent=1) + "\n", encoding="ascii")
         top = ", ".join(f"{p['comm']}={p['pss'] // 1024}M" for p in info["processes"][:8])
         print(f"profile: {label}: used={info['used_kib'] // 1024} MiB userland_pss={info['userland_pss_kib'] // 1024} MiB "
               f"other={info['other_kib'] // 1024} MiB top: {top}", flush=True)
@@ -619,7 +620,8 @@ def profile_scenario(console, monitor, budgets, logs, workdir):
     capture(console, monitor, logs, "profile-desktop", workdir)
 
     # Control Center 를 끄면 Xfce 세션 자체의 비용이 드러난다.
-    console.command("stop-control-center", "pkill -u user -f diparnux-control-center; sleep 5; true", cmd)
+    # 패턴의 첫 글자를 대괄호로 감싸 pkill 이 이 명령을 실행하는 셸 자신을 죽이지 않게 한다.
+    console.command("stop-control-center", "pkill -u user -f '[d]iparnux-control-center'; sleep 5; true", cmd)
     time.sleep(30)
     collect("desktop-session-only")
 
