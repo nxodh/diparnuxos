@@ -26,8 +26,21 @@ lightlix-llm
 # Go 데몬과 CLI, 소켓, 기본 차단 방화벽을 설치한다.
 lightlix-daemon
 nftables
-# Phase 3 데스크톱 모드 구성 요소(labwc, greetd, tuigreet, foot, 글꼴). 기본 부팅 대상은 바꾸지 않는다.
+# 데스크톱 모드 구성 요소(0.5.0: Xfce, lightdm, Xorg, PipeWire, 글꼴). 기본 부팅 대상은 바꾸지 않는다.
 lightlix-desktop
+# 데스크톱 부가 구성(docs/phase-5-design.md 9절의 Y1~Y3 기본값). 빼려면 이 줄들을 지운다.
+# 웹 브라우저. 라이브 세션은 apt 목록이 없어 나중에 설치하기 어렵다.
+firefox-esr
+firefox-esr-l10n-ko
+# 한글 입력기(fcitx5 + 한글)와 GTK 프런트엔드. 세션 환경 변수는 /etc/X11/Xsession.d/55lightlix-xdg 가 정한다.
+fcitx5
+fcitx5-hangul
+fcitx5-frontend-gtk3
+fcitx5-frontend-gtk4
+im-config
+# 가상 머신 게스트 통합(VMware 해상도·클립보드, QEMU/SPICE 클립보드). 실기에서는 서비스가 조건 때문에 시작되지 않는다.
+open-vm-tools-desktop
+spice-vdagent
 # SSH 서버. 이미지에서는 꺼 두고 호스트 키를 지운다. Control Center 나 daemon 이 켤 때 키를 만든다.
 openssh-server
 # Control Center(GTK4, libadwaita). 데스크톱 모드에서 쓰며 서버 모드에서는 실행되지 않는다.

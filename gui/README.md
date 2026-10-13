@@ -20,7 +20,7 @@ GTK4 + libadwaita(PyGObject) 앱이다. `lightlixd` 의 유닉스 소켓 API 만
 ```
 lightlix-control-center              # 메인 창
 lightlix-control-center --wizard     # 첫 부팅 마법사를 연다
-lightlix-control-center --autostart  # 마법사가 끝나지 않았을 때만 창을 연다(labwc autostart 가 부른다)
+lightlix-control-center --autostart  # 마법사가 끝나지 않았을 때만 창을 연다(Xfce 자동 시작 항목이 부른다)
 lightlix-control-center --socket PATH --localedir DIR
 ```
 

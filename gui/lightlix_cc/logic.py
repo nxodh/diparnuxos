@@ -249,7 +249,7 @@ _NAME_FIRST = "abcdefghijklmnopqrstuvwxyz"
 _NAME_REST = _NAME_FIRST + "0123456789_-"
 _RESERVED = {
     "root", "user", "nobody", "daemon", "bin", "sys", "sync", "games", "man", "lp", "mail", "news", "uucp",
-    "proxy", "www-data", "backup", "list", "irc", "sshd", "messagebus", "polkitd", "greetd", "tuigreet",
+    "proxy", "www-data", "backup", "list", "irc", "sshd", "messagebus", "polkitd", "greetd", "tuigreet", "lightdm",
 }
 
 

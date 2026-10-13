@@ -85,7 +85,8 @@ class SystemPage(Adw.PreferencesPage):
         look_group = Adw.PreferencesGroup(title=_("Appearance"))
         self.scheme_combo = Adw.ComboRow(title=_("Color scheme"))
         self.scheme_combo.set_model(Gtk.StringList.new([_("Follow the system"), _("Light"), _("Dark")]))
-        saved = load_settings().get("color_scheme", "default")
+        # Lightlix 데스크톱(Xfce)은 어두운 테마를 쓰므로 처음 값은 어둡게 한다. 사용자가 바꾸면 그 값을 따른다.
+        saved = load_settings().get("color_scheme", "dark")
         self.scheme_combo.set_selected(_SCHEMES.index(saved) if saved in _SCHEMES else 0)
         apply_color_scheme(saved)
         self.scheme_combo.connect("notify::selected", self._on_scheme)

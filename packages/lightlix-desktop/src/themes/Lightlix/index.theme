@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Lightlix
+Comment=Lightlix black and white theme
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Lightlix
+MetacityTheme=Lightlix
+IconTheme=Adwaita
+CursorTheme=Adwaita
+ButtonLayout=menu:minimize,maximize,close

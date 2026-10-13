@@ -7,7 +7,7 @@ export LIGHTLIX_CONF
 LIGHTLIX_VERSION := $(shell . "$(LIGHTLIX_CONF)" && printf '%s' "$$LIGHTLIX_VERSION")
 ISO ?= $(ROOT)/out/lightlix-$(LIGHTLIX_VERSION)-amd64.iso
 
-SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
+SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name lightlix-panel-net -o -name lightlix-session-setup -o -name 55lightlix-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
 .PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint test-daemon test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
 
@@ -44,7 +44,7 @@ lint:
 		for f in $(SHELL_SCRIPTS); do bash -n "$$f" || exit 1; done; \
 	fi
 
-# 패널(yambar) 설정과 세션 스크립트를 실제 프로그램의 검증으로 확인한다.
+# Xfce 데스크톱 구성(패널 배치, xfconf 기본값, 테마)을 패키지로 설치하고 Xvfb 세션과 lightdm 로그인 화면으로 확인한다.
 test-desktop-config-docker:
 	bash "$(ROOT)/scripts/test-desktop-config-in-docker.sh"
 
@@ -110,7 +110,7 @@ test-qemu-e2e-driver:
 	python3 -B "$(ROOT)/tests/qemu/test_desktop_session.py"
 	python3 -B "$(ROOT)/tests/qemu/test_install.py"
 
-# 완성된 ISO 에서 데스크톱 모드 전환, greetd, labwc 세션, Control Center 를 Docker 의 QEMU 로 확인한다.
+# 완성된 ISO 에서 데스크톱 모드 전환, lightdm 자동 로그인과 로그인 화면, Xfce 세션, Control Center 를 Docker 의 QEMU 로 확인한다.
 test-qemu-desktop-docker:
 	bash "$(ROOT)/scripts/test-qemu-desktop-in-docker.sh" "$(ISO)"
 

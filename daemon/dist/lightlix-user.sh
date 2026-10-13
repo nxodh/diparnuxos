@@ -35,7 +35,7 @@ valid_name() {
     [ "${#1}" -le 32 ] || return 1
     case "$1" in
         root | user | nobody | daemon | bin | sys | sync | games | man | lp | mail | news | uucp | proxy | www-data \
-            | backup | list | irc | sshd | lightlix* | systemd* | messagebus | polkitd | greetd | tuigreet) return 1 ;;
+            | backup | list | irc | sshd | lightlix* | systemd* | messagebus | polkitd | greetd | tuigreet | lightdm) return 1 ;;
     esac
     return 0
 }

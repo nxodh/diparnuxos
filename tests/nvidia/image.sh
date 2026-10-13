@@ -207,26 +207,32 @@ grep -qx mokutil "$WORK/installed" || check_fail 'mokutil is not installed'
 require_path 'squashfs-root/usr/bin/lightlix-control-center$' 'Control Center launcher'
 require_path 'squashfs-root/usr/lib/lightlix/control-center/lightlix_cc/app[.]py$' 'Control Center application'
 require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/lightlix-control-center[.]mo$' 'Control Center Korean catalog'
-for pkg in labwc greetd tuigreet foot yambar fonts-nanum openssh-server; do
+for pkg in xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal lightdm lightdm-gtk-greeter xserver-xorg-core \
+    pipewire wireplumber firefox-esr fcitx5-hangul fonts-nanum openssh-server; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
-# Phase 3 이미지에는 다른 패널과 무거운 데스크톱 구성 요소를 넣지 않는다.
-for pkg in waybar gnome-shell plasma-desktop xfce4-session lightdm gdm3 sddm; do
+# 0.5.0 에서 교체한 Wayland 구성과 무거운 데스크톱 구성 요소는 넣지 않는다.
+for pkg in labwc greetd tuigreet foot yambar swaybg waybar gnome-shell plasma-desktop gdm3 sddm; do
     grep -qx "$pkg" "$WORK/installed" && check_fail "$pkg must not be installed"
 done
-require_path 'squashfs-root/etc/greetd/lightlix[.]toml$' 'greetd Lightlix configuration'
-require_path 'squashfs-root/(usr/)?lib/systemd/system/greetd[.]service[.]d/lightlix[.]conf$' 'greetd service drop-in'
-require_path 'squashfs-root/etc/xdg/labwc/(autostart|menu[.]xml|environment)( |$)' 'labwc system configuration'
-require_path 'squashfs-root/etc/xdg/yambar/config[.]yml$' 'panel configuration (yambar.yml)'
-unsquashfs -cat "$WORK/rootfs.squashfs" etc/greetd/lightlix.toml > "$WORK/greetd.toml"
-grep -q '^command = "tuigreet ' "$WORK/greetd.toml" || check_fail 'greetd does not start tuigreet'
-unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/greetd.service.d/lightlix.conf > "$WORK/greetd-dropin"
-grep -qx 'ExecStart=greetd --config /etc/greetd/lightlix.toml' "$WORK/greetd-dropin" || check_fail 'greetd drop-in does not point at lightlix.toml'
+require_path 'squashfs-root/etc/xdg/lightlix/xfce4/panel/default[.]xml$' 'Xfce panel layout'
+require_path 'squashfs-root/etc/xdg/lightlix/xfce4/xfconf/xfce-perchannel-xml/xsettings[.]xml$' 'Xfce appearance defaults'
+require_path 'squashfs-root/etc/X11/Xsession[.]d/55lightlix-xdg$' 'XDG_CONFIG_DIRS fragment'
+require_path 'squashfs-root/usr/share/themes/Lightlix/gtk-3[.]0/gtk[.]css$' 'GTK theme Lightlix'
+require_path 'squashfs-root/usr/share/themes/Lightlix/xfwm4/themerc$' 'xfwm4 theme Lightlix'
+require_path 'squashfs-root/usr/share/lightdm/lightdm[.]conf[.]d/50-lightlix[.]conf$' 'lightdm configuration'
+require_path 'squashfs-root/usr/share/lightdm/lightdm-gtk-greeter[.]conf[.]d/50-lightlix[.]conf$' 'greeter configuration'
+# 라이브 자동 로그인은 live-config 가 부팅 때 /etc/lightdm/lightdm.conf 에 쓴다. 이미지의 파일에는 자동 로그인이 켜져 있으면 안 된다
+# (설치된 시스템은 이 파일을 그대로 복사한다).
+unsquashfs -cat "$WORK/rootfs.squashfs" etc/lightdm/lightdm.conf > "$WORK/lightdm.conf"
+if grep -Eq '^[[:space:]]*autologin-user=.+' "$WORK/lightdm.conf"; then
+    check_fail 'autologin is enabled in the image lightdm.conf'
+fi
 # 기본 부팅 대상이 graphical.target 이면 부팅하자마자 데스크톱이 떠서 서버 모드의 램 목표를 깨뜨린다.
 if grep -Eq 'squashfs-root/etc/systemd/system/default[.]target -> .*graphical[.]target$' "$WORK/files"; then
     check_fail 'default.target is graphical.target; the image must boot in server mode'
 fi
-echo 'PASS: desktop packages, panel and greetd configuration found; no heavy desktop installed'
+echo 'PASS: Xfce desktop packages and Lightlix configuration found; no Wayland stack or heavy desktop installed'
 
 # SSH 서버는 설치하되 꺼 두고, 호스트 키는 이미지에 없어야 한다.
 if grep -Eq 'squashfs-root/etc/ssh/ssh_host_' "$WORK/files"; then
