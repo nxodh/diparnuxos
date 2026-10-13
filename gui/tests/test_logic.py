@@ -56,6 +56,22 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(logic.fmt_mib(-1), "-")
 
 
+class UsageTests(unittest.TestCase):
+    def test_fmt_count(self):
+        self.assertEqual(logic.fmt_count(0), "0")
+        self.assertEqual(logic.fmt_count(None), "0")
+        self.assertEqual(logic.fmt_count(999), "999")
+        self.assertEqual(logic.fmt_count(1500), "1.5K")
+        self.assertEqual(logic.fmt_count(2400000), "2.4M")
+
+    def test_key_usage_text(self):
+        text = logic.key_usage_text({"prefix": "dpx_ab12", "requests": 3, "errors": 0, "prompt_tokens": 10, "completion_tokens": 5,
+                                     "last_used": "2026-10-13T01:02:03Z"})
+        self.assertEqual(text, "dpx_ab12… · 3 requests · 0 errors · 15 tokens · last used 2026-10-13 01:02:03")
+        unused = logic.key_usage_text({"requests": 0, "last_used": "0001-01-01T00:00:00Z"})
+        self.assertIn("never used", unused)
+
+
 class DashboardTests(unittest.TestCase):
     def test_ready_has_no_banner(self):
         self.assertIsNone(logic.gpu_banner(status("ready")))

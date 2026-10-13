@@ -1021,3 +1021,87 @@ msgstr "가동 %s"
 
 msgid "Not effective: %s"
 msgstr "적용되지 않음: %s"
+
+msgid "%(errors)s errors"
+msgstr "오류 %(errors)s건"
+
+msgid "%(requests)d requests · %(errors)d errors · %(unauthorized)d refused"
+msgstr "요청 %(requests)d건 · 오류 %(errors)d건 · 거부 %(unauthorized)d건"
+
+msgid "%(requests)s requests"
+msgstr "요청 %(requests)s건"
+
+msgid "%(tokens)s tokens"
+msgstr "토큰 %(tokens)s개"
+
+msgid "Addresses"
+msgstr "주소"
+
+msgid "Checks that the model answers."
+msgstr "모델이 응답하는지 확인합니다."
+
+msgid "Copied"
+msgstr "복사했습니다"
+
+msgid "Copy"
+msgstr "복사"
+
+msgid "Counted by the gateway since the daemon started."
+msgstr "데몬이 시작된 뒤 게이트웨이가 센 값입니다."
+
+msgid "Environment variables"
+msgstr "환경 변수"
+
+msgid "Examples"
+msgstr "예시"
+
+msgid "OpenAI Python client"
+msgstr "OpenAI Python 클라이언트"
+
+msgid "Other computers, such as Orca, Open WebUI or an editor plugin, connect with an OpenAI-compatible URL and an API key."
+msgstr "Orca, Open WebUI, 편집기 플러그인 같은 다른 컴퓨터는 OpenAI 호환 주소와 API 키로 접속합니다."
+
+msgid "Replace <your API key> with a key you created. A key is shown only once, when it is created."
+msgstr "<your API key> 자리에 직접 만든 키를 넣으세요. 키는 만들 때 한 번만 보입니다."
+
+msgid "Send a short request to the server"
+msgstr "서버에 짧은 요청 보내기"
+
+msgid "Settings for an app"
+msgstr "앱에 넣을 설정"
+
+msgid "The server answered."
+msgstr "서버가 응답했습니다."
+
+msgid "Total"
+msgstr "합계"
+
+msgid "Usage per key"
+msgstr "키별 사용량"
+
+msgid "Use one of these as the base URL on the other computer."
+msgstr "다른 컴퓨터에서 이 중 하나를 기본 주소로 쓰세요."
+
+msgid "Use this computer as an AI server"
+msgstr "이 컴퓨터를 AI 서버로 쓰기"
+
+msgid "by name"
+msgstr "이름으로"
+
+msgid "curl"
+msgstr "curl"
+
+msgid "last used %(when)s"
+msgstr "마지막 사용 %(when)s"
+
+msgid "never used"
+msgstr "사용한 적 없음"
+
+msgid "not required"
+msgstr "필요 없음"
+
+msgid "required"
+msgstr "필요함"
+
+msgid "this computer only"
+msgstr "이 컴퓨터에서만"

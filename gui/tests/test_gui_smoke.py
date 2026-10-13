@@ -66,6 +66,16 @@ ROUTES = {
         "on_battery": False, "battery_percent": 88, "uptime_seconds": 90061, "notes": []}),
     ("PUT", "/v1/system/power"): (200, {"always_on": False, "enabled": False, "checks": [], "lid": "open", "has_battery": False,
         "on_battery": False, "battery_percent": -1, "uptime_seconds": 5, "notes": ["Always-on is turned off."]}),
+    ("GET", "/v1/connection"): (200, {
+        "server_state": "running", "model_id": "a.gguf", "models": ["a.gguf"], "public_port": 8080, "lan_exposed": True,
+        "gateway": True, "key_required": True, "key_count": 1, "hostname": "diparnux", "local_url": "http://127.0.0.1:8080/v1",
+        "addresses": [{"interface": "enp3s0", "address": "192.168.0.23", "family": "ipv4", "url": "http://192.168.0.23:8080/v1"}],
+        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."],
+        "examples": {"settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
+    ("GET", "/v1/gateway"): (200, {"enabled": True, "public_port": 8080, "lan_exposed": True, "state": {"listening": True, "addr": "0.0.0.0:8080", "backend_port": 18080},
+        "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
+        "keys": [{"id": "k1", "label": "orca", "prefix": "dpx_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
+    ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
     ("GET", "/v1/system/ssh"): (200, {"enabled": False, "installed": True, "active": False, "password_auth": "no", "port": 22}),
     ("GET", "/v1/users"): (200, {"users": [{"name": "alice", "admin": True, "created": "2026-10-12T00:00:00Z"}]}),
     ("POST", "/v1/users"): (201, {"name": "bob", "admin": False, "created": "2026-10-12T01:00:00Z"}),
@@ -120,6 +130,23 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("server log line", server.log_view.get_buffer().get_text(
             server.log_view.get_buffer().get_start_iter(), server.log_view.get_buffer().get_end_iter(), False))
         win.destroy()
+
+    def test_connection_page_shows_addresses_examples_and_usage(self):
+        from diparnux_cc.connection import ConnectionPage
+
+        page = ConnectionPage(self.ctx)
+        self.assertTrue(pump(5, until=lambda: len(page._addr_rows) == 3), "the addresses were not shown")
+        self.assertEqual(page._addr_rows[0].get_title(), "http://192.168.0.23:8080/v1")
+        self.assertEqual(page._addr_rows[1].get_title(), "http://diparnux.local:8080/v1")
+        self.assertEqual(len(page._example_rows), 2)
+        self.assertTrue(page.notes_row.get_visible())
+        self.assertIn("No API key exists.", page.notes_row.get_subtitle())
+        self.assertTrue(pump(5, until=lambda: len(page._usage_rows) == 2), "the usage was not shown")
+        sub = page._usage_rows[0].get_subtitle()
+        self.assertIn("1.5K", sub)
+        self.assertIn("dpx_ab12", sub)
+        page.check()
+        self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
 
     def test_system_page_lists_accounts(self):
         from diparnux_cc.window import MainWindow

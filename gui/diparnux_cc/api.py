@@ -173,6 +173,12 @@ class Client:
     def delete_key(self, key_id):
         return self._request("DELETE", "/v1/apikeys/" + urllib.parse.quote(key_id, safe=""))
 
+    def connection(self):
+        return self._request("GET", "/v1/connection")
+
+    def gateway(self):
+        return self._request("GET", "/v1/gateway")
+
     # --- 시스템 ---
     def mode(self):
         return self._request("GET", "/v1/mode")

@@ -56,6 +56,32 @@ def fmt_mib(n):
     return "%d MiB" % n
 
 
+def fmt_count(n):
+    """큰 수를 1.2K, 3.4M 처럼 줄여 쓴다."""
+    n = int(n or 0)
+    if n >= 1000000:
+        return "%.1fM" % (n / 1000000.0)
+    if n >= 1000:
+        return "%.1fK" % (n / 1000.0)
+    return str(n)
+
+
+def key_usage_text(key):
+    """게이트웨이의 키별 사용량을 한 줄로 쓴다."""
+    last = key.get("last_used") or ""
+    if last.startswith("0001-"):
+        last = ""
+    parts = [
+        _("%(requests)s requests") % {"requests": fmt_count(key.get("requests"))},
+        _("%(errors)s errors") % {"errors": fmt_count(key.get("errors"))},
+        _("%(tokens)s tokens") % {"tokens": fmt_count((key.get("prompt_tokens") or 0) + (key.get("completion_tokens") or 0))},
+        _("last used %(when)s") % {"when": last.replace("T", " ").rstrip("Z")} if last else _("never used"),
+    ]
+    if key.get("prefix"):
+        parts.insert(0, key["prefix"] + "…")
+    return " · ".join(parts)
+
+
 def server_state_label(state):
     fn = _SERVER_STATE_TEXT.get(state)
     return fn() if fn else str(state or "-")
