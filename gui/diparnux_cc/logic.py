@@ -56,6 +56,55 @@ def fmt_mib(n):
     return "%d MiB" % n
 
 
+def fmt_rate(bytes_per_second):
+    """초당 바이트를 1.5 MiB/s 처럼 쓴다."""
+    try:
+        n = float(bytes_per_second)
+    except (TypeError, ValueError):
+        return "-"
+    for unit in ("B/s", "KiB/s", "MiB/s", "GiB/s"):
+        if n < 1024 or unit == "GiB/s":
+            return ("%d %s" % (n, unit)) if unit == "B/s" else ("%.1f %s" % (n, unit))
+        n /= 1024.0
+    return "-"
+
+
+def port_text(port, port_end=0):
+    return "%d-%d" % (port, port_end) if port_end and port_end != port else str(port)
+
+
+def source_label(source):
+    """방화벽 출발지 값을 사용자 문장으로 바꾼다."""
+    if source in (None, "", "any"):
+        return _("any address")
+    if source == "lan":
+        return _("the local network")
+    return source
+
+
+def rule_subtitle(rule):
+    return "%s %s · %s" % (rule.get("protocol", "tcp"), port_text(rule.get("port", 0), rule.get("port_end", 0)), source_label(rule.get("source")))
+
+
+def split_list(text):
+    """쉼표나 공백으로 나눈 목록. 빈 항목은 뺀다."""
+    return [p for p in (text or "").replace(",", " ").split() if p]
+
+
+def service_state_text(service):
+    active = service.get("active") or "-"
+    sub = service.get("sub") or ""
+    if not service.get("installed", True):
+        return _("not installed")
+    return "%s (%s)" % (active, sub) if sub and sub != active else active
+
+
+def exposure_level_icon(level):
+    return {"ok": "emblem-ok-symbolic", "info": "dialog-information-symbolic", "warning": "dialog-warning-symbolic", "error": "dialog-error-symbolic"}.get(
+        level, "dialog-information-symbolic"
+    )
+
+
 def fmt_count(n):
     """큰 수를 1.2K, 3.4M 처럼 줄여 쓴다."""
     n = int(n or 0)

@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/diparnux-$(DIPARNUX_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name diparnux-panel-net -o -name diparnux-session-setup -o -name 55diparnux-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker
 
 # Docker 안에서 ISO 를 빌드한다. diparnux-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -81,6 +81,10 @@ test-gpu-check:
 	bash "$(ROOT)/tests/nvidia/gpu-check.sh"
 	bash "$(ROOT)/tests/nvidia/mok.sh"
 	bash "$(ROOT)/tests/nvidia/user.sh"
+
+# Mac 에 Go 를 설치하지 않고 Debian 13 컨테이너에서 vet 과 단위 시험을 돈다.
+test-daemon-docker:
+	bash "$(ROOT)/scripts/test-daemon-in-docker.sh"
 
 # Go 모듈은 vendoring한 의존성만 쓰며 NVML에 필요한 cgo를 켠다.
 test-daemon:
