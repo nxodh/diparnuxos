@@ -326,6 +326,7 @@ type Config struct {
 	HFToken     string    `json:"hf_token"`
 	Gateway     bool      `json:"gateway"`
 	AutoRestart bool      `json:"auto_restart"`
+	LocalNoKey  bool      `json:"local_no_key"`
 	Overrides   Overrides `json:"overrides"`
 }
 
@@ -338,6 +339,7 @@ type ConfigPatch struct {
 	HFToken     *string    `json:"hf_token,omitempty"`
 	Gateway     *bool      `json:"gateway,omitempty"`
 	AutoRestart *bool      `json:"auto_restart,omitempty"`
+	LocalNoKey  *bool      `json:"local_no_key,omitempty"`
 	Overrides   *Overrides `json:"overrides,omitempty"`
 }
 

@@ -196,6 +196,20 @@ func run(args []string) error {
 		Keys:       keys,
 		LANExposed: func() bool { return src.get().LANExposed },
 		UsagePath:  *stateDir + "/api-usage.json",
+		LocalNoKey: func() bool { return src.get().LocalNoKey },
+		Version:    version,
+		Info: func() map[string]any {
+			st := sup.Status()
+			info := map[string]any{"diparnux": version, "server": string(st.State)}
+			if st.ModelID != "" {
+				info["model"] = st.ModelID
+			}
+			if st.Plan != nil {
+				info["ctx_per_slot"] = st.Plan.SlotCtx
+				info["slots"] = max(st.Plan.Parallel, 1)
+			}
+			return info
+		},
 	}
 	gwMgr := &gateway.Manager{
 		G: gw,
