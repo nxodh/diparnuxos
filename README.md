@@ -144,12 +144,18 @@ out/             빌드 산출물(git 제외)
 | [docs/decisions.md](docs/decisions.md) | 기술 결정 기록. 원래 결정, 2026-10-10 변경, 근거와 출처 |
 | [docs/installation.md](docs/installation.md) | 설치(그래픽, 콘솔), 디스크 구성, 설치 뒤, 한계 |
 | [docs/network.md](docs/network.md) | 인터넷 연결과 Wi-Fi(GUI, CLI, 패널) |
+| [docs/ai-server.md](docs/ai-server.md) | AI 서버 운영: 게이트웨이, 연결 정보, 동시 요청, 서버 현황, 자동 재시작, 모델 가져오기 |
+| [docs/remote-access.md](docs/remote-access.md) | 원격 접속: SSH 고급, 원격 데스크톱, VPN, 원격 관리 웹 페이지 |
+| [docs/firewall.md](docs/firewall.md) | 방화벽 규칙(기능이 여는 포트, 사용자 규칙, 안전 장치) |
 | [docs/design.md](docs/design.md) | 로고 기반 디자인 시스템(흑백 팔레트, 적용 범위) |
 | [docs/updates.md](docs/updates.md) | 커널·드라이버 업데이트, 부팅 뒤 확인, 롤백, 오류 코드 |
 | [docs/apt-repository.md](docs/apt-repository.md) | 자체 APT 저장소 구조, 키 생성 절차, 클라이언트 설정 |
 | [docs/phase-4-design.md](docs/phase-4-design.md) | Phase 4 설계 |
 | [docs/phase-5-design.md](docs/phase-5-design.md) | 0.5.0 설계(Xfce 데스크톱, 어두운 흑백 디자인, 램 목표 철회) |
 | [docs/phase-5-1-design.md](docs/phase-5-1-design.md) | 0.5.1 설계(OS 이름 Diparnux, 새 로고, 흔적 검사) |
+| [docs/phase-5-2-design.md](docs/phase-5-2-design.md) | 0.5.2 설계(경량화, 설치기 수정, AI 서버 운영과 원격 접속) |
+| [docs/phase-5-3-design.md](docs/phase-5-3-design.md) | 0.5.3 설계(Vedecaps 와의 연결성, 호환성, 시너지) |
+| [docs/vedecaps-research.md](docs/vedecaps-research.md) | Vedecaps 조사 기록 |
 | [docs/security.md](docs/security.md) | 비밀 정보 취급 규칙(공개 저장소에 올리면 안 되는 것, 자동 검사, 실수로 올렸을 때) |
 | [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |
 | [docs/desktop-troubleshooting.md](docs/desktop-troubleshooting.md) | 데스크톱 모드 문제 해결(로그인 화면, 세션, 입력기, 브라우저) |
