@@ -359,6 +359,8 @@ def scenario(console, budgets):
                 restart_chat["tokens_per_second"] > 0,
                 f"Chat after autostart {setting} daemon restart returned no generation speed")
 
+    check_gateway(console, budgets)
+
     console.cli("serve-logs", "serve logs -n 80", cmd)
     stop = console.cli("serve-stop", "serve stop", cmd)
     require(stop.get("state") == "stopped", "Stop did not return stopped")
@@ -372,6 +374,72 @@ def scenario(console, budgets):
     after = console.command("chat-after-stop", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in after, "Stopped server accepted chat")
     console.command("journal", "sudo -n journalctl --no-pager -b -n 160 " + " ".join("-u " + unit for unit in UNITS), cmd)
+
+
+# 라이브 이미지에는 curl 이 없으므로 python3(Control Center 가 들여온다)로 HTTP 상태 코드만 읽는다. 직렬 콘솔로 보내므로 한 줄이어야 한다.
+HTTP_STATUS = (
+    "python3 -I -c 'import sys,http.client as h,urllib.parse as u; p=u.urlparse(sys.argv[1]); "
+    "c=h.HTTPConnection(p.netloc,timeout=30); "
+    "c.request(\"GET\",p.path or \"/\",headers=dict(x.split(\":\",1) for x in sys.argv[2:])); "
+    "print(c.getresponse().status)'"
+)
+
+
+def http_status(console, label, url, timeout, *headers):
+    out = console.command(label, HTTP_STATUS + " " + shlex.quote(url) + "".join(" " + shlex.quote(h) for h in headers),
+                          timeout)
+    require(out.strip().isdigit(), f"{label} did not print an HTTP status: {out!r}")
+    return int(out.strip())
+
+
+def check_gateway(console, budgets):
+    """공개 포트는 게이트웨이가 받고 llama-server 는 내부 포트에서만 듣는다. 키는 게이트웨이가 검사한다."""
+    cmd = budgets["COMMAND_TIMEOUT"]
+    conn = console.cli("connection", "connection", cmd)
+    require(conn.get("server_state") == "running_cpu_fallback", "Connection info reports the wrong server state")
+    require(conn.get("gateway") is True and conn.get("public_port") == 8080, "Gateway must be on with public port 8080")
+    require(conn.get("local_url") == "http://127.0.0.1:8080/v1", "Connection info local URL is wrong")
+    require(conn.get("key_count") == 0 and conn.get("key_required") is False,
+            "A fresh image has no key and no LAN exposure, so no key is required")
+    require(conn.get("addresses") == [], "LAN exposure is off, so no remote address may be advertised")
+    gw = console.cli("gateway", "gateway", cmd)
+    state = gw.get("state", {})
+    require(gw.get("enabled") is True and state.get("listening") is True, "Gateway is not listening")
+    require(state.get("backend_port") == 18080, "Gateway must forward to the internal port 18080")
+    ports = console.command("listening-ports", "ss -H -ltn 'sport = :8080 or sport = :18080'", cmd)
+    require("127.0.0.1:18080" in ports, "llama-server must listen on the internal port on 127.0.0.1")
+    require("8080" in ports.replace("18080", ""), "The gateway must listen on the public port")
+
+    base = "http://127.0.0.1:8080"
+    require(http_status(console, "gateway-health", base + "/health", cmd) == 200, "/health must answer without a key")
+    require(http_status(console, "gateway-models-no-key", base + "/v1/models", cmd) == 200,
+            "Without any API key and LAN exposure, local requests need no key")
+
+    created = console.cli("gateway-key-create", "apikey create e2e-gateway", cmd)
+    key = created.get("key", "")
+    require(key.startswith("dpx_") and created.get("restart_required") is False,
+            "A new key must take effect without a restart when the gateway checks keys")
+    time.sleep(3)  # 게이트웨이의 키 캐시는 2초다.
+    require(http_status(console, "gateway-models-missing-key", base + "/v1/models", cmd) == 401,
+            "Once a key exists, a request without a key must be refused")
+    require(http_status(console, "gateway-models-wrong-key", base + "/v1/models", cmd,
+                        "Authorization: Bearer dpx_not-a-real-key") == 401, "A wrong key must be refused")
+    require(http_status(console, "gateway-models-bearer", base + "/v1/models", cmd,
+                        "Authorization: Bearer " + key) == 200, "A valid Bearer key must be accepted")
+    require(http_status(console, "gateway-models-x-api-key", base + "/v1/models", cmd, "X-Api-Key: " + key) == 200,
+            "A valid X-Api-Key must be accepted")
+    require(http_status(console, "gateway-health-no-key", base + "/health", cmd) == 200,
+            "/health must stay open when keys exist")
+    # 데몬 자신의 채팅 경로는 소켓 권한으로 보호되므로 키가 있어도 그대로 동작해야 한다.
+    still = console.cli("chat-with-key", "chat --max-tokens 4 'gateway check'", budgets["CHAT_TIMEOUT"])
+    require(isinstance(still.get("content"), str) and bool(still["content"].strip()), "Chat broke after a key was created")
+    usage = console.cli("gateway-usage", "gateway", cmd)
+    mine = [k for k in usage.get("stats", {}).get("keys", []) if k.get("label") == "e2e-gateway"]
+    require(len(mine) == 1 and mine[0].get("requests", 0) >= 2, "Gateway did not count the key's requests")
+    require(usage["stats"].get("unauthorized", 0) >= 2, "Gateway did not count the refused requests")
+    require(key not in json.dumps(usage) and key not in json.dumps(conn), "A plaintext key appeared in an API answer")
+    removed = console.cli("gateway-key-rm", "apikey rm " + created["id"], cmd)
+    require(removed.get("deleted") is True, "The test key was not removed")
 
 
 def firmware(name, default):

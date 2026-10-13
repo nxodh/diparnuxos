@@ -20,6 +20,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
 	"github.com/nxodh/diparnuxos/daemon/internal/hf"
 	"github.com/nxodh/diparnuxos/daemon/internal/models"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
@@ -487,11 +488,12 @@ func TestKeyCreateShowsPlaintextOnceAndListHidesIt(t *testing.T) {
 
 func TestKeyCreateRestartRequiredMatchesServerState(t *testing.T) {
 	for _, tc := range []struct {
-		name  string
-		state supervisor.State
-		pid   int
-		unit  bool
-		want  bool
+		name    string
+		state   supervisor.State
+		pid     int
+		unit    bool
+		gateway bool
+		want    bool
 	}{
 		{name: "verified stopped", state: supervisor.StateStopped, want: false},
 		{name: "starting", state: supervisor.StateStarting, want: true},
@@ -500,9 +502,18 @@ func TestKeyCreateRestartRequiredMatchesServerState(t *testing.T) {
 		{name: "failed without process", state: supervisor.StateFailed, want: false},
 		{name: "failed with active process", state: supervisor.StateFailed, pid: 4242, want: true},
 		{name: "unit unverifiable", state: supervisor.StateFailed, unit: true, want: true},
+		{name: "gateway reads keys live", state: supervisor.StateRunning, gateway: true, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			e := newEnv(t, &fakeSup{status: supervisor.Status{State: tc.state, PID: tc.pid, UnitUnverifiable: tc.unit}})
+			st := supervisor.Status{State: tc.state, PID: tc.pid, UnitUnverifiable: tc.unit}
+			if tc.gateway {
+				st.Port, st.BackendPort = 8080, 18080
+			}
+			e := newEnvWith(t, &fakeSup{status: st}, func(d *Deps) {
+				if tc.gateway {
+					d.Gateway = fakeGateway{}
+				}
+			})
 			w := e.do("POST", "/v1/apikeys", `{"label":"laptop"}`)
 			wantStatus(t, w, http.StatusCreated)
 			var response struct {
@@ -1101,3 +1112,9 @@ func TestNetworkErrorStatuses(t *testing.T) {
 		}
 	}
 }
+
+// fakeGateway 는 게이트웨이가 있다는 사실만 필요한 시험에 쓴다.
+type fakeGateway struct{}
+
+func (fakeGateway) State() gateway.ManagerState { return gateway.ManagerState{} }
+func (fakeGateway) Snapshot() gateway.Snapshot  { return gateway.Snapshot{} }

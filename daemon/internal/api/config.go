@@ -313,6 +313,10 @@ func (s *server) apiKeyRestartRequired() bool {
 		return false
 	}
 	st := s.d.Supervisor.Status()
+	// 게이트웨이가 키를 읽는 서버는 키 변경을 바로 반영한다(내부 포트가 공개 포트와 다르다). 다시 시작할 필요가 없다.
+	if st.BackendPort != 0 && st.BackendPort != st.Port && s.d.Gateway != nil {
+		return false
+	}
 	if st.UnitUnverifiable || (st.State == supervisor.StateFailed && st.PID > 0) {
 		return true
 	}

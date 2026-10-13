@@ -22,6 +22,10 @@ stopped = True
 default = ""
 autostart = True
 daemon_restarts = 0
+FAKE_KEY = "dpx_" + "f" * 40
+key_created = False
+gateway_requests = 0
+gateway_refused = 0
 
 
 def emit(text):
@@ -58,7 +62,7 @@ def status():
 
 
 def result(command):
-    global autostart, daemon_restarts, stopped, default
+    global autostart, daemon_restarts, stopped, default, key_created, gateway_requests, gateway_refused
     if command.startswith("stty "):
         return "", 0
     if command.startswith("attempt=0; while [ \"$attempt\" -lt 10 ]; do"):
@@ -101,12 +105,43 @@ def result(command):
         return ("0" * 64 if mode == "bad-sha" else sha) + "  /var/lib/diparnux/models/" + model, 0
     if command.startswith("sudo -n journalctl"):
         return "Diparnux test journal", 0
+    if command.startswith("ss -H -ltn"):
+        return "LISTEN 0 4096 127.0.0.1:8080 0.0.0.0:*\nLISTEN 0 4096 127.0.0.1:18080 0.0.0.0:*", 0
+    if command.startswith("python3 -I -c "):
+        # 게이트웨이 상태 코드 확인: python3 -I -c '<script>' URL [헤더...]
+        words = shlex.split(command)
+        url, headers = words[4], words[5:]
+        if url.endswith("/health"):
+            return "200", 0
+        if not key_created:
+            gateway_requests += 1
+            return "200", 0
+        if any(h in ("Authorization: Bearer " + FAKE_KEY, "X-Api-Key: " + FAKE_KEY) for h in headers):
+            gateway_requests += 1
+            return "200", 0
+        gateway_refused += 1
+        return "401", 0
     args = command.removeprefix("diparnux --json ")
     if args.startswith("config set autostart "):
         autostart = args.rsplit(" ", 1)[1] == "on"
         return json.dumps({"config": {"autostart": autostart}, "restart_required": False}), 0
     if args == "status":
         return json.dumps(status()), 0
+    if args == "connection":
+        return json.dumps({"server_state": "stopped" if stopped else "running_cpu_fallback", "model_id": model,
+                           "gateway": True, "public_port": 8080, "lan_exposed": False,
+                           "key_count": 1 if key_created else 0, "key_required": key_created,
+                           "local_url": "http://127.0.0.1:8080/v1", "addresses": [], "warnings": [], "examples": {}}), 0
+    if args == "gateway":
+        keys = [{"id": "k1", "label": "e2e-gateway", "prefix": "dpx_ffff", "requests": gateway_requests}] if key_created else []
+        return json.dumps({"enabled": True, "public_port": 8080, "state": {"listening": True, "addr": "127.0.0.1:8080", "backend_port": 18080},
+                           "stats": {"requests": gateway_requests, "unauthorized": gateway_refused, "keys": keys}}), 0
+    if args == "apikey create e2e-gateway":
+        key_created = True
+        return json.dumps({"id": "k1", "label": "e2e-gateway", "prefix": "dpx_ffff", "key": FAKE_KEY, "restart_required": False}), 0
+    if args == "apikey rm k1":
+        key_created = False
+        return json.dumps({"id": "k1", "deleted": True, "restart_required": False}), 0
     if args == "serve start e2e-missing.gguf":
         return "diparnux: model was not found (no_model)", 1
     if args.startswith("model pull "):
