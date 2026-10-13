@@ -203,7 +203,12 @@ def result(command):
         return json.dumps({"enabled": False, "running": False, "port": 18443, "source": "lan", "password_set": True}), 0
     if args == "vpn on":
         vpn_on = True
-        return json.dumps({"enabled": True, "interface": "wg0", "address": "10.8.0.1/24", "listen_port": 51820, "public_key": "A" * 43 + "=", "peers": []}), 0
+        body = json.dumps({"enabled": True, "interface": "wg0", "address": "10.8.0.1/24", "listen_port": 51820, "public_key": "A" * 43 + "=", "peers": []}, indent=2)
+        if mode == "kernel-noise":
+            # 모듈을 올릴 때 커널이 직렬 콘솔에 쓰는 줄이 명령 출력 앞에 끼어든다(CI 에서 실제로 일어났다).
+            body = ("[   28.187070] wireguard: WireGuard 1.0.0 loaded. See www.wireguard.com for information.\n"
+                    "[   28.188399] wireguard: Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n") + body
+        return body, 0
     if args == "vpn":
         return json.dumps({"enabled": vpn_on, "interface": "wg0", "peers": [{"name": "e2e-peer"}] * vpn_peers}), 0
     if args == "vpn off":

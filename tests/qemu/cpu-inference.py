@@ -168,6 +168,9 @@ class Console:
         )
         output, rc = match.group(1).strip(), int(match.group(2))
         (self.logs / f"{self.counter:02d}-{label}.txt").write_text(output + "\n", encoding="utf-8")
+        # 직렬 콘솔에는 커널 메시지(예: 모듈을 올릴 때의 "[   28.18] wireguard: ...")가 명령 출력 사이에 끼어든다.
+        # 원문은 위 파일에 남기고, 판정에는 커널 줄을 뺀 출력을 쓴다.
+        output = "\n".join(line for line in output.splitlines() if not KERNEL_LOG_LINE.match(line)).strip()
         self.commands.write(json.dumps({"event": "finish", "label": label, "exit_code": rc}) + "\n")
         if rc == 124 or (rc == 137 and "timeout: sending signal" in output):
             raise Failure("command_timeout", f"Guest command {label} timed out (exit {rc})")
@@ -376,6 +379,9 @@ def scenario(console, budgets):
     require("(server_not_running)" in after, "Stopped server accepted chat")
     console.command("journal", "sudo -n journalctl --no-pager -b -n 160 " + " ".join("-u " + unit for unit in UNITS), cmd)
 
+
+# 커널 로그 한 줄의 앞부분이다: "[   28.187070] wireguard: ..."
+KERNEL_LOG_LINE = re.compile(r"^\[\s*\d+\.\d+\]\s")
 
 # 라이브 이미지에는 curl 이 없으므로 python3(Control Center 가 들여온다)로 HTTP 상태 코드만 읽는다. 직렬 콘솔로 보내므로 한 줄이어야 한다.
 HTTP_STATUS = (
