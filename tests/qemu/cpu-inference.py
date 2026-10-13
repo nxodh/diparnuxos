@@ -448,6 +448,12 @@ def check_gateway(console, budgets):
     require(key.startswith("dpx_") and created.get("restart_required") is False,
             "A new key must take effect without a restart when the gateway checks keys")
     time.sleep(3)  # 게이트웨이의 키 캐시는 2초다.
+    # 0.5.3: 이 컴퓨터의 요청은 키가 있어도 키 없이 통과한다(local_no_key, 기본 켬). 코딩 에이전트의 자동 감지가 이 경로를 쓴다.
+    require(http_status(console, "gateway-local-no-key", base + "/v1/models", cmd) == 200,
+            "With local_no_key on, a request from this computer must pass without a key")
+    off = console.cli("local-no-key-off", "config set local-no-key off", cmd)
+    require(off.get("config", {}).get("local_no_key") is False, "local-no-key off was not saved")
+    time.sleep(1)
     require(http_status(console, "gateway-models-missing-key", base + "/v1/models", cmd) == 401,
             "Once a key exists, a request without a key must be refused")
     refusal = json.loads(console.command("vedecaps-refusal", VEDECAPS_REFUSAL_PROBE, cmd))
@@ -461,6 +467,8 @@ def check_gateway(console, budgets):
             "A valid X-Api-Key must be accepted")
     require(http_status(console, "gateway-health-no-key", base + "/health", cmd) == 200,
             "/health must stay open when keys exist")
+    on = console.cli("local-no-key-on", "config set local-no-key on", cmd)
+    require(on.get("config", {}).get("local_no_key") is True, "local-no-key on was not saved")
     # 데몬 자신의 채팅 경로는 소켓 권한으로 보호되므로 키가 있어도 그대로 동작해야 한다.
     still = console.cli("chat-with-key", "chat --max-tokens 4 'gateway check'", budgets["CHAT_TIMEOUT"])
     require(isinstance(still.get("content"), str) and bool(still["content"].strip()), "Chat broke after a key was created")
@@ -494,7 +502,7 @@ def check_vedecaps(console, budgets):
     require(usage, "stream_options.include_usage must produce a usage chunk")
     require(probe["tools"] == 200, "A request that offers tools must be accepted")
 
-    connect = console.command("vedecaps-connect", "diparnux connect vedecaps --mcp", cmd)
+    connect = console.command("vedecaps-connect", "diparnux connect vedecaps --mcp 2>/dev/null", cmd)
     config = json.loads(connect)
     provider = config["provider"]["diparnux"]
     require(provider["api"] == "http://127.0.0.1:8080/v1" and "options" not in provider,

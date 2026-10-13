@@ -24,6 +24,7 @@ autostart = True
 daemon_restarts = 0
 FAKE_KEY = "dpx_" + "f" * 40
 key_created = False
+local_no_key = True
 gateway_requests = 0
 gateway_refused = 0
 fw_rule = False
@@ -68,7 +69,7 @@ def status():
 
 
 def result(command):
-    global autostart, daemon_restarts, stopped, default, key_created, gateway_requests, gateway_refused
+    global autostart, daemon_restarts, stopped, default, key_created, gateway_requests, gateway_refused, local_no_key
     global fw_rule, ssh_key, webadmin_password, webadmin_on, vpn_on, vpn_peers
     if command.startswith("stty "):
         return "", 0
@@ -131,7 +132,7 @@ def result(command):
             "sse": [200, "text/event-stream", 6, True, True], "tools": 200}), 0
     if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30)"):
         return json.dumps([401, "application/json", "an API key is required"]), 0
-    if command == "diparnux connect vedecaps --mcp":
+    if command == "diparnux connect vedecaps --mcp 2>/dev/null":
         return json.dumps({
             "provider": {"diparnux": {"name": "Diparnux", "protocol": "openai", "api": "http://127.0.0.1:8080/v1",
                                       "models": {model: {"name": model, "limit": {"context": 512, "output": 128}}}}},
@@ -163,7 +164,7 @@ def result(command):
         url, headers = words[4], words[5:]
         if url.endswith("/health"):
             return "200", 0
-        if not key_created:
+        if not key_created or local_no_key:
             gateway_requests += 1
             return "200", 0
         if any(h in ("Authorization: Bearer " + FAKE_KEY, "X-Api-Key: " + FAKE_KEY) for h in headers):
@@ -172,6 +173,9 @@ def result(command):
         gateway_refused += 1
         return "401", 0
     args = command.removeprefix("diparnux --json ")
+    if args.startswith("config set local-no-key "):
+        local_no_key = args.rsplit(" ", 1)[1] == "on"
+        return json.dumps({"config": {"local_no_key": local_no_key}, "restart_required": False}), 0
     if args.startswith("config set autostart "):
         autostart = args.rsplit(" ", 1)[1] == "on"
         return json.dumps({"config": {"autostart": autostart}, "restart_required": False}), 0
