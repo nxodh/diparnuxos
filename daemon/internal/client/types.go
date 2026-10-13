@@ -1,6 +1,10 @@
 package client
 
-import "time"
+import (
+	"time"
+
+	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
+)
 
 // Status 는 GET /v1/status 의 응답이다.
 type Status struct {
@@ -413,4 +417,40 @@ type SSH struct {
 	LoginUsers   []string `json:"login_users"`
 	Port         int      `json:"port"`
 	Warning      string   `json:"warning,omitempty"`
+}
+
+// ConnectionAddress 는 다른 컴퓨터가 접속할 때 쓸 주소 하나다.
+type ConnectionAddress struct {
+	Interface string `json:"interface"`
+	Address   string `json:"address"`
+	Family    string `json:"family"`
+	URL       string `json:"url"`
+}
+
+// Connection 은 GET /v1/connection 의 응답이다. 평문 API 키는 없다.
+type Connection struct {
+	ServerState string              `json:"server_state"`
+	ModelID     string              `json:"model_id"`
+	Models      []string            `json:"models"`
+	PublicPort  int                 `json:"public_port"`
+	LANExposed  bool                `json:"lan_exposed"`
+	Gateway     bool                `json:"gateway"`
+	KeyRequired bool                `json:"key_required"`
+	KeyCount    int                 `json:"key_count"`
+	Hostname    string              `json:"hostname"`
+	LocalURL    string              `json:"local_url"`
+	Addresses   []ConnectionAddress `json:"addresses"`
+	MDNSURL     string              `json:"mdns_url"`
+	Warnings    []string            `json:"warnings"`
+	Examples    map[string]string   `json:"examples"`
+}
+
+// Gateway 는 GET /v1/gateway 의 응답이다.
+type Gateway struct {
+	Enabled    bool                 `json:"enabled"`
+	PublicPort int                  `json:"public_port"`
+	LANExposed bool                 `json:"lan_exposed"`
+	State      gateway.ManagerState `json:"state"`
+	Stats      gateway.Snapshot     `json:"stats"`
+	Note       string               `json:"note"`
 }

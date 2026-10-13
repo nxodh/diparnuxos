@@ -1124,3 +1124,26 @@ func TestWifiListEscapesNonASCIINames(t *testing.T) {
 	wantCode(t, res, exitOK)
 	wantContains(t, "list", res.stdout, "WiFi")
 }
+
+func TestConnectionShowsAddressesWarningsAndExamples(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"gemma.gguf","models":["gemma.gguf"],"public_port":8080,"lan_exposed":true,"gateway":true,"key_required":true,"key_count":0,"hostname":"diparnux","local_url":"http://127.0.0.1:8080/v1","addresses":[{"interface":"enp3s0","address":"192.168.0.23","family":"ipv4","url":"http://192.168.0.23:8080/v1"}],"mdns_url":"http://diparnux.local:8080/v1","warnings":["No API key exists. Create one (diparnux apikey create <label>); LAN connections are refused without a key."],"examples":{"curl":"curl http://192.168.0.23:8080/v1/chat/completions -H 'Authorization: Bearer <your API key>'","settings":"Base URL: http://192.168.0.23:8080/v1"}}`)
+	res := runCLI(t, f, "connection")
+	wantCode(t, res, exitOK)
+	wantContains(t, "connection", res.stdout, "http://192.168.0.23:8080/v1", "diparnux.local", "warning: No API key exists", "gemma.gguf")
+
+	res = runCLI(t, f, "connection", "examples")
+	wantCode(t, res, exitOK)
+	wantContains(t, "examples", res.stdout, "# curl", "<your API key>")
+
+	res = runCLI(t, f, "connection", "bogus")
+	wantCode(t, res, exitUsage)
+}
+
+func TestGatewayShowsUsagePerKey(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/gateway", 200, `{"enabled":true,"public_port":8080,"lan_exposed":true,"state":{"listening":true,"addr":"0.0.0.0:8080","backend_port":18080},"stats":{"in_flight":1,"requests":12,"errors":2,"unauthorized":3,"since":"2026-10-13T00:00:00Z","keys":[{"id":"k1","label":"orca","prefix":"dpx_ab12","requests":10,"errors":1,"prompt_tokens":420,"completion_tokens":900,"last_used":"2026-10-13T01:02:03Z"}],"recent":[]}}`)
+	res := runCLI(t, f, "gateway")
+	wantCode(t, res, exitOK)
+	wantContains(t, "gateway", res.stdout, "0.0.0.0:8080 -> 127.0.0.1:18080", "requests:", "12 (errors 2, unauthorized 3, in flight 1)", "orca", "dpx_ab12", "420", "900")
+}

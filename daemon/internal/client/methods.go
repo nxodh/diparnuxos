@@ -257,3 +257,13 @@ func (c *Client) Power(ctx context.Context) (power.Status, []byte, error) {
 func (c *Client) SetPower(ctx context.Context, alwaysOn bool) (power.Status, []byte, error) {
 	return call[power.Status](ctx, c, http.MethodPut, "/v1/system/power", map[string]bool{"always_on": alwaysOn}, defaultLimit)
 }
+
+// Connection 은 GET /v1/connection 으로 외부에서 접속하는 데 필요한 정보를 읽는다.
+func (c *Client) Connection(ctx context.Context) (Connection, []byte, error) {
+	return call[Connection](ctx, c, http.MethodGet, "/v1/connection", nil, defaultLimit)
+}
+
+// Gateway 는 GET /v1/gateway 로 게이트웨이 상태와 키별 사용량을 읽는다.
+func (c *Client) Gateway(ctx context.Context) (Gateway, []byte, error) {
+	return call[Gateway](ctx, c, http.MethodGet, "/v1/gateway", nil, defaultLimit)
+}

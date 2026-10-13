@@ -192,6 +192,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
 	s.mux.HandleFunc("GET /v1/system/power", s.getPower)
 	s.mux.HandleFunc("GET /v1/gateway", s.getGateway)
+	s.mux.HandleFunc("GET /v1/connection", s.getConnection)
 	s.mux.HandleFunc("PUT /v1/system/power", s.putPower)
 	s.mux.HandleFunc("GET /v1/users", s.listUsers)
 	s.mux.HandleFunc("POST /v1/users", s.createUser)

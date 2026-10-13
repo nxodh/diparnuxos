@@ -1,0 +1,161 @@
+package api
+
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/nxodh/diparnuxos/daemon/internal/config"
+	"github.com/nxodh/diparnuxos/daemon/internal/network"
+	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+)
+
+// ConnectionAddress 는 다른 컴퓨터가 이 컴퓨터에 접속할 때 쓸 수 있는 주소 하나다.
+type ConnectionAddress struct {
+	Interface string `json:"interface"`
+	Address   string `json:"address"`
+	Family    string `json:"family"` // ipv4, ipv6
+	URL       string `json:"url"`    // 기본 URL(.../v1)
+}
+
+// Connection 은 외부 클라이언트(Orca, Open WebUI, 에디터 플러그인 등)가 이 컴퓨터의 모델 서버에 접속하는 데 필요한 정보다.
+// API 키 평문은 담지 않는다(평문은 만들 때 한 번만 보인다).
+type Connection struct {
+	ServerState string              `json:"server_state"`
+	ModelID     string              `json:"model_id"`
+	Models      []string            `json:"models"`
+	PublicPort  int                 `json:"public_port"`
+	LANExposed  bool                `json:"lan_exposed"`
+	Gateway     bool                `json:"gateway"`
+	KeyRequired bool                `json:"key_required"`
+	KeyCount    int                 `json:"key_count"`
+	Hostname    string              `json:"hostname"`
+	LocalURL    string              `json:"local_url"`
+	Addresses   []ConnectionAddress `json:"addresses"`
+	MDNSURL     string              `json:"mdns_url,omitempty"`
+	Warnings    []string            `json:"warnings"`
+	Examples    map[string]string   `json:"examples"`
+}
+
+// connectionInput 은 Connection 을 만드는 데 필요한 값이다. 순수 함수로 만들어 시험하기 쉽게 한다.
+type connectionInput struct {
+	Cfg        config.Config
+	Server     supervisor.Status
+	Interfaces []network.Interface
+	KeyCount   int
+	ModelIDs   []string
+	Hostname   string
+}
+
+func buildConnection(in connectionInput) Connection {
+	c := Connection{
+		ServerState: string(in.Server.State),
+		ModelID:     in.Server.ModelID,
+		Models:      append([]string{}, in.ModelIDs...),
+		PublicPort:  in.Cfg.Port,
+		LANExposed:  in.Cfg.LANExposed,
+		Gateway:     in.Cfg.Gateway,
+		KeyCount:    in.KeyCount,
+		Hostname:    in.Hostname,
+		Addresses:   []ConnectionAddress{},
+		Warnings:    []string{},
+		Examples:    map[string]string{},
+	}
+	c.KeyRequired = in.Cfg.LANExposed || in.KeyCount > 0
+	port := strconv.Itoa(in.Cfg.Port)
+	c.LocalURL = "http://127.0.0.1:" + port + "/v1"
+
+	if in.Cfg.LANExposed {
+		for _, ifc := range in.Interfaces {
+			if ifc.State != "up" {
+				continue
+			}
+			for _, a := range ifc.Addresses {
+				ip, _, err := net.ParseCIDR(a)
+				if err != nil {
+					ip = net.ParseIP(a)
+				}
+				if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+					continue
+				}
+				fam, host := "ipv4", ip.String()
+				if ip.To4() == nil {
+					fam, host = "ipv6", "["+ip.String()+"]"
+				}
+				c.Addresses = append(c.Addresses, ConnectionAddress{
+					Interface: ifc.Name, Address: ip.String(), Family: fam, URL: "http://" + host + ":" + port + "/v1",
+				})
+			}
+		}
+		sort.SliceStable(c.Addresses, func(i, j int) bool { return c.Addresses[i].Family < c.Addresses[j].Family })
+		if in.Hostname != "" {
+			c.MDNSURL = "http://" + in.Hostname + ".local:" + port + "/v1"
+		}
+	}
+
+	switch {
+	case in.Server.State != supervisor.StateRunning && in.Server.State != supervisor.StateRunningCPU:
+		c.Warnings = append(c.Warnings, "The model server is not running. Start it first (diparnux serve start).")
+	}
+	if !in.Cfg.LANExposed {
+		c.Warnings = append(c.Warnings, "LAN exposure is off: only this computer can connect. Turn it on to let other computers connect (an API key is required).")
+	}
+	if in.Cfg.LANExposed && in.KeyCount == 0 {
+		c.Warnings = append(c.Warnings, "No API key exists. Create one (diparnux apikey create <label>); LAN connections are refused without a key.")
+	}
+	if in.Cfg.LANExposed && len(c.Addresses) == 0 {
+		c.Warnings = append(c.Warnings, "No network address was found. Check the network connection.")
+	}
+
+	base := c.LocalURL
+	if len(c.Addresses) > 0 {
+		base = c.Addresses[0].URL
+	}
+	model := in.Server.ModelID
+	if model == "" && len(in.ModelIDs) > 0 {
+		model = in.ModelIDs[0]
+	}
+	if model == "" {
+		model = "<model>"
+	}
+	c.Examples["settings"] = fmt.Sprintf("Base URL: %s\nAPI key: <your API key>\nModel: %s", base, model)
+	c.Examples["curl"] = fmt.Sprintf("curl %s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", base, model)
+	c.Examples["openai_python"] = fmt.Sprintf("from openai import OpenAI\nclient = OpenAI(base_url=\"%s\", api_key=\"<your API key>\")\nreply = client.chat.completions.create(\n    model=\"%s\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n)\nprint(reply.choices[0].message.content)", base, model)
+	c.Examples["environment"] = fmt.Sprintf("export OPENAI_BASE_URL=%s\nexport OPENAI_API_KEY=<your API key>", base)
+	return c
+}
+
+// getConnection 은 외부에서 이 컴퓨터의 모델 서버에 접속하는 데 필요한 정보를 돌려준다.
+func (s *server) getConnection(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load(s.d.ConfigPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", err)
+		return
+	}
+	in := connectionInput{Cfg: cfg, Server: s.d.Supervisor.Status()}
+	if s.d.Keys != nil {
+		if n, err := s.d.Keys.Count(); err == nil {
+			in.KeyCount = n
+		}
+	}
+	if list, err := s.d.Store.List(); err == nil {
+		for _, m := range list {
+			if !m.Incomplete {
+				in.ModelIDs = append(in.ModelIDs, m.ID)
+			}
+		}
+	}
+	if s.d.Network != nil {
+		if st, err := s.d.Network.Status(r.Context()); err == nil {
+			in.Interfaces = st.Interfaces
+		}
+	}
+	if h, err := os.Hostname(); err == nil {
+		in.Hostname = strings.TrimSpace(h)
+	}
+	writeJSON(w, http.StatusOK, buildConnection(in))
+}

@@ -151,6 +151,10 @@ func execute(e runEnv, args []string) int {
 		return c.ssh(cargs)
 	case "power":
 		return c.power(cargs)
+	case "connection":
+		return c.connection(cargs)
+	case "gateway":
+		return c.gateway(cargs)
 	case "network":
 		return c.network(cargs)
 	case "config":

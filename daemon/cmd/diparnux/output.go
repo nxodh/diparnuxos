@@ -167,6 +167,9 @@ Commands:
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys
   apikey rm <id>              delete an API key
+  connection [examples]       show the addresses and examples for other computers to connect
+  gateway                     show the gateway state and per-key usage
+  power [on|off]              show or change always-on (no suspend or sleep)
   network [wifi ...]          show the network state, list/connect Wi-Fi
   ssh [on|off]                show or change the SSH server
   user add <name>             create a login account (prompts for a password)

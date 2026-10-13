@@ -455,6 +455,8 @@ var commandUsage = map[string]string{
 	"model files":          "Usage: diparnux model files <repo> [--revision R]\n\nList the GGUF files in a repository.\n",
 	"model default":        "Usage: diparnux model default <id>\n\nSet the default model.\n",
 	"power":                "Usage: diparnux power [on|off]\n\nShow whether the computer is kept always on (no suspend when the lid is closed or after a long idle time), or turn that on or off.\nShutting down and rebooting yourself (power button, poweroff, the menu) is never blocked.\nAlways-on is the default. The status asks the running systemd-logind, so another setting that overrides it is reported.\n",
+	"connection":           "Usage: diparnux connection [examples]\n\nShow the URLs other computers use to reach this computer's model server (OpenAI-compatible API), whether an API key is required, and warnings.\n'examples' prints ready-made settings for curl, the OpenAI Python client and environment variables.\nThe API key itself is never shown here; it is shown only once when it is created.\n",
+	"gateway":              "Usage: diparnux gateway\n\nShow the gateway that checks API keys, with requests, errors and tokens per key.\n",
 	"serve":                "Usage: diparnux serve <start|stop|plan|logs> [arguments]\n",
 	"serve start":          "Usage: diparnux serve start [model] [--ngl V] [--ctx N] [--cache-type T] [--batch N] [--load-mode M] [--no-wait]\n\nShow the plan with its rationale, then start llama-server and wait for it to be ready.\n",
 	"serve stop":           "Usage: diparnux serve stop\n\nStop llama-server.\n",
