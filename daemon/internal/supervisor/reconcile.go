@@ -319,9 +319,27 @@ func runtimePlan(env map[string]string) (autoconf.Output, llamaargs.ServerSettin
 		}
 		parallel = p
 	}
+	// 프롬프트 캐시 옵션은 계획이 넣은 경우에만 있다. 없으면 0(서버 기본값)이다.
+	cacheReuse, cacheRAM := 0, 0
+	if value, ok := env["LLAMA_ARG_CACHE_REUSE"]; ok {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 {
+			return autoconf.Output{}, llamaargs.ServerSettings{}, errors.New("runtime cache reuse setting is invalid")
+		}
+		cacheReuse = n
+	}
+	if value, ok := env["LLAMA_ARG_CACHE_RAM"]; ok {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 {
+			return autoconf.Output{}, llamaargs.ServerSettings{}, errors.New("runtime cache memory setting is invalid")
+		}
+		cacheRAM = n
+	}
 	out := autoconf.Output{
 		Parallel:       parallel,
 		SlotCtx:        ctx / parallel,
+		CacheReuse:     cacheReuse,
+		CacheRAMMiB:    cacheRAM,
 		NGL:            ngl,
 		Ctx:            ctx,
 		CacheTypeK:     env["LLAMA_ARG_CACHE_TYPE_K"],
