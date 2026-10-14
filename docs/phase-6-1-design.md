@@ -26,7 +26,7 @@ NVIDIA 드라이버(사용자 공간 `libcuda`, GSP 펌웨어)는 이미지에 �
 | 동작 | 업데이트 엔진의 새 동작 `cuda_runtime`: 저장소 색인을 새로 받고 `cuda-cudart-13-2`, `libcublas-13-2` 를 고정 버전으로 설치하고 hold 한다 |
 | 고정 버전 | `/usr/share/opereta/nvidia.conf`(`opereta.conf` 에서 생성). 이미지의 NVIDIA 저장소 설정(`cuda-keyring`)으로 받고 apt 가 서명을 확인한다 |
 | 호출 | `opereta gpu runtime install`(CLI), Control Center 시스템 페이지, `POST /v1/update {"action":"cuda_runtime"}` |
-| 동의 | CLI 는 터미널에서 NVIDIA 약관 주소(`https://docs.nvidia.com/cuda/eula/`)를 보여 주고 `y/N` 을 묻는다. 터미널이 아니면 `--yes` 가 필요하다. Control Center 는 같은 내용의 확인 창을 연다 |
+| 동의 | CLI 는 터미널에서 NVIDIA 약관 주소(`https://docs.nvidia.com/cuda/eula/`)와 "GeForce 제품 라이선스는 데이터센터 배치를 허용하지 않는다"는 안내를 보여 주고 `y/N` 을 묻는다. 터미널이 아니면 `--yes` 가 필요하다. Control Center 의 확인 창은 같은 안내에 약관을 여는 링크(`NVIDIA CUDA 라이선스 계약`)를 넣는다 |
 | 상태 | `opereta gpu runtime status`, `GET /v1/update` 의 `cuda_runtime`(`installed`, `reason`, `packages`) |
 | 라이브 세션 | 허용한다(재부팅하면 사라진다). 다른 업데이트 동작은 설치된 시스템에서만 한다 |
 | 안전 | 다른 갱신이 재부팅 확인을 기다리면 거절(상태를 덮어쓰지 않음), 여유 공간 1.2 GiB 확인, 이미 설치되어 있으면 아무것도 하지 않음 |

@@ -72,6 +72,7 @@ func (c *cli) gpuRuntimeInstall(yes bool) int {
 	if !yes {
 		fmt.Fprintln(w, cudaRuntimeNB)
 		fmt.Fprintf(w, "License: %s\n", cudaEULAURL)
+		fmt.Fprintln(w, "Note: NVIDIA's license for GeForce products does not allow datacenter deployment.")
 		fmt.Fprintln(w, "The download is about 360 MiB and needs about 1.2 GiB of free space.")
 		if !c.env.stdinTTY {
 			c.errorLine("this needs your confirmation; run it in a terminal or add --yes to accept NVIDIA's license")

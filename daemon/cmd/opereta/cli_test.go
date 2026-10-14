@@ -1513,6 +1513,7 @@ func TestGPURuntimeInstallNeedsConfirmationWithoutATerminal(t *testing.T) {
 	wantCode(t, res, exitUsage)
 	wantContains(t, "no terminal", res.stderr, "--yes")
 	wantContains(t, "license shown", res.stdout, "docs.nvidia.com/cuda/eula")
+	wantContains(t, "datacenter note", res.stdout, "datacenter")
 	if len(f.bodies["POST /v1/update"]) != 0 {
 		t.Fatal("the download started without the user's confirmation")
 	}

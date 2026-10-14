@@ -82,9 +82,14 @@ def text_button(label, callback, css=None):
     return btn
 
 
-def confirm(parent, heading, body, accept_label, on_accept, destructive=False, on_cancel=None):
-    """확인 대화상자를 연다. 수락하면 on_accept() 를, 취소하거나 닫으면 on_cancel() 을 부른다."""
+def confirm(parent, heading, body, accept_label, on_accept, destructive=False, on_cancel=None, body_markup=False):
+    """확인 대화상자를 연다. 수락하면 on_accept() 를, 취소하거나 닫으면 on_cancel() 을 부른다.
+
+    body_markup 이 참이면 본문을 Pango 마크업으로 보여 준다(링크용). 호출하는 쪽이 값을 이스케이프한다.
+    """
     dialog = Adw.AlertDialog(heading=heading, body=body)
+    if body_markup:
+        dialog.set_body_use_markup(True)
     dialog.add_response("cancel", _("Cancel"))
     dialog.add_response("accept", accept_label)
     if destructive:

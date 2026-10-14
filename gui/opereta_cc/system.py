@@ -381,12 +381,23 @@ class SystemPage(Adw.PreferencesPage):
         )
 
     def install_cuda_runtime(self):
+        # 본문은 마크업이다(약관 링크). 번역된 문장은 이스케이프해서 넣는다.
+        esc = GLib.markup_escape_text
+        link = '<a href="https://docs.nvidia.com/cuda/eula/index.html">%s</a>' % esc(_("NVIDIA CUDA license agreement"))
+        body = "\n\n".join(
+            [
+                esc(_("The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license. The download is about 360 MiB.")),
+                _("Read the license before you continue: %s") % link,
+                esc(_("NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way.")),
+            ]
+        )
         confirm(
             self.ctx.window,
             _("Download the CUDA runtime from NVIDIA?"),
-            _("The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license (https://docs.nvidia.com/cuda/eula/). The download is about 360 MiB."),  # noqa: E501
+            body,
             _("Download"),
             lambda: self.start_update("cuda_runtime"),
+            body_markup=True,
         )
 
     def rollback_update(self):
