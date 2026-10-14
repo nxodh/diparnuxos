@@ -41,3 +41,8 @@
 - 작업 트리: 비밀 정보로 보이는 값이 없다(시험용 가짜 값만 있다).
 - 이력(95개 커밋): Hugging Face, OpenAI 형식, GitHub, AWS, Slack 토큰 형식과 PEM 개인 키가 없다.
 - 로컬 전용 파일(`HANDOFF.md`, `.handoff/`)은 저장소의 `.gitignore` 로 무시한다.
+
+## 게이트웨이 TLS (0.5.4)
+
+LAN 의 다른 컴퓨터와 주고받는 API 키와 대화는 `diparnux tls on` 으로 암호화한다([tls.md](tls.md)). 로컬 CA 의 개인 키(`/var/lib/diparnux/tls/ca-key.pem`)와 서버 개인 키는
+`0600` 이고 API, 로그, 보고서, MCP 도구에 나오지 않는다. CA 에는 DNS 이름 제약만 있다(IP 제약은 Bun 이 처리하지 못해 넣지 않았다). 클라이언트에서 인증서 검사를 끄라고 안내하지 않는다.

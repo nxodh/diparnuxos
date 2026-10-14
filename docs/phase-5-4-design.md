@@ -147,7 +147,7 @@
 
 | 변경 | 내용 |
 |---|---|
-| 새 패키지 `daemon/internal/certstore` | webadmin 의 `ensureCert`, `hostNames`, `covers`, `fingerprint` 를 공통으로 옮기고 CA 발급을 더한다. webadmin 은 이 패키지를 쓰도록 바꾼다(동작 변경 없음, 기존 시험이 회귀를 잡는다) |
+| 새 패키지 `daemon/internal/certstore` | CA 와 서버 인증서를 만든다. **구현에서는 webadmin 의 인증서 코드를 옮기지 않고 그대로 두었다**(동작 변경 위험을 피하려고. webadmin 은 자체 서명 인증서를 계속 쓴다) |
 | `gateway.Manager` | 두 번째 리스너 필드 `tlsSrv`, `Wanted` 가 TLS 주소를 함께 돌려주도록 확장. `reconcile` 이 두 리스너를 각각 맞춘다. `tls.Config{MinVersion: TLS12, GetCertificate: store.GetServerCert}`(갱신된 인증서를 재시작 없이 반영) |
 | `config.Config` | `TLS bool`, `TLSPort int`(기본 8444), `LANPlain bool`(기본 false), `TLSNames []string`. `Validate`: `tls_port` 는 `port`, `internal_port`, webadmin 포트, SSH 포트와 달라야 한다 |
 | `supervisor/system.go` | 방화벽 옵션에 `TLSPort`, `TLSOpen` 추가. `APIOpen` 은 `lan_plain` 또는 TLS 꺼짐일 때만 평문 포트를 연다 |
@@ -185,7 +185,7 @@ diparnux tls off
 |---|---|
 | 0.5.3 에서 올라온 컴퓨터 | `tls` 기본 **꺼짐**(동작 변화 없음). LAN 공개가 켜져 있으면 `status` 와 제어 센터가 "TLS 를 켜면 평문을 닫을 수 있다"고 알린다 |
 | 새 설치 | 기본 꺼짐. 첫 부팅 마법사의 "LAN 공개" 선택 단계에서 TLS 를 함께 권한다(Q1) |
-| 롤백(0.5.3 이미지) | 새 설정 키를 모르고 무시한다. 8080 이 다시 `0.0.0.0` 이므로 LAN 평문이 열린다. 릴리스 노트에 적는다 |
+| 롤백(0.5.3 이미지) | TLS 를 켜지 않은 설정 파일은 0.5.3 과 같아서(키가 `omitempty`) 그대로 읽힌다. TLS 를 켠 뒤에는 이전 버전이 모르는 필드로 거부하므로 `diparnux tls off --yes` 로 끈 뒤 되돌린다. 되돌리면 8080 이 다시 LAN 에 열린다 |
 
 ## 5. Vedecaps 연동(2차)
 
