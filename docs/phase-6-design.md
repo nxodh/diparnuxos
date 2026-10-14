@@ -89,6 +89,8 @@ Deberopa 는 아직 릴리스가 없다. 0.6.0 은 **Vedecaps 의 이름, 고정
 
 실제 Vedecaps 0.1.5 로 시험하니(`make test-vedecaps-docker`) 요청과 응답, 키 규칙, https(`options.ca`)는 모두 동작한다. 그러나 Vedecaps 가 **OS 를 이름으로 알아보는 세 가지**는 Vedecaps 안에 이전 이름이 들어 있어 새 이름과 맞지 않는다.
 
+참고: 이 때문에 고정한 `/usr/bin/vedecaps` 바이너리 안에는 이전 OS 이름 문자열이 남아 있다. 이미지의 이전 이름 검사(`tests/nvidia/image.sh`)는 이 파일 하나만 예외로 두고 근거를 적는다. Deberopa 릴리스로 바꾸면 예외를 지운다.
+
 | Vedecaps 기능 | 지금 동작 |
 |---|---|
 | `vedecaps debug local` 이 서버를 "Opereta <버전>" 으로 알아보고 슬롯 수를 보여 줌 | 알아보지 못한다(정보 주소와 응답 헤더 이름이 다르다). 서버는 일반 OpenAI 호환 서버로 보인다 |
