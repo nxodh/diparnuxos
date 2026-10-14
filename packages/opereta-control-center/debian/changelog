@@ -1,3 +1,9 @@
+opereta-control-center (0.6.3) trixie; urgency=medium
+
+  * 제어 센터 개편: 사이드바 묶음, 홈, 이 컴퓨터, 모양, 디스플레이, 소리, 블루투스, 키보드, 그래픽(CUDA 런타임 내려받기), 저장 공간, 시작(부팅). 마법사에 GPU 가속 단계를 더한다. AI 페이지는 그대로다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 12:00:00 +0900
+
 opereta-control-center (0.6.2) trixie; urgency=medium
 
   * 에이전트 페이지가 Deberopa 로 바뀌었다.

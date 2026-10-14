@@ -4,19 +4,27 @@
   Opereta 패널 기본 배치. 설치 경로는 /etc/xdg/opereta/xfce4/panel/default.xml 이다.
   Debian 의 xfce4-panel 이 싣는 /etc/xdg/xfce4/panel/default.xml 보다 앞서 읽히도록 XDG_CONFIG_DIRS 맨 앞에 둔다
   (/etc/X11/Xsession.d/55opereta-xdg). 사용자가 패널을 바꾸면 사용자 설정이 우선한다.
-  하단 한 줄: 시작 메뉴 | 작업 목록 | (여백) | 알림 영역 | 네트워크 | 소리 | 전원 | 시계 | 세션
+  상단 메뉴 막대(0.6.3): 시작 메뉴 | 활성 창 이름 | (여백) | 알림 영역 | 네트워크 | 소리 | 전원 | 시계 | 세션
+  실행 중인 프로그램과 즐겨찾기는 하단의 독(plank)이 보여 준다. 배경은 반투명이고 picom 이 흐리게 한다.
 -->
 <channel name="xfce4-panel" version="1.0">
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
     <value type="int" value="1"/>
-    <property name="dark-mode" type="bool" value="true"/>
+    <property name="dark-mode" type="bool" value="false"/>
     <property name="panel-1" type="empty">
-      <property name="position" type="string" value="p=10;x=0;y=0"/>
+      <property name="position" type="string" value="p=6;x=0;y=0"/>
       <property name="length" type="uint" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
-      <property name="icon-size" type="uint" value="20"/>
-      <property name="size" type="uint" value="36"/>
+      <property name="icon-size" type="uint" value="18"/>
+      <property name="size" type="uint" value="30"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.949"/>
+        <value type="double" value="0.949"/>
+        <value type="double" value="0.957"/>
+        <value type="double" value="0.78"/>
+      </property>
       <property name="plugin-ids" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
@@ -32,10 +40,8 @@
   </property>
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="whiskermenu"/>
-    <property name="plugin-2" type="string" value="tasklist">
-      <property name="grouping" type="uint" value="1"/>
-      <property name="show-labels" type="bool" value="true"/>
-    </property>
+    <!-- 활성 창의 이름. xfce4-windowck-plugin 이 없으면 이 자리는 비어 있다. -->
+    <property name="plugin-2" type="string" value="windowck-plugin"/>
     <property name="plugin-3" type="string" value="separator">
       <property name="expand" type="bool" value="true"/>
       <property name="style" type="uint" value="0"/>
@@ -56,8 +62,10 @@
       <property name="digital-time-format" type="string" value="%H:%M"/>
       <property name="tooltip-format" type="string" value="%A, %Y-%m-%d"/>
     </property>
+    <!-- 사용자 이름 단추 하나. 누르면 잠금, 로그아웃, 종료 메뉴가 열린다(단추 여러 개가 줄지어 서지 않는다). -->
     <property name="plugin-9" type="string" value="actions">
-      <property name="appearance" type="uint" value="0"/>
+      <property name="appearance" type="uint" value="1"/>
+      <property name="button-title" type="uint" value="1"/>
     </property>
   </property>
 </channel>

@@ -67,6 +67,21 @@ opereta deberopa auto off   # 자동 갱신을 끈다(on 으로 다시 켠다)
 - Control Center 의 시스템 페이지에도 확인, 갱신 단추와 자동 갱신 스위치가 있다. 라이브 세션에서는 하지 않는다.
 - 상태: `/var/lib/opereta/deberopa/state.json`. 설계는 [phase-6-2-design.md](phase-6-2-design.md) 6.1절.
 
+## 부팅 항목 (0.6.3)
+
+설치된 시스템에서 UEFI 부팅 항목을 보고 고치는 일도 같은 헬퍼(`opereta-update boot ...`)를 거친다. 동작은 root 가 필요하므로 데몬이 별도 유닛에서 실행하고, 상태는 `GET /v1/update` 의 `boot` 필드로 읽는다.
+
+```sh
+opereta boot                       # 상태와 문제
+opereta boot next opereta|windows|usb|NNNN   # 다음 한 번만 그 항목으로 시작(BootNext)
+opereta boot order opereta         # 그 항목을 BootOrder 맨 앞에 둔다(펌웨어가 되돌릴 수 있다)
+opereta boot repair                # GRUB 재설치, 항목 생성
+opereta boot cleanup               # 이전 이름의 폴더와 항목 삭제
+opereta boot auto on|off           # 종료 때 다음 시작을 Opereta 로 지정하는 유닛(opereta-bootnext.service)
+```
+
+문제 코드: `not_uefi`, `no_entry`, `opereta_not_first`, `firmware_reorders`(순서를 바꾼 뒤 펌웨어가 되돌림), `legacy_entries`, `esp_not_mounted`, `no_fallback`. 이 동작은 OS 업데이트와 달리 재부팅이 필요 없고, 상태 파일은 `/var/lib/opereta/boot/state.json` 이다.
+
 ## 무엇을 갱신하나
 
 - 커널(`linux-image-*`, `linux-headers-*`)과 NVIDIA 오픈 드라이버 계열, CUDA 런타임, `dkms`

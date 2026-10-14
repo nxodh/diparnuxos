@@ -1,0 +1,50 @@
+#!/bin/sh
+# Opereta 의 합성 관리자(picom)를 시작하고 멈춘다. 설치 경로는 /usr/bin/opereta-compositor 이다.
+#   opereta-compositor start|stop|restart|status
+#
+# 순서: picom(glx) -> picom(xrender) -> xfwm4 자신의 합성. 앞의 것이 시작하지 못하면(드라이버나 GPU 문제) 다음으로
+# 내려가서, 합성이 없을 때 생기는 검은 상자와 선이 보이지 않게 한다. 사용자가 "창 효과"를 끄면 어느 쪽도 쓰지 않는다
+# (~/.config/opereta/effects-off 가 있다).
+set -u
+cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+off_flag="$cfg_home/opereta/effects-off"
+state="$cfg_home/opereta/compositor"
+conf="$cfg_home/picom/picom.conf"
+[ -r "$conf" ] || conf=/etc/xdg/opereta/picom/picom.conf
+
+xfwm_composite() { # xfwm4 합성을 켜거나 끈다
+    command -v xfconf-query >/dev/null 2>&1 || return 0
+    xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool -s "$1" 2>/dev/null || true
+}
+
+note() { mkdir -p "$(dirname "$state")" 2>/dev/null; printf '%s\n' "$1" > "$state" 2>/dev/null || true; }
+
+stop_picom() { pkill -u "$(id -u)" -x picom 2>/dev/null || true; }
+
+start_picom() { # $1 = 백엔드. 3초 안에 끝나면 실패로 본다.
+    stop_picom
+    picom --config "$conf" --backend "$1" -b >/dev/null 2>&1 || return 1
+    sleep 2
+    pgrep -u "$(id -u)" -x picom >/dev/null 2>&1
+}
+
+do_start() {
+    if [ -e "$off_flag" ]; then
+        stop_picom; xfwm_composite false; note off; return 0
+    fi
+    if command -v picom >/dev/null 2>&1 && [ -r "$conf" ]; then
+        if start_picom glx; then xfwm_composite false; note picom-glx; return 0; fi
+        if start_picom xrender; then xfwm_composite false; note picom-xrender; return 0; fi
+    fi
+    stop_picom
+    xfwm_composite true
+    note xfwm4
+}
+
+case "${1:-start}" in
+    start) do_start ;;
+    stop) stop_picom; xfwm_composite false; note stopped ;;
+    restart) do_start ;;
+    status) cat "$state" 2>/dev/null || echo unknown ;;
+    *) echo "usage: opereta-compositor start|stop|restart|status" >&2; exit 2 ;;
+esac

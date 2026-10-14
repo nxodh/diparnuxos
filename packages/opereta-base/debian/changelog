@@ -1,3 +1,9 @@
+opereta-base (0.6.3) trixie; urgency=medium
+
+  * 버전을 0.6.3 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 12:00:00 +0900
+
 opereta-base (0.6.2) trixie; urgency=medium
 
   * 버전을 0.6.2 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.2 는 코딩 에이전트 이름을 Deberopa 로 바꾼다).

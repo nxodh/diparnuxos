@@ -1,3 +1,9 @@
+opereta-desktop (0.6.3) trixie; urgency=medium
+
+  * 데스크톱 재구성: picom 합성(opereta-compositor, 실패하면 xfwm4 합성으로 내려간다), 상단 메뉴 막대, 하단 독(plank), Papirus 기반 아이콘 테마 Opereta 와 Opereta-Dark(회색 폴더), GTK3 창 장식 CSS 를 앱이 장식하는 창에만 적용, 창 단추 x, +, − 와 순서, Firefox 는 시스템 제목 줄 기본.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 12:00:00 +0900
+
 opereta-desktop (0.6.2) trixie; urgency=medium
 
   * 디자인 전면 개편: 밝은 테마 Opereta 와 어두운 테마 Opereta-Dark(둥근 사각형, 회색조), 창 단추 x, -, + 를 왼쪽에, 아이콘 테마 Opereta, 합성과 그림자 켬.

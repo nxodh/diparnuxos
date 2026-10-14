@@ -217,6 +217,25 @@ check:checked, radio:checked {
     border-color: #1d1d1f;
 }
 
+/* 상단 메뉴 막대(xfce4-panel)와 알림. 배경의 반투명과 흐림은 xfconf 와 picom 이 맡는다. */
+.xfce4-panel button, XfcePanelWindow button {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 2px 8px;
+    min-height: 20px;
+}
+.xfce4-panel button:hover, XfcePanelWindow button:hover {
+    background-color: #e6e6e9;
+}
+#XfceNotifyWindow {
+    border-radius: 14px;
+    border: 1px solid #d2d2d5;
+    background-color: alpha(#ffffff, 0.96);
+}
+
 /* 메뉴와 팝오버 */
 menu, .menu, popover.background {
     background-color: #ffffff;

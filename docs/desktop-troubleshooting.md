@@ -63,6 +63,23 @@ sudo systemctl restart lightdm.service     # 로그인 화면이 나온다
 - 배경 화면은 첫 로그인에 `opereta-session-setup` 이 모든 모니터에 적용한다. 표식 파일 `~/.config/opereta/session-setup-done` 을 지우고 다시 로그인하면 다시 적용한다.
 - GTK 테마 `Opereta`, 창 관리자 테마 `Opereta`, 아이콘 `Adwaita` 는 설정 관리자(모양, 창 관리자)에서 바꿀 수 있다.
 
+## 부팅 항목 (BIOS 에서 Opereta 가 안 보인다, Windows 만 뜬다) (0.6.3)
+
+```sh
+opereta boot            # 지금 부팅한 항목, 부팅 순서, 문제와 해결 방법
+opereta boot next opereta     # 다음 한 번만 Opereta 로 시작(영구 순서는 그대로)
+opereta boot next windows     # 다음 한 번만 Windows 로 시작
+opereta boot auto on          # 끄거나 다시 시작할 때마다 다음 시작을 Opereta 로 지정(설치 USB 로 시작하려면 먼저 끈다)
+opereta boot repair           # GRUB 을 다시 설치하고 'opereta' 항목을 만든다
+opereta boot cleanup          # 이전 이름(Diparnux 등)의 ESP 폴더와 부팅 항목을 지운다
+```
+
+- **UEFI 항목은 파티션이 아니라 이름(`opereta`)으로 보인다.** BIOS 의 부팅 장치 화면에서 디스크의 파티션이 따로 나오지 않는다.
+- 일부 펌웨어는 재부팅 때 `BootOrder` 를 자체 순서(USB, Windows, 그 밖의 항목)로 다시 쓰고 모르는 항목은 설정 화면에서 숨긴다. 이 경우 **순서를 바꿔도 되돌아간다.** `opereta boot` 가 "펌웨어가 순서를 되돌렸다"고 알려 준다. 일회성 부팅 메뉴(F11, F12, Esc 등 제조사마다 다르다)에는 `opereta` 가 보이는 경우가 많고, `BootNext`(`opereta boot next`)는 지키는 펌웨어가 많다.
+- 제어 센터의 "시작" 페이지에서 같은 일을 할 수 있다.
+- BitLocker 가 켜진 Windows 가 있으면 부팅 구성을 바꾸기 전에 복구 키를 확인한다.
+- 설치 직후 시계가 틀렸다면 BIOS 의 시각이 맞는지 확인한다. Windows 와 함께 설치하면 하드웨어 시계를 현지 시간으로 둔다.
+
 ## 한글 입력
 
 fcitx5 와 한글 입력기가 들어 있다. 첫 로그인에 영문 자판과 한글이 있는 프로필을 만든다. 입력 전환 키는 fcitx5 설정(트레이의 키보드 아이콘 → 설정)에서 바꾼다. 입력이 안 되면 `echo $GTK_IM_MODULE $XMODIFIERS` 가 `fcitx @im=fcitx` 인지 본다.

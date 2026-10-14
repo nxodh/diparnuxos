@@ -1,3 +1,9 @@
+opereta-deberopa (0.6.3) trixie; urgency=medium
+
+  * 버전을 0.6.3 에 맞춘다. 이 패키지의 내용(Deberopa 0.2.0)은 바뀌지 않았다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 12:00:00 +0900
+
 opereta-deberopa (0.6.2) trixie; urgency=medium
 
   * 이름을 opereta-vedecaps 에서 opereta-deberopa 로 바꾸고 Deberopa 0.2.0 을 고정한다(실행 파일 /usr/bin/deberopa). 이전 이름의 패키지를 대체한다.

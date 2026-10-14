@@ -1,6 +1,6 @@
 # 설치
 
-- 확인 날짜: 2026-10-12
+- 확인 날짜: 2026-10-15(0.6.3: UEFI 확인, 부팅 항목 확인, Windows 와 함께 쓰기)
 - 상태: 구현됨, **QEMU 가상 디스크 설치만 확인했다**([검증 기록](verification-phase-4.md)). 실기 설치는 미검증이다.
 
 Opereta ISO 는 라이브 시스템이다. 디스크에 설치하는 방법은 둘이다.
@@ -14,7 +14,7 @@ Opereta ISO 는 라이브 시스템이다. 디스크에 설치하는 방법은 �
 
 ## 요구 사항
 
-- UEFI 부팅(BIOS 는 지원하지 않는다). 디스크는 GPT 로 만든다.
+- UEFI 부팅(BIOS 는 지원하지 않는다). 디스크는 GPT 로 만든다. 설치기는 UEFI 가 아니면 시작하지 않고 이유를 알린다(펌웨어 설정에서 CSM, 레거시 부팅을 끄고 설치 USB 의 UEFI 항목으로 부팅한다).
 - 디스크 16 GiB 이상, 램 1.5 GiB 이상(설치기). 모델 파일을 쓰려면 더 필요하다.
 - 설치는 네트워크를 쓰지 않는다. 필요한 패키지(서명된 부트로더 포함)가 이미지 안에 있다.
 - 지원하는 디스크 이름: `/dev/sdX`, `/dev/vdX`, `/dev/nvmeXnY`, `/dev/mmcblkX`(파티션이 아닌 디스크 전체).
@@ -50,6 +50,14 @@ printf '%s\n' "$PASSWORD" | sudo opereta-install run \
 - 진행 기록은 `/var/log/opereta-install.log`(라이브 시스템 쪽)에 남는다. 비밀번호는 들어 있지 않다.
 
 설치기가 거절하는 경우: 마운트된 파티션이나 swap 이 있는 디스크(라이브 USB 가 있는 디스크 포함), 16 GiB 보다 작은 디스크, 읽기 전용 디스크, 파티션 장치(`/dev/sda1`), 규칙에 맞지 않는 이름. 거절은 디스크를 건드리기 전에 일어난다.
+
+## Windows 와 함께 쓰기 (0.6.3)
+
+- Windows 가 있는 디스크에 설치하면 **기존 EFI 시스템 파티션(ESP)을 함께 쓴다.** Opereta 는 `EFI/opereta` 폴더에만 쓰고 Windows 의 `EFI/Microsoft` 는 건드리지 않는다. 대체 부팅 파일 `EFI/BOOT/BOOTX64.EFI` 도 **다른 시스템이 쓰고 있으면 덮어쓰지 않는다.**
+- GRUB 메뉴에 Windows 가 올라간다(`os-prober`). BitLocker 로 암호화된 Windows 도 부팅 관리자 항목은 보인다.
+- 하드웨어 시계는 현지 시간으로 맞춘다(Windows 와 같다). 그렇지 않으면 두 시스템을 오갈 때 시각이 시간대 차이만큼 어긋난다.
+- **BitLocker 를 쓰는 Windows 는 부팅 구성을 바꾸면 복구 키를 요구할 수 있다.** 설치 전에 복구 키를 확인해 둔다.
+- 일부 펌웨어(예: MSI 노트북)는 재부팅 때마다 부팅 순서를 자체 순서로 되돌리고 설정 화면에 Opereta 를 보여 주지 않는다. 그런 컴퓨터에서는 일회성 부팅 메뉴(보통 F11 이나 F12)에서 `opereta` 를 고르거나, Opereta 에서 `opereta boot next opereta`(제어 센터의 시작 페이지)로 다음 시작을 정한다. 자세한 것은 [desktop-troubleshooting.md](desktop-troubleshooting.md) 의 "부팅 항목".
 
 ## 설치 뒤
 

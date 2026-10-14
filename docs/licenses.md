@@ -274,3 +274,23 @@ ISO 를 올려도 되는지 원문을 다시 확인했다. 법률 자문이 아�
 - 라이선스: SIL Open Font License 1.1. Debian 이 main 에 올린 것은 DFSG 를 만족한다는 뜻이다. OFL 은 글꼴을 다른 소프트웨어와 함께 배포하거나 번들하는 것을 허용하며(판매 단독 금지), 수정본에만 예약된 글꼴 이름(Reserved Font Name) 제한이 걸린다. Opereta 는 수정하지 않는다.
 - 이 이미지에는 Debian 패키지가 라이선스 파일(`/usr/share/doc/fonts-pretendard/copyright`)을 함께 싣는다. GPL 소스 제공 묶음에도 이 패키지의 소스가 포함된다(`make sources`).
 - 문서 기반 검토이며 법률 자문이 아니다.
+
+---
+
+## 12. 0.6.3 에서 이미지에 더한 패키지
+
+모두 Debian 13(trixie)의 main 저장소에서 수정 없이 설치한다. Debian 의 `copyright` 파일에서 읽은 라이선스이며 문서 기반 검토이고 법률 자문이 아니다. 대응 소스는 `make sources` 가 릴리스에 함께 올린다(GPL).
+
+| 패키지 | 용도 | 라이선스(Debian copyright) |
+|---|---|---|
+| `plank` | 하단 독 | GPL-3+, LGPL-2 |
+| `picom` | 합성 관리자(둥근 모서리, 그림자, 흐림) | Expat(MIT), MPL-2.0 |
+| `papirus-icon-theme` | 아이콘 | GPL-3 |
+| `xfce4-windowck-plugin` | 상단 막대의 활성 창 이름 | GPL-3+, GPL-2+ |
+| `os-prober` | GRUB 메뉴에 다른 시스템(Windows)을 올림 | GPL-2+(패키지 `copyright` 파일에 요약이 없어 소스 묶음으로 확인한다) |
+| `ntfs-3g` | NTFS 읽기(os-prober 가 쓴다) | GPL-2+, LGPL-2+ |
+| `bluez`, `libspa-0.2-bluetooth` | 블루투스 | GPL-2+, LGPL-2.1+ 외(`bluez`), LGPL-2.1+(`libspa-0.2-bluetooth`) |
+| `librsvg2-common` | SVG 그림 적재(아이콘 테마) | LGPL-2.1+ |
+
+- **Papirus 와 색**: 이 아이콘 테마는 컬러 아이콘이어서 "색을 많이 쓰지 않는다"는 원칙과 충돌한다. 사용자 결정(U20)이므로 쓰되 폴더는 회색 단색으로 덮어쓰고 창 컨트롤 기호는 Opereta 의 것을 쓴다.
+- **상표**: Papirus, plank 등의 이름은 해당 프로젝트의 것이며, 이 프로젝트는 패키지를 그대로 쓸 뿐 이름을 바꾸거나 재배포용 브랜드로 쓰지 않는다.

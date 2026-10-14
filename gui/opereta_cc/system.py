@@ -112,6 +112,21 @@ def apply_os_scheme(name):
 
     for channel, prop in (("xsettings", "/Net/ThemeName"), ("xfwm4", "/general/theme")):
         run("-c", channel, "-p", prop, "-s", theme)
+    # 아이콘 테마(밝은 쪽 Papirus, 어두운 쪽 Papirus-Dark 기반)와 패널, 독도 같이 바꾼다.
+    run("-c", "xsettings", "-p", "/Net/IconThemeName", "-s", theme)
+    shade = (0.118, 0.118, 0.12, 0.72) if dark else (0.949, 0.949, 0.957, 0.78)
+    args = ["-c", "xfce4-panel", "-p", "/panels/panel-1/background-rgba", "-n", "-a"]
+    for v in shade:
+        args += ["-t", "double", "-s", "%.3f" % v]
+    run(*args)
+    run("-c", "xfce4-panel", "-p", "/panels/dark-mode", "-n", "-t", "bool", "-s", "true" if dark else "false")
+    gs = shutil.which("gsettings")
+    if gs:
+        try:
+            subprocess.run([gs, "set", "net.launchpad.plank.dock.settings:/net/launchpad/plank/docks/dock1/", "theme", theme],
+                           check=False, timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.SubprocessError):
+            pass
     # GTK4 와 libadwaita 앱은 테마 이름이 아니라 이 값으로 어두운 모양을 고른다.
     run("-c", "xsettings", "-p", "/Gtk/ApplicationPreferDarkTheme", "-n", "-t", "bool", "-s", "true" if dark else "false")
     # 배경 화면: 모니터마다 있는 last-image 와 같은 폴더의 rgba1 을 바꾼다.

@@ -1,0 +1,12 @@
+# plank 의 기본값. 설치 경로는 /usr/share/glib-2.0/schemas/90_opereta-plank.gschema.override 이다.
+[net.launchpad.plank.dock.settings]
+theme='Opereta'
+icon-size=52
+position='bottom'
+alignment='center'
+items-alignment='center'
+hide-mode='intelligent'
+zoom-enabled=true
+zoom-percent=125
+lock-items=false
+dock-items=['opereta-control-center.dockitem', 'thunar.dockitem', 'xfce4-terminal.dockitem', 'firefox-esr.dockitem', 'mousepad.dockitem']

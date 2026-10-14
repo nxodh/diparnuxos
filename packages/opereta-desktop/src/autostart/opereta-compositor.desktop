@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Opereta window effects
+Comment=Shadows, rounded corners and blur (picom)
+Exec=/usr/bin/opereta-compositor start
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-Phase=Initialization
+NoDisplay=true

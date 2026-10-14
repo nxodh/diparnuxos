@@ -148,7 +148,7 @@ sleep 1
 kill "$gw" 2>/dev/null
 wait "$gw" 2>/dev/null
 sed 's/^/   /' /tmp/out | tail -12
-expect "Opereta 0.6.2" "the server is recognised as Opereta with its version"
+expect "Opereta 0.6.3" "the server is recognised as Opereta with its version"
 expect "2 slots" "the slot count comes from /opereta/info"
 
 if [ "$fail" -ne 0 ]; then

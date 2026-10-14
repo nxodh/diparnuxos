@@ -1,0 +1,19 @@
+[Icon Theme]
+Name=Opereta-Dark
+Comment=Opereta 아이콘(Papirus-Dark 를 바탕으로 창 컨트롤 기호와 폴더만 바꾼다)
+Inherits=Papirus-Dark,Adwaita,hicolor
+Directories=scalable/ui,scalable/places
+
+[scalable/ui]
+Context=UI
+Size=16
+MinSize=8
+MaxSize=512
+Type=Scalable
+
+[scalable/places]
+Context=Places
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable

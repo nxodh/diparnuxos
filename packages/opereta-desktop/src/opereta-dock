@@ -1,0 +1,6 @@
+#!/bin/sh
+# 하단 독(plank)을 시작한다. 설치 경로는 /usr/bin/opereta-dock 이다. 합성 관리자가 자리 잡을 시간을 조금 준다.
+# plank 가 없으면 아무것도 하지 않는다(그때는 패널의 시작 메뉴로 프로그램을 연다).
+command -v plank >/dev/null 2>&1 || exit 0
+sleep 2
+exec plank

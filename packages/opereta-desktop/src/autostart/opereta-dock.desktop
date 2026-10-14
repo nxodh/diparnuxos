@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Opereta dock
+Comment=Application dock at the bottom of the screen
+Exec=/usr/bin/opereta-dock
+OnlyShowIn=XFCE;
+NoDisplay=true

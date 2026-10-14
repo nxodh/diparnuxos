@@ -206,7 +206,7 @@ Encoding=UTF-8
 [X-GNOME-Metatheme]
 GtkTheme={p['name']}
 MetacityTheme={p['name']}
-IconTheme=Opereta
+IconTheme={p['name']}
 """
 
 
@@ -431,6 +431,25 @@ check:checked, radio:checked {{
     border-color: {accent};
 }}
 
+/* 상단 메뉴 막대(xfce4-panel)와 알림. 배경의 반투명과 흐림은 xfconf 와 picom 이 맡는다. */
+.xfce4-panel button, XfcePanelWindow button {{
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 2px 8px;
+    min-height: 20px;
+}}
+.xfce4-panel button:hover, XfcePanelWindow button:hover {{
+    background-color: {hover};
+}}
+#XfceNotifyWindow {{
+    border-radius: 14px;
+    border: 1px solid {border};
+    background-color: alpha({surface}, 0.96);
+}}
+
 /* 메뉴와 팝오버 */
 menu, .menu, popover.background {{
     background-color: {surface};
@@ -570,35 +589,71 @@ def glyph_png(key, color, size=24):
     return im.resize((size, size), Image.LANCZOS)
 
 
+FOLDER_NAMES = (
+    "folder", "folder-open", "user-home", "user-desktop", "folder-documents", "folder-download", "folder-music",
+    "folder-pictures", "folder-videos", "folder-publicshare", "folder-templates", "folder-remote", "folder-recent",
+)
+
+
+def folder_svg(back, front):
+    """회색 폴더 모양. Papirus 의 파란 폴더를 덮어써서 색을 적게 쓴다는 원칙을 지킨다."""
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+            f'<path d="M6 14a4 4 0 0 1 4-4h14l6 6h24a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" fill="{back}"/>'
+            f'<rect x="6" y="22" width="52" height="30" rx="4" fill="{front}"/></svg>\n')
+
+
+# 밝은 쪽은 Papirus, 어두운 쪽은 Papirus-Dark 를 바탕으로 한다. 둘 다 창 컨트롤 기호와 회색 폴더만 덮어쓴다.
+ICON_THEMES = (
+    ("Opereta", "light", "Papirus,Adwaita,hicolor", ("#9a9aa1", "#bcbcc3")),
+    ("Opereta-Dark", "dark", "Papirus-Dark,Adwaita,hicolor", ("#5c5c62", "#7a7a81")),
+)
+
+
 def write_icons():
-    base = os.path.join(ICONS, "scalable", "ui")
-    os.makedirs(base, exist_ok=True)
     glyphs = {
         "window-close-symbolic": '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
         "window-minimize-symbolic": '<path d="M3.5 8h9"/>',
         "window-maximize-symbolic": '<path d="M3.5 8h9M8 3.5v9"/>',
         "window-restore-symbolic": '<path d="M3.5 8h9M8 3.5v9"/>',
     }
-    for name, body in glyphs.items():
-        with open(os.path.join(base, name + ".svg"), "w", encoding="utf-8") as f:
-            f.write(svg(body))
-    # GTK4(libadwaita)는 내장 기호가 먼저라 아이콘 테마로 바꿀 수 없다. 제어 센터는 이 고정 색 PNG(24px, 12px 크기로
-    # 쓰는 2배 이미지)를 CSS 배경으로 쓴다. SVG 가 아니라 PNG 인 것은 그림 적재 모듈(librsvg)에 기대지 않기 위해서다.
-    for scheme in ("light", "dark"):
-        color = rgb(PALETTES[scheme]["glyph"])
-        for key in ("close", "minimize", "maximize"):
-            glyph_png(key, color).save(os.path.join(base, f"ctl-{key}-{scheme}.png"), optimize=True)
-    with open(os.path.join(ICONS, "index.theme"), "w", encoding="utf-8") as f:
-        f.write("""[Icon Theme]
-Name=Opereta
-Comment=Opereta 아이콘(Adwaita 를 바탕으로 창 컨트롤만 x, -, + 기호로 바꾼다)
-Inherits=Adwaita,hicolor
-Directories=scalable/ui
+    for name, scheme, inherits, (back, front) in ICON_THEMES:
+        root = os.path.join(os.path.dirname(ICONS), name)
+        base = os.path.join(root, "scalable", "ui")
+        places = os.path.join(root, "scalable", "places")
+        os.makedirs(base, exist_ok=True)
+        os.makedirs(places, exist_ok=True)
+        for gname, body in glyphs.items():
+            with open(os.path.join(base, gname + ".svg"), "w", encoding="utf-8") as f:
+                f.write(svg(body))
+        # GTK3 와 GTK4 는 window-*-symbolic 을 아이콘 테마보다 라이브러리 내장 그림에서 먼저 찾는다. 그래서 제어 센터는 이
+        # 고정 색 PNG(24px, 12px 크기로 쓰는 2배 이미지)를 CSS 배경으로 쓴다. SVG 가 아니라 PNG 인 것은 그림 적재 모듈
+        # (librsvg)에 기대지 않기 위해서다. 두 색 구성표의 PNG 를 모두 둔다(제어 센터가 밝은/어두운 쪽을 고른다).
+        for sch in ("light", "dark"):
+            color = rgb(PALETTES[sch]["glyph"])
+            for key in ("close", "minimize", "maximize"):
+                glyph_png(key, color).save(os.path.join(base, f"ctl-{key}-{sch}.png"), optimize=True)
+        for fname in FOLDER_NAMES:
+            with open(os.path.join(places, fname + ".svg"), "w", encoding="utf-8") as f:
+                f.write(folder_svg(back, front))
+        with open(os.path.join(root, "index.theme"), "w", encoding="utf-8") as f:
+            f.write(f"""[Icon Theme]
+Name={name}
+Comment=Opereta 아이콘({'Papirus' if scheme == 'light' else 'Papirus-Dark'} 를 바탕으로 창 컨트롤 기호와 폴더만 바꾼다)
+Inherits={inherits}
+Directories=scalable/ui,scalable/places
 
 [scalable/ui]
 Context=UI
 Size=16
 MinSize=8
+MaxSize=512
+Type=Scalable
+
+[scalable/places]
+Context=Places
+Size=64
+MinSize=16
 MaxSize=512
 Type=Scalable
 """)

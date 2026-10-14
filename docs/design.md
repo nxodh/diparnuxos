@@ -1,6 +1,6 @@
 # 디자인 시스템
 
-- 확인 날짜: 2026-10-14(0.6.2: macOS Big Sur 풍의 현대적 디자인, 밝은/어두운 두 테마, Pretendard 글꼴)
+- 확인 날짜: 2026-10-15(0.6.3: 상단 메뉴 막대와 하단 독, picom 합성, Papirus 기반 아이콘. 0.6.2: macOS Big Sur 풍 디자인, 밝은/어두운 두 테마, Pretendard 글꼴)
 - 기준: 프로젝트 소유자가 준 로고(`assets/brand/source/opereta-logo.png`, 1254×1254, 배경 투명). **밝은 회색(약 #F0F0F0) 원** 위에 **검정(#000) 굵은 둥근 "O"**. 왼쪽 위에 사선 홈이 있고 안쪽은 둥근 사각형 구멍이다. 로고 자산은 원본 색을 그대로 쓴다.
 - 연동 에이전트(Deberopa)의 로고는 `assets/brand/source/deberopa-logo.png`(원 안의 "D")다. Control Center 의 에이전트 페이지 아이콘으로만 쓰고 OS 의 아이콘은 아니다.
 
@@ -37,9 +37,11 @@
 | 배경 화면 | 밝은 테마는 `#F2F2F2` 단색 가운데에 희미한 O 마크(`wallpaper-light.png`), 어두운 테마는 `#0D0D0D` 단색에 `wallpaper.png`. 색 구성표를 바꾸면 Control Center 가 함께 바꾼다(사용자가 고른 그림은 그대로 둔다) | `opereta-branding`, `xfce4-desktop.xml`, `opereta-session-setup`, `system.py` |
 | GTK3 테마 `Opereta`, `Opereta-Dark` | 둥근 모서리, 회색조 팔레트, Pretendard. Xfce 패널, Thunar 같은 GTK3 앱이 쓴다 | `opereta-desktop` (`themes/*/gtk-3.0/gtk.css`, `make-theme.py` 가 생성) |
 | 창 관리자 테마 | xfwm4 제목 줄, 테두리, 창 단추(원 안의 x, −, +). 활성/비활성/눌림 이미지는 `scripts/make-theme.py` 가 생성한다. 단추 배치는 `CMH\|`(왼쪽에 닫기, 최대화, 최소화), 합성과 그림자를 켠다 | `themes/*/xfwm4`, `assets/brand/generated/xfwm4/{light,dark}`, `xfwm4.xml` |
-| 아이콘 테마 `Opereta` | Adwaita 를 상속하고 `window-*-symbolic` 을 x, −, + 로 바꾼다 | `packages/opereta-desktop/src/icons/Opereta` |
+| 아이콘 테마 `Opereta`, `Opereta-Dark` | 밝은 쪽은 Papirus, 어두운 쪽은 Papirus-Dark 를 바탕으로 한다. 창 컨트롤 기호(x, +, −)와 폴더(회색 단색)만 덮어쓴다. 색 구성표를 바꾸면 제어 센터가 함께 전환한다 | `packages/opereta-desktop/src/icons/{Opereta,Opereta-Dark}` |
 | 글꼴 | Pretendard(`fonts-pretendard`, SIL OFL 1.1, [licenses.md](licenses.md) 11절). UI 글꼴 `Pretendard 10`, 제목 줄 `Pretendard SemiBold 10`, fontconfig 에서 `sans-serif`, `system-ui`, `Sans` 가 Pretendard 로 풀린다. 고정폭은 `Monospace` 그대로다 | `xsettings.xml`, `xfwm4.xml`, `fontconfig/60-opereta-pretendard.conf` |
-| 패널 | 하단 한 줄(36px): 시작 메뉴, 작업 목록, 알림 영역, 네트워크, 소리, 전원, 시계, 세션 | `xdg/xfce4/panel/default.xml`, `genmon-5.rc`, `opereta-panel-net` |
+| 상단 메뉴 막대 | `xfce4-panel` 한 줄(30px, 위쪽): 시작 메뉴(로고), 활성 창 이름(`xfce4-windowck-plugin`), 알림 영역, 네트워크, 소리, 전원, 시계, 사용자 이름 단추(잠금·로그아웃·종료). 배경은 반투명이고 picom 이 뒤를 흐리게 한다 | `xdg/xfce4/panel/default.xml`, `genmon-5.rc`, `opereta-panel-net` |
+| 독 | `plank`: 하단 중앙에 떠 있는 둥근 막대. 제어 센터, 파일 관리자, 터미널, Firefox, 편집기가 기본이고 실행 중인 프로그램이 더해진다. 테마 `Opereta`/`Opereta-Dark`(`dock.theme`) | `plank/`, `opereta-dock`, `autostart/opereta-dock.desktop` |
+| 합성 | `picom`(둥근 모서리 12px, 그림자, 페이드, 흐림). `opereta-compositor` 가 glx → xrender → xfwm4 합성 순으로 시도해서 합성이 없을 때 생기는 검은 상자와 선을 막는다. 사용자가 "창 효과"를 끌 수 있다 | `picom/picom.conf`, `opereta-compositor`, `autostart/opereta-compositor.desktop` |
 | 터미널 | 밝은 테마 바탕 `#FBFBFB`, 글자 `#1D1D1F`. 어두운 테마를 고르면 Control Center 가 사용자의 `terminalrc` 색 줄만 바꾼다 | `xdg/xfce4/terminal/terminalrc`, `system.py` |
 | 로그인 화면 | lightdm-gtk-greeter, `#F2F2F2` 단색 바탕, 원형 로고 아바타, 테마 `Opereta`, Pretendard | `lightdm/50-opereta-greeter.conf` |
 | Control Center | libadwaita 위에 같은 팔레트와 둥근 모서리를 입힌다. 색 구성표는 시스템을 따름(기본, 밝음), 밝음, 어두움이며 고르면 데스크톱 테마도 함께 바뀐다 | `gui/opereta_cc/theme.py`, `system.py` |

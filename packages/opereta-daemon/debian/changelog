@@ -1,3 +1,9 @@
+opereta-daemon (0.6.3) trixie; urgency=medium
+
+  * 부팅 항목 상태와 복구(opereta boot, opereta-update boot, GET /v1/update 의 boot), 종료 때 BootNext 를 지정하는 opereta-bootnext.service(기본 꺼짐). 설치기가 UEFI 와 NVRAM 항목을 확인한다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 12:00:00 +0900
+
 opereta-daemon (0.6.2) trixie; urgency=medium
 
   * 코딩 에이전트 연결 명령이 opereta connect deberopa 가 되었다(옛 이름 vedecaps 도 별칭으로 받는다). 설정 폴더는 ~/.config/deberopa 다. 옛 폴더만 있으면 그 폴더에 합쳐 Deberopa 가 첫 실행 때 옮기게 한다.

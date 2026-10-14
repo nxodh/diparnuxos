@@ -67,6 +67,11 @@ for f in /usr/share/themes/Opereta/xfwm4/themerc /usr/share/themes/Opereta/xfwm4
          /usr/share/themes/Opereta-Dark/xfwm4/themerc /usr/share/themes/Opereta-Dark/xfwm4/close-active.png \
          /usr/share/themes/Opereta/gtk-3.0/gtk.css /usr/share/themes/Opereta-Dark/gtk-3.0/gtk.css \
          /usr/share/icons/Opereta/index.theme /usr/share/icons/Opereta/scalable/ui/window-close-symbolic.svg \
+         /usr/share/icons/Opereta-Dark/index.theme /usr/share/icons/Opereta/scalable/places/folder.svg \
+         /etc/xdg/opereta/picom/picom.conf /usr/bin/opereta-compositor /usr/bin/opereta-dock \
+         /etc/xdg/autostart/opereta-compositor.desktop /etc/xdg/autostart/opereta-dock.desktop \
+         /usr/share/plank/themes/Opereta/dock.theme /usr/share/plank/themes/Opereta-Dark/dock.theme \
+         /usr/share/glib-2.0/schemas/90_opereta-plank.gschema.override /etc/skel/.config/plank/dock1/launchers/thunar.dockitem \
          /usr/share/icons/Opereta/scalable/ui/ctl-close-light.png /usr/share/icons/Opereta/scalable/ui/ctl-maximize-dark.png \
          /usr/share/firefox-esr/browser/defaults/preferences/opereta.js /usr/share/themes/Opereta/gtk-3.0/assets/ctl-maximize.png /etc/fonts/conf.d/60-opereta-pretendard.conf /usr/share/opereta/wallpaper-light.png; do
   test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
@@ -81,7 +86,7 @@ for f in /etc/xdg/xfce4/panel/default.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-
   [ "$owner" != opereta-desktop ] || { echo "FAIL: opereta-desktop owns $f" >&2; exit 1; }
 done
 # 패널 배치가 쓰는 플러그인이 설치되어 있다.
-for p in whiskermenu tasklist separator systray genmon pulseaudio power-manager-plugin clock actions; do
+for p in whiskermenu windowck-plugin separator systray genmon pulseaudio power-manager-plugin clock actions; do
   ls /usr/share/xfce4/panel/plugins/$p.desktop >/dev/null 2>&1 || { echo "FAIL: panel plugin not installed: $p" >&2; exit 1; }
 done
 echo "ok: panel plugins installed"
