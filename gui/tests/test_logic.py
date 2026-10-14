@@ -349,6 +349,23 @@ class NetworkLogicTests(unittest.TestCase):
         self.assertEqual(logic.signal_label(10), "Weak")
 
 
+class TlsLogicTests(unittest.TestCase):
+    def test_ca_subtitle(self):
+        self.assertEqual(logic.tls_ca_subtitle({}), "")
+        self.assertEqual(logic.tls_ca_subtitle(None), "")
+        self.assertEqual(logic.tls_ca_subtitle({"ca_fingerprint": "AA:BB"}), "AA:BB")
+        self.assertEqual(
+            logic.tls_ca_subtitle({"ca_fingerprint": "AA:BB", "ca_not_after": "2036-10-14T00:00:00Z"}),
+            "AA:BB · 2036-10-14",
+        )
+
+    def test_listening_text(self):
+        self.assertEqual(logic.tls_listening_text({"enabled": False}), "off")
+        self.assertEqual(logic.tls_listening_text({"enabled": True, "listening": True, "port": 8444}), "listening 8444")
+        self.assertEqual(logic.tls_listening_text({"enabled": True}), "waiting")
+        self.assertEqual(logic.tls_listening_text({"enabled": True, "listener_error": "cannot listen"}), "error")
+
+
 if __name__ == "__main__":
     unittest.main()
 

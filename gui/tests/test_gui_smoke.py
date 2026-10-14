@@ -108,6 +108,7 @@ ROUTES = {
     ("PUT", "/v1/remote-desktop"): (200, {"installed": True, "enabled": True, "active": True, "port": 3389, "source": "lan"}),
     ("GET", "/v1/vpn"): (200, {"enabled": True, "interface": "wg0", "address": "10.8.0.1/24", "listen_port": 51820, "public_key": "serverpub",
         "peers": [{"name": "phone", "public_key": "peerpub", "allowed_ips": ["10.8.0.2/32"]}]}),
+    ("GET", "/v1/tls"): (200, {"enabled": False, "active": False, "port": 8444, "lan_plain": False, "names": [], "plain_port": 8080, "plain_lan_open": False, "listening": False}),
     ("GET", "/v1/webadmin"): (200, {"enabled": False, "running": False, "port": 8443, "source": "lan", "password_set": False, "urls": []}),
     ("GET", "/v1/network/config"): (200, {"hostname": "diparnux", "wake_on_lan": False, "pending": None,
         "interfaces": [{"interface": "enp3s0", "mode": "dhcp", "addresses": [], "managed": False}]}),

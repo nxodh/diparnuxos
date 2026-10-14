@@ -131,6 +131,28 @@ def key_usage_text(key):
     return " · ".join(parts)
 
 
+def tls_ca_subtitle(tls):
+    """TLS 패널의 CA 행에 보일 문구다. 지문이 없으면 아직 만들지 않은 것이다(번역은 호출하는 쪽이 한다)."""
+    tls = tls or {}
+    fp = tls.get("ca_fingerprint") or ""
+    if not fp:
+        return ""
+    until = (tls.get("ca_not_after") or "")[:10]
+    return fp if not until else "%s · %s" % (fp, until)
+
+
+def tls_listening_text(tls):
+    """리스너 상태를 한 단어로 만든다: off, error, listening <포트>, waiting."""
+    tls = tls or {}
+    if not tls.get("enabled"):
+        return "off"
+    if tls.get("listener_error"):
+        return "error"
+    if tls.get("listening"):
+        return "listening %s" % tls.get("port", "")
+    return "waiting"
+
+
 def server_state_label(state):
     fn = _SERVER_STATE_TEXT.get(state)
     return fn() if fn else str(state or "-")

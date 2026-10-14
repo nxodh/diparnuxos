@@ -41,6 +41,24 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, "name_conflict")
         self.assertEqual(cm.exception.status, 409)
 
+    def test_tls_calls_use_the_tls_routes(self):
+        routes = {
+            ("GET", "/v1/tls"): (200, {"enabled": False}),
+            ("PUT", "/v1/tls"): (200, {"enabled": True}),
+            ("POST", "/v1/tls/renew"): (200, {"enabled": True}),
+        }
+        with FakeDaemon(routes) as d:
+            c = api.Client(d.path)
+            self.assertEqual(c.tls(), {"enabled": False})
+            c.set_tls(enabled=True)
+            c.renew_tls()
+            c.renew_tls(ca=True)
+        paths = [(m, p) for m, p, _b in d.calls]
+        self.assertEqual(paths, [("GET", "/v1/tls"), ("PUT", "/v1/tls"), ("POST", "/v1/tls/renew"), ("POST", "/v1/tls/renew")])
+        self.assertEqual(d.calls[1][2], {"enabled": True})
+        self.assertEqual(d.calls[2][2], {"ca": False})
+        self.assertEqual(d.calls[3][2], {"ca": True})
+
     def test_status_roundtrip(self):
         routes = {("GET", "/v1/status"): (200, {"version": "0.2.0", "mode": "server"})}
         with FakeDaemon(routes) as d:
