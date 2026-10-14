@@ -194,18 +194,21 @@ jobs:
           (sha256sum -c SHA256SUMS > /dev/null) || { echo "::error::SHA256SUMS does not verify"; exit 1; }
           version="${TAG#v}"
           iso="opereta-${version}-amd64.iso"
-          sha="$(cut -d' ' -f1 "${iso}.sha256")"
           if [ -s InRelease ]; then
             channel="이 릴리스는 OS 업데이트 저장소를 포함한다. 설치된 시스템은 \`opereta update\` 로 이 버전을 받는다(서명 검증)."
           else
-            channel='이 릴리스에는 OS 업데이트 저장소가 없다(서명 키가 설정되지 않았다). ISO 로만 설치할 수 있다.'
+            channel='이 릴리스에는 OS 업데이트 저장소가 없다(서명 키가 설정되지 않았다).'
           fi
           notes="${RUNNER_TEMP}/notes.md"
           {
             echo "Opereta ${version}"
             echo
-            echo "- ISO: \`${iso}\`"
-            echo "- SHA-256: \`${sha}\`"
+            if [ -s "${iso}" ]; then
+              echo "- ISO: \`${iso}\`"
+              echo "- SHA-256: \`$(cut -d' ' -f1 "${iso}.sha256")\`"
+            else
+              echo "- 이 릴리스에는 ISO 가 없다. 라이선스와 재배포 조건 검토가 끝나기 전에는 ISO 를 올리지 않는다(\`docs/releases.md\`)."
+            fi
             echo "- ${channel}"
             echo "- 실기 검증 범위와 알려진 한계는 저장소의 \`docs/support-matrix.md\` 와 \`docs/verification-*.md\` 를 본다."
             echo "- 소스 커밋: \`${SOURCE_SHA}\`"

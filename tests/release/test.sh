@@ -45,7 +45,12 @@ exec bash /src/scripts/build-apt-repo.sh --flat --debs "$1" --out "$2/tree" --ke
 B
 export OPERETA_OUT="$WORK/out" RELEASE_DIR="$WORK/release" OPERETA_APT_BUILDER="$WORK/bin/builder.sh"
 
-# 1) 키가 없으면 ISO 와 체크섬만 모으고 경고한다. 저장소 파일은 만들지 않는다.
+# 0) 기본(OPERETA_PUBLISH_ISO=no)이고 서명 키도 없으면 올릴 파일이 없으므로 거절한다.
+if bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then die "an empty release was accepted"; fi
+pass "a release with neither ISO nor repository is refused"
+
+# 1) 키가 없으면 ISO 와 체크섬만 모으고 경고한다(ISO 를 올리는 설정일 때). 저장소 파일은 만들지 않는다.
+export OPERETA_RELEASE_ISO=yes
 out="$(bash "$SRC/scripts/make-release-assets.sh" 2>&1)"
 grep -q 'OS 업데이트 저장소를 만들지 않았다' <<< "$out" || die "no warning without a signing key"
 [[ -s "$RELEASE_DIR/$ISO" && -s "$RELEASE_DIR/$ISO.sha256" && -s "$RELEASE_DIR/SHA256SUMS" ]] || die "ISO assets are missing"
@@ -65,6 +70,14 @@ grep -q ' opereta-base_' "$RELEASE_DIR/SHA256SUMS" || die "the packages are not 
 gpg --batch --no-default-keyring --keyring "$WORK/verify.kbx" --import "$WORK/pub.pgp" > /dev/null 2>&1
 gpg --batch --no-default-keyring --keyring "$WORK/verify.kbx" --verify "$RELEASE_DIR/InRelease" > /dev/null 2>&1 || die "InRelease does not verify with the public key"
 pass "a signed flat repository is collected with the ISO"
+
+# 2b) 기본 설정(ISO 를 올리지 않음)에서는 저장소만 모이고 ISO 는 모이지 않는다.
+OPERETA_RELEASE_ISO=no bash "$SRC/scripts/make-release-assets.sh" > /dev/null
+[[ ! -e "$RELEASE_DIR/$ISO" && ! -e "$RELEASE_DIR/$ISO.sha256" ]] || die "the ISO was published although OPERETA_PUBLISH_ISO=no"
+[[ -s "$RELEASE_DIR/InRelease" && -s "$RELEASE_DIR/opereta-base_${OPERETA_VERSION}_all.deb" ]] || die "the repository is missing"
+! grep -q "$ISO" "$RELEASE_DIR/SHA256SUMS" || die "SHA256SUMS lists an ISO that is not published"
+(cd "$RELEASE_DIR" && sha256sum -c SHA256SUMS > /dev/null) || die "SHA256SUMS does not verify"
+pass "by default only the update repository is published, not the ISO"
 
 # 3) 이미지에 들어갈 공개 키가 서명 키와 다르면 거절한다(설치된 시스템이 저장소를 믿지 못한다).
 if OPERETA_PUBLIC_KEY="$WORK/other.pgp" bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then

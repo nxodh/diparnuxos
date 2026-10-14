@@ -1,18 +1,19 @@
 # 릴리스 게시
 
 - 확인 날짜: 2026-10-14
+- **ISO 는 기본으로 올리지 않는다.** 법적 검토(재배포 조건의 해석, GPL 소스 제공, 프로젝트 라이선스)가 끝나지 않았기 때문이다. 릴리스에는 **OS 업데이트 저장소만** 올라간다. 이유와 ISO 를 올리기 위한 체크리스트는 [licenses.md](licenses.md) 10절에 있다.
 - 상태: 워크플로(`.github/workflows/release.yml`)와 자산 모으기 스크립트가 구현되어 있다. 자산 모으기는 컨테이너 시험(`make test-release-docker`)으로 확인했다. **워크플로 자체는 태그를 푸시해야 돌므로 아직 실행하지 않았다.**
 
-0.6.0 부터 버전마다 태그를 게시하고 GitHub 릴리스를 만들며 ISO 도 올린다. 릴리스는 두 가지를 겸한다.
+0.6.0 부터 버전마다 태그를 게시하고 GitHub 릴리스를 만든다. 릴리스는 두 가지를 겸할 수 있다.
 
-1. **설치 이미지**: ISO 와 SHA-256 체크섬.
-2. **OS 업데이트 저장소**: 같은 릴리스의 `opereta-*` 패키지와 서명된 APT 색인(평평한 형식). 설치된 시스템이 `opereta update` 로 이 버전을 받는다([updates.md](updates.md)).
+1. **OS 업데이트 저장소**(항상): 같은 릴리스의 `opereta-*` 패키지와 서명된 APT 색인(평평한 형식). 설치된 시스템이 `opereta update` 로 이 버전을 받는다([updates.md](updates.md)).
+2. **설치 이미지**(`OPERETA_PUBLISH_ISO="yes"` 일 때만): ISO 와 SHA-256 체크섬.
 
 ## 릴리스에 올라가는 파일
 
 | 파일 | 내용 |
 |---|---|
-| `opereta-<버전>-amd64.iso`, `.iso.sha256` | 설치 이미지와 체크섬 |
+| `opereta-<버전>-amd64.iso`, `.iso.sha256` | 설치 이미지와 체크섬(`OPERETA_PUBLISH_ISO="yes"` 일 때만) |
 | `InRelease`, `Release`, `Release.gpg` | APT 색인의 서명 |
 | `Packages`, `Packages.xz` | APT 색인 |
 | `opereta-*.deb` | 이 버전의 패키지(이미지에 들어간 것과 같은 파일) |
@@ -72,7 +73,7 @@ OS 업데이트 저장소는 서명되어야 한다. 서명되지 않은 저장�
 
 이름에 `-` 가 든 태그(`v0.7.0-rc1`)는 prerelease 로 게시된다. GitHub 의 "최신 릴리스" 주소(`releases/latest`)는 prerelease 를 건너뛰므로 **업데이트 채널에는 나가지 않는다**. 시험 빌드는 이렇게 낸다.
 
-## 받은 ISO 확인
+## 받은 파일 확인
 
 ```sh
 sha256sum -c SHA256SUMS --ignore-missing
@@ -85,8 +86,10 @@ sha256sum -c SHA256SUMS --ignore-missing
 - 평평한 저장소에는 이전 버전이 없다. 그래서 드라이버 정책 패키지가 바뀐 갱신의 롤백은 이전 버전을 받을 수 없을 때 거절한다([updates.md](updates.md)).
 - 릴리스를 지우거나 prerelease 로 바꾸면 "최신 릴리스"가 이전 릴리스로 돌아간다. 이미 새 버전으로 올린 시스템은 다운그레이드하지 않는다(apt 가 올리지 않는다).
 
-## 공개 배포 전에 알아 둘 것
+## ISO 를 올리지 않는 이유와 올리는 법
 
-- **ISO 에 들어 있는 제3자 소프트웨어**: NVIDIA 오픈 모듈과 CUDA 런타임, Intel Wi-Fi·이더넷 펌웨어가 들어 있다. 재배포 조건의 해석과 미확인 항목은 [licenses.md](licenses.md) 에 있다. 공개 릴리스는 이를 공개 배포하는 것이므로 사용자의 결정(M6)이 필요하다.
+- **ISO 에 들어 있는 제3자 소프트웨어**: NVIDIA 오픈 모듈과 CUDA 런타임, Intel Wi-Fi·이더넷 펌웨어, GPL 소프트웨어(Debian)가 들어 있다. 재배포 조건의 해석이 정리되지 않았고 GPL 소스 제공을 준비하지 않았다. 그래서 기본으로 올리지 않는다.
+- **올리려면** [licenses.md](licenses.md) 10.3 의 체크리스트를 끝내고 `opereta.conf` 의 `OPERETA_PUBLISH_ISO` 를 `yes` 로 바꾼다.
+- **CI 아티팩트**: `iso` 워크플로의 ISO 아티팩트(7일)는 이와 별개로 남아 있다([licenses.md](licenses.md) 10.4).
 - **프로젝트 라이선스(U7)**: 정해지지 않았다. 라이선스가 없으면 기본적으로 모든 권리가 저자에게 있다.
 - **검증 범위**: 실기 설치, 실제 커널 갱신, 실제 GPU 는 미검증이다([support-matrix.md](support-matrix.md)). 릴리스 노트가 이를 가리킨다.

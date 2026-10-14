@@ -5,7 +5,7 @@
 #
 # 입력(make iso 의 결과): out/opereta-<버전>-amd64.iso, 그 .sha256, out/debs/*.deb
 # 출력: out/release/
-#   opereta-<버전>-amd64.iso, .iso.sha256        ISO 와 체크섬
+#   opereta-<버전>-amd64.iso, .iso.sha256        ISO 와 체크섬(OPERETA_PUBLISH_ISO=yes 일 때만. 기본은 올리지 않는다)
 #   InRelease, Release, Release.gpg, Packages, Packages.xz, opereta-*.deb   OS 업데이트 저장소(평평한 형식)
 #   opereta-archive-keyring.pgp                  저장소 공개 키(수동 검증용)
 #   SHA256SUMS                                   위 모든 파일의 체크섬
@@ -13,7 +13,7 @@
 # 저장소는 서명 키가 있을 때만 만든다(OPERETA_APT_GNUPGHOME, OPERETA_APT_KEY_ID). 키가 없으면 ISO 와 체크섬만 모으고
 # 이 릴리스에서는 OS 업데이트를 받을 수 없다는 경고를 낸다. 서명되지 않은 저장소는 만들지 않는다.
 # 서명 개인 키는 이 저장소에 두지 않는다(docs/releases.md).
-# 환경 변수: OPERETA_OUT(입력과 출력의 기준, 기본 out), RELEASE_DIR, OPERETA_PUBLIC_KEY(기본 keys/opereta-archive-keyring.pgp),
+# 환경 변수: OPERETA_RELEASE_ISO(opereta.conf 의 OPERETA_PUBLISH_ISO 를 덮어쓴다, yes/no), OPERETA_OUT(입력과 출력의 기준, 기본 out), RELEASE_DIR, OPERETA_PUBLIC_KEY(기본 keys/opereta-archive-keyring.pgp),
 #            OPERETA_APT_BUILDER(저장소를 만드는 스크립트. 시험용)
 set -euo pipefail
 
@@ -23,21 +23,28 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${OPERETA_OUT:-${ROOT}/out}"
 REL="${RELEASE_DIR:-${OUT}/release}"
 ISO="opereta-${OPERETA_VERSION}-amd64.iso"
+PUBLISH_ISO="${OPERETA_RELEASE_ISO:-${OPERETA_PUBLISH_ISO:-no}}"
+[[ "${PUBLISH_ISO}" == yes || "${PUBLISH_ISO}" == no ]] || { echo "make-release-assets: OPERETA_PUBLISH_ISO must be yes or no" >&2; exit 1; }
 # GitHub 릴리스 자산은 파일 하나가 2 GiB 미만이어야 한다.
 MAX_ASSET=$((2 * 1024 * 1024 * 1024 - 1))
 
 die() { echo "make-release-assets: $*" >&2; exit 1; }
 warn() { echo "::warning::make-release-assets: $*"; }
 
+# ISO 는 항상 만들었어야 한다(패키지가 같은 빌드에서 나온다). 올릴 때만 크기와 체크섬을 요구한다.
 [[ -s "${OUT}/${ISO}" ]] || die "ISO 가 없다: ${OUT}/${ISO} (먼저 make iso)"
 [[ -s "${OUT}/${ISO}.sha256" ]] || die "ISO 체크섬이 없다: ${OUT}/${ISO}.sha256"
 (cd "${OUT}" && sha256sum -c "${ISO}.sha256" > /dev/null) || die "ISO 체크섬이 맞지 않는다"
-size="$(wc -c < "${OUT}/${ISO}" | tr -d ' ')"
-[[ "${size}" -le "${MAX_ASSET}" ]] || die "ISO 가 릴리스 자산 한도(2 GiB)를 넘는다: ${size} 바이트"
 
 rm -rf "${REL}"
 mkdir -p "${REL}"
-cp -f "${OUT}/${ISO}" "${OUT}/${ISO}.sha256" "${REL}/"
+if [[ "${PUBLISH_ISO}" == yes ]]; then
+    size="$(wc -c < "${OUT}/${ISO}" | tr -d ' ')"
+    [[ "${size}" -le "${MAX_ASSET}" ]] || die "ISO 가 릴리스 자산 한도(2 GiB)를 넘는다: ${size} 바이트"
+    cp -f "${OUT}/${ISO}" "${OUT}/${ISO}.sha256" "${REL}/"
+else
+    echo "make-release-assets: ISO 는 릴리스에 올리지 않는다(OPERETA_PUBLISH_ISO=no)"
+fi
 
 if [[ -n "${OPERETA_APT_GNUPGHOME:-}" && -n "${OPERETA_APT_KEY_ID:-}" ]]; then
     [[ -d "${OUT}/debs" ]] || die "패키지 디렉터리가 없다: ${OUT}/debs"
@@ -62,8 +69,9 @@ if [[ -n "${OPERETA_APT_GNUPGHOME:-}" && -n "${OPERETA_APT_KEY_ID:-}" ]]; then
     cp -f "${pub}" "${REL}/opereta-archive-keyring.pgp"
     echo "make-release-assets: OS 업데이트 저장소를 만들었다($(find "${tree}" -maxdepth 1 -name '*.deb' | wc -l | tr -d ' ')개 패키지)"
 else
-    warn "서명 키가 없어 OS 업데이트 저장소를 만들지 않았다. 이 릴리스의 ISO 로는 설치할 수 있지만 설치된 시스템은 이 릴리스로 업데이트할 수 없다."
+    warn "서명 키가 없어 OS 업데이트 저장소를 만들지 않았다. 설치된 시스템은 이 릴리스로 업데이트할 수 없다."
 fi
+[[ -n "$(find "${REL}" -mindepth 1 -maxdepth 1 -type f)" ]] || die "릴리스에 올릴 파일이 없다(ISO 도 저장소도 없음). 서명 키를 설정하거나 OPERETA_PUBLISH_ISO=yes 로 한다"
 
 # 체크섬 파일은 대상 디렉터리 밖에서 만든 뒤 옮긴다(자기 자신을 읽지 않게).
 sums="$(mktemp)"
