@@ -59,11 +59,13 @@
 | H3 ESP 가 둘 | **배제** | ESP 는 p1 하나다 |
 | H4 순서를 Windows 가 앞세움 | **유력** | `BootOrder` 에서 Opereta 가 맨 뒤다. Windows(또는 펌웨어)가 순서를 다시 쓴 것으로 보인다. 설치 직후에는 앞이었는지 알 수 없다 |
 | H5 Secure Boot | **배제** | 사용자 확인: Secure Boot 꺼짐 |
-| H6 (새) 펌웨어(MSI Stealth 15M)가 항목을 설정 화면에 보이지 않거나 보관하지 않음 | **가장 유력** | 항목이 있는데도 BIOS 화면에서 "파티션"으로 보이지 않는 것일 수 있다. UEFI 는 파티션이 아니라 **부팅 항목**(이름 `opereta`)을 보여 준다. BIOS 의 어떤 화면에서 어떻게 보이는지 확인이 필요하다 |
+| H6 (새) 펌웨어(MSI Stealth 15M)가 항목을 설정 화면에 보이지 않고 `BootOrder` 를 되돌림 | **실측으로 확인** | 항목이 있는데도 BIOS 화면에서 "파티션"으로 보이지 않는 것일 수 있다. UEFI 는 파티션이 아니라 **부팅 항목**(이름 `opereta`)을 보여 준다. BIOS 의 어떤 화면에서 어떻게 보이는지 확인이 필요하다 |
 
 결론: **"항목이 아예 없다"는 가설은 틀렸다.** 항목은 있고, 순서가 뒤이며, BIOS 가 그 항목을 어떻게 보여 주는지가 남은 질문이다. 1.1절의 코드 결함(실패를 조용히 넘김, UEFI 확인 없음, os-prober 없음 등)은 실제로 있지만 이 PC 에서 일어난 일의 직접 원인은 아니다.
 
 사용자 확인(2026-10-14): MSI Stealth 15M 노트북, BIOS 의 부팅 순서 설정 화면에는 **USB 와 Windows Boot Manager 만** 있고 Opereta 는 없다. Secure Boot 는 꺼져 있다. MSI 펌웨어는 포럼 보고에서 UEFI 부팅 항목을 제대로 보관하지 않거나 설정 화면에 보이지 않는 사례가 반복된다(공식 문서가 아니라 사용자 보고다: Arch Linux, EndeavourOS 포럼). 흔한 우회는 대체 경로 `\EFI\BOOT\BOOTX64.EFI` 로 설치하는 것인데 0.6.2 는 이미 이것을 설치한다(`EFI/Boot/bootx64.efi`). 따라서 실험으로 확인할 것: (a) `BootOrder` 를 바꾼 뒤 재부팅하면 실제로 Opereta 가 먼저 뜨는지, (b) Windows 를 한 번 부팅한 뒤 `BootOrder` 가 되돌려지는지, (c) 일회성 부팅 메뉴(MSI 는 보통 F11)에 항목이 보이는지.
+
+**실험 결과(2026-10-14, 사용자)**: `efibootmgr -o 0000,0001,0002` 로 Opereta 를 맨 앞에 두고 재부팅하자 **USB 로 부팅됐고**, 다시 확인하니 `0000`(opereta) 이 **맨 뒤로 돌아가 있었다.** 즉 이 펌웨어는 재부팅 때 자체 우선순위(USB, Windows Boot Manager)로 `BootOrder` 를 다시 쓰고, 자기가 설정 화면에 모르는 항목은 뒤에 붙인다. 따라서 **`efibootmgr` 로 영구 순서를 바꾸는 방식은 이 PC 에서 통하지 않는다**(B9 의 "맨 앞으로 고정"은 단독으로는 해결책이 아니다). 아직 확인하지 않은 것: 일회성 부팅 메뉴(F11)에 항목이 보이는지, `BootNext`(`efibootmgr -n 0000`)를 지키는지.
 
 **0.6.2 의 GRUB 메뉴에는 Windows 항목이 없다**(`os-prober` 없음, B5). 그래서 Opereta 를 먼저 부팅하게 하면 Windows 는 일회성 부팅 메뉴에서 골라야 한다.
 
@@ -85,7 +87,8 @@
 | B5 | Windows 항목 | `os-prober` 와 `ntfs-3g` 를 넣고 `GRUB_DISABLE_OS_PROBER=false` 로 GRUB 메뉴에 Windows 를 올린다. 이미 Windows Boot Manager 가 앞서는 경우를 위해 B7 의 도구로 순서를 바꿀 수 있게 한다 |
 | B6 | 진단 | `opereta boot status` 가 UEFI 여부, 항목, ESP 파일, 부팅 순서를 보여 주고 문제를 분류한다. 설치 끝 화면과 제어 센터(4절)가 같은 결과를 쓴다 |
 | B7 | 복구와 순서 | `opereta boot repair`(grub-install 과 항목 만들기 다시), `opereta boot order`, `opereta boot next <항목>`(다음 한 번만). 제어 센터의 "부팅" 페이지가 같은 동작을 한다. 라이브 USB 에서도 설치된 시스템을 골라 복구할 수 있게 한다 |
-| B9 | 부팅 순서 고정 | 설치 마지막에 Opereta 항목을 **맨 앞**으로 두고(`efibootmgr -o`), 설치된 시스템의 부팅 때마다 확인해 Windows 가 순서를 바꿨으면 알린다(제어 센터 "부팅" 페이지, `opereta boot status`). 사용자가 Windows 를 앞에 두기로 했다면 존중한다(설정으로 끌 수 있다). **BitLocker 주의**: 부팅 구성을 바꾸기 전에 BitLocker 복구 키가 있는지 안내한다(부팅 순서 변경이 보통 복구 키를 요구하지는 않지만 보장할 수 없다) |
+| B9 | 부팅 순서 확인과 안내(**고정은 펌웨어가 되돌리면 소용없다**, 위 실험). 펌웨어별로 아래 선택지를 보여 준다(결정 D9) |  
+| B9a | (구) 부팅 순서 고정 | 설치 마지막에 Opereta 항목을 **맨 앞**으로 두고(`efibootmgr -o`), 설치된 시스템의 부팅 때마다 확인해 Windows 가 순서를 바꿨으면 알린다(제어 센터 "부팅" 페이지, `opereta boot status`). 사용자가 Windows 를 앞에 두기로 했다면 존중한다(설정으로 끌 수 있다). **BitLocker 주의**: 부팅 구성을 바꾸기 전에 BitLocker 복구 키가 있는지 안내한다(부팅 순서 변경이 보통 복구 키를 요구하지는 않지만 보장할 수 없다) |
 | B10 | 이전 이름 폴더 | ESP 에 `EFI/diparnux`(이전 이름) 같은 옛 폴더가 있으면 목록에 보여 주고 **사용자 확인 뒤** 지울 수 있게 한다(자동으로 지우지 않는다). 옛 NVRAM 항목도 같다 |
 | B11 | 시스템 시각 | 설치 직후 `2000-04-13` 처럼 틀린 시각이 나온 원인을 조사한다(`hwclock` 단계, RTC 가 UTC/로컬 중 무엇인지 — Windows 와 공존하면 RTC 를 로컬 시간으로 쓰는 문제가 있다). 시각이 틀리면 TLS 와 업데이트(릴리스 서명 검증)가 실패한다. 설치기에서 시각대와 RTC 모드를 정하고 첫 부팅에 네트워크 시각 동기화를 켠다 |
 | B8 | 시험 | QEMU 에 (a) Windows 와 비슷한 ESP(`EFI/Microsoft/Boot/bootmgfw.efi`, `EFI/BOOT/BOOTX64.EFI`)가 미리 있는 디스크에 설치, (b) `efibootmgr -v` 로 `opereta` 항목 단언, (c) NVRAM 항목을 지운 뒤 대체 경로로 부팅과 `boot repair`, (d) 레거시 부팅 거절, (e) Windows 항목이 GRUB 메뉴에 있음을 추가한다 |
@@ -304,6 +307,19 @@ GTK3 의 `decoration` 노드는 앱이 직접 그리는 창(CSD)뿐 아니라 **
 | D8 | 창 단추 순서 | **x(닫기), +(최대화), −(최소화)** | 3.2절 T0. 0.6.2 의 x, −, + 에서 바뀐다 |
 
 아직 받지 못한 것: BIOS 화면 정보와 사진 T02(1.3.1절). 이것이 있어야 H4~H6 을 구분한다.
+
+### 8.1 부팅 방식에 대한 선택지(결정 D9, 실험 결과를 본 뒤 정한다)
+
+펌웨어가 순서를 되돌리는 PC 에서 Opereta 로 들어가는 길:
+
+| 선택지 | 방법 | 장점 | 위험 |
+|---|---|---|---|
+| O1 | 일회성 부팅 메뉴(MSI: F11)에서 `opereta` 선택 | 아무것도 바꾸지 않는다 | 부팅할 때마다 눌러야 한다 |
+| O2 | Opereta 에서 `opereta boot next windows|opereta` 로 **다음 한 번**의 부팅 대상을 지정(`BootNext`) | 영구 설정을 건드리지 않는다 | 펌웨어가 `BootNext` 를 지키는지 확인 필요. 기본 부팅은 여전히 펌웨어가 정한 것 |
+| O3 | Windows 의 부팅 관리자(BCD)에 Opereta 항목을 추가(Windows 에서 `bcdedit` 로). 펌웨어가 항상 먼저 여는 Windows Boot Manager 가 "Windows / Opereta" 메뉴를 보여 준다 | 이 펌웨어에서 가장 안정적인 보편적 방법 | **BitLocker 복구 키를 요구할 수 있다.** Windows 설정을 건드린다. 우리가 자동으로 하지 않고 안내 스크립트만 제공한다 |
+| O4 | NVRAM 항목 이름을 "Windows Boot Manager" 로 하는 등 펌웨어 호환 속임수 | 일부 펌웨어에서 통함 | 혼란스럽고 효과가 불확실하다. 기본으로 쓰지 않는다 |
+
+기본안: **O1 + O2 를 제공하고 O3 는 문서와 선택 사항으로 둔다.** `bootmgfw.efi` 를 바꾸는 방법은 BitLocker 와 Windows 업데이트와 충돌하므로 **하지 않는다.**
 
 ## 9. 라이선스와 크기
 
