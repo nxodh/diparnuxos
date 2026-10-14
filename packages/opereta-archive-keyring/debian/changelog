@@ -7,7 +7,7 @@ opereta-archive-keyring (0.6.1) trixie; urgency=medium
 opereta-archive-keyring (0.6.0) trixie; urgency=medium
 
   * OS 이름을 바꾼다(두 번째 이름 변경). 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다. 새 로고와 8px 모서리 디자인을 쓴다.
-  * 저장소를 평평한 형식(flat, GitHub 릴리스 자산)으로 쓸 수 있다. 소스는 Suites: ./ 이고 주소는 가장 최근 릴리스를 가리킨다.
+  * 저장소를 평평한 형식(flat, GitHub 릴리스 자산)으로 쓸 수 있다. 소스는 Suites: ./ 이고 주소는 가장 최근 릴리스를 가리킨다. 소스 파일은 템플릿(/usr/share/opereta/apt)으로 두고 첫 부팅 때 tmpfiles 가 /etc 로 복사한다. 이미지 빌드 중에는 이 소스가 없어 첫 릴리스 전이나 GitHub 장애 때도 빌드가 실패하지 않는다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 22:00:00 +0900
 

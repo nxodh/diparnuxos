@@ -42,7 +42,8 @@ pool/main/<첫 글자>/<패키지>/<패키지>_<버전>_<아키텍처>.deb   (�
 | 파일 | 내용 |
 |---|---|
 | `/usr/share/keyrings/opereta-archive-keyring.pgp` | 공개 서명 키 |
-| `/etc/apt/sources.list.d/opereta.sources` | deb822 소스. `Signed-By` 로 위 키만 믿는다. 주소나 키가 없으면 `Enabled: no` |
+| `/usr/share/opereta/apt/opereta.sources` | deb822 소스의 템플릿. `Signed-By` 로 위 키만 믿는다. 주소나 키가 없으면 `Enabled: no` |
+| `/usr/lib/tmpfiles.d/opereta-apt.conf` | 첫 부팅 때 템플릿을 `/etc/apt/sources.list.d/opereta.sources` 로 복사한다(대상이 없을 때만). 이미지를 만드는 동안에는 이 소스가 없어서, 릴리스가 아직 없거나 GitHub 에 닿지 못해도 이미지 빌드가 실패하지 않는다 |
 | `/etc/apt/preferences.d/10-opereta.pref` | `Origin: Opereta` 의 패키지는 `opereta-*` 만 받는다(우선순위 600, 그 밖에는 -1) |
 
 ## 키를 만들고 저장소를 만드는 절차 (사용자가 한다)
