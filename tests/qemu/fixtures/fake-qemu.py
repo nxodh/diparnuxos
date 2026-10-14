@@ -33,6 +33,10 @@ webadmin_password = False
 webadmin_on = False
 vpn_on = False
 vpn_peers = 0
+tls_on = False
+lan_plain = False
+lan_on = False
+server_fp_n = 0
 
 
 def emit(text):
@@ -71,6 +75,7 @@ def status():
 def result(command):
     global autostart, daemon_restarts, stopped, default, key_created, gateway_requests, gateway_refused, local_no_key
     global fw_rule, ssh_key, webadmin_password, webadmin_on, vpn_on, vpn_peers
+    global tls_on, lan_plain, server_fp_n, lan_on
     if command.startswith("stty "):
         return "", 0
     if command.startswith("attempt=0; while [ \"$attempt\" -lt 10 ]; do"):
@@ -116,6 +121,32 @@ def result(command):
     if command.startswith("sudo -n nft list table inet diparnux"):
         return "table inet diparnux {\n\tchain input {\n\t\tiif lo accept\n" + (
             "\t\tip saddr { 10.0.0.0/8 } tcp dport 39999 accept\n" if fw_rule else "") + "\t}\n}", 0
+    if command.startswith("ip -4 -o addr show scope global"):
+        return "10.0.2.15", 0
+    if command.startswith("ss -H -ltn 'sport = :8444 or sport = :8080'"):
+        if tls_on:
+            return "LISTEN 0 4096 0.0.0.0:8444 0.0.0.0:*\nLISTEN 0 4096 " + ("0.0.0.0" if lan_plain else "127.0.0.1") + ":8080 0.0.0.0:*", 0
+        return "LISTEN 0 4096 127.0.0.1:8080 0.0.0.0:*", 0
+    if command.startswith("diparnux tls ca --out /tmp/e2e-ca.pem"):
+        return "wrote the CA certificate to /tmp/e2e-ca.pem\nfingerprint  AA:BB:CC", 0
+    if command.startswith("printf '%s\\n' 'import sys, ssl, json, socket"):
+        return "", 0
+    if command.startswith("python3 -I /tmp/e2e_tls.py "):
+        return json.dumps({"with_ca": [200, True, None], "no_ca": "verify-failed", "wrong_name": "verify-failed",
+                           "plain_lan": 200 if lan_plain else "refused", "plain_local": [200, None]}), 0
+    if command.startswith("diparnux connect vedecaps --remote --ca-out"):
+        return json.dumps({"provider": {"diparnux": {"name": "Diparnux", "protocol": "openai", "api": "https://10.0.2.15:8444/v1",
+                                                      "options": {"apiKey": "{env:DIPARNUX_API_KEY}", "ca": "~/.config/vedecaps/diparnux-ca.pem"}}}}), 0
+    if command.startswith("diparnux --json tls off --yes"):
+        tls_on, lan_plain = False, False
+        return json.dumps({"enabled": False}), 0
+    if command.startswith("diparnux --json config set lan off"):
+        lan_on = False
+        return json.dumps({"config": {"lan_exposed": False}, "restart_required": True}), 0
+    if command.startswith("diparnux --json apikey rm "):
+        return json.dumps({"deleted": True}), 0
+    if command.startswith("rm -f /tmp/e2e-ca.pem"):
+        return "", 0
     if command.startswith("ss -H -ltn 'sport = :18443'"):
         return ("LISTEN 0 4096 *:18443 *:*" if webadmin_on else ""), 0
     if command.startswith("systemctl is-enabled xrdp.service"):
@@ -200,7 +231,28 @@ def result(command):
     if args == "resources":
         return json.dumps({"system": {"memory": {"total_mib": 3900, "available_mib": 3300, "used_mib": 600}, "cpu": {"cores": 2}}, "gpus": []}), 0
     if args.startswith("exposure"):
+        if tls_on:
+            return json.dumps({"level": "ok", "findings": [{"level": "ok", "title": "The model server is open to the local network over TLS", "detail": ""}]}), 0
         return json.dumps({"level": "ok", "findings": [{"level": "ok", "title": "The model server is reachable only from this computer", "detail": ""}]}), 0
+    if args == "apikey create e2e-tls":
+        return json.dumps({"id": "k2", "label": "e2e-tls", "prefix": "dpx_eeee", "key": FAKE_KEY, "restart_required": False}), 0
+    if args == "config set lan on":
+        lan_on = True
+        return json.dumps({"config": {"lan_exposed": True}, "restart_required": True}), 0
+    if args.startswith("tls"):
+        words = args.split()
+        if words[1:2] == ["on"]:
+            tls_on = True
+        elif words[1:3] == ["plain", "on"]:
+            lan_plain = True
+        elif words[1:3] == ["plain", "off"]:
+            lan_plain = False
+        elif words[1:2] == ["renew"]:
+            server_fp_n += 1
+        return json.dumps({"enabled": tls_on, "active": tls_on and lan_on, "port": 8444, "lan_plain": lan_plain,
+                           "plain_port": 8080, "plain_lan_open": (not tls_on) or lan_plain, "listening": tls_on,
+                           "ca_fingerprint": "AA:BB:CC", "server_fingerprint": "11:22:%02d" % server_fp_n,
+                           "dns": ["diparnux.local"], "ips": ["10.0.2.15"]}), 0
     if args == "network config":
         return json.dumps({"hostname": "diparnux", "wake_on_lan": False, "pending": None, "interfaces": []}), 0
     if args.startswith("network diagnose"):
@@ -239,10 +291,12 @@ def result(command):
         vpn_on = False
         return json.dumps({"enabled": False, "peers": []}), 0
     if args == "connection":
+        addresses = [{"interface": "enp0s3", "address": "10.0.2.15", "family": "ipv4", "url": "https://10.0.2.15:8444/v1"}] if tls_on else []
         return json.dumps({"server_state": "stopped" if stopped else "running_cpu_fallback", "model_id": model,
-                           "gateway": True, "public_port": 8080, "lan_exposed": False,
-                           "key_count": 1 if key_created else 0, "key_required": key_created,
-                           "local_url": "http://127.0.0.1:8080/v1", "addresses": [], "warnings": [], "examples": {}}), 0
+                           "gateway": True, "public_port": 8080, "lan_exposed": tls_on,
+                           "key_count": 1 if key_created else 0, "key_required": key_created or tls_on,
+                           "tls_active": tls_on,
+                           "local_url": "http://127.0.0.1:8080/v1", "addresses": addresses, "warnings": [], "examples": {}}), 0
     if args == "gateway":
         keys = [{"id": "k1", "label": "e2e-gateway", "prefix": "dpx_ffff", "requests": gateway_requests}] if key_created else []
         return json.dumps({"enabled": True, "public_port": 8080, "state": {"listening": True, "addr": "127.0.0.1:8080", "backend_port": 18080},
