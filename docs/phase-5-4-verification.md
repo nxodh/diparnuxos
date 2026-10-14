@@ -14,7 +14,7 @@
 | API, CLI | `GET/PUT /v1/tls`, `POST /v1/tls/renew`, `GET /v1/tls/ca`. 켜기 사전 조건(LAN, 게이트웨이, 키, 포트 충돌), 거부된 요청은 설정을 바꾸지 않음, 개인 키가 응답에 없음. CLI 확인 요구(`off`, `plain on`, `renew --ca`는 `--yes` 없이 요청을 보내지 않음) | 통과 |
 | 연결 정보, `connect vedecaps` | TLS 가 켜지면 LAN 주소와 mDNS 주소가 https 와 TLS 포트이고 `LocalURL` 은 평문 그대로. 예시(curl, Python, Vedecaps)에 CA. `options.ca` 는 https 주소에만, 키 값은 쓰지 않음, `--ca-out` | 통과 |
 | 제어 센터 | 서버 페이지의 TLS 패널(스위치, 지문, 복사, 갱신), 한국어 번역, 논리 시험, API 클라이언트 시험 | 통과(GUI 80개) |
-| QEMU E2E `check_tls` | 드라이버 시험(가짜 QEMU)이 새 단계를 포함해 통과. 실제 이미지에서의 실행은 CI 에서 확인한다(아래) | 드라이버 19개 통과 |
+| QEMU E2E `check_tls` | 드라이버 시험(가짜 QEMU)과 실제 이미지(CI, 2절) | 드라이버 19개 통과, CI 통과 |
 
 ## 2. CI 에서 확인할 것(PR 의 실제 ISO E2E)
 
@@ -29,9 +29,13 @@
 7. 노출 점검과 연결 정보가 TLS 를 알린다. `connect vedecaps --remote` 가 https 와 `options.ca` 를 쓴다.
 8. 끝나면 TLS 와 LAN 공개와 키를 원래대로 돌린다.
 
+CI 실행 38506021343(PR #13, 헤드 `4b1294d`): lint, ISO 빌드와 부팅, CPU 추론 E2E 전체 통과.
+
 | 단계 | CI 결과 |
 |---|---|
-| `check_tls` | 대기 |
+| `check_tls` (위 1~8) | **통과**. 실제 이미지에서 `tls on`, 포트 점검, https 접속(CA 있음/없음/다른 이름), 평문 닫힘, 노출 점검, 연결 정보, `connect vedecaps`, 서버 인증서 갱신, `lan_plain` 을 모두 실행했고 어느 단계도 실패하지 않았다 |
+
+주의: 이 E2E 는 게스트가 **자기 자신의 LAN 주소**로 접속한다. 다른 컴퓨터에서의 접속이 아니다(3절).
 
 ## 3. 확인하지 못한 것
 
