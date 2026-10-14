@@ -157,6 +157,8 @@ func execute(e runEnv, args []string) int {
 		return c.exposure(cargs)
 	case "webadmin":
 		return c.webadmin(cargs)
+	case "tls":
+		return c.tls(cargs)
 	case "vpn":
 		return c.vpn(cargs)
 	case "remote-desktop":

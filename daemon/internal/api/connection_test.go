@@ -103,3 +103,62 @@ func TestConnectionVedecapsExampleAndLocalKeyState(t *testing.T) {
 		t.Fatalf("local example:\n%s", c.Examples["vedecaps"])
 	}
 }
+
+// TLS 가 떠 있으면 LAN 주소는 https 와 TLS 포트이고, 이 컴퓨터의 주소는 평문 그대로다.
+func TestConnectionWithTLSUsesHTTPSAddresses(t *testing.T) {
+	in := baseConnectionInput()
+	in.Cfg.TLS = true
+	in.CAFingerprint = "AA:BB:CC"
+	c := buildConnection(in)
+	if !c.TLSActive || c.TLSPort != 8444 || c.CAFingerprint != "AA:BB:CC" {
+		t.Fatalf("tls fields: %+v", c)
+	}
+	if c.LocalURL != "http://127.0.0.1:8080/v1" {
+		t.Fatalf("the local URL must stay plain: %q", c.LocalURL)
+	}
+	if c.Addresses[0].URL != "https://192.168.0.23:8444/v1" || c.Addresses[1].URL != "https://[2001:db8::23]:8444/v1" {
+		t.Fatalf("addresses = %+v", c.Addresses)
+	}
+	if c.MDNSURL != "https://diparnux.local:8444/v1" {
+		t.Fatalf("mdns = %q", c.MDNSURL)
+	}
+	if !strings.Contains(c.Examples["curl"], "--cacert diparnux-ca.pem https://192.168.0.23:8444/v1/chat/completions") {
+		t.Fatalf("curl = %s", c.Examples["curl"])
+	}
+	if !strings.Contains(c.Examples["openai_python"], "verify=\"diparnux-ca.pem\"") {
+		t.Fatalf("python = %s", c.Examples["openai_python"])
+	}
+	if !strings.Contains(c.Examples["vedecaps"], `"ca": "~/.config/vedecaps/diparnux-ca.pem"`) {
+		t.Fatalf("vedecaps = %s", c.Examples["vedecaps"])
+	}
+	found := false
+	for _, w := range c.Warnings {
+		if strings.Contains(w, "own CA") {
+			found = true
+		}
+		if strings.Contains(w, "Plain HTTP is also open") {
+			t.Fatalf("lan_plain warning without lan_plain: %v", c.Warnings)
+		}
+	}
+	if !found {
+		t.Fatalf("no CA warning: %v", c.Warnings)
+	}
+	in.Cfg.LANPlain = true
+	c = buildConnection(in)
+	plain := false
+	for _, w := range c.Warnings {
+		if strings.Contains(w, "Plain HTTP is also open") {
+			plain = true
+		}
+	}
+	if !plain {
+		t.Fatalf("lan_plain was not warned: %v", c.Warnings)
+	}
+	// TLS 가 켜져 있어도 LAN 공개가 꺼져 있으면 https 주소는 없다.
+	in = baseConnectionInput()
+	in.Cfg.TLS, in.Cfg.LANExposed = true, false
+	c = buildConnection(in)
+	if c.TLSActive || len(c.Addresses) != 0 {
+		t.Fatalf("TLS without LAN exposure: %+v", c)
+	}
+}

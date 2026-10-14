@@ -119,6 +119,8 @@ type Deps struct {
 	SSHConf SSHConfManager
 	// NetConf 는 유선 IP 설정, 호스트 이름, 깨우기다. nil 이면 해당 API 는 network_unavailable 을 돌려준다.
 	NetConf NetConfManager
+	// TLS 는 게이트웨이 TLS 의 인증서와 리스너다. nil 이면 TLS API 는 tls_unavailable 을 돌려준다.
+	TLS TLSManager
 	// Gateway 는 모델 서버 앞의 프록시(키 확인, 사용량)다. nil 이면 게이트웨이 API 는 gateway_unavailable 을 돌려준다.
 	Gateway GatewayView
 	// Power 는 상시 가동(절전과 종료 금지)이다. nil 이면 전원 API 는 power_unavailable 을 돌려준다.
@@ -220,6 +222,10 @@ func (s *server) routes() {
 	s.mux.HandleFunc("PUT /v1/system/ssh", s.putSSH)
 	s.mux.HandleFunc("GET /v1/system/power", s.getPower)
 	s.mux.HandleFunc("GET /v1/gateway", s.getGateway)
+	s.mux.HandleFunc("GET /v1/tls", s.getTLS)
+	s.mux.HandleFunc("PUT /v1/tls", s.putTLS)
+	s.mux.HandleFunc("POST /v1/tls/renew", s.postTLSRenew)
+	s.mux.HandleFunc("GET /v1/tls/ca", s.getTLSCA)
 	s.mux.HandleFunc("GET /v1/server/stats", s.getServerStats)
 	s.mux.HandleFunc("GET /v1/connection", s.getConnection)
 	s.mux.HandleFunc("PUT /v1/system/power", s.putPower)

@@ -279,6 +279,7 @@ func run(args []string) error {
 		FirewallRules: fwRules,
 		Power:         &power.Manager{Runner: cmds},
 		Gateway:       gwMgr,
+		TLS:           &tlsService{store: tlsStore, listener: gwMgr.TLSState},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
@@ -495,6 +496,25 @@ func loginUsers(_ *accounts.Manager) []string {
 }
 
 // localAddresses 는 이 컴퓨터의 호스트 이름과 전역 IPv4 주소다. 웹 관리 인증서와 주소 안내에 쓴다.
+// tlsService 는 API 가 쓰는 TLS 관리자다. 인증서 이름은 호출 때마다 이 컴퓨터의 지금 이름과 주소로 모은다.
+type tlsService struct {
+	store    *certstore.Store
+	listener func() gateway.ManagerState
+}
+
+func (t *tlsService) Info() (certstore.Info, error) { return t.store.Info() }
+func (t *tlsService) Ensure(extra []string) (certstore.Info, error) {
+	return t.store.Ensure(tlsNames(), extra)
+}
+func (t *tlsService) RenewServer(extra []string) (certstore.Info, error) {
+	return t.store.RenewServer(tlsNames(), extra)
+}
+func (t *tlsService) RenewCA(extra []string) (certstore.Info, error) {
+	return t.store.RenewCA(tlsNames(), extra)
+}
+func (t *tlsService) CAPEM() ([]byte, error)         { return t.store.CAPEM() }
+func (t *tlsService) Listener() gateway.ManagerState { return t.listener() }
+
 // tlsNames 는 서버 인증서에 넣을 이 컴퓨터의 이름과 주소다.
 func tlsNames() certstore.Names {
 	var n certstore.Names

@@ -30,6 +30,8 @@ func (c *cli) connectVedecaps(args []string) int {
 	write := fs.Bool("write", false, "merge the settings into the Vedecaps config of the current user")
 	makeDefault := fs.Bool("make-default", false, "make Diparnux the default model even when another default is set")
 	withMCP := fs.Bool("mcp", false, "also register the read-only Diparnux MCP server (diparnux mcp)")
+	caPath := fs.String("ca", "", "path of the CA certificate on the computer where Vedecaps runs (https addresses; default "+vedecaps.DefaultCAFile+")")
+	caOut := fs.String("ca-out", "", "write this computer's CA certificate to this file (copy it to the other computer)")
 	pos, code, ok := c.parse(fs, "connect vedecaps", args)
 	if !ok {
 		return code
@@ -83,16 +85,43 @@ func (c *cli) connectVedecaps(args []string) int {
 		}
 	}
 
-	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP, Packaged: packagedVedecaps()})
+	caFile := ""
+	if strings.HasPrefix(base, "https://") {
+		caFile = *caPath
+		if caFile == "" {
+			caFile = vedecaps.DefaultCAFile
+		}
+	} else if *caPath != "" {
+		return c.usage("--ca only applies to an https:// address (use --remote while TLS is on, or --url https://...)", "connect vedecaps")
+	}
+	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP, Packaged: packagedVedecaps(), CAFile: caFile})
 	if err != nil {
 		c.errorLine(strings.TrimPrefix(err.Error(), "vedecaps: "))
 		return exitUsage
 	}
 
 	w := c.env.stdout
+	if *caOut != "" {
+		pem, perr := c.api.TLSCA(ctx)
+		if perr != nil {
+			return c.fail(perr)
+		}
+		if werr := os.WriteFile(*caOut, pem, 0o644); werr != nil {
+			c.errorLine(werr.Error())
+			return exitFailure
+		}
+		fmt.Fprintf(c.env.stderr, "wrote the CA certificate to %s", *caOut)
+		if conn.CAFingerprint != "" {
+			fmt.Fprintf(c.env.stderr, " (fingerprint %s)", conn.CAFingerprint)
+		}
+		fmt.Fprintln(c.env.stderr)
+	}
 	if !*write {
 		fmt.Fprint(w, vedecaps.Pretty(frag))
 		c.vedecapsHints(base, needsKey, *keyEnv, model, conn.ServerState)
+		if caFile != "" {
+			c.vedecapsCAHints(caFile, conn.CAFingerprint)
+		}
 		return exitOK
 	}
 
@@ -149,6 +178,17 @@ func (c *cli) vedecapsHints(base string, needsKey bool, keyEnv, model, serverSta
 		fmt.Fprintln(e, "note: the model server is not running. Start it first: diparnux serve start")
 	}
 	fmt.Fprintln(e, "next: check that the model can call tools with: diparnux serve toolcheck")
+}
+
+// vedecapsCAHints 는 https 주소를 쓸 때 CA 를 어떻게 배포하는지 알린다.
+func (c *cli) vedecapsCAHints(caFile, fingerprint string) {
+	e := c.env.stderr
+	fmt.Fprintf(e, "note: this address uses HTTPS with this computer's own CA. Vedecaps needs the CA file at %s\n", caFile)
+	fmt.Fprintln(e, "      Make it here:  diparnux tls ca --out diparnux-ca.pem   (or add --ca-out FILE to this command)")
+	if fingerprint != "" {
+		fmt.Fprintf(e, "      After copying it, check that its SHA-256 fingerprint is %s\n", fingerprint)
+	}
+	fmt.Fprintln(e, "      Trusting the CA needs Vedecaps 0.1.5 or newer (options.ca). Do not turn certificate checking off.")
 }
 
 // isLocalURL 은 주소가 이 컴퓨터(루프백)를 가리키는지다.

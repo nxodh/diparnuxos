@@ -44,8 +44,13 @@ type Connection struct {
 	LocalURL  string              `json:"local_url"`
 	Addresses []ConnectionAddress `json:"addresses"`
 	MDNSURL   string              `json:"mdns_url,omitempty"`
-	Warnings  []string            `json:"warnings"`
-	Examples  map[string]string   `json:"examples"`
+	// TLSActive 가 true 이면 Addresses 와 MDNSURL 은 https 주소(TLS 포트)이고 클라이언트는 CA 가 필요하다.
+	// LocalURL 은 항상 평문이다(이 컴퓨터 안의 연결). CAFingerprint 는 배포한 CA 와 비교할 지문이다.
+	TLSActive     bool              `json:"tls_active"`
+	TLSPort       int               `json:"tls_port,omitempty"`
+	CAFingerprint string            `json:"ca_fingerprint,omitempty"`
+	Warnings      []string          `json:"warnings"`
+	Examples      map[string]string `json:"examples"`
 }
 
 // connectionInput 은 Connection 을 만드는 데 필요한 값이다. 순수 함수로 만들어 시험하기 쉽게 한다.
@@ -56,6 +61,8 @@ type connectionInput struct {
 	KeyCount   int
 	ModelIDs   []string
 	Hostname   string
+	// CAFingerprint 는 TLS 가 켜져 있을 때 CA 의 지문이다(없으면 비어 있다).
+	CAFingerprint string
 }
 
 func buildConnection(in connectionInput) Connection {
@@ -81,6 +88,12 @@ func buildConnection(in connectionInput) Connection {
 	}
 	port := strconv.Itoa(in.Cfg.Port)
 	c.LocalURL = "http://127.0.0.1:" + port + "/v1"
+	// TLS 가 떠 있으면 다른 컴퓨터에 알려 줄 주소는 https 와 TLS 포트다(평문은 LAN 에서 닫혀 있다. lan_plain 이면 열려 있다).
+	scheme, lanPort := "http", port
+	if in.Cfg.TLSActive() {
+		scheme, lanPort = "https", strconv.Itoa(in.Cfg.TLSListenPort())
+		c.TLSActive, c.TLSPort, c.CAFingerprint = true, in.Cfg.TLSListenPort(), in.CAFingerprint
+	}
 
 	if in.Cfg.LANExposed {
 		for _, ifc := range in.Interfaces {
@@ -100,13 +113,13 @@ func buildConnection(in connectionInput) Connection {
 					fam, host = "ipv6", "["+ip.String()+"]"
 				}
 				c.Addresses = append(c.Addresses, ConnectionAddress{
-					Interface: ifc.Name, Address: ip.String(), Family: fam, URL: "http://" + host + ":" + port + "/v1",
+					Interface: ifc.Name, Address: ip.String(), Family: fam, URL: scheme + "://" + host + ":" + lanPort + "/v1",
 				})
 			}
 		}
 		sort.SliceStable(c.Addresses, func(i, j int) bool { return c.Addresses[i].Family < c.Addresses[j].Family })
 		if in.Hostname != "" {
-			c.MDNSURL = "http://" + in.Hostname + ".local:" + port + "/v1"
+			c.MDNSURL = scheme + "://" + in.Hostname + ".local:" + lanPort + "/v1"
 		}
 	}
 
@@ -119,6 +132,12 @@ func buildConnection(in connectionInput) Connection {
 	}
 	if in.Cfg.LANExposed && in.KeyCount == 0 {
 		c.Warnings = append(c.Warnings, "No API key exists. Create one (diparnux apikey create <label>); LAN connections are refused without a key.")
+	}
+	if in.Cfg.TLSActive() {
+		c.Warnings = append(c.Warnings, "These addresses use HTTPS with this computer's own CA. Give each client the CA once (diparnux tls ca --out diparnux-ca.pem) and compare the fingerprint; do not turn certificate checking off.")
+		if in.Cfg.LANPlain {
+			c.Warnings = append(c.Warnings, "Plain HTTP is also open on the local network (lan_plain): keys and prompts sent there are not encrypted.")
+		}
 	}
 	if in.Cfg.LANExposed && len(c.Addresses) == 0 {
 		c.Warnings = append(c.Warnings, "No network address was found. Check the network connection.")
@@ -136,10 +155,20 @@ func buildConnection(in connectionInput) Connection {
 		model = "<model>"
 	}
 	c.Examples["settings"] = fmt.Sprintf("Base URL: %s\nAPI key: <your API key>\nModel: %s", base, model)
-	c.Examples["curl"] = fmt.Sprintf("curl %s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", base, model)
-	c.Examples["openai_python"] = fmt.Sprintf("from openai import OpenAI\nclient = OpenAI(base_url=\"%s\", api_key=\"<your API key>\")\nreply = client.chat.completions.create(\n    model=\"%s\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n)\nprint(reply.choices[0].message.content)", base, model)
+	caFlag, pyClient, caFile := "", "", ""
+	if c.TLSActive && strings.HasPrefix(base, "https://") {
+		caFlag = "--cacert diparnux-ca.pem "
+		pyClient = ", http_client=httpx.Client(verify=\"diparnux-ca.pem\")"
+		caFile = vedecaps.DefaultCAFile
+	}
+	c.Examples["curl"] = fmt.Sprintf("curl %s%s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", caFlag, base, model)
+	imports := "from openai import OpenAI"
+	if pyClient != "" {
+		imports = "import httpx\nfrom openai import OpenAI"
+	}
+	c.Examples["openai_python"] = fmt.Sprintf("%s\nclient = OpenAI(base_url=\"%s\", api_key=\"<your API key>\"%s)\nreply = client.chat.completions.create(\n    model=\"%s\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n)\nprint(reply.choices[0].message.content)", imports, base, pyClient, model)
 	if frag, err := vedecaps.Fragment(vedecaps.Input{
-		BaseURL: base, ModelID: model, SlotCtx: c.SlotCtx,
+		BaseURL: base, ModelID: model, SlotCtx: c.SlotCtx, CAFile: caFile,
 		NeedsKey: in.Cfg.LANExposed && len(c.Addresses) > 0 || c.LocalKeyRequired,
 	}); err == nil && model != "<model>" {
 		c.Examples["vedecaps"] = vedecaps.Pretty(frag)
@@ -175,6 +204,11 @@ func (s *server) getConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	if h, err := os.Hostname(); err == nil {
 		in.Hostname = strings.TrimSpace(h)
+	}
+	if cfg.TLSActive() && s.d.TLS != nil {
+		if info, err := s.d.TLS.Info(); err == nil {
+			in.CAFingerprint = info.CAFingerprint
+		}
 	}
 	writeJSON(w, http.StatusOK, buildConnection(in))
 }

@@ -459,8 +459,12 @@ type Connection struct {
 	LocalURL  string              `json:"local_url"`
 	Addresses []ConnectionAddress `json:"addresses"`
 	MDNSURL   string              `json:"mdns_url"`
-	Warnings  []string            `json:"warnings"`
-	Examples  map[string]string   `json:"examples"`
+	// TLSActive 이면 Addresses 와 MDNSURL 은 https 주소이고 클라이언트는 CA 가 필요하다. LocalURL 은 평문이다.
+	TLSActive     bool              `json:"tls_active"`
+	TLSPort       int               `json:"tls_port"`
+	CAFingerprint string            `json:"ca_fingerprint"`
+	Warnings      []string          `json:"warnings"`
+	Examples      map[string]string `json:"examples"`
 }
 
 // ToolCheck 는 POST /v1/server/toolcheck 의 응답이다.
