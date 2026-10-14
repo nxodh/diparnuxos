@@ -1,6 +1,6 @@
 # 0.5.4 검증 범위 (개발 중)
 
-- 상태: **개발 중.** TLS(묶음 T)는 구현했고 시험을 통과했다. Vedecaps 연동의 고정(W7)과 묶음 R(경량화, GPU 수정, 실기 수정)은 입력 대기다.
+- 상태: **개발 완료 직전.** TLS(묶음 T)와 Vedecaps 0.1.5 고정(W7)을 끝냈다. 램 목표는 확정했고 GPU 수정은 보류, 실기 수정은 실기 검증 결과 대기다.
 - 설계: [phase-5-4-design.md](phase-5-4-design.md). 사용: [tls.md](tls.md).
 
 ## 1. 확인한 것
@@ -40,22 +40,54 @@ CI 실행 38506021343(PR #13, 헤드 `4b1294d`): lint, ISO 빌드와 부팅, CPU
 ## 3. 확인하지 못한 것
 
 - **다른 컴퓨터에서의 실제 접속**: Windows, macOS, 휴대폰, 브라우저. QEMU 안에서는 자기 자신의 LAN 주소로만 접속한다.
-- **Vedecaps 0.1.5 와의 호환**: `options.ca` 를 믿는지, Bun 이 DNS 제약만 있는 CA 와 IP SAN 인증서를 통과시키는지는 Vedecaps 쪽 시험(TC11)과 W7 의 `make test-vedecaps-docker` 가 확인한다. **0.1.5 가 나오기 전에는 확인되지 않았다.**
+- **Vedecaps 0.1.5 와의 호환**: 4절에서 확인했다(실제 Vedecaps 0.1.5, 실제 `certstore` 의 CA). 남은 것은 다른 컴퓨터에서의 접속이다.
 - **시스템 저장소의 이름 제약**: Windows, macOS 가 CA 의 DNS 제약을 지키는지.
 - **IPv6**: 리스너와 인증서 모두 IPv4 만 다룬다.
 - **시계 오류**, **호스트 이름이 바뀌는 상황**, **여러 NIC 가 있는 컴퓨터**: 자동 재발급 논리는 단위 시험으로 확인했지만 실제 환경에서는 보지 않았다.
 
-## 4. 남은 일
+## 4. Vedecaps 0.1.5 고정과 호환 (W7)
 
-| 묶음 | 내용 | 대기하는 것 |
-|---|---|---|
-| W7 | `diparnux.conf` 의 Vedecaps 를 0.1.5 와 그 SHA-256 으로 고정, `make test-vedecaps-docker` 에 https 시나리오 | Vedecaps 0.1.5 릴리스 |
-| 버전 | 0.5.4 로 올리기(`diparnux.conf`, GUI `__version__`, 패키지 changelog) | W7 |
-| R-경량화 | 램 목표 확정과 줄이기 | 사용자의 목표 결정 |
-| R-GPU | GPU 서버 시작 실패 원인 확인과 수정 | 사용자 로그 |
-| R-실기 | 실기 검증에서 나온 수정 | 실기 검증 결과 |
+릴리스 보고(`vedecaps-0.1.5-release-report.md`)를 읽고 진행했다. **보고의 체크섬은 직접 확인했다**: 릴리스에서 `vedecaps-linux-x64.tar.gz` 와
+`checksums.txt` 를 내려받아 SHA-256 이 `46e645ba…439016f` 로 일치했다(보고, `checksums.txt`, 파일 해시 세 값이 같다).
 
-## 5. 설계와 다르게 한 것
+| 항목 | 결과 |
+|---|---|
+| `diparnux.conf` | `VEDECAPS_VERSION="0.1.5"`, `VEDECAPS_SHA256="46e645ba6e8d7a98189d78e224c2c31704953dc6314907a2065455fe1439016f"`. `fetch.sh` 가 같은 값으로 `verified` |
+| 호환 시험 `make test-vedecaps-docker`(실제 Vedecaps 0.1.5, Debian 13 x86-64 컨테이너) | 기존 5개 시나리오 통과 + 새 시나리오 통과 |
+| F: https, 이름(`box.local`)과 CA | 통과 |
+| F2: https, **IP 주소**(`127.0.0.1`)와 CA — **DNS 제약만 있는 CA 와 IP SAN 인증서의 조합** | 통과(이 조합이 Bun 에서 통과하는지가 열린 질문이었다. 실제 `certstore` 의 CA 로 확인했다) |
+| G: CA 를 적지 않음 | 거부, 오류가 `diparnux tls ca` 를 안내 |
+| H: 다른 CA | 거부, 같은 안내 |
+| J: `vedecaps debug local` | `Diparnux 0.5.4 · server running · 2 slots · 16,384 ctx per slot` 로 Diparnux 서버를 알아봄(VE1) |
+
+보고서의 "계약에서 어긋난 것"에 대한 응답:
+
+1. **CA 이름 제약은 DNS 만**: 이미 반영했다(`certstore`, U1 이 IP 제약이 없음을 확인).
+2. **명령 이름**: Vedecaps 의 오류 안내가 가리키는 `diparnux tls ca`, `diparnux tls status`(= `diparnux tls`), `diparnux tls renew` 가 모두 있다.
+3. **지문 형식**: `AA:BB:…` 대문자 콜론 형식이 `diparnux tls ca --out`, `diparnux tls fingerprint`, 연결 정보와 같다.
+4. **https 는 자동 감지하지 않음**: 계약 C2 대로다. `connect vedecaps --remote` 가 `api` 에 https 주소와 `options.ca` 를 쓴다.
+5. **`.local`·사설 IP 가 아닌 이름**: `options.ca` 를 적으면 Vedecaps 가 로컬로 취급한다. `diparnux tls names` 로 더한 이름을 쓰는 경우 `ca` 를 적어야 한다(`connect vedecaps` 는 https 주소에 항상 `options.ca` 를 쓴다).
+
+확인하지 못한 것(보고서와 같다): 실제 Diparnux 0.5.4 서버에 대한 **다른 컴퓨터에서의** https, 서버 인증서 자동 갱신 중의 연결, 시계 어긋남, Debian·Alpine 의 x64 에서의 Vedecaps TLS 시험.
+
+## 5. 경량화(묶음 R)와 GPU
+
+- **램 목표 확정(2026-10-14, 사용자)**: 헤드리스 500 MiB, 데스크톱 800 MiB(상한). 기준선 374/679 MiB 로 이미 이내이며, 데스크톱 E2E 가 상한을 넘으면 실패하도록 했다(`tests/qemu/desktop-session.py`). 자세한 것은 [memory.md](memory.md).
+  추가로 줄이는 작업(Control Center 페이지 지연 생성, `fcitx5` 필요 시 기동)은 **하지 않았다**: 상한을 이미 만족하고, 기준선이 QEMU 값이라 실기 측정 없이 구조를 바꾸면 효과를 확인할 수 없다.
+- **GPU 서버 시작 실패**: 사용자가 **보류**했다(2026-10-14). 로그를 받기 전에는 추측으로 고치지 않는다.
+- **실기 검증에서 나온 수정**: 실기 검증 결과가 아직 없다.
+
+## 6. 남은 일
+
+| 항목 | 상태 |
+|---|---|
+| 버전 0.5.4 | 올렸다(`diparnux.conf`, GUI, 모든 packages changelog) |
+| CI(ISO 빌드, 부팅, E2E, 설치기) | 이 문서의 푸시로 확인한다 |
+| 다른 컴퓨터에서의 실제 접속, Windows·macOS | 실기 검증 대기 |
+| R-GPU | 보류 |
+| R-실기 | 실기 검증 결과 대기 |
+
+## 7. 설계와 다르게 한 것
 
 - webadmin 의 인증서 코드를 공통 패키지로 옮기지 않고 그대로 뒀다(`certstore` 는 새 패키지). 동작 변경 위험을 피하려는 선택이다.
 - `tls on` 은 LAN 공개가 꺼져 있으면 거부한다(설계의 사전 조건과 같다). 설정 파일에 `tls` 만 켜 두는 경우(LAN 공개를 나중에 켬)는 LAN 이 켜질 때 활성화된다.

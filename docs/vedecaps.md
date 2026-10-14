@@ -10,7 +10,7 @@ Vedecaps 가 서버 상태를 읽고 문제를 짚을 수 있게 한다. 조사 
 
 ## 1. 설치
 
-이미지(0.5.3 이상)에 `diparnux-vedecaps` 패키지가 들어 있다. `/usr/bin/vedecaps` 에 Vedecaps 0.1.3 의 릴리스 실행 파일이 있다.
+이미지(0.5.3 이상)에 `diparnux-vedecaps` 패키지가 들어 있다. `/usr/bin/vedecaps` 에 Vedecaps 0.1.5 의 릴리스 실행 파일이 있다(0.5.3 은 0.1.3 이었다).
 버전과 SHA-256 은 `diparnux.conf` 의 `VEDECAPS_VERSION`, `VEDECAPS_SHA256` 에 고정되어 있고, 이미지를 만들 때 받은 파일의 해시가 다르면 빌드가 멈춘다.
 Vedecaps 의 자체 업데이트는 쓰지 않는다. 이 실행 파일은 일반 사용자가 바꿀 수 없으므로, 업데이트는 Diparnux 업데이트로 온다.
 

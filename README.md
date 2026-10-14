@@ -135,7 +135,7 @@ out/             빌드 산출물(git 제외)
 | 4.6 | 0.5.1: OS 이름 Diparnux, 새 로고와 디자인. 이전 이름의 흔적을 두지 않는다 | 구현 및 CI 검증 완료, `main` 에 병합됨. 설계는 [phase-5-1-design.md](docs/phase-5-1-design.md) |
 | 4.7 | 0.5.2: 경량화 일부, 설치기 비밀번호 오류 수정, 상시 가동, 한/영 전환, AI 서버 운영(게이트웨이, 동시 요청), 네트워크·방화벽·원격 접속 | 구현 완료([PR #11](https://github.com/nxodh/diparnuxos/pull/11)). 설계는 [phase-5-2-design.md](docs/phase-5-2-design.md), 검증 범위는 [phase-5-2-verification.md](docs/phase-5-2-verification.md) |
 | 4.8 | 0.5.3: Vedecaps 와의 연결성, 호환성, 시너지(`connect vedecaps`, MCP, 스킬, agent 프로필, 이미지에 포함) | 구현 완료(브랜치 `phase-5-3`). 설계는 [phase-5-3-design.md](docs/phase-5-3-design.md), 사용은 [vedecaps.md](docs/vedecaps.md), 검증 범위는 [phase-5-3-verification.md](docs/phase-5-3-verification.md). 실제 GPU 에서의 Vedecaps 작업은 검증 대기 |
-| 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Vedecaps 의 https 연동(`options.ca`) | 개발 중(브랜치 `phase-5-4`). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). 실제 다른 컴퓨터에서의 접속과 Vedecaps 0.1.5 와의 호환은 검증 대기 |
+| 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Vedecaps 의 https 연동(`options.ca`) | 구현 완료(브랜치 `phase-5-4`, PR #13). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). Vedecaps 0.1.5 고정과 호환 시험 통과. 실제 다른 컴퓨터에서의 접속, 실기 램 측정은 검증 대기. 램 상한 확정(헤드리스 500, 데스크톱 800 MiB) |
 | 5 | 경량화(실측과 목표 재설정), 실 하드웨어 검증, 지원 범위 확정, 릴리스 | 계획 |
 
 ---

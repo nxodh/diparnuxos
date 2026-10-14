@@ -2,7 +2,7 @@
 
 - 작성: 2026-10-14
 - 기준 코드: `main` 의 0.5.2 + `phase-5-3`(0.5.3, PR #12). 0.5.3 이 병합되어 있다고 가정한다.
-- 상태: **설계 초안. 사용자 결정(10절) 전에는 구현하지 않는다.** 아래 코드와 설정 이름은 제안이며 실행해 본 것이 아니다.
+- 상태: **구현됨(묶음 T, V). 구현 결과와 검증은 [phase-5-4-verification.md](phase-5-4-verification.md).** 이 문서는 설계 시점의 내용을 두고, 구현에서 달라진 것은 그 문서 7절에 적었다. 묶음 R 은 램 목표 확정(500/800 MiB), GPU 수정 보류, 실기 수정은 실기 결과 대기다.
 - **사용자 결정(2026-10-14)**: Q7 은 "Vedecaps 릴리스를 기다린다"(TLS 만 먼저 내지 않는다), Q8 은 "경량화와 GPU 수정도 0.5.4 에 넣는다"(0.5.5 로 분리하지 않는다). 이 문서는 그 결정대로 고쳤다.
 - 관련: [phase-5-3-design.md](phase-5-3-design.md), [vedecaps.md](vedecaps.md), [remote-access.md](remote-access.md),
   [vedecaps-repo-changes-design.md](vedecaps-repo-changes-design.md)(Vedecaps 저장소 변경 VE1~VE4, VE2 가 이 문서와 짝),

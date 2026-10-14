@@ -1,3 +1,9 @@
+diparnux-control-center (0.5.4) trixie; urgency=medium
+
+  * 서버 페이지에 암호화(TLS) 패널을 더했다(스위치, CA 지문, CA 복사, 인증서 갱신).
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 21:00:00 +0900
+
 diparnux-control-center (0.5.3) trixie; urgency=medium
 
   * Vedecaps 페이지(연결 설정, 도구 호출 확인, 코딩 에이전트 용도), 서버 페이지의 용도 선택과 이 컴퓨터 키 면제 스위치, 첫 부팅 마법사의 용도 선택, 추천 모델의 에이전트용 표시.
