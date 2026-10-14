@@ -37,8 +37,9 @@ grep -q 'hello=9.9.9-bogus' "$W/bad.log" || die "the failure does not name the p
 pass "a source version that cannot be obtained fails the collection"
 
 # 3) 소스 패키지 하나가 한 묶음의 한도보다 크면 쪼개지 않고 알린다(한도를 0 으로 해서 확인한다).
-python3 "$SRC/scripts/collect-sources.py" --manifest "$W/manifest.tsv" --out "$W/out3" --prefix split --max-part-mib 0 > "$W/split.log" 2>&1 \
-    && die "a source package larger than a part must fail" || true
+if python3 "$SRC/scripts/collect-sources.py" --manifest "$W/manifest.tsv" --out "$W/out3" --prefix split --max-part-mib 0 > "$W/split.log" 2>&1; then
+    die "a source package larger than a part must fail"
+fi
 grep -q 'larger than a part' "$W/split.log" || die "oversized source package was not reported"
 pass "an oversized source package is reported instead of being split"
 echo "sources: all checks passed"
