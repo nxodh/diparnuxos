@@ -44,6 +44,7 @@
 | U14 | 0.5.0은 데스크톱 환경을 Xfce로 바꾸고 Opereta 로고와 통일된 디자인을 적용한다. 일반 배포판에 가까운 사용성을 주되 무거운 기능은 제외한다. SPEC의 "labwc + greetd" 결정을 대체한다. | 사용자 지시(2026-10-12). 설계 기본값과 질문은 [phase-5-design.md](phase-5-design.md). |
 | U15 | 0.5.1 에서 OS 이름과 로고를 바꿨다. 이전 이름의 흔적을 두지 않는다(호환 별칭, 이전 경로, 이전 이름 `Replaces`/`Conflicts` 없음). GitHub 저장소 이름도 바꾸고 git 이력은 다시 쓰지 않는다. 0.6.0(U16)에서 같은 규칙으로 한 번 더 바뀌었다. | 사용자 지시(2026-10-13). [phase-5-1-design.md](phase-5-1-design.md). 이전 이름의 설치본은 새 이미지로 새로 설치한다. |
 | U16 | 0.6.0 에서 OS 이름을 **Opereta** 로 한 번 더 바꾸고 새 로고와 8px 모서리 디자인을 쓴다(U15 와 같은 규칙: 이전 이름의 흔적 없음, 이력은 다시 쓰지 않음). 저장소 이름은 `nxodh/operetaos`(기본안). Vedecaps 의 Deberopa 로의 이름 변경은 Deberopa 릴리스가 생길 때까지 하지 않는다. 0.6.0 부터 태그를 게시하고 GitHub 릴리스를 만들며, 릴리스 자산을 OS 업데이트 저장소(평평한 APT 형식)로 쓴다. **ISO 는 올리지 않는다**: 사용자가 "법적 문제나 개인 정보 노출 위험이 있으면 하지 말라"고 했고, 조사 결과 재배포 조건 해석, GPL 소스 제공, 프로젝트 라이선스가 정리되지 않았다(licenses.md 10절). | 사용자 지시(2026-10-14). [phase-6-design.md](phase-6-design.md), [releases.md](releases.md). 저장소 이름은 사용자가 기본안(`operetaos`)으로 확정했다(2026-10-14). Deberopa 보류는 기본안이다. ISO 공개 배포(M6)와 프로젝트 라이선스(U7)는 여전히 정해지지 않았고 ISO 는 올리지 않는다. |
+| U17 | 0.6.1 에서 CUDA 런타임(cudart, cublas, cublasLt)을 NVIDIA 시스템 패키지로 설치하지 않고 `opereta-llm` 의 전용 디렉터리에 원본 그대로 넣는다. NVIDIA CUDA EULA 의 조건(응용 프로그램만 접근, 수정 금지, 계약서 제공)을 지키기 위해서다. U3(런타임을 ISO 에 포함)의 구현 방식이 바뀐 것이다. | 사용자 지시(2026-10-14, "EULA에 위반 안 되게끔 진행"). [llama/README.md](../llama/README.md), [licenses.md](licenses.md) 10.5. NVIDIA 의 확인은 받지 않았다. ISO 공개는 여전히 올리지 않는다(U16). |
 
 ---
 

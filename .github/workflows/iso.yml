@@ -67,6 +67,9 @@ jobs:
       - name: Test the release asset collection (container)
         run: make test-release-docker
 
+      - name: Test the CUDA runtime bundling rules (container)
+        run: make test-llama-bundle-docker
+
       - name: Test the Calamares configuration against the Calamares package
         run: make test-installer-config-docker
 

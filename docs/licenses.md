@@ -79,7 +79,8 @@ Opereta ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라�
 ### 2.3 ISO 포함 결정과 해석 위험
 
 - 사용자 확정 U3에 따라 `cudart`와 `cublas`를 첫 부팅 설치가 아니라 ISO에 넣는다.
-- **해석 위험**: "응용 프로그램이 실질적인 추가 기능을 가진다"와 "재배포 부분은 그 응용 프로그램만 접근한다"는 조건을 OS 이미지 번들링이 만족하는지 불명확하다. llama-server와 함께 들어가 있으면 응용이 접근하는 것으로 읽을 수 있다. 하지만 OS 이미지가 다른 프로그램에도 같은 라이브러리를 제공하면 이 조건에 어긋난다고 볼 수도 있다. 이 해석은 법률 자문을 받지 않았다.
+- **0.6.1 조치**: 이 런타임을 시스템 패키지(NVIDIA 패키지)로 설치하지 않고 `opereta-llm` 의 전용 디렉터리에 원본 그대로 넣는다(시스템 링커 경로에 등록하지 않음, 수정 없음, 계약서 전문 동봉). 자세한 내용은 [llama/README.md](../llama/README.md) 의 "CUDA 런타임 번들링"과 10.5절이다. 아래의 "해석 위험"은 0.6.0 까지의 구성에 대한 기록이다.
+- **해석 위험(0.6.0 까지)**: "응용 프로그램이 실질적인 추가 기능을 가진다"와 "재배포 부분은 그 응용 프로그램만 접근한다"는 조건을 OS 이미지 번들링이 만족하는지 불명확하다. llama-server와 함께 들어가 있으면 응용이 접근하는 것으로 읽을 수 있다. 하지만 OS 이미지가 다른 프로그램에도 같은 라이브러리를 제공하면 이 조건에 어긋난다고 볼 수도 있다. 이 해석은 법률 자문을 받지 않았다.
 - 조사 기록은 첫 부팅 설치 방식이 이 조건을 피한다고 적는다. 검증자도 같은 위험을 지적했다. 사용자는 이 위험을 알고 ISO 포함을 선택했다. 결정문에 해석 위험이 남았다는 사실을 계속 적어 둔다.
 - **Phase 2 추가 사실**: 0.2.0부터 ISO에 CUDA 런타임을 쓰는 응용(llama-server)이 함께 들어간다. 이 항목은 사실만 적으며 법적 판단은 쓰지 않는다.
 - 권장 조치: 배포 전에 법률 검토를 받거나 NVIDIA에 문의한다.
@@ -171,7 +172,7 @@ Opereta ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라�
 
 - `intel/ice/ddp/ice-*.pkg`(`ice.pkg`의 대상)는 `binary-redist-Intel` 조건으로 9.1과 같다.
 - `intel/ice/ddp-comms/ice_comms-*.pkg`와 `intel/ice/ddp-wireless_edge/ice_wireless_edge-*.pkg`는 `binary-redist-Intel-Ice-enhanced` 조건이다. 원문은 9.1과 같은 조항에 다음 한정이 붙어 있다: "Redistribution and use in binary form, without modification, are permitted **solely operating in conjunction with Intel authorized products**, provided that the following conditions are met". 한국어로는 "Intel 승인 제품과 함께 동작하는 경우에만" 재배포가 허용된다는 뜻이다. 이 한정이 Opereta 이미지에 어떻게 적용되는지는 해석이 필요하며, 이번에 판단하지 않았다.
-- `intel/ice/ddp-lag/ice_lag-1.3.1.0.pkg`는 `firmware-intel-misc`에 들어 있지만, copyright 파일에 이 경로를 다루는 항목이 없다. 이 파일의 라이선스 조건은 **미확인**이다.
+- `intel/ice/ddp-lag/ice_lag-1.3.1.0.pkg`는 `firmware-intel-misc`에 들어 있지만, 이 문서를 쓸 때의 copyright 파일에는 이 경로를 다루는 항목이 없었다. **2026-10-14 재확인**: 최신 `firmware-nonfree 20260916-1` 의 `debian/copyright` 는 `intel/ice/ddp/ice-*.pkg intel/ice/ddp-lag/ice_lag-*.pkg` 를 같은 항목으로 묶어 `binary-redist-Intel`(9.1 과 같은 조건)로 적는다. 즉 이 파일의 조건은 9.1 과 같다.
 
 ### 9.3 범위와 미확인 항목
 
@@ -193,7 +194,7 @@ Opereta ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라�
 
 ### 10.2 ISO 를 올리지 않는 이유
 
-1. **CUDA 런타임 번들링 조건**(2.3절): "응용 프로그램이 실질적인 추가 기능을 가진다", "재배포 부분은 그 응용 프로그램만 접근한다" 조건을 OS 이미지 번들링이 만족하는지 불명확하다. 법률 자문이나 NVIDIA 의 답을 받지 않았다. 문서의 권장 조치는 "배포 전에 법률 검토를 받거나 NVIDIA 에 문의한다"였고 이행되지 않았다.
+1. **CUDA 런타임 번들링 조건**(2.3절): 0.6.0 까지는 런타임이 시스템 라이브러리였다. **0.6.1 에서 응용 전용 디렉터리로 옮겼다**(CI 검증 대기). 이 방식이 EULA 에 맞는다는 확인은 NVIDIA 문의로 하는 것이 완전하다(법률 자문이나 NVIDIA 의 답은 받지 않았다).
 2. **NVIDIA 사용자 공간 드라이버**(1절): 수정하지 않은 바이너리와 라이선스 계약서를 수령자에게 제공해야 한다. 이미지에는 들어 있지만, 공개 배포하는 사람(이 프로젝트)이 조건 (i), (ii)를 지켰는지는 조사자의 해석이다(1.5절).
 3. **Intel 펌웨어**(9절): `ice_comms`, `ice_wireless_edge` 는 "Intel 승인 제품과 함께 동작하는 경우에만" 재배포가 허용되며 적용 여부를 판단하지 않았다. `ice_lag` 의 조건은 미확인이다(9.2, 9.3절).
 4. **GPL 소스 제공 의무**: ISO 에는 Linux 커널, GNU 도구 등 GPL 소프트웨어(Debian 패키지)가 들어 있다. 바이너리를 공개 배포하는 쪽은 대응하는 소스를 함께 제공하거나 서면 제안(GPLv2 3b 는 3년 유효)을 해야 한다. 이 프로젝트는 소스 제공이나 제안을 준비하지 않았다.
@@ -212,3 +213,19 @@ Opereta ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라�
 - **저장소와 릴리스 자산**: 추적 파일과 새 커밋에서 개인 이메일, 로컬 경로, 개인 키를 검사했다(`make check-secrets`). 서명 개인 키는 저장소 밖과 GitHub 비밀 값에만 있고 릴리스에는 공개 키만 올라간다.
 - **빌드 이미지**: ISO 는 GitHub 러너에서 이 저장소 내용으로 만든다. 계정 이름, 호스트 키, DKMS 서명 키는 이미지에 남지 않도록 빌드가 검증한다. CI 가 만든 ISO 를 `unsquashfs` 로 풀어 개인 식별자를 검사한 결과는 [verification-phase-6.md](verification-phase-6.md) 에 있다.
 - **이미 있는 노출**: `iso` 워크플로는 ISO 를 7일간 Actions 아티팩트로 올린다. 공개 저장소의 아티팩트는 로그인한 GitHub 사용자가 내려받을 수 있으므로 이것도 같은 해석 위험(M6)을 가진다. 아티팩트를 끄려면 `.github/workflows/iso.yml` 의 "Upload ISO and checksum" 단계를 지운다. 사용자 결정 대기다.
+
+### 10.5 재확인(2026-10-14, 원문 직접 확인)
+
+ISO 를 올려도 되는지 원문을 다시 확인했다. 법률 자문이 아니다.
+
+| 항목 | 확인한 원문 | 판단 |
+|---|---|---|
+| CUDA 런타임(`cudart`, `cublas`, `cublasLt`) — **0.6.1 에서 조치함** | CUDA EULA(`docs.nvidia.com/cuda/eula`) 1.1.2: "Your application must have material additional functionality, beyond the included portions of the SDK." "The distributable portions of the SDK shall only be accessed by your application." 부속서 A: "The following CUDA Toolkit files may be distributed with applications developed by you." 에 `libcudart.so`, `libcublas.so`, `libcublasLt.so` 가 있다. 이미지 안의 위치는 다루지 않는다("OS image" 언급 없음) | **지금 구성은 위험하다.** 런타임을 `/usr/lib` 의 시스템 라이브러리로 설치해서 이미지의 어떤 프로그램도 접근할 수 있다. "응용 프로그램만 접근한다"를 만족한다고 보기 어렵다. 같은 파일을 llama-server 의 **전용 디렉터리**(시스템 검색 경로 밖, RUNPATH)에 응용과 함께 묶으면 부속서 A 가 말하는 형태에 가깝다. 이 해석도 최종은 NVIDIA 문의다(`nvidia-compute-license-questions@nvidia.com`) |
+| NVIDIA 드라이버(사용자 공간, GSP 펌웨어) | 1.1 의 조건 (d): OSI 승인 라이선스의 커널과 함께, 바이너리를 수정하지 않고, 계약서를 수령자에게 제공 | 지금 구성이 이 조건을 따른다(수정하지 않은 패키지, `/usr/share/doc/*/copyright` 포함). Debian 도 같은 드라이버를 배포한다 |
+| Intel `ice` 펌웨어 | Debian `firmware-nonfree 20260916-1` 의 `debian/copyright`. `ice_lag` 는 `binary-redist-Intel`(고지 유지, 이름 사용 금지, 역공학 금지). `ice_comms`, `ice_wireless_edge` 는 `binary-redist-Intel-Ice-enhanced`("solely operating in conjunction with Intel authorized products") | `ice_lag` 의 미확인 항목은 해소됐다. 두 파일(`ice_comms`, `ice_wireless_edge`)은 Intel 이더넷 어댑터(E810)용이다. Debian 이 이를 공식 이미지에 넣어 배포한다. 어댑터와 함께 쓰이는 용도이므로 위험은 낮지만 "승인 제품"의 해석은 남는다. 위험을 없애려면 이 두 파일을 이미지에서 뺀다 |
+| GPL 소스 제공 | GPLv2 3: 대응하는 소스를 함께 제공하거나(3a), 3년 이상 유효한 서면 제안(3b)을 해야 한다. 3c 는 비상업적 배포와 제안을 받은 경우로 한정된다 | **준비되어 있지 않다.** 릴리스 노트의 서면 제안과 소스 위치(Debian snapshot 의 정확한 버전)를 담은 패키지 목록이 필요하다. 제안을 지키는 책임은 배포자(프로젝트 소유자)에게 있다 |
+| 프로젝트 라이선스 | — | 정해지지 않았다. 제3자의 권리를 침해하지는 않지만 수령자의 권리가 불명확하다 |
+
+**결론(0.6.0 시점)**: 그때의 구성으로는 ISO 를 올리지 않는다.
+
+**0.6.1 이후**: CUDA 런타임은 전용 디렉터리로 옮겼다(위 표의 "지금 구성은 위험하다"는 0.6.0 구성에 대한 판단이다). 남은 것은 GPL 서면 제안(소스 제공)과 프로젝트 라이선스, 그리고 이 CUDA 처리에 대한 NVIDIA 의 확인이다. 이것들이 끝나기 전에는 ISO 를 올리지 않는다.

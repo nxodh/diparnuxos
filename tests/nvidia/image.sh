@@ -42,8 +42,27 @@ check_package opereta-llm "$OPERETA_VERSION"
 check_package opereta-daemon "$OPERETA_VERSION"
 check_package cuda-keyring "$CUDA_KEYRING_VERSION"
 check_package "nvidia-driver-pinning-$NVIDIA_BRANCH" "$NVIDIA_PIN_VERSION"
-check_package "cuda-cudart-$CUDA_PKG_SUFFIX" "$CUDA_CUDART_VERSION"
-check_package "libcublas-$CUDA_PKG_SUFFIX" "$CUDA_CUBLAS_VERSION"
+# CUDA 런타임은 시스템 패키지가 아니다. opereta-llm 의 전용 디렉터리에 원본 그대로 있고(NVIDIA CUDA EULA: 응용 전용 접근),
+# 시스템 경로에는 없어야 한다.
+for pkg in "cuda-cudart-$CUDA_PKG_SUFFIX" "libcublas-$CUDA_PKG_SUFFIX"; do
+    if awk -v pkg="$pkg" 'BEGIN { RS="" } $0 ~ ("Package: " pkg "\n") && /Status: (install|hold) ok installed/ { found=1 } END { exit !found }' "$WORK/status"; then
+        echo "FAIL: CUDA runtime installed as a system package: $pkg" >&2
+        exit 1
+    fi
+done
+for lib in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
+    grep -Eq "squashfs-root/usr/lib/opereta/llama/${lib}( |$)" "$WORK/files" || { echo "FAIL: private CUDA runtime missing: $lib" >&2; exit 1; }
+done
+system_cuda="$(grep -E 'lib(cudart|cublas|cublasLt)[.]so' "$WORK/files" | grep -v 'squashfs-root/usr/lib/opereta/llama/' || true)"
+if [[ -n "$system_cuda" ]]; then
+    echo "FAIL: CUDA runtime outside the private directory:" >&2
+    echo "$system_cuda" | head -n 5 >&2
+    exit 1
+fi
+for doc in "cuda-cudart-$CUDA_PKG_SUFFIX" "libcublas-$CUDA_PKG_SUFFIX"; do
+    unsquashfs -cat "$WORK/rootfs.squashfs" "usr/share/doc/opereta-llm/cuda-licenses/$doc.copyright" | grep -qi 'license agreement' || { echo "FAIL: CUDA license text missing: $doc" >&2; exit 1; }
+done
+echo 'PASS: CUDA runtime is private to opereta-llm, with the NVIDIA agreement'
 
 if awk 'BEGIN { RS="" } /Package: (nvidia-kernel-dkms|nvidia-kernel-source|cuda-drivers[^\n]*|nvidia-open|cuda-nvcc[^\n]*)\n/ && /Status: (install|hold) ok installed/ { bad=1 } END { exit !bad }' "$WORK/status"; then
     echo 'FAIL: prohibited proprietary module, metapackage or nvcc found' >&2
@@ -57,7 +76,7 @@ for module in nvidia nvidia-modeset nvidia-uvm nvidia-drm; do
     grep -Eq "squashfs-root/(usr/)?lib/modules/6[.]12[.][^/]+/updates/dkms/${module}[.]ko([.](xz|zst|gz))?$" "$WORK/files"
 done
 grep -q 'squashfs-root/usr/sbin/opereta-gpu-check$' "$WORK/files"
-for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp "cuda-cudart-$CUDA_PKG_SUFFIX" "libcublas-$CUDA_PKG_SUFFIX"; do
+for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp; do
     unsquashfs -cat "$WORK/rootfs.squashfs" "usr/share/opereta/licenses/$pkg.copyright" > "$WORK/license"
     [[ -s "$WORK/license" ]]
 done

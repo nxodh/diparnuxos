@@ -137,6 +137,7 @@ out/             빌드 산출물(git 제외)
 | 4.8 | 0.5.3: Vedecaps 와의 연결성, 호환성, 시너지(`connect vedecaps`, MCP, 스킬, agent 프로필, 이미지에 포함) | 구현 완료(브랜치 `phase-5-3`). 설계는 [phase-5-3-design.md](docs/phase-5-3-design.md), 사용은 [vedecaps.md](docs/vedecaps.md), 검증 범위는 [phase-5-3-verification.md](docs/phase-5-3-verification.md). 실제 GPU 에서의 Vedecaps 작업은 검증 대기 |
 | 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Vedecaps 의 https 연동(`options.ca`) | 구현 완료(브랜치 `phase-5-4`, PR #13). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). Vedecaps 0.1.5 고정과 호환 시험 통과. 실제 다른 컴퓨터에서의 접속, 실기 램 측정은 검증 대기. 램 상한 확정(헤드리스 500, 데스크톱 800 MiB) |
 | 5.0 | 0.6.0: 두 번째 이름 변경(Opereta), 새 로고와 8px 모서리 디자인, 태그·릴리스·ISO 게시, OS 업데이트(릴리스 자산을 평평한 APT 저장소로 사용) | 구현 완료(브랜치 `phase-6`). 설계는 [phase-6-design.md](docs/phase-6-design.md), 릴리스 절차는 [releases.md](docs/releases.md), 검증은 [verification-phase-6.md](docs/verification-phase-6.md) |
+| 5.1 | 0.6.1: CUDA 런타임을 llama-server 전용 디렉터리로 옮겨 NVIDIA CUDA EULA 조건(응용만 접근, 수정 금지, 계약서 제공)을 지킨다 | 구현 완료(브랜치 `phase-6-1`, 0.6.0 위에 쌓음). 설계는 [phase-6-1-design.md](docs/phase-6-1-design.md), 검증은 [verification-phase-6-1.md](docs/verification-phase-6-1.md) |
 | 5 | 경량화(실측과 목표 재설정), 실 하드웨어 검증, 지원 범위 확정 | 계획 |
 
 ---
@@ -161,6 +162,7 @@ out/             빌드 산출물(git 제외)
 | [docs/phase-5-3-design.md](docs/phase-5-3-design.md) | 0.5.3 설계(Vedecaps 와의 연결성, 호환성, 시너지) |
 | [docs/phase-5-4-design.md](docs/phase-5-4-design.md) | 0.5.4 설계(게이트웨이 TLS, Vedecaps 2차 연동) |
 | [docs/phase-6-design.md](docs/phase-6-design.md) | 0.6.0 설계(두 번째 이름 변경, 새 로고와 디자인, 릴리스 게시, OS 업데이트) |
+| [docs/phase-6-1-design.md](docs/phase-6-1-design.md) | 0.6.1 설계(CUDA 런타임 전용 번들링, EULA 조건) |
 | [docs/releases.md](docs/releases.md) | 릴리스 게시: 태그, 워크플로, 서명 키 준비, 업데이트 채널 |
 | [docs/verification-phase-6.md](docs/verification-phase-6.md) | 0.6.0 검증 범위와 확인하지 못한 것 |
 | [docs/tls.md](docs/tls.md) | 게이트웨이 TLS: 켜기, CA 배포, 인증서, 끄기와 되돌리기 |

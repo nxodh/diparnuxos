@@ -1,3 +1,9 @@
+opereta-nvidia (0.6.1) trixie; urgency=medium
+
+  * CUDA 런타임 패키지(cuda-cudart-*, libcublas-*)를 의존성과 핀에서 뺐다. 런타임은 NVIDIA CUDA EULA 의 조건(응용 프로그램만 접근)에 맞춰 opereta-llm 이 전용 디렉터리에 원본 그대로 가진다. 시스템 패키지로 설치되지 않도록 막는다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
+
 opereta-nvidia (0.6.0) trixie; urgency=medium
 
   * OS 이름을 바꾼다(두 번째 이름 변경). 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다. 새 로고와 8px 모서리 디자인을 쓴다.

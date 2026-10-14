@@ -1,3 +1,9 @@
+opereta-desktop (0.6.1) trixie; urgency=medium
+
+  * 버전을 0.6.1 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.1 은 CUDA 런타임을 opereta-llm 의 전용 디렉터리로 옮긴다).
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
+
 opereta-desktop (0.6.0) trixie; urgency=medium
 
   * OS 이름을 바꾼다(두 번째 이름 변경). 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다. 새 로고와 8px 모서리 디자인을 쓴다.

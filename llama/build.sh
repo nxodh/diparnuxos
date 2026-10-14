@@ -102,6 +102,19 @@ mkdir -p "${DOC}"
 cp "${SRCDIR}/LICENSE" "${DOC}/LICENSE.llama.cpp"
 bash "${SRC}/llama/copy-vendor-licenses.sh" "${SRCDIR}" "${DOC}"
 
+# CUDA 런타임(cudart, cublas, cublasLt)은 NVIDIA 의 재배포 허용 파일이고 EULA 조건(응용 전용 접근, 수정 금지, 계약서 제공)에
+# 따라 이 패키지의 전용 디렉터리에 원본 그대로 넣는다. 시스템 라이브러리(NVIDIA 패키지)로 설치하지 않는다.
+if [ "${LLAMA_CUDA}" = ON ]; then
+    [ -f "${STAGE}/libggml-cuda.so" ] || die "libggml-cuda.so was not built"
+    CUDART_PKG="cuda-cudart-${CUDA_PKG_SUFFIX}"
+    CUBLAS_PKG="libcublas-${CUDA_PKG_SUFFIX}"
+    [ "$(dpkg-query -W -f='${Version}' "${CUDART_PKG}")" = "${CUDA_CUDART_VERSION}" ] || die "${CUDART_PKG} is not ${CUDA_CUDART_VERSION}"
+    [ "$(dpkg-query -W -f='${Version}' "${CUBLAS_PKG}")" = "${CUDA_CUBLAS_VERSION}" ] || die "${CUBLAS_PKG} is not ${CUDA_CUBLAS_VERSION}"
+    bash "${SRC}/llama/bundle-cuda-runtime.sh" --module "${STAGE}/libggml-cuda.so" --stage "${STAGE}" --doc "${DOC}" \
+        --license "${CUDART_PKG}=/usr/share/doc/${CUDART_PKG}/copyright" \
+        --license "${CUBLAS_PKG}=/usr/share/doc/${CUBLAS_PKG}/copyright"
+fi
+
 # 5. 검증. 하나라도 어긋나면 실패한다.
 # (a) 실행 파일과 모든 ELF 의 RUNPATH 가 $ORIGIN 이다. 빌드 경로가 남아 있으면 안 된다.
 verify_runpath() {
@@ -115,6 +128,8 @@ for f in "${STAGE}"/*; do
     if [ ! -f "${f}" ] || [ -L "${f}" ]; then
         continue
     fi
+    # NVIDIA 의 라이브러리는 수정하지 않는다. 그쪽의 RUNPATH 는 NVIDIA 가 정한 값 그대로다.
+    case "$(basename "${f}")" in libcudart.so* | libcublas.so* | libcublasLt.so*) continue ;; esac
     readelf -h "${f}" >/dev/null 2>&1 || continue
     verify_runpath "${f}"
     ELF_COUNT=$((ELF_COUNT + 1))
@@ -140,6 +155,12 @@ rm -rf "${BUILD_DIR}"
 RELOC="${WORK}/relocated"
 mkdir -p "${RELOC}"
 cp -a "${STAGE}/." "${RELOC}/"
+
+# (c0) CUDA 빌드: 복사한 트리에서 CUDA 런타임이 이 디렉터리 안에서만 찾아진다(ld.so.cache 없이). 시스템 CUDA 에 기대면 안 된다.
+if [ "${LLAMA_CUDA}" = ON ]; then
+    bash "${SRC}/llama/verify-cuda-bundle.sh" "${RELOC}" || die "the bundled CUDA runtime is not resolved privately"
+    log "check (c0): CUDA runtime resolves only inside the package directory"
+fi
 
 # (c) 복사한 트리에서 --version 이 0 으로 끝난다.
 VERSION_OUT="$("${RELOC}/llama-server" --version 2>&1)" || die "llama-server --version failed in the relocated tree"

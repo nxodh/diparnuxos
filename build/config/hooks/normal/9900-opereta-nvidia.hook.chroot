@@ -15,8 +15,22 @@ for pkg in nvidia-kernel-open-dkms nvidia-driver nvidia-driver-cuda firmware-nvi
     actual="$(dpkg-query -W -f='${Version}' "$pkg")"
     [[ "$actual" == "$NVIDIA_DRIVER_DEB_VERSION" ]] || fail "$pkg 버전 불일치: $actual"
 done
-[[ "$(dpkg-query -W -f='${Version}' "$CUDA_CUDART_PACKAGE")" == "$CUDA_CUDART_VERSION" ]] || fail 'cudart 버전 불일치'
-[[ "$(dpkg-query -W -f='${Version}' "$CUDA_CUBLAS_PACKAGE")" == "$CUDA_CUBLAS_VERSION" ]] || fail 'cublas 버전 불일치'
+# CUDA 런타임은 NVIDIA 패키지로 설치하지 않는다. opereta-llm 이 NVIDIA CUDA EULA 조건에 맞춰 전용 디렉터리에 원본 그대로 가진다.
+for pkg in cuda-cudart-13-2 libcublas-13-2; do
+    if dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null | grep -qx installed; then
+        fail "CUDA 런타임이 시스템 패키지로 설치됐다(응용 전용이어야 한다): $pkg"
+    fi
+done
+llama=/usr/lib/opereta/llama
+for lib in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
+    [[ -s "$llama/$lib" ]] || fail "opereta-llm 의 전용 CUDA 런타임이 없다: $lib"
+done
+for doc in cuda-cudart-13-2 libcublas-13-2; do
+    [[ -s "/usr/share/doc/opereta-llm/cuda-licenses/$doc.copyright" ]] || fail "CUDA 계약서 전문이 없다: $doc"
+done
+if ldconfig -p | grep -E 'lib(cudart|cublas|cublasLt)[.]so' >/dev/null; then
+    fail 'CUDA 런타임이 시스템 링커 캐시에 등록됐다(응용 전용이어야 한다)'
+fi
 [[ "$(apt-cache policy dkms | sed -n 's/^  Candidate: //p')" == "$(dpkg-query -W -f='${Version}' dkms)" ]] || fail 'dkms 핀과 설치 버전 불일치'
 
 kernels=0
@@ -49,12 +63,12 @@ done
 # 갱신 및 롤백 명령은 Phase 4에서 구현한다.
 mapfile -t held < <(dpkg-query -W -f='${binary:Package} ${source:Package}\n' | \
     awk '$1 ~ /^linux-(image|headers)-/ || $2 ~ /^nvidia-(graphics-drivers|kmod-open|modprobe|persistenced)$/ {print $1}')
-apt-mark hold "${held[@]}" "$CUDA_CUDART_PACKAGE" "$CUDA_CUBLAS_PACKAGE"
+apt-mark hold "${held[@]}"
 
 # 각 수령자에게 원본 계약서 전문을 제공한다. 패키지 바이너리는 수정하지 않는다.
 licenses=/usr/share/opereta/licenses
 mkdir -p "$licenses"
-for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp "$CUDA_CUDART_PACKAGE" "$CUDA_CUBLAS_PACKAGE"; do
+for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp; do
     doc="/usr/share/doc/$pkg/copyright"
     [[ -r "$doc" ]] || fail "라이선스 전문이 없다: $pkg"
     cp -L "$doc" "$licenses/$pkg.copyright"

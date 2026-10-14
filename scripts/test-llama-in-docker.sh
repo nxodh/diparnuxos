@@ -52,6 +52,7 @@ docker run --rm \
     --platform "${PLATFORM}" \
     -v "$(dirname "${DEB_ABS}"):/pkg:ro" \
     -v "${ROOT}/tests/llama:/tests:ro" \
+    -v "${ROOT}/llama/verify-cuda-bundle.sh:/tests/verify-cuda-bundle.sh:ro" \
     "debian:${DEBIAN_SUITE}" \
     bash /tests/package.sh "/pkg/${DEB_NAME}"
 
