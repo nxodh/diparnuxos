@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # 추적 파일의 경로와 내용에 옛 이름이 남아 있지 않은지 검사한다(대소문자 무관). 0.5.1 부터 옛 이름의 흔적을 두지 않는다.
-# 옛 이름의 약어(API 키 접두사 등)도 함께 본다.
+# 0.6.0 에서 이름이 한 번 더 바뀌어 이전 이름이 둘이다. 옛 이름의 약어(API 키 접두사 등)도 함께 본다.
 # 이 스크립트 자신이 걸리지 않도록 패턴을 조각으로 나누어 만든다.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
-patterns=("light""lix" "l""lx")
+patterns=("light""lix" "l""lx" "dipar""nux" "d""px")
 
 fail=0
 for pattern in "${patterns[@]}"; do

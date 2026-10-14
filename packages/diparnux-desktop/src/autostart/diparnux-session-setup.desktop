@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Diparnux session setup
-Comment=First-login defaults (wallpaper on every monitor, input method profile, user folders)
-Exec=diparnux-session-setup
-OnlyShowIn=XFCE;
-NoDisplay=true
-X-GNOME-Autostart-Phase=Initialization

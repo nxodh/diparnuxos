@@ -66,13 +66,13 @@ func TestUserRuleOpeningAnyAddressIsWarned(t *testing.T) {
 func TestParseSS(t *testing.T) {
 	text := `tcp LISTEN 0 4096 127.0.0.53%lo:53 0.0.0.0:* users:(("systemd-resolve",pid=300,fd=14))
 tcp LISTEN 0 4096 127.0.0.1:18080 0.0.0.0:* users:(("llama-server",pid=500,fd=3))
-tcp LISTEN 0 4096 0.0.0.0:8080 0.0.0.0:* users:(("diparnuxd",pid=400,fd=9))
+tcp LISTEN 0 4096 0.0.0.0:8080 0.0.0.0:* users:(("operetad",pid=400,fd=9))
 tcp LISTEN 0 128 [::]:22 [::]:* users:(("sshd",pid=600,fd=3))
 udp UNCONN 0 0 0.0.0.0:5353 0.0.0.0:* users:(("systemd-resolve",pid=300,fd=12))
 udp UNCONN 0 0 192.168.0.23%enp3s0:68 0.0.0.0:*
 `
 	got := ParseSS(text)
-	want := map[string]string{"tcp/8080": "diparnuxd", "tcp/22": "sshd", "udp/5353": "systemd-resolve", "udp/68": ""}
+	want := map[string]string{"tcp/8080": "operetad", "tcp/22": "sshd", "udp/5353": "systemd-resolve", "udp/68": ""}
 	if len(got) != len(want) {
 		t.Fatalf("got = %+v", got)
 	}

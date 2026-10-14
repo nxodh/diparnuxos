@@ -16,9 +16,9 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/certstore"
-	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/certstore"
+	"github.com/nxodh/operetaos/daemon/internal/gateway"
 )
 
 type keys struct{ list []apikeys.Key }
@@ -35,9 +35,9 @@ func main() {
 		Keys:       keys{ks},
 		LANExposed: func() bool { return false },
 		LocalNoKey: func() bool { return os.Getenv("HARNESS_LOCAL_NO_KEY") == "1" },
-		Version:    "0.5.4",
+		Version:    "0.6.0",
 		Info: func() map[string]any {
-			return map[string]any{"diparnux": "0.5.4", "server": "running", "model": "fake.gguf", "ctx_per_slot": 16384, "slots": 2}
+			return map[string]any{"opereta": "0.6.0", "server": "running", "model": "fake.gguf", "ctx_per_slot": 16384, "slots": 2}
 		},
 	}
 	u, _ := url.Parse("http://127.0.0.1:18080")

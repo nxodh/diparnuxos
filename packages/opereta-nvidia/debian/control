@@ -1,0 +1,14 @@
+Source: opereta-nvidia
+Section: admin
+Priority: optional
+Maintainer: Opereta Developers <noreply@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.2
+Homepage: https://github.com/nxodh/operetaos
+
+Package: opereta-nvidia
+Architecture: all
+Depends: ${misc:Depends}, bash, coreutils, initramfs-tools, kmod, mokutil
+Description: Opereta NVIDIA 오픈 모듈 정책과 런타임 진단
+ NVIDIA 저장소와 오픈 모듈 정책을 적용하고 부팅 때 GPU를 진단한다.
+ 고정된 드라이버와 CUDA 런타임 의존성은 opereta.conf에서 생성한다.

@@ -7,8 +7,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/sysinfo"
 )
 
 // 가져오기 한도와 기한이다.

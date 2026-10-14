@@ -4,8 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIPARNUX_CONF="${DIPARNUX_CONF:-${ROOT}/diparnux.conf}"
-export DIPARNUX_CONF
+OPERETA_CONF="${OPERETA_CONF:-${ROOT}/opereta.conf}"
+export OPERETA_CONF
 DEST="${ROOT}/build/config/packages.chroot"
 
 die() {
@@ -13,10 +13,10 @@ die() {
     exit 1
 }
 
-[ -r "${DIPARNUX_CONF}" ] || die "cannot read diparnux.conf: ${DIPARNUX_CONF}"
+[ -r "${OPERETA_CONF}" ] || die "cannot read opereta.conf: ${OPERETA_CONF}"
 # shellcheck source=/dev/null
-. "${DIPARNUX_CONF}"
-[ -n "${DIPARNUX_VERSION:-}" ] || die "DIPARNUX_VERSION is missing in diparnux.conf"
+. "${OPERETA_CONF}"
+[ -n "${OPERETA_VERSION:-}" ] || die "OPERETA_VERSION is missing in opereta.conf"
 
 for cmd in dpkg-buildpackage dpkg-parsechangelog; do
     command -v "${cmd}" >/dev/null 2>&1 || die "${cmd} is missing (dpkg-dev is required)"
@@ -33,27 +33,27 @@ for pkgdir in "${ROOT}"/packages/*/; do
 
     name="$(basename "${pkgdir}")"
     version="$(dpkg-parsechangelog -l "${pkgdir}/debian/changelog" --show-field Version)"
-    if [ "${version}" != "${DIPARNUX_VERSION}" ]; then
-        die "${name}: debian/changelog version (${version}) differs from DIPARNUX_VERSION (${DIPARNUX_VERSION})"
+    if [ "${version}" != "${OPERETA_VERSION}" ]; then
+        die "${name}: debian/changelog version (${version}) differs from OPERETA_VERSION (${OPERETA_VERSION})"
     fi
 
     src="${WORK}/src-${name}"
     cp -a "${pkgdir}" "${src}"
     # Go 모듈은 한 곳에서 관리하며 패키지의 임시 사본에만 넣는다.
-    if [ "${name}" = diparnux-daemon ]; then
+    if [ "${name}" = opereta-daemon ]; then
         cp -a "${ROOT}/daemon" "${src}/daemon"
     fi
     # 키링 패키지는 저장소 루트의 공개 키 디렉터리를 쓴다.
-    if [ "${name}" = diparnux-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
+    if [ "${name}" = opereta-archive-keyring ] && [ -d "${ROOT}/keys" ]; then
         cp -a "${ROOT}/keys" "${src}/keys"
     fi
     # 브랜딩 패키지는 저장소 루트의 브랜드 이미지(assets/brand)를 쓴다.
     # 데스크톱 패키지는 생성된 xfwm4 테마 이미지를 쓴다.
-    if [ "${name}" = diparnux-branding ] || [ "${name}" = diparnux-desktop ]; then
+    if [ "${name}" = opereta-branding ] || [ "${name}" = opereta-desktop ]; then
         cp -a "${ROOT}/assets/brand" "${src}/assets"
     fi
     # Control Center 소스도 패키지의 임시 사본에만 넣는다.
-    if [ "${name}" = diparnux-control-center ]; then
+    if [ "${name}" = opereta-control-center ]; then
         cp -a "${ROOT}/gui" "${src}/gui"
     fi
     (cd "${src}" && dpkg-buildpackage -us -uc -b)

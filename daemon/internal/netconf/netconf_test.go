@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 type memFiles struct {
@@ -143,7 +143,7 @@ func TestSetStaticWritesReloadsAndWaitsForConfirmation(t *testing.T) {
 	if !c.Managed || pending == nil || !pending.Deadline.Equal(time.Date(2026, 10, 13, 12, 1, 0, 0, time.UTC)) {
 		t.Fatalf("c = %+v pending = %+v", c, pending)
 	}
-	data, _ := os.ReadFile(filepath.Join(f.dir, "10-diparnux-enp3s0.network"))
+	data, _ := os.ReadFile(filepath.Join(f.dir, "10-opereta-enp3s0.network"))
 	if !strings.Contains(string(data), "Address=192.168.0.50/24") {
 		t.Fatalf("file = %s", data)
 	}
@@ -175,14 +175,14 @@ func TestSetStaticWritesReloadsAndWaitsForConfirmation(t *testing.T) {
 func TestUnconfirmedChangeRevertsToThePreviousFile(t *testing.T) {
 	f := newFixture(t)
 	old := "[Match]\nName=enp3s0\n\n[Network]\nDHCP=yes\nDNS=8.8.8.8\n"
-	if err := os.WriteFile(filepath.Join(f.dir, "10-diparnux-enp3s0.network"), []byte(old), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(f.dir, "10-opereta-enp3s0.network"), []byte(old), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := f.m.Set(context.Background(), staticCfg(), DefaultConfirm); err != nil {
 		t.Fatal(err)
 	}
 	f.fire() // 확인하지 않고 시간이 지났다.
-	data, _ := os.ReadFile(filepath.Join(f.dir, "10-diparnux-enp3s0.network"))
+	data, _ := os.ReadFile(filepath.Join(f.dir, "10-opereta-enp3s0.network"))
 	if string(data) != old {
 		t.Fatalf("the previous file was not restored:\n%s", data)
 	}
@@ -199,7 +199,7 @@ func TestRevertWithoutAPreviousFileRemovesTheNewOne(t *testing.T) {
 	if err := f.m.Revert(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(f.dir, "10-diparnux-enp3s0.network")); err == nil {
+	if _, err := os.Stat(filepath.Join(f.dir, "10-opereta-enp3s0.network")); err == nil {
 		t.Fatal("the file was kept after the revert")
 	}
 	if err := f.m.Confirm(); err == nil {
@@ -217,7 +217,7 @@ func TestRecoverRevertsAChangeLeftByARestart(t *testing.T) {
 	if err := m2.Recover(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(f.dir, "10-diparnux-enp3s0.network")); err == nil {
+	if _, err := os.Stat(filepath.Join(f.dir, "10-opereta-enp3s0.network")); err == nil {
 		t.Fatal("the unconfirmed file survived the restart")
 	}
 	if _, err := os.Stat(f.m.pendingPath()); err == nil {
@@ -232,7 +232,7 @@ func TestSetFailureRestoresAndReports(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "reverted") {
 		t.Fatalf("err = %v", err)
 	}
-	if _, serr := os.Stat(filepath.Join(f.dir, "10-diparnux-enp3s0.network")); serr == nil {
+	if _, serr := os.Stat(filepath.Join(f.dir, "10-opereta-enp3s0.network")); serr == nil {
 		t.Fatal("a failed change left its file")
 	}
 	if f.m.Pending() != nil {
@@ -262,14 +262,14 @@ func TestDHCPWithoutOverridesRemovesTheFile(t *testing.T) {
 	if err != nil || c.Managed {
 		t.Fatalf("c = %+v err = %v", c, err)
 	}
-	if _, err := os.Stat(filepath.Join(f.dir, "10-diparnux-enp3s0.network")); err == nil {
+	if _, err := os.Stat(filepath.Join(f.dir, "10-opereta-enp3s0.network")); err == nil {
 		t.Fatal("the file was kept for plain DHCP")
 	}
 }
 
 func TestUpdateHosts(t *testing.T) {
 	in := "127.0.0.1\tlocalhost\n127.0.1.1\told\n::1\tlocalhost ip6-localhost\n"
-	if got := UpdateHosts(in, "diparnux-01"); got != "127.0.0.1\tlocalhost\n127.0.1.1\tdiparnux-01\n::1\tlocalhost ip6-localhost\n" {
+	if got := UpdateHosts(in, "opereta-01"); got != "127.0.0.1\tlocalhost\n127.0.1.1\topereta-01\n::1\tlocalhost ip6-localhost\n" {
 		t.Fatalf("replace: %q", got)
 	}
 	if got := UpdateHosts("127.0.0.1\tlocalhost\n::1\tlocalhost\n", "box"); got != "127.0.0.1\tlocalhost\n127.0.1.1\tbox\n::1\tlocalhost\n" {
@@ -285,14 +285,14 @@ func TestSetHostname(t *testing.T) {
 	if err := os.WriteFile(f.m.hostsPath(), []byte("127.0.0.1\tlocalhost\n127.0.1.1\told\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.m.SetHostname(context.Background(), "Diparnux-Server"); err != nil {
+	if err := f.m.SetHostname(context.Background(), "Opereta-Server"); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(f.run.calls, [][]string{{"hostnamectl", "set-hostname", "diparnux-server"}}) {
+	if !reflect.DeepEqual(f.run.calls, [][]string{{"hostnamectl", "set-hostname", "opereta-server"}}) {
 		t.Fatalf("calls = %v", f.run.calls)
 	}
 	hosts, _ := os.ReadFile(filepath.Join(f.dir, "hosts"))
-	if !strings.Contains(string(hosts), "127.0.1.1\tdiparnux-server") {
+	if !strings.Contains(string(hosts), "127.0.1.1\topereta-server") {
 		t.Fatalf("hosts = %q", hosts)
 	}
 	for _, bad := range []string{"", "-a", "a-", "a b", "a_b", strings.Repeat("a", 64), "a.b"} {

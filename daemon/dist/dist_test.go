@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
 )
 
 // readFile 은 이 디렉터리의 파일을 읽는다. 테스트는 패키지 디렉터리에서 실행되므로 상대 경로를 쓴다.
@@ -56,10 +56,10 @@ func TestDefaultRulesetMatchesFirewallPackage(t *testing.T) {
 
 // TestDaemonUnitHasSocketAndTarget 는 데몬 유닛이 소켓을 요구하고, 부팅 때 자동으로 뜨는 대상에 묶였는지 확인한다.
 func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
-	svc := readFile(t, "diparnuxd.service")
+	svc := readFile(t, "operetad.service")
 	for _, line := range []string{
-		"Requires=diparnuxd.socket diparnux-firewall-default.service",
-		"ExecStart=/usr/sbin/diparnuxd",
+		"Requires=operetad.socket opereta-firewall-default.service",
+		"ExecStart=/usr/sbin/operetad",
 		"Type=simple",
 		"Restart=on-failure",
 		"WantedBy=multi-user.target",
@@ -69,72 +69,72 @@ func TestDaemonUnitHasSocketAndTarget(t *testing.T) {
 		"NoNewPrivileges=yes",
 	} {
 		if !hasLine(svc, line) {
-			t.Errorf("diparnuxd.service lacks %q", line)
+			t.Errorf("operetad.service lacks %q", line)
 		}
 	}
-	if !hasLine(svc, "After=diparnuxd.socket diparnux-gpu-check.service diparnux-firewall-default.service diparnux-firewall.service network.target") {
-		t.Errorf("diparnuxd.service lacks the After= line with the socket, the GPU check, and network.target")
+	if !hasLine(svc, "After=operetad.socket opereta-gpu-check.service opereta-firewall-default.service opereta-firewall.service network.target") {
+		t.Errorf("operetad.service lacks the After= line with the socket, the GPU check, and network.target")
 	}
 	if hasLine(svc, "PrivateDevices=yes") {
-		t.Error("diparnuxd.service sets PrivateDevices=yes, which hides /dev/nvidia* from NVML")
+		t.Error("operetad.service sets PrivateDevices=yes, which hides /dev/nvidia* from NVML")
 	}
 }
 
 // TestSocketUnit 은 소켓의 경로, 모드, 그룹, 설치 대상을 확인한다.
 func TestSocketUnit(t *testing.T) {
-	sock := readFile(t, "diparnuxd.socket")
+	sock := readFile(t, "operetad.socket")
 	for _, line := range []string{
-		"ListenStream=/run/diparnux/diparnuxd.sock",
+		"ListenStream=/run/opereta/operetad.sock",
 		"SocketMode=0660",
-		"SocketGroup=diparnux",
+		"SocketGroup=opereta",
 		"WantedBy=sockets.target",
 	} {
 		if !hasLine(sock, line) {
-			t.Errorf("diparnuxd.socket lacks %q", line)
+			t.Errorf("operetad.socket lacks %q", line)
 		}
 	}
 }
 
 // TestLlamaUnitKeepsGPUAccess 는 llama 유닛이 GPU 접근을 막는 옵션을 쓰지 않고, 자동 재시작과 [Install] 이 없는지 확인한다.
 func TestLlamaUnitKeepsGPUAccess(t *testing.T) {
-	llama := readFile(t, "diparnux-llama.service")
+	llama := readFile(t, "opereta-llama.service")
 	for _, line := range []string{
-		"User=diparnux-llm",
-		"Group=diparnux-llm",
+		"User=opereta-llm",
+		"Group=opereta-llm",
 		"SupplementaryGroups=video render",
-		"ExecStartPre=/usr/lib/diparnux/check-gpu-permissions",
-		"EnvironmentFile=/run/diparnux/llama-server.env",
-		"ExecStart=/usr/lib/diparnux/llama/llama-server",
+		"ExecStartPre=/usr/lib/opereta/check-gpu-permissions",
+		"EnvironmentFile=/run/opereta/llama-server.env",
+		"ExecStart=/usr/lib/opereta/llama/llama-server",
 		"Restart=no",
 		"NoNewPrivileges=yes",
 		"ProtectSystem=strict",
 		"ProtectHome=yes",
 		"PrivateTmp=yes",
-		"ReadOnlyPaths=/var/lib/diparnux/models",
+		"ReadOnlyPaths=/var/lib/opereta/models",
 		"LimitMEMLOCK=infinity",
 		"RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
 	} {
 		if !hasLine(llama, line) {
-			t.Errorf("diparnux-llama.service lacks %q", line)
+			t.Errorf("opereta-llama.service lacks %q", line)
 		}
 	}
 	for _, bad := range []string{"PrivateDevices=yes", "MemoryDenyWriteExecute=yes"} {
 		if hasLine(llama, bad) {
-			t.Errorf("diparnux-llama.service sets %q, which breaks CUDA device access", bad)
+			t.Errorf("opereta-llama.service sets %q, which breaks CUDA device access", bad)
 		}
 	}
 	for _, l := range activeLines(llama) {
 		if strings.HasPrefix(l, "[Install]") || strings.HasPrefix(l, "WantedBy=") {
-			t.Errorf("diparnux-llama.service has an install section line %q; the daemon starts it", l)
+			t.Errorf("opereta-llama.service has an install section line %q; the daemon starts it", l)
 		}
 	}
 }
 
 // TestLlamaUnitWaitsForExecBeforeStartReturns는 데몬의 즉시 MainPID 검증에 필요한 실행 장벽을 고정한다.
 func TestLlamaUnitWaitsForExecBeforeStartReturns(t *testing.T) {
-	llama := readFile(t, "diparnux-llama.service")
+	llama := readFile(t, "opereta-llama.service")
 	if !hasLine(llama, "Type=exec") {
-		t.Fatal("diparnux-llama.service must wait until ExecStart has executed before systemctl start succeeds")
+		t.Fatal("opereta-llama.service must wait until ExecStart has executed before systemctl start succeeds")
 	}
 	if hasLine(llama, "Type=simple") {
 		t.Fatal("Type=simple can report success before ExecStart calls execve")
@@ -143,9 +143,9 @@ func TestLlamaUnitWaitsForExecBeforeStartReturns(t *testing.T) {
 
 // TestFirewallDefaultsBeforeSaved 는 저장 파일이 깨져도 기본 차단을 먼저 적용하는 의존성을 확인한다.
 func TestFirewallDefaultsBeforeSaved(t *testing.T) {
-	saved := readFile(t, "diparnux-firewall.service")
-	def := readFile(t, "diparnux-firewall-default.service")
-	if !hasLine(saved, "ConditionPathExists=/var/lib/diparnux/firewall.nft") {
+	saved := readFile(t, "opereta-firewall.service")
+	def := readFile(t, "opereta-firewall-default.service")
+	if !hasLine(saved, "ConditionPathExists=/var/lib/opereta/firewall.nft") {
 		t.Error("saved-rules unit lacks its path condition")
 	}
 	for _, line := range activeLines(def) {
@@ -153,7 +153,7 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 			t.Errorf("default firewall must always apply, found %q", line)
 		}
 	}
-	for _, line := range []string{"Requires=diparnux-firewall-default.service", "After=local-fs.target diparnux-firewall-default.service"} {
+	for _, line := range []string{"Requires=opereta-firewall-default.service", "After=local-fs.target opereta-firewall-default.service"} {
 		if !hasLine(saved, line) {
 			t.Errorf("saved firewall lacks %q", line)
 		}
@@ -161,10 +161,10 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	if !hasLine(def, "After=local-fs.target nftables.service") {
 		t.Error("default firewall must follow any nftables.service ruleset flush")
 	}
-	if !hasLine(saved, "ExecStart=/usr/sbin/nft -f /var/lib/diparnux/firewall.nft") {
+	if !hasLine(saved, "ExecStart=/usr/sbin/nft -f /var/lib/opereta/firewall.nft") {
 		t.Error("saved-rules unit applies the wrong file")
 	}
-	if !hasLine(def, "ExecStart=/usr/sbin/nft -f /usr/share/diparnux/firewall-default.nft") {
+	if !hasLine(def, "ExecStart=/usr/sbin/nft -f /usr/share/opereta/firewall-default.nft") {
 		t.Error("default-rules unit applies the wrong file")
 	}
 	for name, text := range map[string]string{"saved": saved, "default": def} {
@@ -177,19 +177,19 @@ func TestFirewallDefaultsBeforeSaved(t *testing.T) {
 	}
 }
 
-// TestTmpfilesDoesNotRedefineRun 은 /run/diparnux 를 이 설정에서 다시 정의하지 않는지 확인한다.
-// 그 경로는 diparnux-nvidia 패키지가 만든다.
+// TestTmpfilesDoesNotRedefineRun 은 /run/opereta 를 이 설정에서 다시 정의하지 않는지 확인한다.
+// 그 경로는 opereta-nvidia 패키지가 만든다.
 func TestTmpfilesDoesNotRedefineRun(t *testing.T) {
-	tf := readFile(t, "diparnux-daemon.tmpfiles.conf")
+	tf := readFile(t, "opereta-daemon.tmpfiles.conf")
 	for _, l := range activeLines(tf) {
-		if strings.Contains(l, "/run/diparnux") {
-			t.Errorf("tmpfiles line %q redefines /run/diparnux", l)
+		if strings.Contains(l, "/run/opereta") {
+			t.Errorf("tmpfiles line %q redefines /run/opereta", l)
 		}
 	}
 	for _, want := range []string{
-		"d /var/lib/diparnux 0750 root diparnux-llm -",
-		"d /var/lib/diparnux/models 2750 root diparnux-llm -",
-		"d /etc/diparnux 0750 root root -",
+		"d /var/lib/opereta 0750 root opereta-llm -",
+		"d /var/lib/opereta/models 2750 root opereta-llm -",
+		"d /etc/opereta 0750 root root -",
 	} {
 		if !hasLine(tf, want) {
 			t.Errorf("tmpfiles lacks %q", want)
@@ -199,19 +199,19 @@ func TestTmpfilesDoesNotRedefineRun(t *testing.T) {
 
 // TestSysusersDefinesGroupAndUser 는 그룹과 사용자 선언을 확인한다.
 func TestSysusersDefinesGroupAndUser(t *testing.T) {
-	su := readFile(t, "diparnux.sysusers.conf")
-	if !hasLine(su, "g diparnux - -") {
-		t.Error("sysusers lacks the diparnux group")
+	su := readFile(t, "opereta.sysusers.conf")
+	if !hasLine(su, "g opereta - -") {
+		t.Error("sysusers lacks the opereta group")
 	}
-	if !hasLine(su, `u diparnux-llm - "Diparnux llama-server" /nonexistent /usr/sbin/nologin`) {
-		t.Error("sysusers lacks the diparnux-llm user with no home and nologin shell")
+	if !hasLine(su, `u opereta-llm - "Opereta llama-server" /nonexistent /usr/sbin/nologin`) {
+		t.Error("sysusers lacks the opereta-llm user with no home and nologin shell")
 	}
 }
 
 // TestAlwaysOnDropinsNeverBlockUserShutdown 은 상시 가동 설정이 절전만 막고, 사용자가 직접 끄는 길(전원 버튼, poweroff 명령)을
 // 막지 않는지 확인한다. 전원 키와 종료 관련 키는 이 설정에 나오면 안 된다.
 func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
-	for _, name := range []string{"50-diparnux-always-on.logind.conf", "50-diparnux-always-on.sleep.conf"} {
+	for _, name := range []string{"50-opereta-always-on.logind.conf", "50-opereta-always-on.sleep.conf"} {
 		b, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
@@ -228,13 +228,13 @@ func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
 			}
 		}
 	}
-	logind, _ := os.ReadFile("50-diparnux-always-on.logind.conf")
+	logind, _ := os.ReadFile("50-opereta-always-on.logind.conf")
 	for _, want := range []string{"HandleLidSwitch=ignore", "HandleLidSwitchExternalPower=ignore", "HandleLidSwitchDocked=ignore", "HandleSuspendKey=ignore", "HandleHibernateKey=ignore", "IdleAction=ignore"} {
 		if !strings.Contains(string(logind), want+"\n") {
 			t.Errorf("logind drop-in is missing %s", want)
 		}
 	}
-	sleep, _ := os.ReadFile("50-diparnux-always-on.sleep.conf")
+	sleep, _ := os.ReadFile("50-opereta-always-on.sleep.conf")
 	for _, want := range []string{"AllowSuspend=no", "AllowHibernation=no", "AllowHybridSleep=no", "AllowSuspendThenHibernate=no"} {
 		if !strings.Contains(string(sleep), want+"\n") {
 			t.Errorf("sleep drop-in is missing %s", want)
@@ -243,8 +243,8 @@ func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
 }
 
 // 스킬은 Vedecaps 가 frontmatter 의 설명이 있어야 목록에 올린다. 이름과 설명이 있고, 안내하는 명령이 실제 명령인지 본다.
-func TestDiparnuxSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
-	text := readFile(t, "skills/diparnux/SKILL.md")
+func TestOperetaSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
+	text := readFile(t, "skills/opereta/SKILL.md")
 	if !strings.HasPrefix(text, "---\n") {
 		t.Fatal("SKILL.md must start with a frontmatter block")
 	}
@@ -262,16 +262,16 @@ func TestDiparnuxSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
 			desc = strings.TrimSpace(strings.TrimPrefix(line, "description:"))
 		}
 	}
-	if name != "diparnux" || len(desc) < 40 {
+	if name != "opereta" || len(desc) < 40 {
 		t.Fatalf("name = %q description = %q", name, desc)
 	}
 	// 키나 개인 정보가 들어 있지 않아야 한다.
-	for _, bad := range []string{"dpx_", "sk-", "BEGIN PRIVATE KEY"} {
+	for _, bad := range []string{"opr_", "sk-", "BEGIN PRIVATE KEY"} {
 		if strings.Contains(text, bad) {
 			t.Fatalf("SKILL.md contains %q", bad)
 		}
 	}
-	for _, cmd := range []string{"diparnux status", "diparnux serve stats", "diparnux connection", "diparnux resources", "diparnux exposure", "diparnux serve toolcheck", "diparnux serve logs"} {
+	for _, cmd := range []string{"opereta status", "opereta serve stats", "opereta connection", "opereta resources", "opereta exposure", "opereta serve toolcheck", "opereta serve logs"} {
 		if !strings.Contains(text, "`"+cmd) {
 			t.Fatalf("SKILL.md does not mention %q", cmd)
 		}

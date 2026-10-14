@@ -11,7 +11,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // ErrNoRule 은 어떤 규칙도 맞지 않는 명령이 실행되었을 때 돌려주는 오류다. errors.Is 로 확인한다.

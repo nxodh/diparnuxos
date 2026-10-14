@@ -21,7 +21,7 @@
 | NVIDIA 드라이버 버전 | |
 | 드라이버 종류 (오픈 커널 모듈 / 독점 모듈) | |
 | 커널 버전 (`uname -r`) | |
-| Diparnux 버전 (`os-release` 의 VERSION_ID) | |
+| Opereta 버전 (`os-release` 의 VERSION_ID) | |
 | UEFI 부팅 여부 | |
 | Secure Boot 상태 | |
 | ISO 파일명과 SHA-256 | |
@@ -32,7 +32,7 @@
 
 | 순서 | 항목 | 기대값 | 결과 | 비고 |
 |---|---|---|---|---|
-| 1 | 부팅 (os-release `ID=diparnux`) | `ID=diparnux` | | |
+| 1 | 부팅 (os-release `ID=opereta`) | `ID=opereta` | | |
 | 2 | UEFI 부팅 | `/sys/firmware/efi` 존재 | | |
 | 3 | Secure Boot 상태 (기록용) | 기록만 함 | | |
 | 4 | 오픈 커널 모듈 로드 | `/proc/driver/nvidia/version` 에 `Open Kernel Module` | | Phase 1 |
@@ -42,10 +42,10 @@
 | 8 | GPU 오프로드 | 모델 레이어가 GPU 에 올라감 | | LLM 스택 |
 | 9 | 토큰/초 측정 | 아래 3번 표에 기록 | | LLM 스택 |
 | 10 | 무선 인터페이스와 iwd | `wl*` 인터페이스가 있고 `iwd.service` 가 active (무선 장치가 없으면 SKIP) | | Wi-Fi |
-| 11 | GPU 진단 상태 (`gpu-status`의 `DIPARNUX_GPU_STATUS`) | `ready` (`no_gpu`는 SKIP, 그 밖의 상태는 FAIL로 상태를 적는다) | | `docs/drivers.md` GPU 진단 계약 |
-| 12 | 쓸 수 있는 GPU 수 (`DIPARNUX_GPU_USABLE_COUNT`) | `ready` 일 때 1 이상 | | `ready` 가 아니면 SKIP |
+| 11 | GPU 진단 상태 (`gpu-status`의 `OPERETA_GPU_STATUS`) | `ready` (`no_gpu`는 SKIP, 그 밖의 상태는 FAIL로 상태를 적는다) | | `docs/drivers.md` GPU 진단 계약 |
+| 12 | 쓸 수 있는 GPU 수 (`OPERETA_GPU_USABLE_COUNT`) | `ready` 일 때 1 이상 | | `ready` 가 아니면 SKIP |
 | 13 | DRM 장치 | `ready` 일 때 `/dev/dri/card*` 가 있다 | | `nvidia-drm` 로드 확인 |
-| 14 | 로드된 드라이버 버전과 고정 버전 | `/proc/driver/nvidia/version` 의 버전이 `/usr/share/diparnux/nvidia.conf` 의 `NVIDIA_DRIVER_VERSION` 과 같다 | | 드라이버가 없으면 SKIP |
+| 14 | 로드된 드라이버 버전과 고정 버전 | `/proc/driver/nvidia/version` 의 버전이 `/usr/share/opereta/nvidia.conf` 의 `NVIDIA_DRIVER_VERSION` 과 같다 | | 드라이버가 없으면 SKIP |
 
 ## 3. 토큰/초 측정
 

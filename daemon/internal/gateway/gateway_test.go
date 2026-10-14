@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
 )
 
 type fakeKeys struct {
@@ -103,15 +103,15 @@ func TestLANExposedWithoutKeysDeniesEverything(t *testing.T) {
 
 func TestKeyRequiredAndAcceptedAndStripped(t *testing.T) {
 	keys := &fakeKeys{}
-	keys.set(keyFor("k1", "laptop", "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	keys.set(keyFor("k1", "laptop", "opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
 	g, h, got := newGateway(t, keys, true)
 	if w := do(h, "GET", "/v1/models", ""); w.Code != 401 {
 		t.Fatalf("no key: %d", w.Code)
 	}
-	if w := do(h, "GET", "/v1/models", "Bearer dpx_wrong"); w.Code != 401 {
+	if w := do(h, "GET", "/v1/models", "Bearer opr_wrong"); w.Code != 401 {
 		t.Fatalf("wrong key: %d", w.Code)
 	}
-	w := do(h, "GET", "/v1/models", "Bearer dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	w := do(h, "GET", "/v1/models", "Bearer opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	if w.Code != 200 || w.Body.String() != "ok" {
 		t.Fatalf("valid key: %d %q", w.Code, w.Body.String())
 	}
@@ -120,7 +120,7 @@ func TestKeyRequiredAndAcceptedAndStripped(t *testing.T) {
 	}
 	// X-Api-Key 헤더로도 된다.
 	r := httptest.NewRequest("GET", "/v1/models", nil)
-	r.Header.Set("X-Api-Key", "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	r.Header.Set("X-Api-Key", "opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, r)
 	if rec.Code != 200 {
@@ -133,30 +133,30 @@ func TestKeyRequiredAndAcceptedAndStripped(t *testing.T) {
 
 func TestKeysChangeWithoutRestart(t *testing.T) {
 	keys := &fakeKeys{}
-	keys.set(keyFor("k1", "a", "dpx_1111111111111111111111111111111111111"))
+	keys.set(keyFor("k1", "a", "opr_1111111111111111111111111111111111111"))
 	g, h, _ := newGateway(t, keys, true)
 	now := time.Now()
 	g.Now = func() time.Time { return now }
-	if w := do(h, "GET", "/x", "Bearer dpx_2222222222222222222222222222222222222"); w.Code != 401 {
+	if w := do(h, "GET", "/x", "Bearer opr_2222222222222222222222222222222222222"); w.Code != 401 {
 		t.Fatalf("second key before creation: %d", w.Code)
 	}
-	keys.set(keyFor("k1", "a", "dpx_1111111111111111111111111111111111111"), keyFor("k2", "b", "dpx_2222222222222222222222222222222222222"))
+	keys.set(keyFor("k1", "a", "opr_1111111111111111111111111111111111111"), keyFor("k2", "b", "opr_2222222222222222222222222222222222222"))
 	now = now.Add(3 * time.Second) // 캐시 만료
-	if w := do(h, "GET", "/x", "Bearer dpx_2222222222222222222222222222222222222"); w.Code != 200 {
+	if w := do(h, "GET", "/x", "Bearer opr_2222222222222222222222222222222222222"); w.Code != 200 {
 		t.Fatalf("second key after creation: %d", w.Code)
 	}
-	keys.set(keyFor("k2", "b", "dpx_2222222222222222222222222222222222222"))
+	keys.set(keyFor("k2", "b", "opr_2222222222222222222222222222222222222"))
 	now = now.Add(3 * time.Second)
-	if w := do(h, "GET", "/x", "Bearer dpx_1111111111111111111111111111111111111"); w.Code != 401 {
+	if w := do(h, "GET", "/x", "Bearer opr_1111111111111111111111111111111111111"); w.Code != 401 {
 		t.Fatalf("deleted key must stop working: %d", w.Code)
 	}
 }
 
 func TestUsageIsCountedAndPersisted(t *testing.T) {
 	keys := &fakeKeys{}
-	keys.set(keyFor("k1", "orca", "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), keyFor("k2", "idle", "dpx_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+	keys.set(keyFor("k1", "orca", "opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), keyFor("k2", "idle", "opr_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
 	g, h, _ := newGateway(t, keys, true)
-	auth := "Bearer dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	auth := "Bearer opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	do(h, "POST", "/v1/chat/completions", auth)
 	do(h, "POST", "/v1/chat/completions", auth)
 	do(h, "GET", "/boom", auth)
@@ -198,7 +198,7 @@ func TestUsageIsCountedAndPersisted(t *testing.T) {
 	}
 	// 키 평문은 파일에 없다.
 	data, _ := os.ReadFile(g.UsagePath)
-	if strings.Contains(string(data), "dpx_aaaa") {
+	if strings.Contains(string(data), "opr_aaaa") {
 		t.Fatal("the usage file must not contain a key")
 	}
 }
@@ -350,7 +350,7 @@ func doFrom(h http.Handler, remote, method, path, auth string) *httptest.Respons
 
 func TestLocalRequestsNeedNoKeyWhenAllowed(t *testing.T) {
 	keys := &fakeKeys{}
-	plain := "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	plain := "opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	keys.set(keyFor("k1", "laptop", plain))
 	g, h, _ := newGateway(t, keys, true)
 	g.LocalNoKey = func() bool { return true }
@@ -382,26 +382,26 @@ func TestLocalRequestsNeedNoKeyWhenAllowed(t *testing.T) {
 
 func TestInfoEndpointAndVersionHeader(t *testing.T) {
 	keys := &fakeKeys{}
-	keys.set(keyFor("k1", "laptop", "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	keys.set(keyFor("k1", "laptop", "opr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
 	g, h, _ := newGateway(t, keys, true)
 	g.Version = "0.5.3"
 	g.Info = func() map[string]any {
-		return map[string]any{"diparnux": "0.5.3", "model": "m.gguf", "ctx_per_slot": 16384}
+		return map[string]any{"opereta": "0.5.3", "model": "m.gguf", "ctx_per_slot": 16384}
 	}
 
-	// /diparnux/info 는 키 없이 읽힌다. 헤더는 모든 응답에 붙는다.
-	w := doFrom(h, "192.0.2.77:5000", "GET", "/diparnux/info", "")
-	if w.Code != 200 || w.Header().Get("X-Diparnux") != "0.5.3" || !strings.Contains(w.Body.String(), `"ctx_per_slot":16384`) {
+	// /opereta/info 는 키 없이 읽힌다. 헤더는 모든 응답에 붙는다.
+	w := doFrom(h, "192.0.2.77:5000", "GET", "/opereta/info", "")
+	if w.Code != 200 || w.Header().Get("X-Opereta") != "0.5.3" || !strings.Contains(w.Body.String(), `"ctx_per_slot":16384`) {
 		t.Fatalf("info = %d %q %v", w.Code, w.Body.String(), w.Header())
 	}
 	if strings.Contains(w.Body.String(), "path") {
 		t.Fatal("the info endpoint must not expose paths")
 	}
-	if w := doFrom(h, "192.0.2.77:5000", "GET", "/v1/models", ""); w.Code != 401 || w.Header().Get("X-Diparnux") != "0.5.3" {
+	if w := doFrom(h, "192.0.2.77:5000", "GET", "/v1/models", ""); w.Code != 401 || w.Header().Get("X-Opereta") != "0.5.3" {
 		t.Fatalf("models = %d %v", w.Code, w.Header())
 	}
 	// POST 는 정보 경로가 아니다(모델 서버로 넘어가므로 키가 필요하다).
-	if w := doFrom(h, "192.0.2.77:5000", "POST", "/diparnux/info", ""); w.Code != 401 {
+	if w := doFrom(h, "192.0.2.77:5000", "POST", "/opereta/info", ""); w.Code != 401 {
 		t.Fatalf("post = %d", w.Code)
 	}
 }
@@ -456,7 +456,7 @@ func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	if !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") || resp.Header.Get("X-Diparnux") != "0.5.3" {
+	if !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") || resp.Header.Get("X-Opereta") != "0.5.3" {
 		t.Fatalf("headers = %v", resp.Header)
 	}
 

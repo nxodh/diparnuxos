@@ -1,6 +1,6 @@
-// Package update 는 커널과 NVIDIA 드라이버를 함께 갱신하고 되돌리는 diparnux-update 의 로직이다.
+// Package update 는 커널과 NVIDIA 드라이버를 함께 갱신하고 되돌리는 opereta-update 의 로직이다.
 //
-// 이 패키지는 root 로 도는 헬퍼(cmd/diparnux-update)가 쓴다. 데몬은 하드닝 때문에 /boot 와 /etc 에 쓸 수 없어 직접 쓰지 않는다.
+// 이 패키지는 root 로 도는 헬퍼(cmd/opereta-update)가 쓴다. 데몬은 하드닝 때문에 /boot 와 /etc 에 쓸 수 없어 직접 쓰지 않는다.
 // 모든 외부 명령은 platform.Runner 로 실행하므로 실제 apt, dkms, grub 없이 테스트할 수 있다.
 //
 // 흐름은 설계서(docs/phase-4-design.md 5절)와 같다. 새 커널을 먼저 설치해 DKMS 빌드를 확인하고, 통과했을 때만
@@ -84,15 +84,19 @@ type Plan struct {
 	// DriverFrom 과 DriverTo 는 nvidia-kernel-open-dkms 의 설치 버전과 후보 버전이다. 바뀌지 않으면 DriverTo 는 비어 있다.
 	DriverFrom string `json:"driver_from,omitempty"`
 	DriverTo   string `json:"driver_to,omitempty"`
-	// PolicyFrom 과 PolicyTo 는 diparnux-nvidia 의 설치 버전과 후보 버전이다. 드라이버 핀이 이 패키지에 들어 있어서
+	// PolicyFrom 과 PolicyTo 는 opereta-nvidia 의 설치 버전과 후보 버전이다. 드라이버 핀이 이 패키지에 들어 있어서
 	// 드라이버를 올리려면 먼저 이 패키지를 올려야 한다.
 	PolicyFrom string `json:"policy_from,omitempty"`
 	PolicyTo   string `json:"policy_to,omitempty"`
+	// OSFrom 과 OSTo 는 opereta-base 의 설치 버전과 후보 버전이다. 모든 opereta-* 패키지가 같은 릴리스 버전을 쓰므로
+	// 이것이 Opereta 의 OS 버전이다. 바뀌지 않으면 OSTo 는 비어 있다.
+	OSFrom string `json:"os_from,omitempty"`
+	OSTo   string `json:"os_to,omitempty"`
 	// UpToDate 가 참이면 할 일이 없다.
 	UpToDate bool `json:"up_to_date"`
 }
 
-// State 는 /var/lib/diparnux/update/state.json 의 내용이다.
+// State 는 /var/lib/opereta/update/state.json 의 내용이다.
 type State struct {
 	Phase     string `json:"phase"`
 	Operation string `json:"operation,omitempty"`
@@ -113,6 +117,9 @@ type State struct {
 	// DriverFrom 과 DriverTo 는 갱신 전과 후의 드라이버 버전이다.
 	DriverFrom string `json:"driver_from,omitempty"`
 	DriverTo   string `json:"driver_to,omitempty"`
+	// OSFrom 과 OSTo 는 갱신 전과 후의 Opereta 버전이다. 바뀌지 않으면 OSTo 는 비어 있다.
+	OSFrom string `json:"os_from,omitempty"`
+	OSTo   string `json:"os_to,omitempty"`
 	// GPUBefore 는 갱신 전 GPU 진단의 종료 코드다(0 사용 가능, 1 GPU 없음, 2 GPU 는 있으나 못 씀, 3 진단 오류).
 	// 갱신 전부터 못 쓰던 GPU(예: Secure Boot 가 모듈을 막음)는 재부팅 뒤 확인에서 갱신의 실패로 보지 않는다.
 	GPUBefore *int `json:"gpu_before,omitempty"`
@@ -144,4 +151,7 @@ type CheckResult struct {
 	Time  string `json:"time"`
 	Plan  *Plan  `json:"plan,omitempty"`
 	Error *Error `json:"error,omitempty"`
+	// ChannelError 는 Opereta 업데이트 채널(저장소)만 받지 못했을 때의 설명이다. 이때 Debian 과 NVIDIA 갱신은 계속
+	// 확인하므로 Plan 은 있다. 그러나 새 Opereta 버전은 보이지 않는다.
+	ChannelError string `json:"channel_error,omitempty"`
 }

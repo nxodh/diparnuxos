@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 func TestServerStatsReadsSlotsAndMetricsFromTheBackendPort(t *testing.T) {

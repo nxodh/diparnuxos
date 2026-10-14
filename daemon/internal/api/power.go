@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/power"
+	"github.com/nxodh/operetaos/daemon/internal/power"
 )
 
 // PowerManager 는 상시 가동(절전과 종료 금지) 상태를 읽고 바꾼다. *power.Manager 가 만족한다.

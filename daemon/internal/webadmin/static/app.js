@@ -1,7 +1,7 @@
 "use strict";
 // 웹 관리 화면. 서버 값은 모두 textContent 로만 넣는다(HTML 로 해석하지 않는다).
 const $ = (id) => document.getElementById(id);
-const H = { "X-Diparnux-Admin": "1", "Content-Type": "application/json" };
+const H = { "X-Opereta-Admin": "1", "Content-Type": "application/json" };
 
 async function api(method, path, body) {
   const res = await fetch(path, { method, headers: H, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin" });
@@ -69,7 +69,7 @@ async function loadServer() {
       el("button", { class: "primary", onclick: () => api("POST", "/v1/server/start", { model: sel.value, wait: false }).then(() => { toast("Starting"); setTimeout(refresh, 1500); }).catch(fail) }, "Start"),
       el("button", { class: "danger", onclick: () => api("POST", "/v1/server/stop", {}).then(() => { toast("Stopped"); refresh(); }).catch(fail) }, "Stop")),
     el("label", {}, lan, " Allow other computers to connect"),
-    running ? el("p", { class: "muted" }, "The server is running.") : el("p", { class: "muted" }, ids.length ? "The server is stopped." : "No model is installed. Download one with the diparnux command or the Control Center."));
+    running ? el("p", { class: "muted" }, "The server is running.") : el("p", { class: "muted" }, ids.length ? "The server is stopped." : "No model is installed. Download one with the opereta command or the Control Center."));
 }
 
 async function loadConnection() {

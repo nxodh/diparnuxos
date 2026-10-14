@@ -17,17 +17,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
-	"github.com/nxodh/diparnuxos/daemon/internal/hf"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
-	"github.com/nxodh/diparnuxos/daemon/internal/update"
-	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/gateway"
+	"github.com/nxodh/operetaos/daemon/internal/hf"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/update"
+	"github.com/nxodh/operetaos/daemon/internal/updatectl"
 )
 
 // fakeSup는 Supervisor 의 가짜다. 호출 결과를 필드로 정한다.
@@ -173,7 +173,7 @@ func newEnv(t *testing.T, sup *fakeSup) *env {
 func newEnvWith(t *testing.T, sup *fakeSup, mutate func(*Deps)) *env {
 	t.Helper()
 	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "diparnuxd.json")
+	cfgPath := filepath.Join(dir, "operetad.json")
 	cfg := config.Default()
 	cfg.Port = 8080
 	cfg.ModelsDir = dir
@@ -476,7 +476,7 @@ func TestKeyCreateShowsPlaintextOnceAndListHidesIt(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(created.Key, "dpx_") || e.chowns != 1 {
+	if !strings.HasPrefix(created.Key, "opr_") || e.chowns != 1 {
 		t.Fatalf("key = %q, chowns = %d", created.Key, e.chowns)
 	}
 	list := e.do("GET", "/v1/apikeys", "")
@@ -1009,9 +1009,9 @@ func serr(code, msg string) error {
 // writeStatusFile은 no_gpu 상태 파일을 쓴다.
 func writeStatusFile(t *testing.T, path string) {
 	t.Helper()
-	text := "DIPARNUX_GPU_STATUS=no_gpu\nDIPARNUX_GPU_PRESENT=0\nDIPARNUX_GPU_PCI_COUNT=0\nDIPARNUX_GPU_COUNT=0\n" +
-		"DIPARNUX_GPU_USABLE_COUNT=0\nDIPARNUX_GPU_USABLE_INDEXES=\nDIPARNUX_SECURE_BOOT=unknown\n" +
-		"DIPARNUX_DRIVER_VERSION=\nDIPARNUX_GPU_MESSAGE=\"no NVIDIA GPU\"\n"
+	text := "OPERETA_GPU_STATUS=no_gpu\nOPERETA_GPU_PRESENT=0\nOPERETA_GPU_PCI_COUNT=0\nOPERETA_GPU_COUNT=0\n" +
+		"OPERETA_GPU_USABLE_COUNT=0\nOPERETA_GPU_USABLE_INDEXES=\nOPERETA_SECURE_BOOT=unknown\n" +
+		"OPERETA_DRIVER_VERSION=\nOPERETA_GPU_MESSAGE=\"no NVIDIA GPU\"\n"
 	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
 		t.Fatal(err)
 	}

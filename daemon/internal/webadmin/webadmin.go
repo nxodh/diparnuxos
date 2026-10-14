@@ -53,8 +53,8 @@ const (
 	sessionMax     = 8 * time.Hour
 	maxSessions    = 32
 	maxBody        = 1 << 20
-	cookieName     = "dpx_session"
-	csrfHeader     = "X-Diparnux-Admin"
+	cookieName     = "opr_session"
+	csrfHeader     = "X-Opereta-Admin"
 	lockThreshold  = 5
 	maxLock        = 15 * time.Minute
 	loginFailDelay = 400 * time.Millisecond
@@ -102,7 +102,7 @@ type Status struct {
 type Manager struct {
 	// API 는 소켓 API 와 같은 핸들러다.
 	API http.Handler
-	// StateDir 는 설정과 인증서를 둔다(/var/lib/diparnux).
+	// StateDir 는 설정과 인증서를 둔다(/var/lib/opereta).
 	StateDir string
 	// Reapply 는 방화벽을 다시 적용한다.
 	Reapply func(ctx context.Context) error
@@ -285,12 +285,12 @@ func (m *Manager) ensureCert() (tls.Certificate, string, error) {
 		return tls.Certificate{}, "", err
 	}
 	serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 100))
-	cn := "diparnux"
+	cn := "opereta"
 	if len(names.dns) > 0 {
 		cn = names.dns[0]
 	}
 	tmpl := &x509.Certificate{
-		SerialNumber: serial, Subject: pkix.Name{CommonName: cn, Organization: []string{"Diparnux"}},
+		SerialNumber: serial, Subject: pkix.Name{CommonName: cn, Organization: []string{"Opereta"}},
 		NotBefore: m.now().Add(-time.Hour), NotAfter: m.now().Add(10 * 365 * 24 * time.Hour),
 		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames: names.dns, IPAddresses: names.ips, BasicConstraintsValid: true,
@@ -738,7 +738,7 @@ func (m *Manager) proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !Allowed(r.Method, r.URL.Path) {
-		writeErr(w, http.StatusForbidden, "not_allowed", "this action is not available from the web page; use the Control Center or the diparnux command on the computer")
+		writeErr(w, http.StatusForbidden, "not_allowed", "this action is not available from the web page; use the Control Center or the opereta command on the computer")
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)

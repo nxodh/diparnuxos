@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/runner/runnertest"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/runner/runnertest"
 )
 
 // logindFake 는 logind 가 모두 "ignore"/"no" 로 답하는 가짜 러너를 만든다.

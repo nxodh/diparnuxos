@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/power"
+	"github.com/nxodh/operetaos/daemon/internal/power"
 )
 
 // fakePower 는 PowerManager 의 가짜다.

@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
-	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
-	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/netconf"
+	"github.com/nxodh/operetaos/daemon/internal/rdpctl"
+	"github.com/nxodh/operetaos/daemon/internal/sshconf"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/wireguard"
 )
 
 type fakeNetConf struct {
@@ -54,7 +54,7 @@ func (f *fakeNetConf) Diagnose(ctx context.Context) []netconf.Check {
 }
 
 func TestNetworkConfigEndpoints(t *testing.T) {
-	nc := &fakeNetConf{host: "diparnux"}
+	nc := &fakeNetConf{host: "opereta"}
 	e := newEnvWith(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}}, func(d *Deps) { d.NetConf = nc })
 
 	w := e.do("PUT", "/v1/network/interfaces/enp3s0", `{"mode":"static","addresses":["192.168.0.50/24"],"gateway":"192.168.0.1","dns":["1.1.1.1"]}`)

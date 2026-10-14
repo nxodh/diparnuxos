@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 func TestCompareVersions(t *testing.T) {
@@ -249,12 +249,12 @@ func (m *modulesDropper) Run(ctx context.Context, cmd platform.Command) (platfor
 
 func TestApplyDriverUpdateThroughPolicyPackage(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["diparnux-nvidia"] = "0.4.0"
+	f.cand["opereta-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()
 	// 핀 파일이 있어도 임시 preferences 에서는 빠져야 한다.
-	if err := os.WriteFile(f.path("etc/apt/preferences.d/00-diparnux-nvidia.pref"), []byte("Package: x\n"), 0o644); err != nil {
+	if err := os.WriteFile(f.path("etc/apt/preferences.d/00-opereta-nvidia.pref"), []byte("Package: x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(f.path("etc/apt/preferences.d/nvidia-driver-pinning-595"), []byte("Package: y\n"), 0o644); err != nil {
@@ -283,7 +283,7 @@ func TestApplyDriverUpdateThroughPolicyPackage(t *testing.T) {
 func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 	f := newFakeSys(t)
 	e := f.engine()
-	for name, body := range map[string]string{"00-diparnux-nvidia.pref": "a", "nvidia-driver-pinning-595": "b", "other.pref": "c"} {
+	for name, body := range map[string]string{"00-opereta-nvidia.pref": "a", "nvidia-driver-pinning-595": "b", "other.pref": "c"} {
 		if err := os.WriteFile(f.path("etc/apt/preferences.d/"+name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -293,7 +293,7 @@ func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	if _, err := os.Stat(dir + "/00-diparnux-nvidia.pref"); err == nil {
+	if _, err := os.Stat(dir + "/00-opereta-nvidia.pref"); err == nil {
 		t.Error("the exact driver pin must be left out")
 	}
 	for _, n := range []string{"nvidia-driver-pinning-595", "other.pref"} {
@@ -305,7 +305,7 @@ func TestPrefsOverrideDropsOnlyPolicyPin(t *testing.T) {
 
 func TestApplyDriverUpgradeFailureRestoresPreviousVersions(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["diparnux-nvidia"] = "0.4.0"
+	f.cand["opereta-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	f.upgradeFail = true
@@ -328,7 +328,7 @@ func TestApplyDriverUpgradeFailureRestoresPreviousVersions(t *testing.T) {
 func TestApplyUnexpectedRemovalIsRefusedBeforeInstalling(t *testing.T) {
 	f := newFakeSys(t)
 	newKernelUpdate(f)
-	f.removeOnUpg = []string{"diparnux-nvidia"}
+	f.removeOnUpg = []string{"opereta-nvidia"}
 	e := f.engine()
 	st, err := e.Apply(context.Background(), ApplyOptions{})
 	if codeOf(err) != CodeUnexpectedRemoval {
@@ -479,7 +479,7 @@ func TestVerifyWithoutPendingUpdate(t *testing.T) {
 func TestRollbackAfterDriverAndKernelUpdate(t *testing.T) {
 	f := newFakeSys(t)
 	rel := newKernelUpdate(f)
-	f.cand["diparnux-nvidia"] = "0.4.0"
+	f.cand["opereta-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()
@@ -520,7 +520,7 @@ func TestRollbackAfterDriverAndKernelUpdate(t *testing.T) {
 
 func TestRollbackUnavailableWhenOldVersionIsGone(t *testing.T) {
 	f := newFakeSys(t)
-	f.cand["diparnux-nvidia"] = "0.4.0"
+	f.cand["opereta-nvidia"] = "0.4.0"
 	f.cand["nvidia-kernel-open-dkms"] = "595.100.01-1"
 	f.cand["nvidia-driver"] = "595.100.01-1"
 	e := f.engine()
@@ -580,5 +580,87 @@ func TestVerifyIgnoresAGPUThatWasAlreadyUnusable(t *testing.T) {
 	st, err := e.Verify(context.Background())
 	if err != nil || st.Phase != PhaseCommitted {
 		t.Fatalf("verify = %+v, %v", st, err)
+	}
+}
+
+func TestCheckReportsOSVersionChange(t *testing.T) {
+	f := newFakeSys(t)
+	f.pkgs[OSPackage] = &fakePkg{version: "0.6.0", source: OSPackage}
+	f.cand[OSPackage] = "0.6.1"
+	plan, err := f.engine().Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.UpToDate || plan.OSFrom != "0.6.0" || plan.OSTo != "0.6.1" {
+		t.Fatalf("plan = %+v", plan)
+	}
+}
+
+func TestCheckLeavesOSVersionEmptyWhenUnchanged(t *testing.T) {
+	f := newFakeSys(t)
+	f.pkgs[OSPackage] = &fakePkg{version: "0.6.0", source: OSPackage}
+	f.cand["bash"] = "5.2.37-3"
+	plan, err := f.engine().Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.OSFrom != "0.6.0" || plan.OSTo != "" {
+		t.Fatalf("plan = %+v", plan)
+	}
+}
+
+func TestApplyRecordsOSVersionInState(t *testing.T) {
+	f := newFakeSys(t)
+	f.pkgs[OSPackage] = &fakePkg{version: "0.6.0", source: OSPackage}
+	f.cand[OSPackage] = "0.6.1"
+	st := mustApply(t, f.engine())
+	if st.OSFrom != "0.6.0" || st.OSTo != "0.6.1" || st.Phase != PhaseCommitted {
+		t.Fatalf("state = %+v", st)
+	}
+	if f.pkgs[OSPackage].version != "0.6.1" {
+		t.Error("opereta-base was not upgraded")
+	}
+	if st.RebootRequired {
+		t.Error("an OS version change alone must not require a reboot")
+	}
+}
+
+func TestCheckContinuesWhenOnlyTheOperetaChannelFails(t *testing.T) {
+	f := newFakeSys(t)
+	f.writeChannel()
+	f.channelFail = true
+	f.cand["bash"] = "5.2.37-3"
+	e := f.engine()
+	plan, err := e.Check(context.Background())
+	if err != nil {
+		t.Fatalf("Check failed although only the Opereta channel was unreachable: %v", err)
+	}
+	if plan.UpToDate || len(plan.Changes) == 0 {
+		t.Fatalf("the other repositories were not checked: %+v", plan)
+	}
+	b, rerr := os.ReadFile(e.checkPath())
+	if rerr != nil || !strings.Contains(string(b), "channel_error") || !strings.Contains(string(b), channelURL) {
+		t.Fatalf("check.json does not report the channel problem: %v %s", rerr, b)
+	}
+}
+
+func TestCheckFailsWhenAnotherRepositoryFailsToo(t *testing.T) {
+	f := newFakeSys(t)
+	f.writeChannel()
+	f.updateFail = true // example.invalid/Release 는 채널 주소 밖이다.
+	_, err := f.engine().Check(context.Background())
+	if codeOf(err) != CodeNetwork {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestApplyContinuesWhenOnlyTheOperetaChannelFails(t *testing.T) {
+	f := newFakeSys(t)
+	f.writeChannel()
+	f.channelFail = true
+	f.cand["bash"] = "5.2.37-3"
+	st := mustApply(t, f.engine())
+	if st.Phase != PhaseCommitted || f.pkgs["bash"].version != "5.2.37-3" {
+		t.Fatalf("state = %+v", st)
 	}
 }

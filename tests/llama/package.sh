@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# diparnux-llm .deb 를 CUDA 가 전혀 없는 깨끗한 Debian 컨테이너 안에서 검사한다.
+# opereta-llm .deb 를 CUDA 가 전혀 없는 깨끗한 Debian 컨테이너 안에서 검사한다.
 # 컨테이너 안에서 실행한다(scripts/test-llama-in-docker.sh 가 호출). 사용법: package.sh <deb>
 #
 # CUDA 빌드 패키지(libggml-cuda.so 가 있는 .deb)는 CUDA 라이브러리가 없는 이 환경에서
@@ -43,14 +43,14 @@ trap cleanup EXIT
 
 # 1. 패키지 내용. 설치하지 않고 풀어서 본다.
 dpkg-deb -x "${DEB}" "${WORK}/root"
-LLAMA="${WORK}/root/usr/lib/diparnux/llama"
+LLAMA="${WORK}/root/usr/lib/opereta/llama"
 [ -x "${LLAMA}/llama-server" ] || die "llama-server is missing or not executable"
 CPU_COUNT="$(find "${LLAMA}" -maxdepth 1 -name 'libggml-cpu-*.so' | wc -l)"
 [ "${CPU_COUNT}" -ge 1 ] || die "no libggml-cpu-*.so backend module"
 echo "package-test: CPU backend modules: ${CPU_COUNT}"
 
 # 원본 소스에서 모은 제3자 고지도 실행 파일과 함께 배포되어야 한다.
-DOC="${WORK}/root/usr/share/doc/diparnux-llm"
+DOC="${WORK}/root/usr/share/doc/opereta-llm"
 for notice in cpp-httplib hash-sha256 hash-xxhash nlohmann-json miniaudio stb-image sheredom-subprocess; do
     [ -s "${DOC}/vendor-licenses/${notice}.txt" ] || die "vendor notice is missing: ${notice}"
 done
@@ -61,12 +61,12 @@ if [ -e "${LLAMA}/libggml-cuda.so" ]; then
     HAS_CUDA=1
 fi
 
-# 메타데이터: CUDA 빌드는 diparnux-nvidia 에 의존해야 하고, CPU 빌드는 그렇지 않아야 한다.
+# 메타데이터: CUDA 빌드는 opereta-nvidia 에 의존해야 하고, CPU 빌드는 그렇지 않아야 한다.
 DEPENDS="$(dpkg-deb -f "${DEB}" Depends)"
 if [ "${HAS_CUDA}" -eq 1 ]; then
-    grep -Fq 'diparnux-nvidia' <<<"${DEPENDS}" || die "CUDA build does not depend on diparnux-nvidia: ${DEPENDS}"
+    grep -Fq 'opereta-nvidia' <<<"${DEPENDS}" || die "CUDA build does not depend on opereta-nvidia: ${DEPENDS}"
 else
-    grep -Fq 'diparnux-nvidia' <<<"${DEPENDS}" && die "CPU-only build depends on diparnux-nvidia: ${DEPENDS}"
+    grep -Fq 'opereta-nvidia' <<<"${DEPENDS}" && die "CPU-only build depends on opereta-nvidia: ${DEPENDS}"
 fi
 echo "package-test: Depends: ${DEPENDS}"
 

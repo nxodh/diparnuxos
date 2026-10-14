@@ -1,0 +1,118 @@
+#!/bin/sh
+# 로그인 때 실행하는 사용자 세션 설정이다. 설치 경로는 /usr/bin/opereta-session-setup 이다.
+# /etc/xdg/autostart/opereta-session-setup.desktop 이 부른다.
+#   - (한 번만) 모든 모니터에 Opereta 배경 화면을 적용한다(xfdesktop 은 모니터 이름별 속성을 쓴다).
+#   - (한 번만) xfce4-terminal 의 색 구성을 사용자 설정으로 복사한다(터미널은 시스템 기본값을 읽지 않는다).
+#   - (한 번만) 문서, 다운로드 같은 사용자 폴더를 만든다.
+#   - 한글 입력기(fcitx5): 영문 자판과 한글이 든 프로필과 한/영 전환 키(Hangul, 오른쪽 Alt, Shift+Space, Ctrl+Space)를 만든다.
+#     버전 표식(fcitx5-setup-v1)으로 따로 관리하므로 이전에 첫 설정을 마친 사용자도 한 번 받는다.
+#     사용자가 직접 바꾼 전환 키 설정은 덮어쓰지 않는다. --fcitx5 인자를 주면 이 단계만 하고 끝난다.
+set -u
+state="${XDG_CONFIG_HOME:-$HOME/.config}/opereta"
+mkdir -p "$state" || exit 0
+
+setup_fcitx5() {
+    command -v fcitx5 >/dev/null 2>&1 || return 0
+    ime_marker="$state/fcitx5-setup-v1"
+    [ -e "$ime_marker" ] && return 0
+    conf_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5"
+    mkdir -p "$conf_dir" || return 0
+
+    if [ ! -e "$conf_dir/profile" ]; then
+        cat > "$conf_dir/profile" <<'PROFILE'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=keyboard-us
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=hangul
+Layout=
+
+[GroupOrder]
+0=Default
+PROFILE
+    fi
+
+    # 전환 키: fcitx5 의 기본값은 Ctrl+Space, Zenkaku_Hankaku, Hangul 이다. 한/영 키가 없는 노트북에서 쓰는 오른쪽 Alt 와
+    # Shift+Space 를 더한다. 설정 파일이 없거나 [Hotkey/TriggerKeys] 구역이 없거나 기본값 그대로일 때만 쓴다.
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$conf_dir/config" <<'PY'
+import os, re, sys
+
+path = sys.argv[1]
+WANT = ["Hangul", "Alt_R", "Shift+space", "Control+space"]
+STOCK = ["Control+space", "Zenkaku_Hankaku", "Hangul"]
+SECTION = "[Hotkey/TriggerKeys]"
+body = "".join("%d=%s\n" % (i, k) for i, k in enumerate(WANT))
+
+try:
+    text = open(path, encoding="utf-8").read()
+except OSError:
+    text = ""
+
+m = re.search(r"^\[Hotkey/TriggerKeys\]\n((?:[^\[\n][^\n]*\n|\n)*)", text, re.M)
+if m is None:
+    new = (text.rstrip("\n") + "\n\n" if text.strip() else "") + SECTION + "\n" + body
+elif [v.split("=", 1)[1].strip() for v in m.group(1).split("\n") if "=" in v] == STOCK:
+    new = text[: m.start()] + SECTION + "\n" + body + text[m.end():]
+else:
+    sys.exit(0)  # 사용자가 바꾼 설정이다.
+
+tmp = path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as fh:
+    fh.write(new)
+os.replace(tmp, path)
+PY
+    elif [ ! -e "$conf_dir/config" ]; then
+        printf '[Hotkey/TriggerKeys]\n0=Hangul\n1=Alt_R\n2=Shift+space\n3=Control+space\n' > "$conf_dir/config"
+    fi
+    touch "$ime_marker"
+    # 이미 떠 있는 fcitx5 가 있으면 방금 쓴 설정을 다시 읽게 한다(자동 시작과 이 스크립트의 실행 순서는 정해져 있지 않다).
+    if command -v fcitx5-remote >/dev/null 2>&1; then
+        fcitx5-remote -r >/dev/null 2>&1 || true
+    fi
+}
+
+# --fcitx5: 입력기 설정만 하고 끝낸다. opereta-fcitx5.desktop 이 fcitx5 를 시작하기 전에 부른다.
+if [ "${1:-}" = "--fcitx5" ]; then
+    setup_fcitx5
+    exit 0
+fi
+setup_fcitx5
+
+marker="$state/session-setup-done"
+[ -e "$marker" ] && exit 0
+
+wallpaper=/usr/share/opereta/wallpaper.png
+if [ -r "$wallpaper" ] && command -v xfconf-query >/dev/null 2>&1; then
+    names=''
+    if command -v xrandr >/dev/null 2>&1; then
+        names="$(xrandr --query 2>/dev/null | awk '/ connected/ { print $1 }')"
+    fi
+    for name in $names; do
+        base="/backdrop/screen0/monitor$name/workspace0"
+        xfconf-query -c xfce4-desktop -p "$base/last-image" -n -t string -s "$wallpaper" 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/image-style" -n -t int -s 1 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/color-style" -n -t int -s 0 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/rgba1" -n -a -t double -s 0.050980 -t double -s 0.050980 \
+            -t double -s 0.050980 -t double -s 1.000000 2>/dev/null
+    done
+fi
+
+# xfce4-terminal 은 시스템 기본값을 읽지 않으므로 처음 한 번만 사용자 설정으로 복사한다(흑백 색 구성).
+terminalrc="${XDG_CONFIG_HOME:-$HOME/.config}/xfce4/terminal/terminalrc"
+if [ ! -e "$terminalrc" ] && [ -r /etc/xdg/opereta/xfce4/terminal/terminalrc ]; then
+    mkdir -p "$(dirname "$terminalrc")"
+    cp /etc/xdg/opereta/xfce4/terminal/terminalrc "$terminalrc"
+fi
+
+if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+    xdg-user-dirs-update 2>/dev/null
+fi
+
+touch "$marker"

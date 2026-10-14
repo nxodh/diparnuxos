@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // toolCheckResult 는 POST /v1/server/toolcheck 의 응답이다.

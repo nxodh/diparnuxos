@@ -15,7 +15,7 @@
 | 비밀·이전 이름 | `make check-secrets check-legacy-name` | 통과(554개 추적 파일) |
 | 게이트웨이 | CI QEMU E2E: 공개·내부 포트 분리, 키 없음/틀림/Bearer/X-Api-Key 응답 코드, 사용량 집계, 키 평문 노출 없음 | CI 실행 38403080124, 38407456603 통과 |
 | 새 운영 기능의 E2E 단계 | 방화벽 규칙의 `nft` 반영, 서비스 허용 목록, 자원, 노출 점검, 네트워크 진단, SSH 키 등록·삭제, 웹 관리 로그인과 허용 목록, VPN 상태와 0600 설정 파일, xrdp 꺼짐 | 드라이버 회귀 통과. **실제 ISO 실행 결과는 이 단계를 푸시한 CI 실행으로 확인한다**(CI 결과 절) |
-| 설치기 | `packages/diparnux-installer/tests/config.py`: 사전 검사 비활성화, `sudo` 그룹 | 통과 |
+| 설치기 | `packages/opereta-installer/tests/config.py`: 사전 검사 비활성화, `sudo` 그룹 | 통과 |
 | 한/영 입력기 | 컨테이너 시험(Xvfb): fcitx5 시작, 전환 키 설정 | 통과 |
 | 경량화 | L1 cairo 렌더러(Xvfb PSS 295 → 168 MiB), L2 GC(부하 시 16 → 13 MiB), L3 서버 모드 PipeWire 미기동 | 측정은 `docs/phase-5-2-design.md` 2절 |
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Install Opereta
+Name[ko]=Opereta 설치
+Comment=Install Opereta to a disk
+Comment[ko]=Opereta 를 디스크에 설치합니다
+Exec=opereta-installer
+Icon=system-software-install
+Terminal=false
+Categories=System;

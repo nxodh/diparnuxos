@@ -1,0 +1,17 @@
+#!/bin/sh
+# 패키지를 제거할 때 base-files 의 /usr/lib/os-release divert 를 되돌린다.
+set -e
+
+OS_RELEASE=/usr/lib/os-release
+
+case "$1" in
+    remove)
+        if dpkg-divert --list "$OS_RELEASE" | grep -q 'by opereta-base$'; then
+            dpkg-divert --package opereta-base --remove --rename "$OS_RELEASE"
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

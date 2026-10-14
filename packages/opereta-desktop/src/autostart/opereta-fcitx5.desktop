@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5 (Korean input)
+Comment=Starts the input method daemon so that Hangul can be typed and toggled
+# 설정 파일(전환 키)을 먼저 쓴 뒤 fcitx5 를 시작한다. 순서가 바뀌면 처음 로그인에서 기본 전환 키만 먹는다.
+Exec=sh -c "opereta-session-setup --fcitx5; exec fcitx5"
+TryExec=fcitx5
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-Phase=Applications

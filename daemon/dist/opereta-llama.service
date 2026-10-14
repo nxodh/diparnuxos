@@ -1,0 +1,51 @@
+# llama-server 유닛이다. 설치 경로는 /usr/lib/systemd/system/opereta-llama.service 다.
+# 데몬이 systemctl start 로 띄우고 멈춘다. 부팅 때 자동으로 띄우지 않으므로 [Install] 절이 없다.
+[Unit]
+Description=Opereta llama-server (local LLM inference)
+After=opereta-gpu-check.service
+
+[Service]
+# 데몬은 systemctl start 반환 뒤 MainPID의 실행 파일과 환경을 즉시 검증한다. execve 성공을 시작 장벽으로 둔다.
+Type=exec
+# 전용 시스템 사용자로 돈다. root 권한은 필요 없다. GPU 는 장치 노드 권한으로 접근한다.
+User=opereta-llm
+Group=opereta-llm
+# DRM 장치의 기존 Debian 그룹도 유지한다. sysusers가 그룹과 소속을 만든다.
+SupplementaryGroups=video render
+ExecStartPre=/usr/lib/opereta/check-gpu-permissions
+# 설정은 전부 환경 변수 LLAMA_ARG_* 로 들어온다. 데몬이 시작 전에 이 파일을 쓴다.
+EnvironmentFile=/run/opereta/llama-server.env
+ExecStart=/usr/lib/opereta/llama/llama-server
+# 자동 재시작은 하지 않는다. 데몬이 GPU 오프로드를 검증한 뒤에만 "실행 중"으로 보므로, 실패를 데몬이 알아야 한다.
+Restart=no
+# 자식 프로세스가 권한을 올리지 못하게 한다. llama-server 는 setuid 를 쓰지 않는다.
+NoNewPrivileges=yes
+# 루트 파일 시스템 전체를 읽기 전용으로 만든다(/dev, /proc, /sys 제외). 쓸 수 있는 곳은 PrivateTmp 가 만든 /tmp 와 /var/tmp 뿐이다.
+ProtectSystem=strict
+# 사용자 홈 디렉터리를 보이지 않게 한다. 사용자 홈이 없다.
+ProtectHome=yes
+# llama-server 전용 /tmp 를 쓴다.
+PrivateTmp=yes
+# /proc/sys 와 /sys 의 튜너블을 읽기 전용으로 만든다. llama-server 는 커널 설정을 바꾸지 않는다.
+ProtectKernelTunables=yes
+# cgroup 파일 시스템을 읽기 전용으로 만든다.
+ProtectControlGroups=yes
+# 서버 소켓(TCP)과 로컬 소켓만 쓴다. CUDA 드라이버가 다른 주소 체계를 쓰는지는 실 GPU 에서 미확인이다.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# 모델 디렉터리는 읽기만 한다. 모델 파일을 바꿀 이유가 없다.
+ReadOnlyPaths=/var/lib/opereta/models
+# 커널 로그 링 버퍼, 시계, 호스트 이름을 건드리지 못하게 한다. llama-server 는 이 중 어느 것도 쓰지 않는다.
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+# setuid, setgid 파일을 만들지 못하게 하고, 실시간 스케줄링을 요청하지 못하게 한다. 추론 서버에는 필요 없다.
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+# 이 머신의 기본 아키텍처 시스템 호출만 허용한다. 다른 ABI 로 우회하는 경로를 막는다.
+SystemCallArchitectures=native
+# 모델을 메모리에 고정하는 --load-mode mlock 옵션이 동작하도록 잠금 한도를 풀어 준다.
+LimitMEMLOCK=infinity
+# PrivateDevices 는 쓰지 않는다. /dev/nvidia* 와 /dev/nvidia-uvm 이 보여야 CUDA 가 GPU 를 찾는다.
+# PrivateDevices=yes 로 두면 장치 노드가 가려져 CUDA 가 GPU 를 찾지 못할 것으로 추정한다(미확인). 이 빌드는 GPU 오프로드를 전제로 한다.
+# MemoryDenyWriteExecute 도 쓰지 않는다. CUDA 드라이버의 JIT 가 쓰기와 실행이 모두 가능한 매핑을 만들 수 있어 GPU 초기화가 실패할 수 있다(추정, 실 GPU 에서 미확인).
+# 두 옵션은 실 GPU 에서 확인하기 전에는 켜지 않는다.

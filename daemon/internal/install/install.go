@@ -1,4 +1,4 @@
-// Package install 은 라이브 세션에서 디스크 하나에 Diparnux 를 설치하는 diparnux-install 의 로직이다.
+// Package install 은 라이브 세션에서 디스크 하나에 Opereta 를 설치하는 opereta-install 의 로직이다.
 //
 // 설계서(docs/phase-4-design.md 6절)와 같은 순서를 따른다: 디스크 검증, 분할, 포맷, 복사, fstab, 로케일, 계정,
 // 라이브 패키지 제거, initramfs, GRUB. Calamares 경로는 같은 대상 마무리 단계(PrepareTarget, BootDefault)를 쓴다.
@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/accounts"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 오류 코드다.
@@ -40,11 +40,11 @@ const (
 	CodeBootloader     = "bootloader_failed"
 	CodeDamagedSystem  = "damaged_system"
 	CodeNotConfirmed   = "not_confirmed"
-	defaultTargetRoot  = "/mnt/diparnux-target"
+	defaultTargetRoot  = "/mnt/opereta-target"
 	defaultMinDisk     = 16 << 30
 	defaultLiveSource  = "/run/live/rootfs/filesystem.squashfs"
 	defaultLiveMedium  = "/run/live/medium"
-	defaultInstallLog  = "/var/log/diparnux-install.log"
+	defaultInstallLog  = "/var/log/opereta-install.log"
 	espSize            = "1GiB"
 	espPartType        = "U"
 	rootPartTypeX86_64 = "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709"
@@ -374,7 +374,7 @@ func (in *Installer) Install(ctx context.Context, o *Options) (err error) {
 	disk := o.Disk
 	esp, root := partition(disk, 1), partition(disk, 2)
 	in.event("disk", "erasing %s and creating a GPT with an EFI system partition and a root partition", disk)
-	layout := fmt.Sprintf("label: gpt\nsize=%s, type=%s, name=\"EFI System\"\ntype=%s, name=\"diparnux-root\"\n", espSize, espPartType, rootPartTypeX86_64)
+	layout := fmt.Sprintf("label: gpt\nsize=%s, type=%s, name=\"EFI System\"\ntype=%s, name=\"opereta-root\"\n", espSize, espPartType, rootPartTypeX86_64)
 	if _, err := in.cmd(ctx, CodePartition, 2*time.Minute, nil, "wipefs", "--all", "--force", disk); err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (in *Installer) Install(ctx context.Context, o *Options) (err error) {
 	if _, err := in.cmd(ctx, CodeFormat, 2*time.Minute, nil, "mkfs.vfat", "-F", "32", "-n", "LXESP", esp); err != nil {
 		return err
 	}
-	if _, err := in.cmd(ctx, CodeFormat, 10*time.Minute, nil, "mkfs.ext4", "-F", "-q", "-L", "diparnux-root", root); err != nil {
+	if _, err := in.cmd(ctx, CodeFormat, 10*time.Minute, nil, "mkfs.ext4", "-F", "-q", "-L", "opereta-root", root); err != nil {
 		return err
 	}
 
@@ -416,7 +416,7 @@ func (in *Installer) Install(ctx context.Context, o *Options) (err error) {
 
 	srcDir := in.sourceDir(o)
 	if _, err := os.Stat(srcDir); err != nil && o.Source == "" {
-		srcDir = filepath.Join(filepath.Dir(in.target()), "diparnux-source")
+		srcDir = filepath.Join(filepath.Dir(in.target()), "opereta-source")
 		if err := os.MkdirAll(srcDir, 0o755); err != nil {
 			return errf(CodeSourceMissing, "%v", err)
 		}

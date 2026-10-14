@@ -1,11 +1,11 @@
-# llama (llama.cpp 빌드와 diparnux-llm 패키지)
+# llama (llama.cpp 빌드와 opereta-llm 패키지)
 
 - 확인 날짜: 2026-10-11
-- 상태: [CI 38142350756](https://github.com/nxodh/diparnuxos/actions/runs/38142350756)(`035dfb4`)에서 amd64 CUDA 패키지 빌드, CUDA 없는 환경의 CPU 패키지 추론, ISO 이미지 정책, UEFI CD·USB 부팅, live 사용자 CPU E2E(다운로드·SHA·시작·채팅·데몬 재시작 채택·정지)가 통과했다. **실 NVIDIA GPU 오프로드는 미검증이다.** 앞선 실패 실행의 내용은 [Phase 2 검증 기록](../docs/verification-phase-2.md)에 있다.
+- 상태: [CI 38142350756](https://github.com/nxodh/operetaos/actions/runs/38142350756)(`035dfb4`)에서 amd64 CUDA 패키지 빌드, CUDA 없는 환경의 CPU 패키지 추론, ISO 이미지 정책, UEFI CD·USB 부팅, live 사용자 CPU E2E(다운로드·SHA·시작·채팅·데몬 재시작 채택·정지)가 통과했다. **실 NVIDIA GPU 오프로드는 미검증이다.** 앞선 실패 실행의 내용은 [Phase 2 검증 기록](../docs/verification-phase-2.md)에 있다.
 
 ## 책임
 
-llama.cpp의 `llama-server`를 고정 커밋에서 소스로 빌드하고, 결과를 `diparnux-llm` `.deb`으로 만든다. 이 패키지는 `/usr/lib/diparnux/llama`에 설치된다. 내장 웹 UI는 넣지 않는다(사용자 확정 U6).
+llama.cpp의 `llama-server`를 고정 커밋에서 소스로 빌드하고, 결과를 `opereta-llm` `.deb`으로 만든다. 이 패키지는 `/usr/lib/opereta/llama`에 설치된다. 내장 웹 UI는 넣지 않는다(사용자 확정 U6).
 
 이 디렉터리의 파일:
 
@@ -23,7 +23,7 @@ CPU 전용 빌드를 따로 만들지 않는다. CUDA 백엔드는 `GGML_BACKEND
 
 ## 고정 값
 
-`diparnux.conf`만 정의한다.
+`opereta.conf`만 정의한다.
 
 - `LLAMA_CPP_TAG="v0.6.0"`: 사람이 읽는 이름이다.
 - `LLAMA_CPP_COMMIT="d81235049384534c167caea52b85a694f6103d14"`: 빌드가 실제로 쓰는 값이다. 태그 객체 `69ecae92…`를 역참조한 커밋이다(`gh api repos/ggml-org/llama.cpp/git/ref/tags/v0.6.0`).
@@ -58,7 +58,7 @@ CUDA 빌드는 환경 변수 `CUDACXX`로 nvcc를 가리킨다. `build.sh`가 `c
 
 1. 소스: 고정 커밋을 받고 HEAD가 같은지 확인한다.
 2. CMake 구성과 `cmake --build ... --target llama-server`.
-3. 모으기: `build/bin`의 `llama-server`와 `*.so*`를 심볼릭 링크를 보존해 `pkgroot/usr/lib/diparnux/llama/`에 평평하게 복사한다. `LICENSE`는 `usr/share/doc/diparnux-llm/LICENSE.llama.cpp`에 복사한다. `copy-vendor-licenses.sh`가 고정 소스에서 제3자 고지 일곱 개를 추출해 문서 디렉터리에 넣는다.
+3. 모으기: `build/bin`의 `llama-server`와 `*.so*`를 심볼릭 링크를 보존해 `pkgroot/usr/lib/opereta/llama/`에 평평하게 복사한다. `LICENSE`는 `usr/share/doc/opereta-llm/LICENSE.llama.cpp`에 복사한다. `copy-vendor-licenses.sh`가 고정 소스에서 제3자 고지 일곱 개를 추출해 문서 디렉터리에 넣는다.
 4. 검증. 하나라도 어긋나면 종료 코드가 0이 아니다.
    - (a) 모든 ELF 파일의 RUNPATH가 `[$ORIGIN]`이다. 로컬 실행 결과는 ELF 15개였다.
    - (b) CUDA 빌드면 `libggml-cuda.so`가 있고, 그 `NEEDED`에 `libcudart.so.13`과 `libcublas.so.13`이 있다. CPU 빌드면 `libggml-cuda.so`가 없어야 한다.
@@ -67,16 +67,16 @@ CUDA 빌드는 환경 변수 `CUDACXX`로 nvcc를 가리킨다. `build.sh`가 `c
    - (d) `llama-server --list-devices`가 0으로 끝나고 `Available devices:`를 출력한다. 빌드 컨테이너에는 GPU가 없으므로 `(none)`이 정상이다.
    - (e) 스테이징 트리에 `nvcc`, `*.a`, `*.h`, `*.hpp`, `*.cuh`가 없다.
    - `libggml-cpu-*.so`가 하나 이상 있어야 한다.
-5. `usr/share/doc/diparnux-llm/build-info.txt`를 쓴다. 커밋, CMake 옵션, 도구 버전, `llama-server --version`, CUDA 빌드면 `nvcc`와 설치된 CUDA 패키지 버전, 그리고 모든 ELF의 `readelf -d`와 `ldd` 출력을 담는다.
+5. `usr/share/doc/opereta-llm/build-info.txt`를 쓴다. 커밋, CMake 옵션, 도구 버전, `llama-server --version`, CUDA 빌드면 `nvcc`와 설치된 CUDA 패키지 버전, 그리고 모든 ELF의 `readelf -d`와 `ldd` 출력을 담는다.
 6. 패키지: `pkg/debian`을 임시 소스 트리로 복사하고 `staging/`에 스테이징 트리를 넣은 뒤 `dpkg-buildpackage -us -uc -b`로 `.deb`을 만든다. `.deb`은 `out/llama/`에 옮기고 `BUILD_KEY`를 쓴다.
 
 ## .deb 패키징
 
-- 이름: `diparnux-llm_<DIPARNUX_VERSION>_<arch>.deb`. `Architecture: any`, 소스 형식 `3.0 (native)`.
-- `Depends`: `${shlibs:Depends}, ${misc:Depends}`에 CUDA 빌드면 `, diparnux-nvidia`를 더한다. `shlibs` 계산 결과는 CPU 스모크 빌드에서 `libc6, libgcc-s1, libgomp1, libssl3t64, libstdc++6`이었다.
+- 이름: `opereta-llm_<OPERETA_VERSION>_<arch>.deb`. `Architecture: any`, 소스 형식 `3.0 (native)`.
+- `Depends`: `${shlibs:Depends}, ${misc:Depends}`에 CUDA 빌드면 `, opereta-nvidia`를 더한다. `shlibs` 계산 결과는 CPU 스모크 빌드에서 `libc6, libgcc-s1, libgomp1, libssl3t64, libstdc++6`이었다.
 - `rules`
-  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. CUDA 의존성은 `diparnux-nvidia`가 맡는다. CI의 실제 amd64 CUDA 패키지 생성과 의존성 검사가 통과했다.
-  - `override_dh_makeshlibs`: 비워 둔다. 이 라이브러리들은 `/usr/lib/diparnux/llama`의 비공개 라이브러리다. 이것을 `shlibs`에 등록하면 다른 패키지가 시스템 제공 라이브러리로 볼 수 있다. 빌드 중 `shlibs`와 ldconfig 트리거가 생겨서 이 처리를 넣었다.
+  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. CUDA 의존성은 `opereta-nvidia`가 맡는다. CI의 실제 amd64 CUDA 패키지 생성과 의존성 검사가 통과했다.
+  - `override_dh_makeshlibs`: 비워 둔다. 이 라이브러리들은 `/usr/lib/opereta/llama`의 비공개 라이브러리다. 이것을 `shlibs`에 등록하면 다른 패키지가 시스템 제공 라이브러리로 볼 수 있다. 빌드 중 `shlibs`와 ldconfig 트리거가 생겨서 이 처리를 넣었다.
   - `override_dh_strip`: `dh_strip --no-automatic-dbgsym`. `-dbgsym` 패키지를 만들지 않는다.
   - `override_dh_dwz`: 비운다. 디버그 정보가 없어 dwz가 경고만 냈다.
   - `override_dh_compress`: `dh_compress -X build-info.txt`. 기록 파일을 압축하지 않는다.
@@ -99,11 +99,11 @@ CUDA 빌드는 환경 변수 `CUDACXX`로 nvcc를 가리킨다. `build.sh`가 `c
 `scripts/build-llama-in-docker.sh`는 다음을 한다.
 
 - `LLAMA_PLATFORM`(기본 `linux/amd64`, 또는 `linux/arm64`)과 `LLAMA_CUDA`(기본 `ON`, 또는 `OFF`)를 읽는다.
-- 빌드 키를 계산한다. 입력은 `llama/` 아래 파일(`README.md` 제외), `diparnux.conf`, `LLAMA_CUDA`, `LLAMA_PLATFORM`이다. README를 뺀 이유는 설명 수정 때문에 CUDA 재빌드가 일어나지 않게 하기 위해서다. `LLAMA_CUDA`와 플랫폼을 넣은 이유는 두 빌드가 같은 파일 이름(`diparnux-llm_<ver>_<arch>.deb`)을 공유하기 때문이다.
+- 빌드 키를 계산한다. 입력은 `llama/` 아래 파일(`README.md` 제외), `opereta.conf`, `LLAMA_CUDA`, `LLAMA_PLATFORM`이다. README를 뺀 이유는 설명 수정 때문에 CUDA 재빌드가 일어나지 않게 하기 위해서다. `LLAMA_CUDA`와 플랫폼을 넣은 이유는 두 빌드가 같은 파일 이름(`opereta-llm_<ver>_<arch>.deb`)을 공유하기 때문이다.
 - `out/llama/BUILD_KEY`가 같고 `.deb`이 있으면 건너뛴다. 실측: 두 번째 실행은 1.8초에 건너뛰었다.
 - 빌드 전에 `BUILD_KEY`를 지운다. 빌드가 실패하면 다음 실행에서 다시 빌드한다.
 
-CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!llama/README.md', 'diparnux.conf')`. `!` 제외 패턴은 docs.github.com의 expressions 문서 예시(`hashFiles('/lib/**/*.rb', '!/lib/foo/*.rb')`)로 확인했다. 문서에 문법 설명은 없다.
+CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!llama/README.md', 'opereta.conf')`. `!` 제외 패턴은 docs.github.com의 expressions 문서 예시(`hashFiles('/lib/**/*.rb', '!/lib/foo/*.rb')`)로 확인했다. 문서에 문법 설명은 없다.
 
 ## 패키지 검사 (`tests/llama/package.sh`)
 
@@ -111,25 +111,25 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 
 1. `libgomp1 libssl3t64 ca-certificates curl`만 설치한다. 전제: `ldconfig -p`에 `libcudart`가 없어야 한다.
 2. `dpkg-deb -x`로 푼다. `llama-server`가 실행 가능해야 하고 `libggml-cpu-*.so`가 하나 이상 있어야 한다.
-3. CUDA 빌드(`libggml-cuda.so`가 있을 때)는 `Depends`에 `diparnux-nvidia`가 있어야 하고, `ldd libggml-cuda.so`에 `libcudart.so.13 => not found`가 보여야 한다. CPU 빌드는 `diparnux-nvidia`에 의존하면 안 된다.
+3. CUDA 빌드(`libggml-cuda.so`가 있을 때)는 `Depends`에 `opereta-nvidia`가 있어야 하고, `ldd libggml-cuda.so`에 `libcudart.so.13 => not found`가 보여야 한다. CPU 빌드는 `opereta-nvidia`에 의존하면 안 된다.
 4. `llama-server --version`과 `--list-devices`가 0으로 끝나고 `Available devices:`가 있어야 한다.
 5. 실제 추론: `ggml-org/tiny-llamas`의 `stories260K.gguf`(1,185,376바이트, sha256 `047bf464…c04b`)를 받아 sha256을 확인하고, `-ngl 0`으로 `127.0.0.1`의 임의 포트에 띄운다. `/health`가 200이 될 때까지 기다린 뒤 `/v1/chat/completions`가 `choices`와 비어 있지 않은 `content`를 돌려줘야 한다. 서버는 `trap`으로 정리한다.
 
-로컬 arm64 스모크 빌드 결과(`diparnux-llm_0.1.2_arm64.deb`, 4,133,040바이트)의 내용은 다음과 같다.
+로컬 arm64 스모크 빌드 결과(`opereta-llm_0.1.2_arm64.deb`, 4,133,040바이트)의 내용은 다음과 같다.
 
 - `llama-server` 67,736바이트, `libllama-server-impl.so` 2,837,952바이트, `libllama.so.0.6.0` 3,692,384바이트, `libllama-common.so.0.6.0` 4,085,600바이트, `libmtmd.so.0.6.0` 1,580,536바이트, `libggml.so.0.26.0` 67,976바이트, `libggml-base.so.0.26.0` 727,216바이트.
 - `libggml-cpu-*.so` 8개(armv8.0_1, armv8.2_1·2·3, armv8.6_1·2, armv9.2_1·2). 각 약 0.92~0.99 MB.
 - 심볼릭 링크: `libggml*.so`, `libllama*.so`, `libmtmd.so`의 `.so`와 `.so.N` 링크.
-- `usr/share/doc/diparnux-llm/`: `copyright`, `changelog.gz`, `LICENSE.llama.cpp`(1,078바이트), `build-info.txt`(39,361바이트).
+- `usr/share/doc/opereta-llm/`: `copyright`, `changelog.gz`, `LICENSE.llama.cpp`(1,078바이트), `build-info.txt`(39,361바이트).
 - control: `Depends: libc6 (>= 2.38), libgcc-s1 (>= 3.0), libgomp1 (>= 6), libssl3t64 (>= 3.3.0), libstdc++6 (>= 14)`. `shlibs`와 `triggers`는 없다.
 
 ## ISO 연결
 
 - `scripts/build-in-docker.sh`는 `out/llama`를 컨테이너의 `/llama`에 읽기 전용으로 마운트한다.
-- `scripts/build-iso.sh`는 `${DIPARNUX_LLAMA_DIR:-/llama}/diparnux-llm_${DIPARNUX_VERSION}_amd64.deb`를 `build/config/packages.chroot/`로 복사한다. 없으면 `make llama`를 먼저 실행하라고 실패한다. Debian 호스트에서 `iso-native`로 빌드할 때는 `DIPARNUX_LLAMA_DIR=<저장소>/out/llama`를 준다.
-- `build/config/package-lists/diparnux.list.chroot`에 `diparnux-llm`을 추가했다.
+- `scripts/build-iso.sh`는 `${OPERETA_LLAMA_DIR:-/llama}/opereta-llm_${OPERETA_VERSION}_amd64.deb`를 `build/config/packages.chroot/`로 복사한다. 없으면 `make llama`를 먼저 실행하라고 실패한다. Debian 호스트에서 `iso-native`로 빌드할 때는 `OPERETA_LLAMA_DIR=<저장소>/out/llama`를 준다.
+- `build/config/package-lists/opereta.list.chroot`에 `opereta-llm`을 추가했다.
 - `build-iso.sh`는 chroot에 `llama-server`와 `libggml-cuda.so`가 있는지 확인한다.
-- `tests/nvidia/image.sh`는 `diparnux-llm`이 설치되었는지, `llama-server`, `libggml-cuda.so`, `libggml-cpu-*.so`가 있는지 확인한다. ISO 빌드와 이미지 검사는 CI가 한다(로컬에서는 하지 않았다).
+- `tests/nvidia/image.sh`는 `opereta-llm`이 설치되었는지, `llama-server`, `libggml-cuda.so`, `libggml-cpu-*.so`가 있는지 확인한다. ISO 빌드와 이미지 검사는 CI가 한다(로컬에서는 하지 않았다).
 
 ## 로컬에서 할 수 있는 것과 없는 것
 
@@ -149,9 +149,9 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 | CUDA 빌더 이미지(nvcc, cmake, g++, CUDA 패키지 버전) | 확인됨(로컬 amd64 이미지, 컴파일 없음) |
 | CUDA 구성 단계(CMake, `GGML_CUDA=ON`) | 확인됨(로컬, 컴파일 없음) |
 | CUDA 모듈 컴파일과 `libggml-cuda.so`의 `NEEDED` | 확인됨(CI amd64, 38131367776) |
-| CUDA `.deb`의 `dh_shlibdeps -X libggml-cuda.so`와 `diparnux-nvidia` 의존성 | 확인됨(CI amd64, 38131367776) |
+| CUDA `.deb`의 `dh_shlibdeps -X libggml-cuda.so`와 `opereta-nvidia` 의존성 | 확인됨(CI amd64, 38131367776) |
 | CUDA 패키지 검사(`ldd`의 `libcudart.so.13 => not found`, 추론) | 확인됨(CI amd64, 38131367776) |
-| ISO 안의 `diparnux-llm`과 이미지 검사 | 확인됨(CI 38131367776: 0.2.0 포함, 이미지 정책 검사 통과) |
+| ISO 안의 `opereta-llm`과 이미지 검사 | 확인됨(CI 38131367776: 0.2.0 포함, 이미지 정책 검사 통과) |
 | live ISO CPU E2E 전체(다운로드·SHA·시작·채팅·데몬 재시작 채택·정지) | 확인됨(CI 38142350756, GPU 없는 QEMU/KVM VM) |
 | 실 NVIDIA GPU에서의 오프로드와 추론 | **미확인**(실기 필요) |
 

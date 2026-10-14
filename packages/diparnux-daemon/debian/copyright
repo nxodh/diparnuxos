@@ -1,2 +1,0 @@
-프로젝트 라이선스는 미정이며 Diparnux 자체 코드의 배포 조건은 아직 확정되지 않았다.
-vendoring한 NVIDIA go-nvml은 Apache-2.0이며 원문은 /usr/share/doc/diparnux-daemon/go-nvml.LICENSE에 설치한다.

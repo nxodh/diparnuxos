@@ -1,18 +1,18 @@
-Source: diparnux-llm
+Source: opereta-llm
 Section: misc
 Priority: optional
-Maintainer: Diparnux Developers <noreply@users.noreply.github.com>
+Maintainer: Opereta Developers <noreply@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.7.2
-Homepage: @DIPARNUX_HOME_URL@
-Vcs-Git: @DIPARNUX_HOME_URL@.git
-Vcs-Browser: @DIPARNUX_HOME_URL@
+Homepage: @OPERETA_HOME_URL@
+Vcs-Git: @OPERETA_HOME_URL@.git
+Vcs-Browser: @OPERETA_HOME_URL@
 
-# 이 파일은 llama/build.sh 가 복사해 쓴다. @DIPARNUX_NVIDIA_DEPENDS@ 는 CUDA 빌드에서만 ", diparnux-nvidia" 로 바뀐다.
-Package: diparnux-llm
+# 이 파일은 llama/build.sh 가 복사해 쓴다. @OPERETA_NVIDIA_DEPENDS@ 는 CUDA 빌드에서만 ", opereta-nvidia" 로 바뀐다.
+Package: opereta-llm
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}@DIPARNUX_NVIDIA_DEPENDS@
-Description: llama.cpp 의 llama-server (Diparnux 빌드)
+Depends: ${shlibs:Depends}, ${misc:Depends}@OPERETA_NVIDIA_DEPENDS@
+Description: llama.cpp 의 llama-server (Opereta 빌드)
  llama.cpp 고정 커밋에서 빌드한 llama-server 와 실행 시 불러오는 백엔드 모듈을 제공한다.
  CUDA 백엔드(libggml-cuda.so)는 실행 때 dlopen 되며, CUDA 런타임이나 GPU 가 없으면
- 건너뛰고 CPU 백엔드로 돈다. 설치 위치는 /usr/lib/diparnux/llama 이다.
+ 건너뛰고 CPU 백엔드로 돈다. 설치 위치는 /usr/lib/opereta/llama 이다.

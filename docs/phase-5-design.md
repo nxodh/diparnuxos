@@ -1,9 +1,9 @@
-# 0.5.0 설계: Xfce 데스크톱과 Diparnux 디자인
+# 0.5.0 설계: Xfce 데스크톱과 Opereta 디자인
 
 - 확인 날짜: 2026-10-12
 - 상태: **설계 초안이며 구현을 시작했다.** 9절의 질문은 기본값으로 진행하고, 사용자가 다른 답을 주면 그때 바꾼다. "확인한 사실"은 Debian 13(trixie) amd64 컨테이너의 `apt-cache`와 시뮬레이션 설치로 2026-10-12에 조회한 값이다. 실기와 QEMU 동작은 아직 확인하지 않았다.
 
-범위는 0.5.0 하나다. 데스크톱 환경을 labwc(Wayland)에서 **Xfce**로 바꾸고, Diparnux 로고와 통일된 디자인을 입히며, 일반 배포판에 가까운 사용성을 준다. 램 줄이기와 실측은 이 버전이 잘 동작한 다음의 별도 단계다(1절).
+범위는 0.5.0 하나다. 데스크톱 환경을 labwc(Wayland)에서 **Xfce**로 바꾸고, Opereta 로고와 통일된 디자인을 입히며, 일반 배포판에 가까운 사용성을 준다. 램 줄이기와 실측은 이 버전이 잘 동작한 다음의 별도 단계다(1절).
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 날짜 | 내용 |
 |---|---|
-| 2026-10-12 | 0.5.0은 데스크톱 환경을 Xfce로 한다. 디자인은 Diparnux 로고와 통일감 있게 최대한 반영한다. 현재 존재하는 리눅스 배포판에 근접한 사용성을 주되(우분투처럼 무거운 기능을 모두 구현할 필요는 없다) 컴퓨팅 자원은 최대한 덜 쓰게 한다. |
+| 2026-10-12 | 0.5.0은 데스크톱 환경을 Xfce로 한다. 디자인은 Opereta 로고와 통일감 있게 최대한 반영한다. 현재 존재하는 리눅스 배포판에 근접한 사용성을 주되(우분투처럼 무거운 기능을 모두 구현할 필요는 없다) 컴퓨팅 자원은 최대한 덜 쓰게 한다. |
 | 2026-10-12 | **램 목표(서버 600 MB, 데스크톱 900 MB)를 철회한다.** 일단 잘 동작하게 만들고, 그 다음 검토해서 최대한 경량화한다. |
 
 이 설계가 따르는 규칙:
@@ -27,15 +27,15 @@
 | 영역 | 지금 | 0.5.0 |
 |---|---|---|
 | 디스플레이 서버 | Wayland(labwc, wlroots 0.18), Xwayland는 호환용 | **Xorg**(`xserver-xorg-core`) + xfwm4. 이유는 4절 X1 |
-| 로그인 | greetd + tuigreet(텍스트) | lightdm + lightdm-gtk-greeter(그래픽, Diparnux 테마) |
+| 로그인 | greetd + tuigreet(텍스트) | lightdm + lightdm-gtk-greeter(그래픽, Opereta 테마) |
 | 패널·배경·파일 관리자·터미널 | yambar, swaybg, 없음, foot | xfce4-panel, xfdesktop, Thunar, xfce4-terminal |
-| 세션 래퍼 | `diparnux-session`(pixman, `XDG_SESSION_TYPE=wayland`) | 필요 없음. Xorg는 가상 머신에서 `modesetting`으로 동작하는지 QEMU로 확인 |
-| 모드 전환 | `diparnux mode desktop` → `graphical.target` → `greetd.service` | 같다. 확인 대상 유닛만 `lightdm.service`(별칭 `display-manager.service`)로 바뀐다 |
+| 세션 래퍼 | `opereta-session`(pixman, `XDG_SESSION_TYPE=wayland`) | 필요 없음. Xorg는 가상 머신에서 `modesetting`으로 동작하는지 QEMU로 확인 |
+| 모드 전환 | `opereta mode desktop` → `graphical.target` → `greetd.service` | 같다. 확인 대상 유닛만 `lightdm.service`(별칭 `display-manager.service`)로 바뀐다 |
 | 설치기(Calamares) | Wayland 위에서 `sudo`로 실행(`qt6-wayland`) | Xorg 위에서 실행. `qt6-wayland` 의존을 뺀다 |
 | Control Center | GTK4/libadwaita, Wayland | 그대로. GTK4 앱은 X11에서도 동작한다. 창 아이콘·색만 새 테마에 맞춘다 |
-| 네트워크 | iwd + `diparnux network`, 패널 스크립트 | 같은 스택을 유지하고 패널 플러그인(`xfce4-genmon-plugin`)으로 표시(4절 X5) |
+| 네트워크 | iwd + `opereta network`, 패널 스크립트 | 같은 스택을 유지하고 패널 플러그인(`xfce4-genmon-plugin`)으로 표시(4절 X5) |
 
-코드에서 이 구성에 걸린 곳(0.4.1 기준): `packages/diparnux-desktop/**`(전부 교체), `build/config/package-lists/diparnux.list.chroot`, `daemon/internal/supervisor/system.go`(`displayManagerUnit`)와 그 단위 시험, `daemon/internal/accounts/accounts.go`·`daemon/dist/diparnux-user.sh`(예약어에 `lightdm` 추가), `tests/qemu/desktop-session.py`(Wayland 확인 → X11 확인), `tests/nvidia/image.sh`, `scripts/test-desktop-config-in-docker.sh`, `.github/workflows/iso.yml`, `packages/diparnux-installer`(Wayland 의존과 실행기), `docs/design.md`, `docs/desktop-troubleshooting.md`, `docs/decisions.md`, `docs/memory.md`, `SPEC.md`.
+코드에서 이 구성에 걸린 곳(0.4.1 기준): `packages/opereta-desktop/**`(전부 교체), `build/config/package-lists/opereta.list.chroot`, `daemon/internal/supervisor/system.go`(`displayManagerUnit`)와 그 단위 시험, `daemon/internal/accounts/accounts.go`·`daemon/dist/opereta-user.sh`(예약어에 `lightdm` 추가), `tests/qemu/desktop-session.py`(Wayland 확인 → X11 확인), `tests/nvidia/image.sh`, `scripts/test-desktop-config-in-docker.sh`, `.github/workflows/iso.yml`, `packages/opereta-installer`(Wayland 의존과 실행기), `docs/design.md`, `docs/desktop-troubleshooting.md`, `docs/decisions.md`, `docs/memory.md`, `SPEC.md`.
 
 ## 3. 확인한 사실
 
@@ -90,17 +90,17 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 | 번호 | 항목 | 기본값 | 이유와 대안 |
 |---|---|---|---|
 | X1 | 디스플레이 서버 | Xorg + xfwm4(X11 세션). Wayland 세션은 0.5.0에 넣지 않는다 | Xfce 4.20의 Wayland는 실험적이다(3절). Xorg는 NVIDIA 오픈 모듈과 `xserver-xorg-video-nvidia`가 이미 있는 검증된 경로다. 대안은 labwc 위의 Xfce(실험, NVIDIA 위험) |
-| X2 | 로그인 화면 | lightdm + lightdm-gtk-greeter, Diparnux 배경·로고·색 | 가볍고 설정 파일로 테마를 입힐 수 있다. 대안: slick-greeter(더 화려함, 설정 키가 다름), sddm(Qt, 무거움) |
+| X2 | 로그인 화면 | lightdm + lightdm-gtk-greeter, Opereta 배경·로고·색 | 가볍고 설정 파일로 테마를 입힐 수 있다. 대안: slick-greeter(더 화려함, 설정 키가 다름), sddm(Qt, 무거움) |
 | X3 | 패키지 구성 | 메타패키지 `xfce4`를 쓰지 않고 구성 요소를 개별로 지정, `--no-install-recommends` | `xfce4`의 Recommends는 `xorg`(영상 드라이버 대량), `desktop-base`, `tango-icon-theme` 등을 끌어온다 |
 | X4 | 오디오 | PipeWire + WirePlumber + pipewire-pulse, 패널에 `xfce4-pulseaudio-plugin`, 믹서는 `pavucontrol` | 최신 배포판의 기본 구성이다. `pipewire-pulse`가 PulseAudio 호환 서버를 대신한다 |
-| X5 | 네트워크 | **iwd + systemd-networkd 유지.** 패널에 `xfce4-genmon-plugin`으로 상태(`diparnux-panel-net`)를 보이고, 클릭하면 Control Center의 네트워크 쪽을 연다 | 서버 모드와 데스크톱 모드가 한 스택을 쓰고, 0.4.1에서 만든 데몬 API·CLI·GUI를 그대로 쓴다. 한계: 유선 고정 IP, VPN, 기업용 Wi-Fi(802.1X), 핫스팟은 GUI가 없다. 대안: NetworkManager + nm-applet(+21 MiB 설치, 데몬 백엔드 교체 필요) |
+| X5 | 네트워크 | **iwd + systemd-networkd 유지.** 패널에 `xfce4-genmon-plugin`으로 상태(`opereta-panel-net`)를 보이고, 클릭하면 Control Center의 네트워크 쪽을 연다 | 서버 모드와 데스크톱 모드가 한 스택을 쓰고, 0.4.1에서 만든 데몬 API·CLI·GUI를 그대로 쓴다. 한계: 유선 고정 IP, VPN, 기업용 Wi-Fi(802.1X), 핫스팟은 GUI가 없다. 대안: NetworkManager + nm-applet(+21 MiB 설치, 데몬 백엔드 교체 필요) |
 | X6 | 파일 관리자 | Thunar + `thunar-volman` + `gvfs` + `udisks2` + `tumbler` | USB 자동 마운트, 휴지통, 썸네일 등 일반적인 동작에 필요하다 |
 | X7 | 터미널·편집기·기타 앱 | xfce4-terminal, mousepad, ristretto(이미지), xarchiver(압축), xfce4-screenshooter, xfce4-taskmanager, xfce4-appfinder | 일상 작업의 최소 구성. 오피스·미디어 플레이어는 넣지 않는다 |
 | X8 | 애플리케이션 메뉴 | `xfce4-whiskermenu-plugin`(검색 가능한 시작 메뉴) | 일반 배포판의 사용성에 가깝다(+1 MiB) |
 | X9 | 인증 에이전트 | `mate-polkit-bin` | Xfce 권장 구성. `polkitd`는 설치기 때문에 이미 필요하다 |
 | X10 | 화면 잠금·전원 | `light-locker`(lightdm 연동), `xfce4-power-manager`, `xfce4-notifyd` | `xfce4-screensaver`는 의존성이 커서 후보에서 뺐다(약 345 MiB, 겹침 포함) |
-| X11 | 테마 | 아래 6절. GTK3 `Diparnux` 테마, xfwm4 `Diparnux` 테마, 아이콘은 Adwaita, 배경과 로고는 `diparnux-branding` | 새 패키지 없이 `adwaita-icon-theme`(13 MiB)를 쓴다. 대형 아이콘 테마(Papirus 182 MiB)는 쓰지 않는다 |
-| X12 | 설정 기본값 배포 | `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/*.xml`과 `/etc/xdg/xfce4/panel/default.xml`로 시스템 기본값을 둔다 | 사용자가 바꾸면 사용자 설정이 우선한다. 새 사용자는 첫 로그인부터 Diparnux 모양이다 |
+| X11 | 테마 | 아래 6절. GTK3 `Opereta` 테마, xfwm4 `Opereta` 테마, 아이콘은 Adwaita, 배경과 로고는 `opereta-branding` | 새 패키지 없이 `adwaita-icon-theme`(13 MiB)를 쓴다. 대형 아이콘 테마(Papirus 182 MiB)는 쓰지 않는다 |
+| X12 | 설정 기본값 배포 | `/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/*.xml`과 `/etc/xdg/xfce4/panel/default.xml`로 시스템 기본값을 둔다 | 사용자가 바꾸면 사용자 설정이 우선한다. 새 사용자는 첫 로그인부터 Opereta 모양이다 |
 | X13 | 라이브 세션 | 자동 로그인(`user`), 설치된 시스템은 로그인 화면 | 일반 라이브 이미지의 동작이다. 라이브에서만 켜지는 방법은 7절 |
 | X14 | 서버 모드 | 변하지 않는다. 기본 부팅 대상 `multi-user.target`, X 서버와 lightdm은 뜨지 않는다 | SPEC의 서버 우선 정책 |
 
@@ -113,15 +113,15 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 
 | 묶음 | 내용 | 소유 파일 | 검증 |
 |---|---|---|---|
-| A. 패키지와 이미지 | `diparnux-desktop` Depends 교체, 패키지 목록, 서비스 활성화(`lightdm`은 기본 부팅 대상을 바꾸지 않고 설치) | `packages/diparnux-desktop/debian`, `build/config/package-lists` | 이미지 검사(`tests/nvidia/image.sh`), QEMU |
-| B. 세션 기본값 | xfconf XML(세션, 창 관리자, 데스크톱, 설정, 전원, Thunar), 패널 배치, 자동 시작 항목 | `packages/diparnux-desktop/src` | 컨테이너에서 XML 구문 검사, Xvfb에서 패널 시작 확인 |
-| C. 로그인 | lightdm 설정, greeter 테마, 라이브 자동 로그인(live-config), 설치된 시스템의 로그인 화면 | `packages/diparnux-desktop/src`, `packages/diparnux-branding` | QEMU에서 greeter 화면 캡처, 자동 로그인·로그인 시험 |
-| D. 디자인 | GTK3 테마, xfwm4 테마, 아이콘 지정, 배경, greeter 이미지, Control Center와의 색 통일 | `assets/brand`, `scripts/make-brand-assets.py`, `packages/diparnux-branding`, `gui/diparnux_cc/theme.py` | Xvfb에서 화면 캡처와 사람 눈 확인, QEMU 화면 캡처 |
-| E. 통합 | 모드 전환 유닛 이름, 계정 예약어, 설치기 Xorg 실행, 네트워크 패널 표시, 한국어 문구 | `daemon/internal/supervisor`, `daemon/internal/accounts`, `daemon/dist/diparnux-user.sh`, `packages/diparnux-installer`, `gui/po` | Go 단위 시험, GUI 시험, 설치 E2E |
+| A. 패키지와 이미지 | `opereta-desktop` Depends 교체, 패키지 목록, 서비스 활성화(`lightdm`은 기본 부팅 대상을 바꾸지 않고 설치) | `packages/opereta-desktop/debian`, `build/config/package-lists` | 이미지 검사(`tests/nvidia/image.sh`), QEMU |
+| B. 세션 기본값 | xfconf XML(세션, 창 관리자, 데스크톱, 설정, 전원, Thunar), 패널 배치, 자동 시작 항목 | `packages/opereta-desktop/src` | 컨테이너에서 XML 구문 검사, Xvfb에서 패널 시작 확인 |
+| C. 로그인 | lightdm 설정, greeter 테마, 라이브 자동 로그인(live-config), 설치된 시스템의 로그인 화면 | `packages/opereta-desktop/src`, `packages/opereta-branding` | QEMU에서 greeter 화면 캡처, 자동 로그인·로그인 시험 |
+| D. 디자인 | GTK3 테마, xfwm4 테마, 아이콘 지정, 배경, greeter 이미지, Control Center와의 색 통일 | `assets/brand`, `scripts/make-brand-assets.py`, `packages/opereta-branding`, `gui/opereta_cc/theme.py` | Xvfb에서 화면 캡처와 사람 눈 확인, QEMU 화면 캡처 |
+| E. 통합 | 모드 전환 유닛 이름, 계정 예약어, 설치기 Xorg 실행, 네트워크 패널 표시, 한국어 문구 | `daemon/internal/supervisor`, `daemon/internal/accounts`, `daemon/dist/opereta-user.sh`, `packages/opereta-installer`, `gui/po` | Go 단위 시험, GUI 시험, 설치 E2E |
 | F. 시험과 CI | `desktop-session.py`를 X11로 바꾸고, 소크 시험의 대상 프로세스를 Xorg·xfwm4·xfce4-panel·lightdm으로 바꾸며, 컨테이너 시험 추가 | `tests/qemu`, `scripts`, `.github/workflows/iso.yml` | CI 전체 |
 | G. 문서 | `docs/design.md`(Xfce 디자인), `docs/desktop-troubleshooting.md`, `docs/decisions.md`(램 목표 철회, Xfce 결정), `docs/memory.md`, `docs/verification-phase-5.md`, `SPEC.md` 변경 표시 | `docs/**`, `SPEC.md` | |
 
-의존 순서: A와 B가 먼저이고 C, D는 B 위에서 병행한다. E는 A 뒤다. 버전 번호(`diparnux.conf`)는 CUDA 캐시 키에 들어가므로 마지막 커밋에서 올린다. 브랜치는 `phase-5`다. PR #8(0.4.1)이 `main`에 병합되기 전에는 `phase-4.1` 위에서 작업하고, 병합 뒤 `main`으로 다시 맞춘다.
+의존 순서: A와 B가 먼저이고 C, D는 B 위에서 병행한다. E는 A 뒤다. 버전 번호(`opereta.conf`)는 CUDA 캐시 키에 들어가므로 마지막 커밋에서 올린다. 브랜치는 `phase-5`다. PR #8(0.4.1)이 `main`에 병합되기 전에는 `phase-4.1` 위에서 작업하고, 병합 뒤 `main`으로 다시 맞춘다.
 
 ## 6. 디자인 설계
 
@@ -135,9 +135,9 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 | 글자와 강조 | #EBEBEB(로고 회색), 순백 #FFFFFF은 선택 상태에만 |
 | 모서리 | 둥근 모서리 6px(창, 버튼) |
 
-- **GTK3 테마 `Diparnux`**: libgtk-3에 내장된 Adwaita 어두운 스타일시트를 가져와(`@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css")`) 색 정의(`@define-color`)와 버튼·입력·메뉴 몇 가지만 덮어쓴다. 별도 테마 패키지를 받지 않는다. *구현 때 GTK 3.24에서 이 가져오기가 동작하는지 Xvfb 화면으로 확인한다.*
-- **xfwm4 테마 `Diparnux`**: xfwm4 테마는 `themerc`와 이미지(XPM/PNG)로 이루어진다. `scripts/make-brand-assets.py`가 같은 팔레트로 제목 표시줄, 버튼(닫기·최대화·최소화), 테두리 이미지를 생성한다. 기본 `Default` 테마를 복사해 색만 바꾸는 방법은 시도하지 않는다(라이선스와 유지 비용).
-- **아이콘**: Adwaita(심볼릭 흑백 아이콘이 많다), 브랜드 아이콘은 이미 `diparnux-branding`의 hicolor에 있다.
+- **GTK3 테마 `Opereta`**: libgtk-3에 내장된 Adwaita 어두운 스타일시트를 가져와(`@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css")`) 색 정의(`@define-color`)와 버튼·입력·메뉴 몇 가지만 덮어쓴다. 별도 테마 패키지를 받지 않는다. *구현 때 GTK 3.24에서 이 가져오기가 동작하는지 Xvfb 화면으로 확인한다.*
+- **xfwm4 테마 `Opereta`**: xfwm4 테마는 `themerc`와 이미지(XPM/PNG)로 이루어진다. `scripts/make-brand-assets.py`가 같은 팔레트로 제목 표시줄, 버튼(닫기·최대화·최소화), 테두리 이미지를 생성한다. 기본 `Default` 테마를 복사해 색만 바꾸는 방법은 시도하지 않는다(라이선스와 유지 비용).
+- **아이콘**: Adwaita(심볼릭 흑백 아이콘이 많다), 브랜드 아이콘은 이미 `opereta-branding`의 hicolor에 있다.
 - **로그인 화면**: lightdm-gtk-greeter가 읽는 `background`, `theme-name`, `icon-theme-name`, `font-name`, `indicators`, `clock-format`과 로고 이미지(`default-user-image`)를 설정 파일로 정한다.
 - **배경 화면**: 기존 `wallpaper.png`. xfdesktop은 모니터 이름별 설정이라 시스템 기본값을 한 번에 줄 수 없을 수 있다. 첫 로그인 때 `xfconf-query`로 모든 모니터에 적용하는 자동 시작 스크립트로 해결하며 화면 캡처로 확인한다.
 - **패널**: 하단 한 줄. 왼쪽부터 시작 메뉴(Whisker) | 작업 목록 | 알림 영역(입력기 표시 등) | 네트워크 상태 | 소리 | 전원·배터리 | 시계 | 세션(잠금, 로그아웃, 다시 시작, 끄기).
@@ -161,10 +161,10 @@ Debian 13 컨테이너(`--platform linux/amd64`)에서 `apt-cache policy`와 `ap
 램 수치는 합격 조건이 아니다(1절). 합격 조건은 아래와 같다.
 
 1. 이미지 검사: 새 패키지와 설정 파일이 있고 `labwc`, `greetd`, `tuigreet`, `yambar`, `foot`, `swaybg`가 없다.
-2. QEMU: 서버 모드로 부팅하고 X 서버가 없으며, `diparnux mode desktop` 뒤 lightdm greeter가 화면에 나온다(화면 캡처로 비어 있지 않음과 로고 색을 확인). 로그인하면 xfwm4, xfce4-panel, xfdesktop이 뜨고 Control Center가 창으로 열린다. `diparnux mode server`로 돌아온다.
+2. QEMU: 서버 모드로 부팅하고 X 서버가 없으며, `opereta mode desktop` 뒤 lightdm greeter가 화면에 나온다(화면 캡처로 비어 있지 않음과 로고 색을 확인). 로그인하면 xfwm4, xfce4-panel, xfdesktop이 뜨고 Control Center가 창으로 열린다. `opereta mode server`로 돌아온다.
 3. 라이브: 자동 로그인되어 바탕 화면에 도달한다. 설치 E2E: 설치된 시스템의 `lightdm.conf` 에는 자동 로그인이 없다.
 4. 세션 환경: `XDG_SESSION_TYPE=x11`, `XDG_CURRENT_DESKTOP=XFCE`, DBus 세션, polkit 에이전트, PipeWire가 떠 있다.
-5. 소크 시험(8분): 프로세스별 증가량 상한은 유지한다. 대상은 `diparnuxd`, Control Center, Xorg, xfwm4, xfce4-panel, xfdesktop, lightdm. 상한 값은 첫 측정 뒤 정한다.
+5. 소크 시험(8분): 프로세스별 증가량 상한은 유지한다. 대상은 `operetad`, Control Center, Xorg, xfwm4, xfce4-panel, xfdesktop, lightdm. 상한 값은 첫 측정 뒤 정한다.
 6. 설치기 창이 Xorg에서 그려진다(설치까지는 하지 않는 기존 검사).
 7. 사용자 실기 확인(자동화 불가): 실제 모니터와 입력, NVIDIA 하이브리드 노트북에서의 화면, Wi-Fi, 소리, USB 자동 마운트, 한글 입력.
 

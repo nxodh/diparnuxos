@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from diparnux_cc import logic  # noqa: E402
+from opereta_cc import logic  # noqa: E402
 
 
 def status(state="ready", **gpu_extra):
@@ -108,9 +108,9 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(logic.fmt_count(2400000), "2.4M")
 
     def test_key_usage_text(self):
-        text = logic.key_usage_text({"prefix": "dpx_ab12", "requests": 3, "errors": 0, "prompt_tokens": 10, "completion_tokens": 5,
+        text = logic.key_usage_text({"prefix": "opr_ab12", "requests": 3, "errors": 0, "prompt_tokens": 10, "completion_tokens": 5,
                                      "last_used": "2026-10-13T01:02:03Z"})
-        self.assertEqual(text, "dpx_ab12… · 3 requests · 0 errors · 15 tokens · last used 2026-10-13 01:02:03")
+        self.assertEqual(text, "opr_ab12… · 3 requests · 0 errors · 15 tokens · last used 2026-10-13 01:02:03")
         unused = logic.key_usage_text({"requests": 0, "last_used": "0001-01-01T00:00:00Z"})
         self.assertIn("never used", unused)
 
@@ -224,7 +224,7 @@ class WizardTests(unittest.TestCase):
     def test_username_rules(self):
         self.assertIsNone(logic.check_username("alice"))
         self.assertIsNone(logic.check_username("a_b-9"))
-        for bad in ("", "Alice", "1abc", "a b", "root", "user", "diparnuxd", "x" * 33, "a.b"):
+        for bad in ("", "Alice", "1abc", "a b", "root", "user", "operetad", "x" * 33, "a.b"):
             self.assertIsNotNone(logic.check_username(bad), bad)
 
     def test_password_rules(self):
@@ -304,6 +304,50 @@ class DescribeUpdateTests(unittest.TestCase):
         self.assertIn("6.12.112+deb13-amd64", d["detail"])
         self.assertIn("595.100.01-1", d["detail"])
         self.assertTrue(d["can_install"] and d["can_rollback"])
+
+    def test_new_opereta_version_is_the_headline(self):
+        d = logic.describe_update(
+            self.info(
+                os_version="0.6.0",
+                channel={"enabled": True, "url": "https://example.invalid/latest/download"},
+                last_check={"time": "t", "plan": {"up_to_date": False, "changes": [{"name": "opereta-base"}], "os_from": "0.6.0", "os_to": "0.6.1"}},
+            )
+        )
+        self.assertIn("0.6.1", d["title"])
+        self.assertIn("0.6.0", d["detail"])
+        self.assertTrue(d["can_install"])
+
+    def test_up_to_date_with_channel_off_is_a_warning(self):
+        d = logic.describe_update(
+            self.info(
+                os_version="0.6.0",
+                channel={"enabled": False, "reason": "disabled"},
+                last_check={"time": "t", "plan": {"up_to_date": True, "changes": []}},
+            )
+        )
+        self.assertEqual(d["level"], logic.WARN)
+        self.assertIn("channel", d["detail"])
+
+    def test_channel_unreachable_is_a_warning(self):
+        d = logic.describe_update(
+            self.info(
+                channel={"enabled": True},
+                last_check={"time": "t", "plan": {"up_to_date": True, "changes": []}, "channel_error": "404"},
+            )
+        )
+        self.assertEqual(d["level"], logic.WARN)
+        self.assertIn("could not be reached", d["detail"])
+
+    def test_up_to_date_shows_the_installed_version(self):
+        d = logic.describe_update(
+            self.info(
+                os_version="0.6.0",
+                channel={"enabled": True},
+                last_check={"time": "t", "plan": {"up_to_date": True, "changes": []}},
+            )
+        )
+        self.assertEqual(d["level"], logic.OK)
+        self.assertIn("0.6.0", d["detail"])
 
     def test_check_error_is_shown(self):
         d = logic.describe_update(self.info(last_check={"time": "t", "error": {"code": "network", "message": "no route"}}))

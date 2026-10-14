@@ -1,0 +1,33 @@
+# Opereta 의 Calamares 브랜딩이다. Debian 의 이름과 로고는 쓰지 않는다.
+---
+componentName: opereta
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 900px,560px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+strings:
+    productName: "Opereta"
+    shortProductName: "Opereta"
+    version: "@VERSION@"
+    shortVersion: "@VERSION@"
+    versionedName: "Opereta @VERSION@"
+    shortVersionedName: "Opereta @VERSION@"
+    bootloaderEntryName: "Opereta"
+    productUrl: "https://github.com/nxodh/operetaos"
+    supportUrl: "https://github.com/nxodh/operetaos/issues"
+    knownIssuesUrl: "https://github.com/nxodh/operetaos/issues"
+    releaseNotesUrl: "https://github.com/nxodh/operetaos"
+images:
+    productLogo: "logo.png"
+    productIcon: "icon.png"
+    productWelcome: "welcome.png"
+style:
+    SidebarBackground: "#0D0D0D"
+    SidebarText: "#EBEBEB"
+    SidebarTextCurrent: "#000000"
+    SidebarBackgroundCurrent: "#EBEBEB"
+slideshow: "show.qml"
+slideshowAPI: 2

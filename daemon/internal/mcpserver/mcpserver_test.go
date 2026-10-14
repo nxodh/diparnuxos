@@ -12,7 +12,7 @@ import (
 
 func newTestServer() *Server {
 	return &Server{
-		Name: "diparnux", Version: "0.5.3", Instructions: "read-only",
+		Name: "opereta", Version: "0.5.3", Instructions: "read-only",
 		Tools: []Tool{
 			{Name: "zeta", Description: "z", ReadOnly: true, Run: func(ctx context.Context, a map[string]any) (string, error) { return "z-result", nil }},
 			{Name: "alpha", Description: "a", ReadOnly: true, Schema: map[string]any{"type": "object", "properties": map[string]any{"n": map[string]any{"type": "number"}}},
@@ -57,7 +57,7 @@ func TestInitializeNegotiatesVersionAndAdvertisesTools(t *testing.T) {
 		t.Fatalf("a notification must not be answered: %v", msgs)
 	}
 	r := msgs[0]["result"].(map[string]any)
-	if r["protocolVersion"] != "2025-03-26" || r["serverInfo"].(map[string]any)["name"] != "diparnux" {
+	if r["protocolVersion"] != "2025-03-26" || r["serverInfo"].(map[string]any)["name"] != "opereta" {
 		t.Fatalf("result = %v", r)
 	}
 	if _, ok := r["capabilities"].(map[string]any)["tools"]; !ok {

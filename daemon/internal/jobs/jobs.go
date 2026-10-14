@@ -17,10 +17,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/hf"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/sysinfo"
+	"github.com/nxodh/operetaos/daemon/internal/hf"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/sysinfo"
 )
 
 // 기본값과 파일 이름 규칙이다.

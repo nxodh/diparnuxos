@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
+	"github.com/nxodh/operetaos/daemon/internal/accounts"
 )
 
 // accountStatus 는 계정 오류 코드를 HTTP 상태로 바꾼다.
@@ -37,7 +37,7 @@ type usersView struct {
 	Users []accounts.Account `json:"users"`
 }
 
-// listUsers 는 Diparnux 로 만든 계정 목록을 돌려준다. 시스템 계정과 기본 live 계정은 포함하지 않는다.
+// listUsers 는 Opereta 로 만든 계정 목록을 돌려준다. 시스템 계정과 기본 live 계정은 포함하지 않는다.
 func (s *server) listUsers(w http.ResponseWriter, r *http.Request) {
 	if s.d.Accounts == nil {
 		writeJSON(w, http.StatusOK, usersView{Users: []accounts.Account{}})
@@ -52,7 +52,7 @@ func (s *server) listUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // createUser 는 계정을 만든다. 본문은 {"name","password","admin"} 이다. 비밀번호는 응답이나 로그에 남기지 않는다.
-// admin 이 true 이면 sudo 그룹에 넣는다. diparnux 그룹은 이미 시스템 관리 권한에 가까우므로 신뢰 경계는 같다.
+// admin 이 true 이면 sudo 그룹에 넣는다. opereta 그룹은 이미 시스템 관리 권한에 가까우므로 신뢰 경계는 같다.
 func (s *server) createUser(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name     string `json:"name"`
@@ -84,7 +84,7 @@ func (s *server) createUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, accounts.Account{Name: body.Name, Admin: body.Admin, Created: created})
 }
 
-// deleteUser 는 Diparnux 로 만든 계정을 지운다. 홈 디렉터리는 남긴다.
+// deleteUser 는 Opereta 로 만든 계정을 지운다. 홈 디렉터리는 남긴다.
 func (s *server) deleteUser(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if s.d.Accounts == nil {

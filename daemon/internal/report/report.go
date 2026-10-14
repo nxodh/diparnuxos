@@ -1,7 +1,7 @@
 // Package report는 진단 리포트 텍스트를 만든다. 리포트는 영어 ASCII 이고 비밀을 담지 않는다.
 //
 // 비밀 처리는 두 겹이다. 첫째, Deps.Secrets 가 돌려주는 값(API 키 평문, HF 토큰)을 모두 "<redacted>" 로 바꾼다.
-// 둘째, 키 형식(dpx_ 접두사, hf_ 접두사, Bearer 토큰)을 정규식으로 한 번 더 가린다.
+// 둘째, 키 형식(opr_ 접두사, hf_ 접두사, Bearer 토큰)을 정규식으로 한 번 더 가린다.
 // 설정은 Redacted() 로 토큰을 가린 값만 쓴다. 키 개수만 쓰고 키 값은 쓰지 않는다.
 //
 // 명령 실행(nvidia-smi, dkms, mokutil, systemctl, journalctl)은 주입된 Runner 로 한다. 명령이 없거나 실패하면
@@ -19,10 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // 상한과 기본값이다.
@@ -35,11 +35,11 @@ const (
 )
 
 // defaultUnits 는 저널을 함께 보는 유닛 목록이다.
-var defaultUnits = []string{"diparnux-gpu-check.service", "diparnux-llama.service", "diparnuxd.service"}
+var defaultUnits = []string{"opereta-gpu-check.service", "opereta-llama.service", "operetad.service"}
 
 // 키 형식 정규식이다. 주입된 비밀을 놓쳐도 형식으로 가린다.
 var secretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`dpx_[A-Za-z0-9_-]{16,}`),
+	regexp.MustCompile(`opr_[A-Za-z0-9_-]{16,}`),
 	regexp.MustCompile(`hf_[A-Za-z0-9]{16,}`),
 	regexp.MustCompile(`Bearer [A-Za-z0-9._~+/=-]{8,}`),
 }
@@ -112,7 +112,7 @@ func Build(ctx context.Context, d Deps) string {
 		secrets = d.Secrets()
 	}
 	w := &builder{}
-	w.line("Diparnux diagnostic report")
+	w.line("Opereta diagnostic report")
 	w.line("generated: " + now().UTC().Format(time.RFC3339))
 	w.line("daemon version: " + nonEmpty(d.Version, "dev"))
 

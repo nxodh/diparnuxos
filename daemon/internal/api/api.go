@@ -1,6 +1,6 @@
-// Package api는 diparnuxd 의 REST API 를 구현한다. 서비스는 유닉스 소켓에서만 돈다.
+// Package api는 operetad 의 REST API 를 구현한다. 서비스는 유닉스 소켓에서만 돈다.
 //
-// 인증은 소켓 권한이 맡는다. 소켓은 0660 이고 그룹은 diparnux 이므로 그 그룹의 사용자만 연결할 수 있다.
+// 인증은 소켓 권한이 맡는다. 소켓은 0660 이고 그룹은 opereta 이므로 그 그룹의 사용자만 연결할 수 있다.
 // 이 패키지는 TCP 로 서비스하지 않는다. 데몬 자체의 API 키 검사는 없다.
 //
 // 모든 응답은 JSON이다. 오류는 {"error":{"code":"...","message":"..."}} 형태이고 HTTP 상태와 맞춘다.
@@ -25,23 +25,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
-	"github.com/nxodh/diparnuxos/daemon/internal/gpustatus"
-	"github.com/nxodh/diparnuxos/daemon/internal/hf"
-	"github.com/nxodh/diparnuxos/daemon/internal/jobs"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
-	"github.com/nxodh/diparnuxos/daemon/internal/sshconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
-	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
-	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
-	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
+	"github.com/nxodh/operetaos/daemon/internal/accounts"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/gpustatus"
+	"github.com/nxodh/operetaos/daemon/internal/hf"
+	"github.com/nxodh/operetaos/daemon/internal/jobs"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/netconf"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/rdpctl"
+	"github.com/nxodh/operetaos/daemon/internal/sshconf"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/svcctl"
+	"github.com/nxodh/operetaos/daemon/internal/updatectl"
+	"github.com/nxodh/operetaos/daemon/internal/wireguard"
 )
 
 // 요청과 응답의 크기 상한이다.
@@ -133,11 +133,11 @@ type Deps struct {
 	Runner platform.Runner
 	// ConfigPath 는 설정 파일 경로다.
 	ConfigPath string
-	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/diparnux/firstboot.json 이다.
+	// FirstBootPath 는 첫 부팅 마법사 상태 파일 경로다. 비어 있으면 /var/lib/opereta/firstboot.json 이다.
 	FirstBootPath string
 	// GPUStatusPath 는 GPU 진단 상태 파일 경로다.
 	GPUStatusPath string
-	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/diparnux-gpu-check.
+	// GPUCheckPath 는 GPU 진단 스크립트 경로다. 기본 /usr/sbin/opereta-gpu-check.
 	GPUCheckPath string
 	// MemInfo 는 메모리 상태를 돌려준다. nil 이면 메모리를 null 로 보고한다.
 	MemInfo func() (platform.MemInfo, error)
@@ -147,7 +147,7 @@ type Deps struct {
 	Version string
 	// Now 는 현재 시각이다. nil 이면 time.Now 를 쓴다.
 	Now func() time.Time
-	// ChownKeyFile 은 키 파일의 그룹을 diparnux-llm 으로 맞춘다. 키 파일을 쓸 때마다 부른다. nil 이면 아무것도 하지 않는다.
+	// ChownKeyFile 은 키 파일의 그룹을 opereta-llm 으로 맞춘다. 키 파일을 쓸 때마다 부른다. nil 이면 아무것도 하지 않는다.
 	ChownKeyFile func(path string) error
 	// HTTP 는 llama-server 채팅 프록시에 쓰는 클라이언트다. nil 이면 기본 클라이언트를 쓴다.
 	HTTP *http.Client
@@ -171,13 +171,13 @@ func New(d Deps) http.Handler {
 		d.HTTP = &http.Client{}
 	}
 	if d.GPUCheckPath == "" {
-		d.GPUCheckPath = "/usr/sbin/diparnux-gpu-check"
+		d.GPUCheckPath = "/usr/sbin/opereta-gpu-check"
 	}
 	if d.GPUStatusPath == "" {
-		d.GPUStatusPath = "/run/diparnux/gpu-status"
+		d.GPUStatusPath = "/run/opereta/gpu-status"
 	}
 	if d.FirstBootPath == "" {
-		d.FirstBootPath = "/var/lib/diparnux/firstboot.json"
+		d.FirstBootPath = "/var/lib/opereta/firstboot.json"
 	}
 	s := &server{d: d, mux: http.NewServeMux()}
 	s.routes()

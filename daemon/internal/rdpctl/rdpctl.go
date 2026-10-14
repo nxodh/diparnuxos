@@ -1,7 +1,7 @@
 // Package rdpctl 는 원격 데스크톱(xrdp, RDP)을 켜고 끈다. 기본은 꺼져 있다.
 //
 // 켜면 xrdp 서비스를 시작하고 부팅 때 시작하게 하며, 방화벽에서 TCP 3389 를 정한 범위(기본 LAN)에만 연다.
-// 설정(켜짐, 허용 범위)은 /var/lib/diparnux/remote-desktop.json 에 저장하고 방화벽은 이 값에서 규칙을 만든다.
+// 설정(켜짐, 허용 범위)은 /var/lib/opereta/remote-desktop.json 에 저장하고 방화벽은 이 값에서 규칙을 만든다.
 package rdpctl
 
 import (
@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 상수다.
@@ -25,7 +25,7 @@ const (
 	sesmanUnit   = "xrdp-sesman.service"
 	SourceLAN    = "lan"
 	SourceAny    = "any"
-	DefaultState = "/var/lib/diparnux/remote-desktop.json"
+	DefaultState = "/var/lib/opereta/remote-desktop.json"
 )
 
 // 오류 코드다.

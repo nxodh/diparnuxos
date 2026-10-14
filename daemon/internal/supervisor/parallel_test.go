@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/llamaargs"
 )
 
 // 실행 중인 서버를 데몬이 다시 맡을 때 환경 변수에서 계획을 되살린다. 슬롯 수도 되살아야 같은 환경으로 인정한다.
@@ -14,7 +14,7 @@ func TestRuntimePlanRestoresParallelSlots(t *testing.T) {
 		NGL: "all", Ctx: 8192, SlotCtx: 2048, Parallel: 4, CacheTypeK: "q8_0", CacheTypeV: "q8_0", FlashAttn: true,
 		Batch: 512, VisibleDevices: []int{0}, LoadMode: "mmap",
 	}
-	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/diparnux/models/m.gguf", Host: "127.0.0.1", Port: 18080}
+	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/opereta/models/m.gguf", Host: "127.0.0.1", Port: 18080}
 	env, err := llamaargs.Env(plan, settings)
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +50,7 @@ func TestRuntimePlanRestoresParallelSlots(t *testing.T) {
 // 계획이 만드는 환경 변수는 모두 다시 맡을 때 되살아야 한다. 새 옵션을 환경에 넣고 여기를 빠뜨리면
 // 데몬을 다시 시작한 뒤 실행 중인 서버를 채택하지 못한다(0.5.3 의 캐시 옵션이 그랬다).
 func TestRuntimePlanRoundTripsEveryPlannedEnvironment(t *testing.T) {
-	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/diparnux/models/m.gguf", Host: "127.0.0.1", Port: 18080, Alias: "m.gguf", Metrics: true}
+	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/opereta/models/m.gguf", Host: "127.0.0.1", Port: 18080, Alias: "m.gguf", Metrics: true}
 	agent, chat := "agent", "chat"
 	four, one := 4, 1
 	plans := map[string]autoconf.Input{

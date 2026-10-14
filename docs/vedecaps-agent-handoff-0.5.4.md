@@ -1,48 +1,48 @@
-# Vedecaps 개발 에이전트에게 넘기는 문서 (Diparnux 0.5.4 TLS 연동)
+# Vedecaps 개발 에이전트에게 넘기는 문서 (Opereta 0.5.4 TLS 연동)
 
-- 작성: 2026-10-14, Diparnux 쪽 세션
+- 작성: 2026-10-14, Opereta 쪽 세션
 - 받는 쪽: `nxodh/vedecaps` 저장소에서 [vedecaps-repo-changes-design.md](vedecaps-repo-changes-design.md) 대로 다음 버전을 개발하는 에이전트
-- 목적: Diparnux 0.5.4 가 게이트웨이에 **TLS(HTTPS)** 를 넣는다. 그때 Vedecaps 가 그 서버에 안전하게 접속하도록 **VE2(`options.ca`)** 를 비롯한
-  필요한 변경을 **Diparnux 쪽과 같은 계약**으로 만들게 하는 것이다.
-- 이 문서는 Diparnux 저장소(`nxodh/diparnuxos`)의 `docs/` 에 있다. **Vedecaps 저장소에 복사해 넣지 않아도 된다**(읽고 따르면 된다).
-  Diparnux 저장소의 파일을 바꾸지 않는다. Diparnux 쪽은 Diparnux 세션이 맡는다.
+- 목적: Opereta 0.5.4 가 게이트웨이에 **TLS(HTTPS)** 를 넣는다. 그때 Vedecaps 가 그 서버에 안전하게 접속하도록 **VE2(`options.ca`)** 를 비롯한
+  필요한 변경을 **Opereta 쪽과 같은 계약**으로 만들게 하는 것이다.
+- 이 문서는 Opereta 저장소(`nxodh/operetaos`)의 `docs/` 에 있다. **Vedecaps 저장소에 복사해 넣지 않아도 된다**(읽고 따르면 된다).
+  Opereta 저장소의 파일을 바꾸지 않는다. Opereta 쪽은 Opereta 세션이 맡는다.
 
 ## 버전 결정(사용자, 2026-10-14)
 
-**VE2(`options.ca`)가 포함된 Vedecaps 릴리스의 버전은 `0.1.5` 로 한다.** Diparnux 0.5.4 는 이 `0.1.5` 를 이미지에 고정한다
-(`diparnux.conf` 의 `VEDECAPS_VERSION="0.1.5"` 와 그 릴리스의 SHA-256).
+**VE2(`options.ca`)가 포함된 Vedecaps 릴리스의 버전은 `0.1.5` 로 한다.** Opereta 0.5.4 는 이 `0.1.5` 를 이미지에 고정한다
+(`opereta.conf` 의 `VEDECAPS_VERSION="0.1.5"` 와 그 릴리스의 SHA-256).
 
 | 릴리스 | 내용 | 번호 |
 |---|---|---|
-| 먼저 | VE1(Diparnux 인식, 키 환경 변수), VE3(`max_concurrency`), VE4(`debug local --check-tools`) | **0.1.4** (아직 릴리스하지 않았다면 이 번호로 낸다. 이미 나갔다면 그대로 둔다) |
+| 먼저 | VE1(Opereta 인식, 키 환경 변수), VE3(`max_concurrency`), VE4(`debug local --check-tools`) | **0.1.4** (아직 릴리스하지 않았다면 이 번호로 낸다. 이미 나갔다면 그대로 둔다) |
 | 그다음 | VE2(`options.ca`, 신뢰 규칙, TLS 오류 안내, 선택: CA 지문 표시)가 포함된 릴리스 | **0.1.5** |
 
 - 이미 나간 번호를 다시 쓰거나 바꾸지 않는다.
 - VE2 를 0.1.4 와 한 번에 내기로 바꾸면 사용자가 정한 번호(0.1.5)와 어긋난다. 그런 변경은 **사용자에게 먼저 확인**하고, 확인 전에는 위 표대로 두 번에 나눈다.
 - 0.1.5 에서 번호를 올릴 때는 함께 바뀌는 곳을 한 번에 맞춘다: `package.json`, 소스의 `VERSION`(`src/global`), `CHANGELOG.md`(0.1.5 절), 번호를 쓰는 SDK 와 `ide/vscode`, 문서의 예시 번호.
-- `CHANGELOG.md` 의 0.1.5 절에 VE2 항목이 반드시 있어야 한다(Diparnux 가 이 항목으로 고정 버전을 확인한다).
+- `CHANGELOG.md` 의 0.1.5 절에 VE2 항목이 반드시 있어야 한다(Opereta 가 이 항목으로 고정 버전을 확인한다).
 
 ## 0. 먼저 확인할 것(작업 전에)
 
 이 문서는 당신의 현재 진행 상태를 모른다. 아래를 먼저 확인하고 이후 절의 어느 부분이 남았는지 정한다.
 
-1. `main` 의 최신 커밋과 `CHANGELOG.md` 의 Unreleased 항목: 설계서의 **PR A**(VE1 + VE4: Diparnux 인식, 키 환경 변수, `debug local --check-tools`)와
+1. `main` 의 최신 커밋과 `CHANGELOG.md` 의 Unreleased 항목: 설계서의 **PR A**(VE1 + VE4: Opereta 인식, 키 환경 변수, `debug local --check-tools`)와
    **PR B**(VE3: `options.max_concurrency`)가 이미 들어갔는가, 그리고 **0.1.4 가 이미 릴리스되었는가**(위 "버전 결정").
 2. 이 문서의 3절(VE2)은 아직 구현되지 않았다고 가정한다. 이미 있다면 4절의 계약과 어긋나는 곳만 맞춘다.
 3. `npx tsc --noEmit`, `npx bun test`, `npx bun run script/scan-secrets.ts` 가 지금 통과하는지.
 
 ## 1. 읽을 순서
 
-| 순서 | 문서(Diparnux 저장소 `docs/`) | 무엇을 얻는가 |
+| 순서 | 문서(Opereta 저장소 `docs/`) | 무엇을 얻는가 |
 |---|---|---|
 | 1 | `vedecaps-repo-changes-design.md` | VE1~VE4 상세(현재 코드 근거, 변경 지점, 시험). 이미 따르는 중인 문서 |
 | 2 | `phase-5-4-design.md` | 0.5.4 의 TLS 설계(리스너, 인증서 모델, 위협 모델). 특히 1.1, 4.1, 4.2, 5절 |
-| 3 | `vedecaps.md` | 지금 Diparnux 와 Vedecaps 가 어떻게 연결되는지(사용자 관점) |
+| 3 | `vedecaps.md` | 지금 Opereta 와 Vedecaps 가 어떻게 연결되는지(사용자 관점) |
 | 4 | `vedecaps-research.md` | 이전 조사. F1~F13 사실 목록 |
 
-## 2. Diparnux 가 보장하는 TLS 계약
+## 2. Opereta 가 보장하는 TLS 계약
 
-**이 절이 두 쪽의 약속이다.** 바뀌어야 하면 Diparnux 세션에 알린다(8절). 아래는 `phase-5-4-design.md` 의 **권장안**이며 사용자의 결정(Q1~Q9) 전에는 확정이 아니다.
+**이 절이 두 쪽의 약속이다.** 바뀌어야 하면 Opereta 세션에 알린다(8절). 아래는 `phase-5-4-design.md` 의 **권장안**이며 사용자의 결정(Q1~Q9) 전에는 확정이 아니다.
 확정 전 항목에는 "(가정)"을 붙였다. 가정이 바뀌어도 VE2 의 형식은 영향을 받지 않도록 3절을 썼다.
 
 | # | 계약 | 이유 / Vedecaps 가 알아야 할 것 |
@@ -50,12 +50,12 @@
 | C1 | **HTTP→HTTPS 리다이렉트를 하지 않는다.** | Vedecaps 는 리다이렉트를 오류로 처리한다(`redirect: "error"`). 이 동작을 **바꾸지 않는다** |
 | C2 | **루프백 `http://127.0.0.1:8080` 은 평문 HTTP 로 남는다.** | 자동 감지(`detectLlamaCpp`)가 이 주소만 본다. 자동 감지에 TLS 를 넣을 필요가 없다 |
 | C3 | HTTPS 는 **별도 포트**, 기본 **8444**(가정) 이다. 같은 포트에서 평문/TLS 를 섞지 않는다. | 포트는 설정마다 다를 수 있으므로 코드에 8444 를 박지 않는다 |
-| C4 | 서버 인증서는 Diparnux 가 만든 **로컬 CA** 로 서명된다(가정: CA + 서버 인증서). 클라이언트는 **CA PEM 파일**을 받는다. | VE2 의 입력은 "CA PEM 파일 경로"이다. 서버 인증서를 직접 받는 안(자체 서명)이 되어도 같은 옵션으로 동작한다(5절) |
+| C4 | 서버 인증서는 Opereta 가 만든 **로컬 CA** 로 서명된다(가정: CA + 서버 인증서). 클라이언트는 **CA PEM 파일**을 받는다. | VE2 의 입력은 "CA PEM 파일 경로"이다. 서버 인증서를 직접 받는 안(자체 서명)이 되어도 같은 옵션으로 동작한다(5절) |
 | C5 | 서버 인증서의 SAN 은 호스트 이름, `<호스트>.local`, 서버의 모든 IP 주소, `localhost`, `127.0.0.1`, `::1` 이다. | 이름이 맞지 않으면 검증이 실패해야 한다. **호스트 이름 검증을 끄지 않는다** |
 | C6 | 키 알고리즘은 ECDSA P-256, TLS 1.2 이상. | Bun/BoringSSL 이 지원한다 |
 | C7 | CA 에는 **DNS 이름 제약만** 있다(허용 DNS `.local` 과 서버 호스트 이름). **IP 이름 제약은 없다.** 서버 인증서의 SAN 에는 IP 가 들어 있다. | Vedecaps 개발 에이전트가 확인한 Bun 의 한계(IP 제약 + IP SAN → `UNSUPPORTED_CONSTRAINT_TYPE`)를 반영했다. DNS 제약만 있는 CA 와 IP SAN 인증서의 조합이 Bun 에서 통과하는지 TC11 로 확인해 알려 달라 |
 | C8 | 서버 인증서는 **자동 갱신**된다(397일 수명, 만료 30일 전). CA 는 10년이다. | 클라이언트는 CA 만 신뢰하므로 갱신에 영향이 없다. 단 장기 실행 프로세스가 인증서를 캐시하지 않도록 매 연결마다 검증한다(기본 동작) |
-| C9 | `/diparnux/info`, `X-Diparnux`, 키 규칙(`Authorization: Bearer`), 429 + `Retry-After`, 오류 본문 형식은 HTTP/HTTPS 에서 **같다.** | VE1 의 감지·인식 코드를 HTTPS 에서도 그대로 쓴다 |
+| C9 | `/opereta/info`, `X-Opereta`, 키 규칙(`Authorization: Bearer`), 429 + `Retry-After`, 오류 본문 형식은 HTTP/HTTPS 에서 **같다.** | VE1 의 감지·인식 코드를 HTTPS 에서도 그대로 쓴다 |
 | C10 | 이 컴퓨터의 LAN 주소로 접속해도 `local_no_key` 가 적용된다(출발지 주소 판정). | 키가 필요 없을 수 있다. 키가 있으면 그 키로 집계한다 |
 
 ## 3. 할 일: VE2 — `options.ca`
@@ -67,9 +67,9 @@
 ```jsonc
 {
   "provider": {
-    "diparnux": {
-      "api": "https://diparnux.local:8444/v1",
-      "options": { "ca": "~/.config/vedecaps/diparnux-ca.pem" }
+    "opereta": {
+      "api": "https://opereta.local:8444/v1",
+      "options": { "ca": "~/.config/vedecaps/opereta-ca.pem" }
     }
   }
 }
@@ -93,7 +93,7 @@
 | `src/provider/ollama.ts` | 같음(Ollama 가 HTTPS 뒤에 있을 때) |
 | `src/provider/anthropic.ts` | SDK 의 `fetch` 옵션으로 전달 가능한지 확인. 불가하면 문서에 "OpenAI 호환과 Ollama 만 지원" |
 | `src/provider/local.ts` `getJSON`, `discoverOpenAIModels`, 감지 함수 | 구성된 제공자의 목록·정보 조회에 같은 `tls`. 자동 감지(루프백 평문)에는 필요 없다 |
-| VE1 의 `/diparnux/info` 조회, VE4 의 도구 호출 시험 | 같은 `tls` |
+| VE1 의 `/opereta/info` 조회, VE4 의 도구 호출 시험 | 같은 `tls` |
 
 구현 방법은 **제공자별 `tls` 객체를 만들어 `ProviderInfo` 에 두는 것**(`ProviderInfo.tls?: { ca: string[] }`)이 가장 작다. 호출부는 `...(provider.tls ? { tls: provider.tls } : {})` 로 넘긴다.
 
@@ -111,9 +111,9 @@
 
 | 상황(Bun 의 오류 코드는 시험으로 확인) | 안내 |
 |---|---|
-| 자체 서명/알 수 없는 CA(`SELF_SIGNED_CERT_IN_CHAIN`, `UNABLE_TO_VERIFY_LEAF_SIGNATURE` 계열) | "The server's certificate is not trusted. Set `provider.<id>.options.ca` to the CA file (for Diparnux: `diparnux tls ca`)." |
-| 이름 불일치(`ERR_TLS_CERT_ALTNAME_INVALID`) | "The certificate does not cover `<호스트>`. Use the name or address listed by `diparnux tls status`." |
-| 만료(`CERT_HAS_EXPIRED`) | "The server certificate has expired. Renew it on the server (`diparnux tls renew`) and check the clock on both machines." |
+| 자체 서명/알 수 없는 CA(`SELF_SIGNED_CERT_IN_CHAIN`, `UNABLE_TO_VERIFY_LEAF_SIGNATURE` 계열) | "The server's certificate is not trusted. Set `provider.<id>.options.ca` to the CA file (for Opereta: `opereta tls ca`)." |
+| 이름 불일치(`ERR_TLS_CERT_ALTNAME_INVALID`) | "The certificate does not cover `<호스트>`. Use the name or address listed by `opereta tls status`." |
+| 만료(`CERT_HAS_EXPIRED`) | "The server certificate has expired. Renew it on the server (`opereta tls renew`) and check the clock on both machines." |
 | `ca` 파일 문제 | 3.1 의 "사용 불가" 메시지 |
 
 메시지는 `redact` 를 통과시키고, 실패 원인이 TLS 인지 판단하지 못하면 기존 메시지를 그대로 둔다(추측해서 틀린 안내를 주지 않는다).
@@ -121,15 +121,15 @@
 ### 3.5 `debug local` 확장(선택, 권장)
 
 - 구성된 HTTPS 제공자의 서버 정보 줄에 `TLS: trusted by <ca 파일 이름>` 또는 오류 요약을 보여 준다.
-- (Q6, 선택) CA 파일의 SHA-256 지문을 표시한다. 사용자가 서버의 `diparnux tls fingerprint` 와 눈으로 비교하게 한다. 형식은 `AA:BB:CC:...` 대문자 콜론 구분
-  (Diparnux 가 같은 형식으로 출력한다). Bun 의 `node:crypto` 의 `X509Certificate`(`fingerprint256`)를 쓰면 된다.
+- (Q6, 선택) CA 파일의 SHA-256 지문을 표시한다. 사용자가 서버의 `opereta tls fingerprint` 와 눈으로 비교하게 한다. 형식은 `AA:BB:CC:...` 대문자 콜론 구분
+  (Opereta 가 같은 형식으로 출력한다). Bun 의 `node:crypto` 의 `X509Certificate`(`fingerprint256`)를 쓰면 된다.
 
 ### 3.6 스키마·문서
 
 - `config.schema.json`: `provider.*.options` 에 `ca`(string 또는 string 배열, 설명에 "PEM 파일 경로, 상대 경로는 설정 파일 기준"). `additionalProperties: false` 이므로 추가하지 않으면 편집기가 경고한다.
 - `README.md`, `README.en.md`: 로컬/원격 서버 절에 HTTPS 와 `options.ca`, 인증서 오류 해결표.
 - `CHANGELOG.md`: Unreleased.
-- `docs/development-status.md`: 구현·검증 범위. **실제 Diparnux 서버와의 HTTPS 시험은 Diparnux 쪽 CI 가 한다**고 적는다.
+- `docs/development-status.md`: 구현·검증 범위. **실제 Opereta 서버와의 HTTPS 시험은 Opereta 쪽 CI 가 한다**고 적는다.
 
 ## 4. 시험 계획
 
@@ -149,7 +149,7 @@
 | TC10 | 리다이렉트 응답(`301 → https`) | 여전히 오류(동작 변화 없음), 키가 두 번째 요청에 실리지 않음 |
 | TC11 | **DNS 이름 제약만** 있는 CA 로 서명된 서버 인증서(SAN: 허용 DNS + IP) | 통과. 제약 밖 DNS 이름의 서버 인증서는 거부. IP 제약이 있는 CA 는 `UNSUPPORTED_CONSTRAINT_TYPE`(해결 안내 메시지 확인) |
 | TC12 | 키(`Authorization`)가 오류 메시지, `debug` 출력, 로그에 없다 | `test/secrets.test.ts` 방식 |
-| TC13 | VE1/VE3/VE4 가 HTTPS 제공자에서도 동작(감지 후 `/diparnux/info`, 동시성 상한, 도구 호출 시험) | 같은 결과 |
+| TC13 | VE1/VE3/VE4 가 HTTPS 제공자에서도 동작(감지 후 `/opereta/info`, 동시성 상한, 도구 호출 시험) | 같은 결과 |
 
 ### 4.1 시험용 인증서
 
@@ -179,7 +179,7 @@ AGENTS.md 는 키를 올리지 못하게 한다. 시험 전용 인증서는 예�
 - 자동 감지(`detectLocalServers`)의 기본 주소를 HTTPS 로 바꾸지 않는다(C2).
 - 키, 개인 키, 개인 이메일, 절대 경로를 저장소에 올리지 않는다. 시험 인증서는 4.1 의 방식으로만.
 - 시스템 프롬프트와 도구 목록을 바꾸지 않는다(프롬프트 캐시, AGENTS.md).
-- Diparnux 저장소의 파일을 바꾸지 않는다. 이 문서도 그대로 둔다(수정이 필요하면 8절로 알린다).
+- Opereta 저장소의 파일을 바꾸지 않는다. 이 문서도 그대로 둔다(수정이 필요하면 8절로 알린다).
 - 사용자의 컴퓨터(Mac)에 새 도구를 설치하지 않는다(Docker 를 쓴다). 시험 인증서 생성에 `openssl` 이 필요하면 컨테이너 안에서 만든다.
 
 ## 7. 수용 기준
@@ -190,9 +190,9 @@ AGENTS.md 는 키를 올리지 못하게 한다. 시험 전용 인증서는 예�
 - 설정이 `config.schema.json` 을 통과한다.
 - 문서(README 한/영, CHANGELOG, development-status)가 갱신되어 있다.
 
-## 8. Diparnux 세션에 알릴 것(릴리스 때)
+## 8. Opereta 세션에 알릴 것(릴리스 때)
 
-릴리스가 나오면 다음을 한 번에 전달한다. 이 값으로 Diparnux 가 `diparnux.conf` 의 버전을 고정하고 호환 시험을 돌린다.
+릴리스가 나오면 다음을 한 번에 전달한다. 이 값으로 Opereta 가 `opereta.conf` 의 버전을 고정하고 호환 시험을 돌린다.
 
 ```
 Vedecaps 릴리스 보고
@@ -208,10 +208,10 @@ Vedecaps 릴리스 보고
 - 확인하지 못한 것:
 ```
 
-계약과 어긋나는 점을 발견하면 **구현하기 전에** 이 보고 형식의 "어긋난 것" 칸으로 알린다(Diparnux 쪽이 먼저 바꿀 수도 있다).
+계약과 어긋나는 점을 발견하면 **구현하기 전에** 이 보고 형식의 "어긋난 것" 칸으로 알린다(Opereta 쪽이 먼저 바꿀 수도 있다).
 
-**일정 참고**: 사용자는 Diparnux 0.5.4 를 **Vedecaps 0.1.5(VE2 포함)가 나온 뒤에 낸다**고 정했다(TLS 만 먼저 내지 않는다). 그래서 Diparnux 0.5.4 의 완성 시점이 이 릴리스에 달려 있다.
-0.1.5 를 낼 수 있는 상태가 되면 위 보고를 바로 보내 달라. 0.1.4(VE1·VE3·VE4)만 먼저 나갔을 때도 그 릴리스의 보고를 따로 보내 달라(Diparnux 는 0.1.5 를 기다리지만, 0.1.4 로 호환 시험을 먼저 해 둘 수 있다).
+**일정 참고**: 사용자는 Opereta 0.5.4 를 **Vedecaps 0.1.5(VE2 포함)가 나온 뒤에 낸다**고 정했다(TLS 만 먼저 내지 않는다). 그래서 Opereta 0.5.4 의 완성 시점이 이 릴리스에 달려 있다.
+0.1.5 를 낼 수 있는 상태가 되면 위 보고를 바로 보내 달라. 0.1.4(VE1·VE3·VE4)만 먼저 나갔을 때도 그 릴리스의 보고를 따로 보내 달라(Opereta 는 0.1.5 를 기다리지만, 0.1.4 로 호환 시험을 먼저 해 둘 수 있다).
 
 ## 9. 열린 질문과 기본값
 
@@ -226,5 +226,5 @@ Vedecaps 릴리스 보고
 ## 10. 이 문서의 검증 범위
 
 - Vedecaps 소스 사실(`redirect: "error"`, 자동 감지 주소, `stripUntrusted` 의 제공자 항목)은 `f187450`(0.1.3)을 읽어 확인했다.
-- 2절의 계약은 Diparnux 0.5.4 의 **설계안**이며 구현되지 않았다. "(가정)" 항목은 사용자 결정 전이다.
+- 2절의 계약은 Opereta 0.5.4 의 **설계안**이며 구현되지 않았다. "(가정)" 항목은 사용자 결정 전이다.
 - Bun `fetch` 의 `tls` 옵션 동작, BoringSSL 의 이름 제약과 자체 서명 anchor 처리, Windows·Alpine 의 차이는 **확인하지 않았다.** 이것이 3, 4절 시험이 확인하는 대상이다.

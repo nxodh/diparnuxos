@@ -23,11 +23,11 @@ MODEL_REPO = "ggml-org/tiny-llamas"
 MODEL_FILE = "stories260K.gguf"
 # Hugging Face 파일 페이지와 기존 tests/llama/package.sh 의 고정 해시다.
 MODEL_SHA256 = "047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b"
-SOCKET = "/run/diparnux/diparnuxd.sock"
+SOCKET = "/run/opereta/operetad.sock"
 UNITS = (
-    "diparnuxd.socket", "diparnuxd.service", "diparnux-llama.service",
-    "diparnux-firewall-default.service", "diparnux-firewall.service",
-    "diparnux-gpu-check.service",
+    "operetad.socket", "operetad.service", "opereta-llama.service",
+    "opereta-firewall-default.service", "opereta-firewall.service",
+    "opereta-gpu-check.service",
 )
 
 
@@ -137,7 +137,7 @@ class Console:
             raise Failure("qemu_exit", "QEMU closed serial input") from None
 
     def login(self, timeout):
-        self.wait(r"diparnux login: *", timeout, "boot/login prompt")
+        self.wait(r"opereta login: *", timeout, "boot/login prompt")
         self.send("user")
         self.wait(r"Password: *", timeout, "login/password prompt")
         self.send("live")
@@ -150,13 +150,13 @@ class Console:
     def command(self, label, command, timeout, expected=0):
         self.counter += 1
         token = secrets.token_hex(8)
-        stem = f"__DPX_{token}"
+        stem = f"__OPR_{token}"
         begin, end = stem + "_BEGIN__", stem + "_END__"
         # 마커를 두 문자열로 만들어 tty 입력 에코가 완료 마커로 오인되지 않게 한다.
         line = (
-            f"printf '\\n%s%s\\n' '__DPX_' '{token}_BEGIN__'; "
+            f"printf '\\n%s%s\\n' '__OPR_' '{token}_BEGIN__'; "
             f"LC_ALL=C TERM=dumb timeout --foreground --verbose --kill-after=5s {timeout}s sh -c {shlex.quote(command)}; "
-            f"dpx_rc=$?; printf '\\n%s%s:%s\\n' '__DPX_' '{token}_END__' \"$dpx_rc\""
+            f"opr_rc=$?; printf '\\n%s%s:%s\\n' '__OPR_' '{token}_END__' \"$opr_rc\""
         )
         self.commands.write(json.dumps({"event": "start", "label": label, "command": command,
                                         "timeout_seconds": timeout, "expected_exit": expected}) + "\n")
@@ -180,7 +180,7 @@ class Console:
         return output
 
     def cli(self, label, args, timeout):
-        output = self.command(label, "diparnux --json " + args, timeout)
+        output = self.command(label, "opereta --json " + args, timeout)
         try:
             result = json.loads(output)
         except ValueError:
@@ -231,12 +231,12 @@ def set_autostart(console, enabled, label, timeout):
 def status_poll_command():
     return (
         "attempt=0; while [ \"$attempt\" -lt 10 ]; do "
-        "if status=$(diparnux --json status 2>&1); then printf '%s\\n' \"$status\"; exit 0; "
+        "if status=$(opereta --json status 2>&1); then printf '%s\\n' \"$status\"; exit 0; "
         "else rc=$?; case \"$status\" in "
-        "*\"diparnuxd is not running (systemctl status diparnuxd)\"*) ;; "
+        "*\"operetad is not running (systemctl status operetad)\"*) ;; "
         "*) printf '%s\\n' \"$status\" >&2; exit \"$rc\";; esac; fi; "
         "attempt=$((attempt + 1)); sleep 1; done; "
-        "printf '%s\\n' 'diparnux status remained unavailable after daemon restart' >&2; exit 1"
+        "printf '%s\\n' 'opereta status remained unavailable after daemon restart' >&2; exit 1"
     )
 
 
@@ -260,36 +260,36 @@ def scenario(console, budgets):
     lines = identity.splitlines()
     require(len(lines) == 4 and lines[0].isdigit() and int(lines[0]) != 0 and lines[1] == "user",
             "Serial session must run as the unprivileged live user")
-    require("diparnux" in lines[2].split() and lines[3] == "x86_64", "Live user group or amd64 UEFI check failed")
+    require("opereta" in lines[2].split() and lines[3] == "x86_64", "Live user group or amd64 UEFI check failed")
     permission = console.command("socket-permissions", f"test -S {SOCKET} && stat -c '%a %U %G' {SOCKET}", cmd)
-    require(permission == "660 root diparnux", "Daemon socket must be root:diparnux mode 0660")
+    require(permission == "660 root opereta", "Daemon socket must be root:opereta mode 0660")
 
     initial = console.cli("status-initial", "status", cmd)
     require(initial.get("gpu", {}).get("status", {}).get("state") == "no_gpu", "Expected no_gpu diagnostic in QEMU")
     require(initial.get("server", {}).get("state") == "stopped", "Fresh ISO server must start stopped")
     require(not initial["server"].get("last_error"), "Fresh ISO contains a server error")
     # 유휴 RSS 목표 판정에 쓸 실제 데몬 값을 로그에 남긴다. GPU 실기 값과 구분한다.
-    console.command("daemon-memory", "pid=$(systemctl show diparnuxd.service -p MainPID --value); "
+    console.command("daemon-memory", "pid=$(systemctl show operetad.service -p MainPID --value); "
                     "test \"$pid\" -gt 0 && grep -E '^(Name|VmRSS|VmSize):' /proc/\"$pid\"/status", cmd)
     for unit in UNITS:
         props = unit_properties(console, "unit-initial-" + unit.split(".")[0], unit, cmd)
         require(props.get("LoadState") == "loaded" and props.get("ActiveState") != "failed",
                 f"Unit {unit} is missing or failed")
-        if unit in ("diparnuxd.socket", "diparnuxd.service", "diparnux-firewall-default.service", "diparnux-gpu-check.service"):
+        if unit in ("operetad.socket", "operetad.service", "opereta-firewall-default.service", "opereta-gpu-check.service"):
             require(props.get("ActiveState") == "active", f"Unit {unit} is not active")
-        if unit == "diparnux-llama.service":
+        if unit == "opereta-llama.service":
             require(props.get("ActiveState") == "inactive", "llama unit unexpectedly started on a fresh ISO")
         # 저장된 규칙 파일이 없는 첫 부팅에서는 saved firewall 유닛이 조건 때문에 inactive 이다.
         require(props.get("Result", "success") == "success", f"Unit {unit} has an error result")
 
     # root 사용은 게스트 안의 읽기 전용 진단과 nobody 전환뿐이다. 정상 CLI 흐름은 user 가 실행한다.
-    denied = console.command("socket-denied", "sudo -n -u nobody env DIPARNUX_SOCKET=" + SOCKET + " diparnux --json status", cmd, expected=3)
-    require("permission denied" in denied, "A user outside diparnux must be denied socket access")
-    unavailable = console.command("socket-unavailable", "DIPARNUX_SOCKET=/run/diparnux/e2e-missing.sock diparnux --json status", cmd, expected=3)
+    denied = console.command("socket-denied", "sudo -n -u nobody env OPERETA_SOCKET=" + SOCKET + " opereta --json status", cmd, expected=3)
+    require("permission denied" in denied, "A user outside opereta must be denied socket access")
+    unavailable = console.command("socket-unavailable", "OPERETA_SOCKET=/run/opereta/e2e-missing.sock opereta --json status", cmd, expected=3)
     require("not running" in unavailable, "Missing socket must report daemon unavailability")
-    missing = console.command("missing-model", "diparnux --json serve start e2e-missing.gguf", cmd, expected=1)
+    missing = console.command("missing-model", "opereta --json serve start e2e-missing.gguf", cmd, expected=1)
     require("(no_model)" in missing, "Missing model error code was not reported")
-    stopped_chat = console.command("chat-before-start", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
+    stopped_chat = console.command("chat-before-start", "opereta --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in stopped_chat, "Stopped server must reject chat")
 
     console.command(
@@ -308,7 +308,7 @@ def scenario(console, budgets):
     require(model.get("sha256") == MODEL_SHA256 and model.get("repo") == MODEL_REPO,
             "Downloaded model metadata SHA-256 or repository mismatch")
     require(model.get("incomplete") is False and model.get("size_bytes", 0) > 0, "Downloaded GGUF is incomplete")
-    digest = console.command("model-sha256", f"sudo -n sha256sum /var/lib/diparnux/models/{MODEL_FILE}", cmd)
+    digest = console.command("model-sha256", f"sudo -n sha256sum /var/lib/opereta/models/{MODEL_FILE}", cmd)
     require(bool(digest.split()) and digest.split()[0] == MODEL_SHA256,
             "Actual GGUF bytes do not match the pinned SHA-256")
     default = console.cli("model-default", "model default " + MODEL_FILE, cmd)
@@ -330,7 +330,7 @@ def scenario(console, budgets):
     initial_context = started["server"]["plan"]["ctx"]
     status = console.cli("status-running", "status", cmd)
     require_runtime(status, MODEL_FILE, started["server"]["pid"], initial_context, "Initial status")
-    props = unit_properties(console, "unit-running-llama", "diparnux-llama.service", cmd)
+    props = unit_properties(console, "unit-running-llama", "opereta-llama.service", cmd)
     require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and props.get("Result") == "success",
             "llama systemd service did not start cleanly")
     require(props.get("MainPID") == str(status["server"]["pid"]), "Daemon PID differs from systemd MainPID")
@@ -343,13 +343,13 @@ def scenario(console, budgets):
     for enabled, setting in ((False, "off"), (True, "on")):
         set_autostart(console, enabled, "autostart-" + setting, cmd)
         console.command("daemon-restart-autostart-" + setting,
-                        "sudo -n systemctl restart diparnuxd.service", budgets["START_TIMEOUT"])
+                        "sudo -n systemctl restart operetad.service", budgets["START_TIMEOUT"])
         recovered = wait_for_status(console, "status-after-daemon-restart-" + setting,
                                     budgets["START_TIMEOUT"])
         require_runtime(recovered, MODEL_FILE, started["server"]["pid"], initial_context,
                         "Daemon restart with autostart " + setting)
         props = unit_properties(console, "unit-after-daemon-restart-" + setting,
-                                "diparnux-llama.service", cmd)
+                                "opereta-llama.service", cmd)
         require(props.get("ActiveState") == "active" and props.get("SubState") == "running" and
                 props.get("MainPID") == str(started["server"]["pid"]),
                 f"llama-server was not preserved after autostart {setting} daemon restart")
@@ -375,10 +375,10 @@ def scenario(console, budgets):
     require(final.get("server", {}).get("state") == "stopped" and final["server"].get("pid") == 0,
             "Daemon did not clear the stopped server PID")
     require(not final["server"].get("last_error"), "Clean stop left a server error")
-    props = unit_properties(console, "unit-stopped-llama", "diparnux-llama.service", cmd)
+    props = unit_properties(console, "unit-stopped-llama", "opereta-llama.service", cmd)
     require(props.get("ActiveState") == "inactive" and props.get("MainPID") == "0" and props.get("Result") == "success",
             "llama systemd service did not stop cleanly")
-    after = console.command("chat-after-stop", "diparnux --json chat --max-tokens 1 hello", cmd, expected=1)
+    after = console.command("chat-after-stop", "opereta --json chat --max-tokens 1 hello", cmd, expected=1)
     require("(server_not_running)" in after, "Stopped server accepted chat")
     console.command("journal", "sudo -n journalctl --no-pager -b -n 160 " + " ".join("-u " + unit for unit in UNITS), cmd)
 
@@ -396,15 +396,15 @@ HTTP_STATUS = (
 
 
 # Vedecaps(코딩 에이전트)가 서버에 하는 요청을 그대로 해 본다. 한 줄이어야 하므로 람다로 쓴다.
-# /props 의 n_ctx 와 total_slots, /v1/models 의 id, /diparnux/info, X-Diparnux 헤더, include_usage 가 붙은 SSE 스트림, 도구가 붙은 요청.
+# /props 의 n_ctx 와 total_slots, /v1/models 의 id, /opereta/info, X-Opereta 헤더, include_usage 가 붙은 SSE 스트림, 도구가 붙은 요청.
 VEDECAPS_PROBE = (
     "python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=120); o={}; "
     "g=lambda p: (c.request(\"GET\",p), c.getresponse())[1]; "
     "q=lambda p,b: (c.request(\"POST\",p,json.dumps(b),{\"Content-Type\":\"application/json\"}), c.getresponse())[1]; "
     "r=g(\"/props\"); j=json.loads(r.read()); "
     "o[\"props\"]=[r.status,j.get(\"default_generation_settings\",{}).get(\"n_ctx\"),j.get(\"total_slots\")]; "
-    "r=g(\"/v1/models\"); j=json.loads(r.read()); o[\"models\"]=[r.status,[m[\"id\"] for m in j[\"data\"]],r.getheader(\"X-Diparnux\")]; "
-    "r=g(\"/diparnux/info\"); o[\"info\"]=[r.status,json.loads(r.read())]; "
+    "r=g(\"/v1/models\"); j=json.loads(r.read()); o[\"models\"]=[r.status,[m[\"id\"] for m in j[\"data\"]],r.getheader(\"X-Opereta\")]; "
+    "r=g(\"/opereta/info\"); o[\"info\"]=[r.status,json.loads(r.read())]; "
     "m=[{\"role\":\"user\",\"content\":\"hi\"}]; "
     "r=q(\"/v1/chat/completions\",{\"messages\":m,\"max_tokens\":4,\"stream\":True,\"stream_options\":{\"include_usage\":True}}); "
     "b=r.read().decode(); o[\"sse\"]=[r.status,r.getheader(\"Content-Type\"),b.count(\"data:\"),b.strip().endswith(\"[DONE]\"),\"usage\" in b]; "
@@ -452,7 +452,7 @@ def check_gateway(console, budgets):
 
     created = console.cli("gateway-key-create", "apikey create e2e-gateway", cmd)
     key = created.get("key", "")
-    require(key.startswith("dpx_") and created.get("restart_required") is False,
+    require(key.startswith("opr_") and created.get("restart_required") is False,
             "A new key must take effect without a restart when the gateway checks keys")
     time.sleep(3)  # 게이트웨이의 키 캐시는 2초다.
     # 0.5.3: 이 컴퓨터의 요청은 키가 있어도 키 없이 통과한다(local_no_key, 기본 켬). 코딩 에이전트의 자동 감지가 이 경로를 쓴다.
@@ -467,7 +467,7 @@ def check_gateway(console, budgets):
     require(refusal[0] == 401 and "json" in (refusal[1] or "") and isinstance(refusal[2], str) and refusal[2],
             "A refused request must carry a JSON body with error.message, which coding agents show to the user")
     require(http_status(console, "gateway-models-wrong-key", base + "/v1/models", cmd,
-                        "Authorization: Bearer dpx_not-a-real-key") == 401, "A wrong key must be refused")
+                        "Authorization: Bearer opr_not-a-real-key") == 401, "A wrong key must be refused")
     require(http_status(console, "gateway-models-bearer", base + "/v1/models", cmd,
                         "Authorization: Bearer " + key) == 200, "A valid Bearer key must be accepted")
     require(http_status(console, "gateway-models-x-api-key", base + "/v1/models", cmd, "X-Api-Key: " + key) == 200,
@@ -497,16 +497,16 @@ def check_vedecaps(console, budgets):
     require(isinstance(slots, int) and slots >= 1, "/props must report total_slots")
     status, ids, version = probe["models"]
     require(status == 200 and len(ids) == 1 and ids[0], "/v1/models must list the loaded model")
-    require(isinstance(version, str) and version, "Every response must carry the X-Diparnux version header")
+    require(isinstance(version, str) and version, "Every response must carry the X-Opereta version header")
     status, info = probe["info"]
-    require(status == 200 and info.get("diparnux") == version, "/diparnux/info must name the same Diparnux version")
-    require(isinstance(info.get("ctx_per_slot"), int) and info["ctx_per_slot"] > 0, "/diparnux/info lacks ctx_per_slot")
+    require(status == 200 and info.get("opereta") == version, "/opereta/info must name the same Opereta version")
+    require(isinstance(info.get("ctx_per_slot"), int) and info["ctx_per_slot"] > 0, "/opereta/info lacks ctx_per_slot")
     # 슬롯 수를 명시하지 않으면 llama-server 가 자동으로 정한다(관찰: 4). 그때 info 는 값을 지어내지 않고 slots_auto 를 낸다.
     if info.get("slots_auto"):
-        require("slots" not in info, "/diparnux/info must not report a slot count that the server chose by itself")
+        require("slots" not in info, "/opereta/info must not report a slot count that the server chose by itself")
     else:
-        require(info.get("slots") == slots, "/diparnux/info and /props disagree on the slot count")
-    require("/" not in json.dumps(info), "/diparnux/info must not reveal file paths")
+        require(info.get("slots") == slots, "/opereta/info and /props disagree on the slot count")
+    require("/" not in json.dumps(info), "/opereta/info must not reveal file paths")
     status, content_type, chunks, done, usage = probe["sse"]
     require(status == 200 and "text/event-stream" in (content_type or ""), "Streaming must answer as text/event-stream")
     require(chunks >= 2 and done, "The stream must carry data chunks and end with [DONE]")
@@ -514,26 +514,26 @@ def check_vedecaps(console, budgets):
     # 작은 시험 모델의 채팅 틀이 도구를 받을 수 있는지는 모델에 달렸다. 게이트웨이가 막지 않고 모델 서버가 답했는지만 본다.
     require(probe["tools"] in (200, 400, 500), f"A request that offers tools must reach the model server (got {probe['tools']})")
 
-    connect = console.command("vedecaps-connect", "diparnux connect vedecaps --mcp 2>/dev/null", cmd)
+    connect = console.command("vedecaps-connect", "opereta connect vedecaps --mcp 2>/dev/null", cmd)
     config = json.loads(connect)
-    provider = config["provider"]["diparnux"]
+    provider = config["provider"]["opereta"]
     require(provider["api"] == "http://127.0.0.1:8080/v1" and "options" not in provider,
             "Local settings must point at the loopback address and need no key")
-    require(config["model"] == "diparnux/" + ids[0], "The default model must be the loaded model")
+    require(config["model"] == "opereta/" + ids[0], "The default model must be the loaded model")
     require(provider["models"][ids[0]]["limit"]["context"] == info["ctx_per_slot"],
             "limit.context must be the context of one request")
-    require(config["mcp"]["diparnux"]["command"] == ["diparnux", "mcp"], "The MCP entry must run 'diparnux mcp'")
+    require(config["mcp"]["opereta"]["command"] == ["opereta", "mcp"], "The MCP entry must run 'opereta mcp'")
     mcp = console.command(
         "vedecaps-mcp",
         "printf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}' "
-        "'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | diparnux mcp", cmd)
+        "'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | opereta mcp", cmd)
     lines = [json.loads(x) for x in mcp.splitlines() if x.strip().startswith("{")]
     names = [t["name"] for t in lines[-1]["result"]["tools"]]
-    require("diparnux_status" in names and not any("start" in n or "stop" in n for n in names),
+    require("opereta_status" in names and not any("start" in n or "stop" in n for n in names),
             "The MCP server must offer read-only tools by default")
 
     # 도구 호출 확인은 모델에 따라 통과하거나 실패한다. 어느 쪽이든 결과가 설명과 함께 나와야 한다.
-    raw = console.command("vedecaps-toolcheck", "diparnux --json serve toolcheck", budgets["CHAT_TIMEOUT"], expected=(0, 1))
+    raw = console.command("vedecaps-toolcheck", "opereta --json serve toolcheck", budgets["CHAT_TIMEOUT"], expected=(0, 1))
     check = json.loads(raw)
     require(check.get("code") in ("ok", "no_tool_call", "bad_arguments", "wrong_tool") and bool(check.get("message")),
             "The tool-call check must report a known result with a message")
@@ -548,16 +548,16 @@ TLS_CLIENT_SCRIPT = [
     "    c.request('GET', path)",
     "    r = c.getresponse()",
     "    body = r.read().decode()",
-    "    return r.status, body, r.getheader('X-Diparnux'), r.getheader('Location')",
+    "    return r.status, body, r.getheader('X-Opereta'), r.getheader('Location')",
     "try:",
     "    c = h.HTTPSConnection(host, 8444, timeout=30, context=ssl.create_default_context(cafile=ca))",
-    "    s, b, v, loc = get(c, '/diparnux/info')",
-    "    out['with_ca'] = [s, bool(v) and json.loads(b).get('diparnux') == v, loc]",
+    "    s, b, v, loc = get(c, '/opereta/info')",
+    "    out['with_ca'] = [s, bool(v) and json.loads(b).get('opereta') == v, loc]",
     "except Exception as e:",
     "    out['with_ca'] = ['error', type(e).__name__ + ': ' + str(e)[:160]]",
     "try:",
     "    c = h.HTTPSConnection(host, 8444, timeout=30, context=ssl.create_default_context())",
-    "    get(c, '/diparnux/info')",
+    "    get(c, '/opereta/info')",
     "    out['no_ca'] = 'connected'",
     "except ssl.SSLCertVerificationError:",
     "    out['no_ca'] = 'verify-failed'",
@@ -573,13 +573,13 @@ TLS_CLIENT_SCRIPT = [
     "    out['wrong_name'] = 'error ' + type(e).__name__",
     "try:",
     "    c = h.HTTPConnection(host, 8080, timeout=10)",
-    "    out['plain_lan'] = get(c, '/diparnux/info')[0]",
+    "    out['plain_lan'] = get(c, '/opereta/info')[0]",
     "except ConnectionRefusedError:",
     "    out['plain_lan'] = 'refused'",
     "except Exception as e:",
     "    out['plain_lan'] = 'error ' + type(e).__name__",
     "c = h.HTTPConnection('127.0.0.1', 8080, timeout=30)",
-    "s, b, v, loc = get(c, '/diparnux/info')",
+    "s, b, v, loc = get(c, '/opereta/info')",
     "out['plain_local'] = [s, loc]",
     "print(json.dumps(out))",
 ]
@@ -591,7 +591,7 @@ def check_tls(console, budgets):
     이 컴퓨터의 평문은 남는지 본다. 끝나면 이전 상태로 되돌린다."""
     cmd = budgets["COMMAND_TIMEOUT"]
     created = console.cli("tls-key-create", "apikey create e2e-tls", cmd)
-    require(created.get("key", "").startswith("dpx_"), "The TLS check needs an API key")
+    require(created.get("key", "").startswith("opr_"), "The TLS check needs an API key")
     try:
         lan_on = console.cli("tls-lan-on", "config set lan on", cmd)
         require(lan_on.get("config", {}).get("lan_exposed") is True, "LAN exposure was not turned on")
@@ -618,13 +618,13 @@ def check_tls(console, budgets):
         lan_ip = console.command(
             "tls-lan-ip", "ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | head -1", cmd).strip()
         host = lan_ip if lan_ip else "127.0.0.1"
-        console.command("tls-ca-out", "diparnux tls ca --out /tmp/e2e-ca.pem", cmd)
+        console.command("tls-ca-out", "opereta tls ca --out /tmp/e2e-ca.pem", cmd)
         console.command("tls-script", TLS_CLIENT_WRITE, cmd)
         probe = json.loads(console.command("tls-probe", "python3 -I /tmp/e2e_tls.py " + shlex.quote(host) + " /tmp/e2e-ca.pem",
                                            budgets["CHAT_TIMEOUT"]))
         status_code, same_version, location = probe["with_ca"]
         require(status_code == 200 and same_version is True,
-                f"HTTPS with the CA must reach /diparnux/info (got {probe['with_ca']})")
+                f"HTTPS with the CA must reach /opereta/info (got {probe['with_ca']})")
         require(location is None, "The TLS port must not redirect")
         require(probe["no_ca"] == "verify-failed", f"A client without the CA must refuse the certificate ({probe['no_ca']})")
         require(probe["wrong_name"] == "verify-failed", f"A wrong server name must be refused ({probe['wrong_name']})")
@@ -634,7 +634,7 @@ def check_tls(console, budgets):
             require(probe["plain_lan"] == "refused",
                     f"Plain HTTP on the LAN address must be closed while TLS is on ({probe['plain_lan']})")
 
-        exposure = json.loads(console.command("tls-exposure", "diparnux --json exposure; true", cmd))
+        exposure = json.loads(console.command("tls-exposure", "opereta --json exposure; true", cmd))
         titles = [f.get("title", "") for f in exposure.get("findings", [])]
         require(any("over TLS" in t for t in titles), f"The exposure check does not report TLS: {titles}")
         conn = console.cli("tls-connection", "connection", cmd)
@@ -642,11 +642,11 @@ def check_tls(console, budgets):
                 "Connection info must advertise TLS and keep the plain local URL")
         require(all(a.get("url", "").startswith("https://") for a in conn.get("addresses", [])),
                 "With TLS on every LAN address must be an https URL")
-        remote = json.loads(console.command("tls-connect", "diparnux connect vedecaps --remote --ca-out /tmp/e2e-ca2.pem 2>/dev/null", cmd))
-        provider = remote["provider"]["diparnux"]
+        remote = json.loads(console.command("tls-connect", "opereta connect vedecaps --remote --ca-out /tmp/e2e-ca2.pem 2>/dev/null", cmd))
+        provider = remote["provider"]["opereta"]
         require(provider["api"].startswith("https://") and provider["options"].get("ca"),
                 "connect vedecaps --remote must write an https address and options.ca")
-        require("dpx_" not in json.dumps(remote), "The Vedecaps settings contain a key")
+        require("opr_" not in json.dumps(remote), "The Vedecaps settings contain a key")
 
         # 서버 인증서만 갱신하면 CA 는 그대로이고 같은 CA 로 계속 접속된다.
         before = console.cli("tls-before-renew", "tls", cmd)
@@ -668,9 +668,9 @@ def check_tls(console, budgets):
             console.cli("tls-plain-off", "tls plain off", cmd)
     finally:
         # 이전 상태로 되돌린다. 실패해도 다음 단계가 이 상태에 기대지 않도록 한다.
-        console.command("tls-off", "diparnux --json tls off --yes; true", cmd)
-        console.command("tls-lan-off", "diparnux --json config set lan off; true", cmd)
-        console.command("tls-key-rm", "diparnux --json apikey rm " + shlex.quote(created.get("id", "")) + "; true", cmd)
+        console.command("tls-off", "opereta --json tls off --yes; true", cmd)
+        console.command("tls-lan-off", "opereta --json config set lan off; true", cmd)
+        console.command("tls-key-rm", "opereta --json apikey rm " + shlex.quote(created.get("id", "")) + "; true", cmd)
         console.command("tls-cleanup", "rm -f /tmp/e2e-ca.pem /tmp/e2e-ca2.pem /tmp/e2e_tls.py", cmd)
     time.sleep(2)  # 게이트웨이가 평문 리스너를 루프백으로 되돌리는 데 최대 1초 걸린다.
 
@@ -679,7 +679,7 @@ WEBADMIN_PASSWORD = "e2e-correct-horse-battery"
 # 웹 관리 로그인 흐름을 한 줄로: 익명 401, 로그인 후 상태 200, 허용된 읽기 200, 허용 목록 밖 403 을 차례로 찍는다.
 WEBADMIN_FLOW = (
     "python3 -I -c 'import ssl,json,http.client as h; x=ssl._create_unverified_context(); "
-    "c=h.HTTPSConnection(\"127.0.0.1\",18443,timeout=20,context=x); H={\"X-Diparnux-Admin\":\"1\",\"Content-Type\":\"application/json\"}; "
+    "c=h.HTTPSConnection(\"127.0.0.1\",18443,timeout=20,context=x); H={\"X-Opereta-Admin\":\"1\",\"Content-Type\":\"application/json\"}; "
     "c.request(\"GET\",\"/v1/status\"); a=c.getresponse(); a.read(); "
     "c.request(\"POST\",\"/auth/login\",json.dumps({\"password\":\"" + WEBADMIN_PASSWORD + "\"}),H); r=c.getresponse(); r.read(); "
     "k=r.getheader(\"Set-Cookie\").split(\";\")[0]; "
@@ -700,30 +700,30 @@ def check_features(console, budgets):
     added = console.cli("firewall-add", "firewall add e2e-rule tcp 39999 --from lan", cmd)
     rule_id = added.get("id", "")
     require(bool(rule_id) and added.get("port") == 39999 and added.get("source") == "lan", "Firewall rule was not created")
-    listing = console.command("nft-with-rule", "sudo -n nft list table inet diparnux", cmd)
+    listing = console.command("nft-with-rule", "sudo -n nft list table inet opereta", cmd)
     require("dport 39999" in listing and "saddr" in listing, "The new rule is not in the nftables table")
     console.cli("firewall-rm", "firewall rm " + rule_id, cmd)
-    listing = console.command("nft-without-rule", "sudo -n nft list table inet diparnux", cmd)
+    listing = console.command("nft-without-rule", "sudo -n nft list table inet opereta", cmd)
     require("dport 39999" not in listing, "The deleted rule is still in the nftables table")
 
     # 서비스: 데몬은 볼 수만 있고 멈출 수 없다. 허용 목록 밖은 거부한다.
     services = console.cli("services", "services", cmd)
     by_unit = {s.get("unit"): s for s in services.get("services", [])}
-    require("ssh.service" in by_unit and "diparnuxd.service" in by_unit, "Managed service list is incomplete")
-    require(by_unit["diparnuxd.service"].get("actions") == [], "The daemon must not offer stop or restart")
-    denied = console.command("service-protected", "diparnux --json services stop diparnuxd.service", cmd, expected=1)
+    require("ssh.service" in by_unit and "operetad.service" in by_unit, "Managed service list is incomplete")
+    require(by_unit["operetad.service"].get("actions") == [], "The daemon must not offer stop or restart")
+    denied = console.command("service-protected", "opereta --json services stop operetad.service", cmd, expected=1)
     require("action_not_allowed" in denied, "Stopping the daemon must be refused with a clear code")
-    outside = console.command("service-outside", "diparnux --json services stop cron.service", cmd, expected=1)
+    outside = console.command("service-outside", "opereta --json services stop cron.service", cmd, expected=1)
     require("service_not_allowed" in outside, "A service outside the allow list must be refused")
 
     # 자원과 노출 점검과 네트워크 설정.
     resources = console.cli("resources", "resources", cmd)
     require(resources.get("system", {}).get("memory", {}).get("total_mib", 0) > 0, "Resource measurement is empty")
-    exposure = json.loads(console.command("exposure", "diparnux --json exposure; true", cmd))
+    exposure = json.loads(console.command("exposure", "opereta --json exposure; true", cmd))
     require(exposure.get("level") in ("ok", "warning", "error") and exposure.get("findings"), "Exposure check returned nothing")
     netcfg = console.cli("network-config", "network config", cmd)
     require(bool(netcfg.get("hostname")), "Network configuration lacks the host name")
-    diag = json.loads(console.command("network-diagnose", "diparnux --json network diagnose; true", cmd))
+    diag = json.loads(console.command("network-diagnose", "opereta --json network diagnose; true", cmd))
     require(diag.get("checks", [{}])[0].get("name") == "address", "Network diagnosis did not start with the address check")
 
     # 원격 데스크톱은 이미지에 있고 꺼져 있다. 서비스가 부팅 때 켜져 있으면 안 된다.
@@ -744,9 +744,9 @@ def check_features(console, budgets):
     require(console.cli("ssh-key-list-empty", "ssh keys list user", cmd).get("keys") == [], "The SSH key was not removed")
 
     # 웹 관리: 비밀번호 없이는 켜지지 않는다. 켜면 HTTPS 로 로그인할 수 있고 허용 목록 밖은 막힌다.
-    refused = console.command("webadmin-needs-password", "diparnux --json webadmin on --port 18443", cmd, expected=1)
+    refused = console.command("webadmin-needs-password", "opereta --json webadmin on --port 18443", cmd, expected=1)
     require("password_required" in refused, "The web admin page must not start without a password")
-    console.command("webadmin-password", f"printf '%s\\n' '{WEBADMIN_PASSWORD}' | diparnux --json webadmin password", cmd)
+    console.command("webadmin-password", f"printf '%s\\n' '{WEBADMIN_PASSWORD}' | opereta --json webadmin password", cmd)
     on = console.cli("webadmin-on", "webadmin on --port 18443", cmd)
     require(on.get("enabled") is True and on.get("running") is True and bool(on.get("cert_fingerprint")), "The web admin page did not start")
     flow = console.command("webadmin-flow", WEBADMIN_FLOW, cmd)
@@ -760,7 +760,7 @@ def check_features(console, budgets):
     vpn = console.cli("vpn-on", "vpn on", cmd)
     require(vpn.get("enabled") is True and len(vpn.get("public_key", "")) == 44, "The VPN did not start with a key")
     require("private" not in json.dumps(vpn).lower(), "The VPN status shows a private key")
-    console.command("vpn-peer", "diparnux vpn peer add e2e-peer --out /tmp/e2e-peer.conf", cmd)
+    console.command("vpn-peer", "opereta vpn peer add e2e-peer --out /tmp/e2e-peer.conf", cmd)
     mode = console.command("vpn-peer-mode", "stat -c %a /tmp/e2e-peer.conf", cmd)
     require(mode.strip() == "600", f"The client configuration must be mode 0600 (got {mode!r})")
     peers = console.cli("vpn-status", "vpn", cmd)
@@ -782,7 +782,7 @@ def main():
     # 호스트 화면에는 ASCII 만 쓰고, 직렬 원문과 명령 결과 파일은 UTF-8 로 보존한다.
     sys.stdout.reconfigure(encoding="ascii", errors="backslashreplace")
     sys.stderr.reconfigure(encoding="ascii", errors="backslashreplace")
-    parser = argparse.ArgumentParser(description="Diparnux UEFI CPU inference E2E")
+    parser = argparse.ArgumentParser(description="Opereta UEFI CPU inference E2E")
     parser.add_argument("iso", type=Path)
     args = parser.parse_args()
     logs = Path(os.environ.get("E2E_LOG_DIR", "out/qemu-e2e"))
@@ -824,7 +824,7 @@ def main():
         if accel == "kvm" and not kvm:
             raise Failure("usage", "QEMU_ACCEL=kvm requires read/write access to /dev/kvm")
         chosen = "kvm" if accel != "tcg" and kvm else "tcg"
-        with tempfile.TemporaryDirectory(prefix="diparnux-e2e-") as work, ExitStack() as cleanups:
+        with tempfile.TemporaryDirectory(prefix="opereta-e2e-") as work, ExitStack() as cleanups:
             variables = Path(work) / "OVMF_VARS.fd"
             shutil.copyfile(template, variables)
             while True:
@@ -837,7 +837,7 @@ def main():
                     "CHAT_TIMEOUT": 300 if slow else 180,
                     "E2E_TIMEOUT": 5400 if slow else 1800,
                 }.items()}
-                argv = [qemu, "-name", "diparnux-cpu-e2e", "-machine", "q35", "-accel", chosen,
+                argv = [qemu, "-name", "opereta-cpu-e2e", "-machine", "q35", "-accel", chosen,
                         "-cpu", "host" if chosen == "kvm" else "max", "-smp", "2", "-m", "4096M",
                         "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={qemu_value(code)}",
                         "-drive", f"if=pflash,format=raw,unit=1,file={qemu_value(variables)}",

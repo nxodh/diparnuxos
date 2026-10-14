@@ -192,7 +192,7 @@ cmake --build build --config Release -j$(nproc)
 
 - **`--mlock`과 `--no-mmap`은 v0.6.0에 없다.** `-lm/--load-mode`로 대체되었다.
   - 실제 실행: `error: invalid argument: --mlock`, `error: invalid argument: --no-mmap`.
-  - Diparnux 설정에 이 두 플래그가 있으면 `load_mode`로 바꿔야 한다.
+  - Opereta 설정에 이 두 플래그가 있으면 `load_mode`로 바꿔야 한다.
 - `-ngl all`과 `-ngl auto`는 문제없이 받아들여진다. GPU 백엔드가 없으면 세 줄 경고만 나오고 계속 실행된다 (A5).
 - **router 모드**
   - `-m`, `-hf`, `-dr` 중 아무것도 주지 않으면 router가 된다 (`server.cpp:151-153`).
@@ -520,7 +520,7 @@ warning: consult docs/build.md for compilation instructions
    - `libcublasLt.so.13.4.1.3`이 약 485 MiB이고 `libcublas-13-2`가 설치 약 537 MiB다.
    - `ld.so.conf.d` 항목이 `/usr/local/cuda`와 `/usr/local/cuda-13`을 가리키므로, `cuda-toolkit-13-2-config-common` postinst(`update-alternatives` + `ldconfig`)가 chroot 설치 중에 실행되어야 한다.
 
-7. **KV 캐시 양자화 조합 제한**: CUDA 빌드는 기본 `GGML_CUDA_FA_QUANTS="q4_0-q4_0;q8_0-q8_0;f16-f16;bf16-bf16"`만 FlashAttention 벡터 커널로 컴파일한다. 다른 조합(예: K=q8_0, V=q4_0, 또는 q5_x, q4_1)은 f16 변환으로 떨어지고 경고 `no FlashAttention vector kernel compiled for K/V types … converting K and V to f16 instead (slow)`가 나온다 (`ggml-cuda/fattn.cu:505`). `-ctv`가 양자화 타입이면 FlashAttention이 필수다 (`src/llama-context.cpp:3845-3850`). Diparnux가 `-ctk/-ctv` 설정을 노출하려면 허용 조합을 이 목록에 맞추거나 `GGML_CUDA_FA_QUANTS`를 넓혀야 한다 (바이너리 크기가 늘어난다는 이슈 #30001 보고가 있으나 크기는 측정하지 못했다).
+7. **KV 캐시 양자화 조합 제한**: CUDA 빌드는 기본 `GGML_CUDA_FA_QUANTS="q4_0-q4_0;q8_0-q8_0;f16-f16;bf16-bf16"`만 FlashAttention 벡터 커널로 컴파일한다. 다른 조합(예: K=q8_0, V=q4_0, 또는 q5_x, q4_1)은 f16 변환으로 떨어지고 경고 `no FlashAttention vector kernel compiled for K/V types … converting K and V to f16 instead (slow)`가 나온다 (`ggml-cuda/fattn.cu:505`). `-ctv`가 양자화 타입이면 FlashAttention이 필수다 (`src/llama-context.cpp:3845-3850`). Opereta가 `-ctk/-ctv` 설정을 노출하려면 허용 조합을 이 목록에 맞추거나 `GGML_CUDA_FA_QUANTS`를 넓혀야 한다 (바이너리 크기가 늘어난다는 이슈 #30001 보고가 있으나 크기는 측정하지 못했다).
 
 8. **go-nvml**
    - `CGO_ENABLED=1`과 gcc가 필요하다 (mock 테스트 포함). NVIDIA 헤더·라이브러리는 필요 없다.
@@ -542,5 +542,5 @@ warning: consult docs/build.md for compilation instructions
 
 - 내 작업 컨테이너 `c967c1a41b5d`(이름 `ll-test2`)를 삭제했다.
 - 임시 디렉터리를 모두 삭제했다. `/tmp/ll_work`와 `mktemp -d`로 만든 6개(tarball, Packages, deb, go-nvml 소스, HF 응답, 시험 모델).
-- 다른 에이전트의 컨테이너 `b9dfd484e6d3`(`dpx-review-tools`)은 건드리지 않았고 그대로 실행 중이다.
+- 다른 에이전트의 컨테이너 `b9dfd484e6d3`(`opr-review-tools`)은 건드리지 않았고 그대로 실행 중이다.
 - 하네스가 큰 출력을 `~/.claude/projects/…/tool-results/`에 자동 보관한 파일은 내가 만든 것이 아니라 지우지 않았다.

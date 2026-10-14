@@ -7,11 +7,11 @@
 
 | 종류 | 예 | 어디에 두는가 |
 |---|---|---|
-| Diparnux API 키 | `dpx_` 로 시작하는 47자 | 실행 중인 컴퓨터의 `/var/lib/diparnux`(해시만 저장, 평문은 만들 때 한 번만 보여 줌) |
-| Hugging Face 토큰 | `hf_...` | 실행 중인 컴퓨터의 `/etc/diparnux/diparnuxd.json`(root 만 읽음), 리포트에는 가려서 출력 |
+| Opereta API 키 | `opr_` 로 시작하는 47자 | 실행 중인 컴퓨터의 `/var/lib/opereta`(해시만 저장, 평문은 만들 때 한 번만 보여 줌) |
+| Hugging Face 토큰 | `hf_...` | 실행 중인 컴퓨터의 `/etc/opereta/operetad.json`(root 만 읽음), 리포트에는 가려서 출력 |
 | 개인 키 | APT 저장소 서명 키, WireGuard 개인 키, SSH 개인 키, TLS 개인 키 | 저장소 밖(서명 키), 실행 중인 컴퓨터의 root 전용 파일 |
 | 비밀번호 | 계정, Wi-Fi(`.psk`), 웹 관리 | 저장소에 두지 않는다. 시험은 가짜 값만 쓴다 |
-| 모델 파일 | `*.gguf` | 모델 폴더(`/var/lib/diparnux/models`), 저장소에는 올리지 않는다 |
+| 모델 파일 | `*.gguf` | 모델 폴더(`/var/lib/opereta/models`), 저장소에는 올리지 않는다 |
 
 공개 키(예: `keys/` 의 저장소 공개 키)는 올려도 된다.
 
@@ -19,9 +19,9 @@
 
 | 검사 | 내용 | 실행 |
 |---|---|---|
-| `make check-secrets` | 추적 파일에서 토큰·키 형식(Hugging Face, Diparnux, OpenAI 형식, GitHub, AWS, Slack, Google, PEM 개인 키, WireGuard 개인 키, Bearer 토큰)과 위험한 파일 이름(`.pem`, `.psk`, `.gguf`, `.env`, `apikeys*.json`, `wg*.conf` 등)을 찾는다. 시험용 가짜 값은 줄에 `FAKE`, `EXAMPLE`, `SECRETTOKEN` 같은 표시가 있거나 시험 코드에서 조립해 만든다 | CI 린트에서 매번 실행 |
+| `make check-secrets` | 추적 파일에서 토큰·키 형식(Hugging Face, Opereta, OpenAI 형식, GitHub, AWS, Slack, Google, PEM 개인 키, WireGuard 개인 키, Bearer 토큰)과 위험한 파일 이름(`.pem`, `.psk`, `.gguf`, `.env`, `apikeys*.json`, `wg*.conf` 등)을 찾는다. 시험용 가짜 값은 줄에 `FAKE`, `EXAMPLE`, `SECRETTOKEN` 같은 표시가 있거나 시험 코드에서 조립해 만든다 | CI 린트에서 매번 실행 |
 | `.gitignore` | 로컬 인수인계 파일, 모델, Wi-Fi 비밀번호 파일, 개인 키 파일 이름을 무시한다 | 항상 |
-| 리포트 가림 | `diparnux report` 는 API 키(`dpx_`), 토큰(`hf_`), Bearer 토큰을 정규식으로 한 번 더 가린다 | 매번 |
+| 리포트 가림 | `opereta report` 는 API 키(`opr_`), 토큰(`hf_`), Bearer 토큰을 정규식으로 한 번 더 가린다 | 매번 |
 
 ## 코드 규칙
 
@@ -44,5 +44,5 @@
 
 ## 게이트웨이 TLS (0.5.4)
 
-LAN 의 다른 컴퓨터와 주고받는 API 키와 대화는 `diparnux tls on` 으로 암호화한다([tls.md](tls.md)). 로컬 CA 의 개인 키(`/var/lib/diparnux/tls/ca-key.pem`)와 서버 개인 키는
+LAN 의 다른 컴퓨터와 주고받는 API 키와 대화는 `opereta tls on` 으로 암호화한다([tls.md](tls.md)). 로컬 CA 의 개인 키(`/var/lib/opereta/tls/ca-key.pem`)와 서버 개인 키는
 `0600` 이고 API, 로그, 보고서, MCP 도구에 나오지 않는다. CA 에는 DNS 이름 제약만 있다(IP 제약은 Bun 이 처리하지 못해 넣지 않았다). 클라이언트에서 인증서 검사를 끄라고 안내하지 않는다.

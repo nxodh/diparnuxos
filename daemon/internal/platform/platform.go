@@ -33,7 +33,7 @@ type Result struct {
 	ExitCode int
 }
 
-// Runner 는 외부 명령(systemctl, journalctl, nft, llama-server, diparnux-gpu-check)을 실행한다.
+// Runner 는 외부 명령(systemctl, journalctl, nft, llama-server, opereta-gpu-check)을 실행한다.
 type Runner interface {
 	// Run 은 명령을 끝까지 실행한다. 실행 파일이 없거나 시작하지 못했거나 시간 초과면 error 를 돌려준다.
 	Run(ctx context.Context, cmd Command) (Result, error)

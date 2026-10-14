@@ -10,7 +10,7 @@ import (
 	gonvml "github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/NVIDIA/go-nvml/pkg/nvml/mock"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // fakeClock 은 테스트가 직접 진행시키는 시계다.

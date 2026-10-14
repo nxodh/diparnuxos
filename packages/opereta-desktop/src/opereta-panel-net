@@ -1,0 +1,27 @@
+#!/bin/sh
+# xfce4-genmon-plugin 이 주기적으로 실행하는 네트워크 상태 표시기다. 설치 경로는 /usr/bin/opereta-panel-net 이다.
+# 한 번 실행하고 끝난다. genmon 형식(<txt>, <txtclick>, <tool>)으로 출력한다. 연결 문구는 짧게 한다.
+#   Wi-Fi <SSID>   무선으로 연결됨
+#   Wired          유선으로 연결됨
+#   Offline        기본 경로가 없음
+# opereta CLI 를 부르므로 데몬이 없으면 "Offline" 이다. 클릭하면 Control Center 의 네트워크 쪽을 연다.
+json="$(opereta --json network 2>/dev/null | tr -d '\n')"
+text="Offline"
+tip="No network connection"
+case "$json" in
+    *'"online":true'*)
+        ssid="$(printf '%s' "$json" | sed -n 's/.*"connected_ssid":"\([^"]*\)".*/\1/p')"
+        if [ -n "$ssid" ]; then
+            text="Wi-Fi $ssid"
+            tip="Connected to $ssid"
+        else
+            text="Wired"
+            tip="Wired connection"
+        fi
+        ;;
+esac
+# genmon 은 태그를 정규식으로 읽으므로 XML 특수 문자를 바꾼다.
+esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+printf '<txt>%s</txt>\n' "$(esc "$text")"
+printf '<txtclick>opereta-control-center --page network</txtclick>\n'
+printf '<tool>%s</tool>\n' "$(esc "$tip")"

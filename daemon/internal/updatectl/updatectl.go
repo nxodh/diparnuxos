@@ -1,4 +1,4 @@
-// Package updatectl 은 데몬이 diparnux-update 헬퍼를 시작하고 그 상태를 읽는 얇은 계층이다.
+// Package updatectl 은 데몬이 opereta-update 헬퍼를 시작하고 그 상태를 읽는 얇은 계층이다.
 //
 // 갱신은 데몬의 하드닝 밖에서, 데몬이 다시 시작되어도 이어지는 별도 transient 유닛으로 돈다.
 // 데몬은 유닛을 띄우고(Start) 헬퍼가 남긴 state.json 과 check.json 을 읽기만 한다(Info).
@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/update"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/update"
 )
 
 // 기본값이다.
 const (
-	DefaultHelper   = "/usr/lib/diparnux/diparnux-update"
-	DefaultUnit     = "diparnux-update-run.service"
+	DefaultHelper   = "/usr/lib/opereta/opereta-update"
+	DefaultUnit     = "opereta-update-run.service"
 	DefaultLiveDir  = "/run/live"
 	DefaultKernelRe = "/proc/sys/kernel/osrelease"
 )
@@ -61,6 +61,10 @@ type Controller struct {
 	LiveDir string
 	// OSRelease 는 실행 중인 커널 릴리스를 읽는 경로다.
 	OSRelease string
+	// OSReleaseFile 은 Opereta 버전(VERSION_ID)을 읽는 os-release 경로다. 비어 있으면 /etc/os-release 다.
+	OSReleaseFile string
+	// SourcesFile 은 Opereta 패키지 저장소 소스 파일이다. 비어 있으면 update.DefaultChannelFile 이다.
+	SourcesFile string
 	// HelperExists 는 테스트가 바꾼다. nil 이면 파일이 있는지 본다.
 	HelperExists func(path string) bool
 }
@@ -100,6 +104,27 @@ func (c *Controller) osRelease() string {
 	return DefaultKernelRe
 }
 
+func (c *Controller) osReleaseFile() string {
+	if c.OSReleaseFile != "" {
+		return c.OSReleaseFile
+	}
+	return "/etc/os-release"
+}
+
+// readVersionID 는 os-release 의 VERSION_ID 를 돌려준다. 없으면 빈 문자열이다.
+func readVersionID(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "VERSION_ID="); ok {
+			return strings.Trim(strings.TrimSpace(v), `"'`)
+		}
+	}
+	return ""
+}
+
 func (c *Controller) helperExists() bool {
 	if c.HelperExists != nil {
 		return c.HelperExists(c.helper())
@@ -116,10 +141,14 @@ type Info struct {
 	Reason string `json:"reason,omitempty"`
 	Live   bool   `json:"live"`
 	// Running 은 갱신 유닛이 지금 돌고 있다는 뜻이다.
-	Running       bool                `json:"running"`
-	RunningKernel string              `json:"running_kernel,omitempty"`
-	State         update.State        `json:"state"`
-	LastCheck     *update.CheckResult `json:"last_check,omitempty"`
+	Running       bool   `json:"running"`
+	RunningKernel string `json:"running_kernel,omitempty"`
+	// OSVersion 은 설치된 Opereta 버전이다(os-release 의 VERSION_ID).
+	OSVersion string `json:"os_version,omitempty"`
+	// Channel 은 Opereta 패키지 저장소(OS 업데이트 채널)의 상태다. 꺼져 있으면 새 Opereta 버전은 보이지 않는다.
+	Channel   update.Channel      `json:"channel"`
+	State     update.State        `json:"state"`
+	LastCheck *update.CheckResult `json:"last_check,omitempty"`
 	// RollbackAvailable 은 되돌릴 수 있는 갱신 기록이 있다는 뜻이다.
 	RollbackAvailable bool `json:"rollback_available"`
 }
@@ -138,6 +167,8 @@ func (c *Controller) Info(ctx context.Context) (Info, error) {
 	if b, err := os.ReadFile(c.osRelease()); err == nil {
 		out.RunningKernel = strings.TrimSpace(string(b))
 	}
+	out.OSVersion = readVersionID(c.osReleaseFile())
+	out.Channel = update.ReadChannel(c.SourcesFile)
 	st, err := readJSON[update.State](filepath.Join(c.stateDir(), "state.json"))
 	switch {
 	case err == nil:
@@ -205,7 +236,7 @@ func (c *Controller) Start(ctx context.Context, action string, reboot bool) erro
 		}
 	}
 	args := []string{"--unit=" + strings.TrimSuffix(c.unit(), ".service"), "--collect", "--service-type=exec", "--quiet",
-		"--description=Diparnux update (" + action + ")", c.helper(), action, "--json"}
+		"--description=Opereta update (" + action + ")", c.helper(), action, "--json"}
 	if reboot && action != ActionCheck {
 		args = append(args, "--reboot")
 	}

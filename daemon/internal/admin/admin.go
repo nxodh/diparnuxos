@@ -1,7 +1,7 @@
-// Package admin 은 diparnuxd 가 직접 쓸 수 없는 곳(/etc 의 네트워크와 SSH 설정, 사용자 홈의 authorized_keys)에
-// 파일을 쓰는 권한 있는 헬퍼(diparnux-admin)를 부른다.
+// Package admin 은 operetad 가 직접 쓸 수 없는 곳(/etc 의 네트워크와 SSH 설정, 사용자 홈의 authorized_keys)에
+// 파일을 쓰는 권한 있는 헬퍼(opereta-admin)를 부른다.
 //
-// diparnuxd 는 ProtectSystem=full 과 ProtectHome=yes 아래에서 돌아 그런 곳에 쓸 수 없다. 헬퍼는 하드닝이 없는 임시
+// operetad 는 ProtectSystem=full 과 ProtectHome=yes 아래에서 돌아 그런 곳에 쓸 수 없다. 헬퍼는 하드닝이 없는 임시
 // 유닛에서 root 로 돌고(systemd-run --pipe), 쓸 수 있는 경로를 이 패키지의 허용 목록으로만 제한한다. 규칙은 헬퍼와
 // 데몬 양쪽에서 검사한다. 파일 내용은 표준 입력으로만 넘기고 인자나 로그에 남기지 않는다.
 package admin
@@ -16,16 +16,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // DefaultHelper 는 헬퍼 설치 경로다.
-const DefaultHelper = "/usr/lib/diparnux/diparnux-admin"
+const DefaultHelper = "/usr/lib/opereta/opereta-admin"
 
 // 결과 줄 접두사다. 헬퍼가 표준 출력에 쓴다.
 const (
-	ResultPrefix = "DIPARNUX_ADMIN_RESULT="
-	DataPrefix   = "DIPARNUX_ADMIN_DATA="
+	ResultPrefix = "OPERETA_ADMIN_RESULT="
+	DataPrefix   = "OPERETA_ADMIN_DATA="
 )
 
 // 오류 코드다.
@@ -49,8 +49,8 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
 // 허용 경로다. 데몬과 헬퍼가 같은 목록을 쓴다.
 var allowed = []*regexp.Regexp{
-	regexp.MustCompile(`^/etc/systemd/network/[0-9]{2}-diparnux-[a-z0-9][a-z0-9._-]{0,40}\.(network|netdev|link)$`),
-	regexp.MustCompile(`^/etc/ssh/sshd_config\.d/[0-9]{2}-diparnux-[a-z0-9][a-z0-9-]{0,30}\.conf$`),
+	regexp.MustCompile(`^/etc/systemd/network/[0-9]{2}-opereta-[a-z0-9][a-z0-9._-]{0,40}\.(network|netdev|link)$`),
+	regexp.MustCompile(`^/etc/ssh/sshd_config\.d/[0-9]{2}-opereta-[a-z0-9][a-z0-9-]{0,30}\.conf$`),
 	regexp.MustCompile(`^/etc/hosts$`),
 }
 

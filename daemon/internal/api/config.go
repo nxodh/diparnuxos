@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // redactedToken 은 토큰 자리에 돌아온 가린 값이다. PUT 에서 이 값이 오면 기존 토큰을 그대로 둔다.

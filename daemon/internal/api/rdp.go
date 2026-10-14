@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/rdpctl"
+	"github.com/nxodh/operetaos/daemon/internal/rdpctl"
 )
 
 // RDPManager 는 원격 데스크톱이다. *rdpctl.Manager 가 만족한다.

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
-	"github.com/nxodh/diparnuxos/daemon/internal/vedecaps"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/vedecaps"
 )
 
 // ConnectionAddress 는 다른 컴퓨터가 이 컴퓨터에 접속할 때 쓸 수 있는 주소 하나다.
@@ -125,16 +125,16 @@ func buildConnection(in connectionInput) Connection {
 
 	switch {
 	case in.Server.State != supervisor.StateRunning && in.Server.State != supervisor.StateRunningCPU:
-		c.Warnings = append(c.Warnings, "The model server is not running. Start it first (diparnux serve start).")
+		c.Warnings = append(c.Warnings, "The model server is not running. Start it first (opereta serve start).")
 	}
 	if !in.Cfg.LANExposed {
 		c.Warnings = append(c.Warnings, "LAN exposure is off: only this computer can connect. Turn it on to let other computers connect (an API key is required).")
 	}
 	if in.Cfg.LANExposed && in.KeyCount == 0 {
-		c.Warnings = append(c.Warnings, "No API key exists. Create one (diparnux apikey create <label>); LAN connections are refused without a key.")
+		c.Warnings = append(c.Warnings, "No API key exists. Create one (opereta apikey create <label>); LAN connections are refused without a key.")
 	}
 	if in.Cfg.TLSActive() {
-		c.Warnings = append(c.Warnings, "These addresses use HTTPS with this computer's own CA. Give each client the CA once (diparnux tls ca --out diparnux-ca.pem) and compare the fingerprint; do not turn certificate checking off.")
+		c.Warnings = append(c.Warnings, "These addresses use HTTPS with this computer's own CA. Give each client the CA once (opereta tls ca --out opereta-ca.pem) and compare the fingerprint; do not turn certificate checking off.")
 		if in.Cfg.LANPlain {
 			c.Warnings = append(c.Warnings, "Plain HTTP is also open on the local network (lan_plain): keys and prompts sent there are not encrypted.")
 		}
@@ -157,8 +157,8 @@ func buildConnection(in connectionInput) Connection {
 	c.Examples["settings"] = fmt.Sprintf("Base URL: %s\nAPI key: <your API key>\nModel: %s", base, model)
 	caFlag, pyClient, caFile := "", "", ""
 	if c.TLSActive && strings.HasPrefix(base, "https://") {
-		caFlag = "--cacert diparnux-ca.pem "
-		pyClient = ", http_client=httpx.Client(verify=\"diparnux-ca.pem\")"
+		caFlag = "--cacert opereta-ca.pem "
+		pyClient = ", http_client=httpx.Client(verify=\"opereta-ca.pem\")"
 		caFile = vedecaps.DefaultCAFile
 	}
 	c.Examples["curl"] = fmt.Sprintf("curl %s%s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", caFlag, base, model)

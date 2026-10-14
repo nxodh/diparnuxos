@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/llamaargs"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 var runtimeEnvKeys = []string{

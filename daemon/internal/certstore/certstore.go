@@ -71,7 +71,7 @@ type Info struct {
 
 // Store 는 한 디렉터리에 CA 와 서버 인증서를 둔다. 동시에 써도 안전하다.
 type Store struct {
-	// Dir 은 인증서 디렉터리다. 예: /var/lib/diparnux/tls
+	// Dir 은 인증서 디렉터리다. 예: /var/lib/opereta/tls
 	Dir string
 	// Now 는 시계다. nil 이면 time.Now.
 	Now func() time.Time
@@ -409,7 +409,7 @@ func (s *Store) createCA(names Names, extra []string) (*x509.Certificate, *ecdsa
 	now := s.now()
 	tmpl := &x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "Diparnux local CA", Organization: []string{"Diparnux"}},
+		Subject:               pkix.Name{CommonName: "Opereta local CA", Organization: []string{"Opereta"}},
 		NotBefore:             now.Add(-backdate),
 		NotAfter:              now.Add(CAValidity),
 		IsCA:                  true,
@@ -448,7 +448,7 @@ func (s *Store) createServer(ca *x509.Certificate, caKey *ecdsa.PrivateKey, want
 	if err != nil {
 		return err
 	}
-	cn := "diparnux"
+	cn := "opereta"
 	if len(want.DNS) > 0 {
 		cn = want.DNS[0]
 	}
@@ -459,7 +459,7 @@ func (s *Store) createServer(ca *x509.Certificate, caKey *ecdsa.PrivateKey, want
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: cn, Organization: []string{"Diparnux"}},
+		Subject:      pkix.Name{CommonName: cn, Organization: []string{"Opereta"}},
 		NotBefore:    now.Add(-backdate),
 		NotAfter:     notAfter,
 		KeyUsage:     x509.KeyUsageDigitalSignature,

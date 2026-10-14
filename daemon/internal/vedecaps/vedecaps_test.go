@@ -21,10 +21,10 @@ func TestFragmentLocalNeedsNoKeyAndNamesContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := decode(t, []byte(Pretty(frag)))
-	if m["model"] != "diparnux/qwen3-14b.gguf" {
+	if m["model"] != "opereta/qwen3-14b.gguf" {
 		t.Fatalf("model = %v", m["model"])
 	}
-	p := m["provider"].(map[string]any)["diparnux"].(map[string]any)
+	p := m["provider"].(map[string]any)["opereta"].(map[string]any)
 	if p["api"] != "http://127.0.0.1:8080/v1" || p["protocol"] != "openai" {
 		t.Fatalf("provider = %v", p)
 	}
@@ -44,15 +44,15 @@ func TestFragmentRemoteReferencesKeyByEnvironmentNeverByValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := Pretty(frag)
-	if !strings.Contains(out, `"apiKey": "{env:DIPARNUX_API_KEY}"`) {
+	if !strings.Contains(out, `"apiKey": "{env:OPERETA_API_KEY}"`) {
 		t.Fatalf("output = %s", out)
 	}
-	if strings.Contains(out, "dpx_") {
+	if strings.Contains(out, "opr_") {
 		t.Fatal("a key value leaked into the fragment")
 	}
 	// 작은 컨텍스트에서는 응답 길이가 컨텍스트의 1/4 을 넘지 않는다.
 	m := decode(t, []byte(out))
-	limit := m["provider"].(map[string]any)["diparnux"].(map[string]any)["models"].(map[string]any)["m.gguf"].(map[string]any)["limit"].(map[string]any)
+	limit := m["provider"].(map[string]any)["opereta"].(map[string]any)["models"].(map[string]any)["m.gguf"].(map[string]any)["limit"].(map[string]any)
 	if limit["output"].(float64) != 2048 {
 		t.Fatalf("limit = %v", limit)
 	}
@@ -80,7 +80,7 @@ func TestFragmentWithoutModelLetsVedecapsListModels(t *testing.T) {
 	if _, ok := frag["model"]; ok {
 		t.Fatal("no model was given but a default was set")
 	}
-	p := frag["provider"].(map[string]any)["diparnux"].(map[string]any)
+	p := frag["provider"].(map[string]any)["opereta"].(map[string]any)
 	if _, ok := p["models"]; ok {
 		t.Fatal("no model was given but a model table was written")
 	}
@@ -97,7 +97,7 @@ func TestMergeKeepsOtherProvidersAndSettings(t *testing.T) {
 	if m["theme"] != "dark" || m["model"] != "ollama/llama3" {
 		t.Fatalf("user settings changed: %v", m)
 	}
-	if got := Providers(res.Data); strings.Join(got, ",") != "diparnux,ollama" {
+	if got := Providers(res.Data); strings.Join(got, ",") != "ollama,opereta" {
 		t.Fatalf("providers = %v", got)
 	}
 	if !strings.Contains(strings.Join(res.Notes, "|"), "kept the default model ollama/llama3") {
@@ -107,7 +107,7 @@ func TestMergeKeepsOtherProvidersAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if decode(t, res.Data)["model"] != "diparnux/m.gguf" {
+	if decode(t, res.Data)["model"] != "opereta/m.gguf" {
 		t.Fatal("--make-default did not switch the default model")
 	}
 }
@@ -178,9 +178,9 @@ func TestFragmentAndMergeCarryTheMCPServer(t *testing.T) {
 	if _, ok := m["other"]; !ok {
 		t.Fatalf("another MCP server was dropped: %v", m)
 	}
-	d := m["diparnux"].(map[string]any)
+	d := m["opereta"].(map[string]any)
 	cmd := d["command"].([]any)
-	if d["type"] != "local" || len(cmd) != 2 || cmd[0] != "diparnux" || cmd[1] != "mcp" {
+	if d["type"] != "local" || len(cmd) != 2 || cmd[0] != "opereta" || cmd[1] != "mcp" {
 		t.Fatalf("mcp entry = %v", d)
 	}
 	if strings.Contains(string(res.Data), "allow-control") {
@@ -219,12 +219,12 @@ func TestPackagedInstallTurnsOffSelfUpdateOnlyWhenUnset(t *testing.T) {
 
 // https 주소에는 CA 경로를 options.ca 로 쓴다. 평문 주소에는 쓰지 않는다. 키 값은 여전히 쓰지 않는다.
 func TestFragmentCAFile(t *testing.T) {
-	frag, err := Fragment(Input{BaseURL: "https://diparnux.local:8444/v1", ModelID: "m.gguf", SlotCtx: 16384, NeedsKey: true, CAFile: DefaultCAFile})
+	frag, err := Fragment(Input{BaseURL: "https://opereta.local:8444/v1", ModelID: "m.gguf", SlotCtx: 16384, NeedsKey: true, CAFile: DefaultCAFile})
 	if err != nil {
 		t.Fatal(err)
 	}
 	opts := frag["provider"].(map[string]any)[ProviderID].(map[string]any)["options"].(map[string]any)
-	if opts["ca"] != DefaultCAFile || opts["apiKey"] != "{env:DIPARNUX_API_KEY}" {
+	if opts["ca"] != DefaultCAFile || opts["apiKey"] != "{env:OPERETA_API_KEY}" {
 		t.Fatalf("options = %v", opts)
 	}
 	// 키가 필요 없어도 CA 는 쓴다.

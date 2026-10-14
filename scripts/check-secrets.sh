@@ -14,7 +14,7 @@ allow='PLAINKEY|UNLISTEDKEY|SECRETTOKEN|HFTOKEN|FAKE|fake|EXAMPLE|example|placeh
 
 patterns=(
     'hf_[A-Za-z0-9]{30,}'                       # Hugging Face 토큰
-    'dpx_[A-Za-z0-9_-]{40,}'                    # Diparnux API 키(접두사 + 43자)
+    'opr_[A-Za-z0-9_-]{40,}'                    # Opereta API 키(접두사 + 43자)
     'sk-[A-Za-z0-9_-]{30,}'                     # OpenAI 형식 키
     'ghp_[A-Za-z0-9]{30,}'                      # GitHub 토큰
     'github_pat_[A-Za-z0-9_]{30,}'
@@ -30,6 +30,21 @@ for p in "${patterns[@]}"; do
     hits="$(git grep -n -I -E -e "${p}" -- . ':!daemon/vendor' ':!scripts/check-secrets.sh' | grep -v -E "${allow}" || true)"
     if [ -n "${hits}" ]; then
         echo "check-secrets: possible secret (pattern ${p%% *}...):" >&2
+        echo "${hits}" | sed -E 's/(.{120}).*/\1.../' | head -n 10 >&2
+        fail=1
+    fi
+done
+
+# 개인 정보: 로컬(macOS) 홈 경로의 사용자 이름과 개인 이메일 주소는 공개 저장소에 두지 않는다.
+# 노트북에서 복사한 경로, 커밋 작성자 주소가 문서나 설정에 섞여 들어오는 것을 막는다(GitHub noreply 주소는 허용한다).
+personal=(
+    '/Users/[A-Za-z0-9._-]+/'                                                     # macOS 홈 경로
+    '[A-Za-z0-9._%+-]+@(gmail|googlemail|naver|hanmail|daum|kakao|outlook|hotmail|yahoo|icloud|proton)\.[a-z.]+' # 개인 이메일
+)
+for p in "${personal[@]}"; do
+    hits="$(git grep -n -I -E -e "${p}" -- . ':!daemon/vendor' ':!scripts/check-secrets.sh' | grep -v -E "${allow}" || true)"
+    if [ -n "${hits}" ]; then
+        echo "check-secrets: personal information (pattern ${p%% *}...):" >&2
         echo "${hits}" | sed -E 's/(.{120}).*/\1.../' | head -n 10 >&2
         fail=1
     fi

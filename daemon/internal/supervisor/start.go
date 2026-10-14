@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/llamaargs"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // run 은 입력을 먼저 검증하고 기존 유닛을 중지·회수한 뒤 VRAM 계획과 새 실행을 한다.
@@ -22,7 +22,7 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	}
 	settings := llamaargs.ServerSettings{
 		ModelPath: job.model.Path,
-		// /v1/models 의 id 가 Diparnux 의 모델 이름과 같아지게 한다. 클라이언트(Vedecaps 등)가 같은 이름으로 모델을 가리킨다.
+		// /v1/models 의 id 가 Opereta 의 모델 이름과 같아지게 한다. 클라이언트(Vedecaps 등)가 같은 이름으로 모델을 가리킨다.
 		Alias:      job.model.ID,
 		Host:       host,
 		Port:       job.cfg.BackendPort(),

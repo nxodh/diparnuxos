@@ -1,0 +1,18 @@
+# 기본 방화벽 규칙을 적용한다. 설치 경로는 /usr/lib/systemd/system/opereta-firewall-default.service 다.
+# 저장 파일 유무와 무관하게 먼저 적용한다. 저장 파일이 깨져도 기본 차단은 남는다.
+[Unit]
+Description=Opereta nftables rules (default, all inbound closed)
+DefaultDependencies=no
+After=local-fs.target nftables.service
+Before=network-pre.target
+Wants=network-pre.target
+Before=shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /usr/share/opereta/firewall-default.nft
+
+[Install]
+WantedBy=sysinit.target

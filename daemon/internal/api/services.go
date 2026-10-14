@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
-	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/svcctl"
+	"github.com/nxodh/operetaos/daemon/internal/sysstat"
 )
 
 // ServiceManager 는 서비스 목록과 제어다. *svcctl.Manager 가 만족한다.

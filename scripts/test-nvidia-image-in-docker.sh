@@ -4,8 +4,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "$ROOT/diparnux.conf"
-ISO="${1:-$ROOT/out/diparnux-${DIPARNUX_VERSION}-amd64.iso}"
+. "$ROOT/opereta.conf"
+ISO="${1:-$ROOT/out/opereta-${OPERETA_VERSION}-amd64.iso}"
 [[ -f "$ISO" ]] || { echo "ERROR: ISO 가 없다: $ISO" >&2; exit 2; }
 iso_dir="$(cd "$(dirname "$ISO")" && pwd)"
 docker run --rm -v "$ROOT:/src:ro" -v "$iso_dir:/iso:ro" \

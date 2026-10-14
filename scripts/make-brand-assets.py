@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""사용자가 준 로고(assets/brand/source/diparnux-logo.png)에서 이미지 자산을 만든다.
+"""사용자가 준 로고(assets/brand/source/opereta-logo.png)에서 이미지 자산을 만든다.
+연동하는 에이전트의 로고(assets/brand/source/deberopa-logo.png)에서는 Control Center 용 아이콘만 만든다.
 
 실행은 Pillow 가 있는 컨테이너에서 한다(scripts/make-brand-assets.sh). 결과는 assets/brand/generated/ 와
-설치기 브랜딩 디렉터리(packages/diparnux-installer/src/branding)에 쓰고 커밋한다.
-로고: 밝은 회색(#F0F0F0) 원 위에 검정(#000) 굵은 글자 D. 안쪽의 삼각형 구멍으로 원 색이 비친다. 색은 흑백 두 가지뿐이다.
+설치기 브랜딩 디렉터리(packages/opereta-installer/src/branding)에 쓰고 커밋한다.
+로고: 밝은 회색(#F0F0F0) 원 위에 검정(#000) 굵은 둥근 O. 왼쪽 위의 사선 홈과 안쪽의 둥근 사각형 구멍으로 원 색이 비친다. 색은 흑백 두 가지뿐이다.
 
 원본은 정사각형이 아니고 가장자리에 반투명 얼룩이 있어서, 원의 중심과 반지름을 불투명 화소에서 구한 뒤
 깨끗한 원 마스크로 다시 잘라 1024x1024 기준 이미지를 만든다.
 
 만드는 것:
-  diparnux-<N>.png            앱 아이콘(원) 16~512
-  diparnux-mark-white.png     글자 D 만 흰색, 배경 투명(어두운 바탕용) 512
-  diparnux-mark-black.png     글자 D 만 검정, 배경 투명 512
+  opereta-<N>.png            앱 아이콘(원) 16~512
+  opereta-mark-white.png     글자 O 만 흰색, 배경 투명(어두운 바탕용) 512
+  opereta-mark-black.png     글자 O 만 검정, 배경 투명 512
+  deberopa-<N>.png           연동 에이전트 아이콘(원) 32, 64, 128, 256
   wallpaper.png               어두운 바탕용 희미한 마크 256(가운데 배치)
   calamares-logo.png          Calamares 사이드바 로고 128
   calamares-welcome.png       Calamares 환영 화면 이미지 640x300(어두운 바탕에 원 로고)
@@ -25,9 +27,10 @@ import sys
 from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(__file__)
-SRC = os.path.join(HERE, "..", "assets", "brand", "source", "diparnux-logo.png")
+SRC = os.path.join(HERE, "..", "assets", "brand", "source", "opereta-logo.png")
+SRC_AGENT = os.path.join(HERE, "..", "assets", "brand", "source", "deberopa-logo.png")
 OUT = os.path.join(HERE, "..", "assets", "brand", "generated")
-INSTALLER = os.path.join(HERE, "..", "packages", "diparnux-installer", "src", "branding")
+INSTALLER = os.path.join(HERE, "..", "packages", "opereta-installer", "src", "branding")
 
 BG_DARK = (13, 13, 13, 255)  # #0D0D0D
 MARK_DIM = (58, 58, 58)  # 배경 마크의 색(#3A3A3A)
@@ -35,15 +38,16 @@ MASTER = 1024
 SS = 4  # 마스크 안티앨리어싱용 확대 배율
 
 
-def load_master():
+def load_master(src=SRC):
     """원 영역을 찾아 깨끗한 원 마스크로 잘라 1024x1024 기준 이미지를 돌려준다."""
-    im = Image.open(SRC).convert("RGBA")
+    im = Image.open(src).convert("RGBA")
     alpha = im.split()[3]
     # 완전히 불투명한 화소의 범위로 원의 중심과 반지름을 정한다(가장자리 얼룩을 무시한다).
     solid = alpha.point(lambda v: 255 if v >= 250 else 0)
     x0, y0, x1, y1 = solid.getbbox()
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    r = ((x1 - x0) + (y1 - y0)) / 4
+    # 가장자리 얼룩(반투명 테두리)이 아이콘에 비치지 않도록 반지름을 1.5% 줄인다. 글자는 원 안쪽 깊이 있어 잘리지 않는다.
+    r = ((x1 - x0) + (y1 - y0)) / 4 * 0.985
     side = int(round(2 * r))
     box = (int(round(cx - side / 2)), int(round(cy - side / 2)), int(round(cx - side / 2)) + side, int(round(cy - side / 2)) + side)
     square = im.crop(box).resize((MASTER, MASTER), Image.LANCZOS)
@@ -58,7 +62,7 @@ def load_master():
 
 
 def glyph_alpha(master):
-    """글자 D(검정)의 불투명도(0~255)를 돌려준다. 원 색(밝은 회색)은 0, 검정은 255, 원 밖은 0 이다."""
+    """글자(검정)의 불투명도(0~255)를 돌려준다. 원 색(밝은 회색)은 0, 검정은 255, 원 밖은 0 이다."""
     lum = master.convert("RGB").convert("L")
     circle = master.split()[3]
     out = Image.new("L", master.size, 0)
@@ -111,11 +115,11 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     master = load_master()
     for n in (16, 24, 32, 48, 64, 96, 128, 256, 512):
-        fit(master, n).save(os.path.join(OUT, f"diparnux-{n}.png"), optimize=True)
+        fit(master, n).save(os.path.join(OUT, f"opereta-{n}.png"), optimize=True)
     white = mark(master, (255, 255, 255))
     black = mark(master, (0, 0, 0))
-    fit(white, 512).save(os.path.join(OUT, "diparnux-mark-white.png"), optimize=True)
-    fit(black, 512).save(os.path.join(OUT, "diparnux-mark-black.png"), optimize=True)
+    fit(white, 512).save(os.path.join(OUT, "opereta-mark-white.png"), optimize=True)
+    fit(black, 512).save(os.path.join(OUT, "opereta-mark-black.png"), optimize=True)
 
     dim = mark(master, MARK_DIM)
     fit(dim, 256).save(os.path.join(OUT, "wallpaper.png"), optimize=True)
@@ -133,6 +137,11 @@ def main():
     logo128.save(os.path.join(INSTALLER, "icon.png"), optimize=True)
     logo128.save(os.path.join(INSTALLER, "logo.png"), optimize=True)
     welcome.save(os.path.join(INSTALLER, "welcome.png"), optimize=True)
+
+    # 연동 에이전트(Deberopa)의 아이콘. Control Center 의 에이전트 연결 페이지에서 쓴다.
+    agent = load_master(SRC_AGENT)
+    for n in (32, 64, 128, 256):
+        fit(agent, n).save(os.path.join(OUT, f"deberopa-{n}.png"), optimize=True)
 
     print("assets written to", os.path.abspath(OUT))
     for name in sorted(os.listdir(OUT)):

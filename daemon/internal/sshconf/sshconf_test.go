@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // testKey 는 시험용 ed25519 공개 키 줄을 만든다(비밀 값이 아니다. 실행 때마다 새로 만든다).
@@ -85,7 +85,7 @@ func newManager(t *testing.T) (*Manager, *files, *keyStore, *runner) {
 	r := &runner{}
 	m := &Manager{
 		Files: f, Keys: ks, Runner: r, Users: func() []string { return []string{"alice"} },
-		Dropin: "/etc/ssh/sshd_config.d/40-diparnux-ssh.conf", ConfigPath: filepath.Join(dir, "40-diparnux-ssh.conf"),
+		Dropin: "/etc/ssh/sshd_config.d/40-opereta-ssh.conf", ConfigPath: filepath.Join(dir, "40-opereta-ssh.conf"),
 		HostKeyDir: dir,
 	}
 	return m, f, ks, r
@@ -156,14 +156,14 @@ func TestApplyRefusesToLockYouOut(t *testing.T) {
 	if err == nil || err.(*Error).Code != CodeNoKeys {
 		t.Fatalf("err = %v", err)
 	}
-	if _, serr := os.Stat(filepath.Join(f.dir, "40-diparnux-ssh.conf")); serr == nil {
+	if _, serr := os.Stat(filepath.Join(f.dir, "40-opereta-ssh.conf")); serr == nil {
 		t.Fatal("a refused change wrote the file")
 	}
 	ks.m["alice"] = []byte(testKey(t, "alice") + "\n")
 	if err := m.Apply(context.Background(), Settings{Port: 2222, PasswordLogin: &no}, true); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(filepath.Join(f.dir, "40-diparnux-ssh.conf"))
+	data, _ := os.ReadFile(filepath.Join(f.dir, "40-opereta-ssh.conf"))
 	if !strings.Contains(string(data), "Port 2222") {
 		t.Fatalf("file = %s", data)
 	}
@@ -172,16 +172,16 @@ func TestApplyRefusesToLockYouOut(t *testing.T) {
 func TestApplyRevertsWhenSSHDRejects(t *testing.T) {
 	m, f, _, r := newManager(t)
 	old := "Port 2200\n"
-	if err := os.WriteFile(filepath.Join(f.dir, "40-diparnux-ssh.conf"), []byte(old), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(f.dir, "40-opereta-ssh.conf"), []byte(old), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r.sshdExit, r.sshdErr = 255, "/etc/ssh/sshd_config.d/40-diparnux-ssh.conf line 1: Bad port\nmore"
+	r.sshdExit, r.sshdErr = 255, "/etc/ssh/sshd_config.d/40-opereta-ssh.conf line 1: Bad port\nmore"
 	yes := true
 	err := m.Apply(context.Background(), Settings{Port: 2222, PasswordLogin: &yes}, true)
 	if err == nil || !strings.Contains(err.Error(), "Bad port") {
 		t.Fatalf("err = %v", err)
 	}
-	data, _ := os.ReadFile(filepath.Join(f.dir, "40-diparnux-ssh.conf"))
+	data, _ := os.ReadFile(filepath.Join(f.dir, "40-opereta-ssh.conf"))
 	if string(data) != old {
 		t.Fatalf("the previous file was not restored: %q", data)
 	}

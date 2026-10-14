@@ -1,4 +1,4 @@
-// Package config는 관리자 설정 파일(/etc/diparnux/diparnuxd.json)을 읽고 쓴다.
+// Package config는 관리자 설정 파일(/etc/opereta/operetad.json)을 읽고 쓴다.
 //
 // 알 수 없는 필드는 오류로 한다. 오타가 조용히 무시되어 기본값으로 도는 일을 막기 위해서다.
 // 저장은 같은 디렉터리에 임시 파일을 만들고 fsync 후 rename한다. 토큰이 들어가므로 모드는 0600이다.
@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
 )
 
 // Config는 관리자가 정하는 데몬 설정이다.
@@ -28,7 +28,7 @@ type Config struct {
 	SSHEnabled  bool `json:"ssh_enabled"` // true이면 SSH 포트를 방화벽에서 연다. 유닛 시작은 /v1/system/ssh가 함께 처리한다
 	// SSHPort 는 SSH 서버 포트다. 0 이면 22 다. sshd 설정(Port)과 방화벽이 같은 값을 쓴다.
 	SSHPort   int    `json:"ssh_port"`
-	ModelsDir string `json:"models_dir"` // 절대 경로, 기본 /var/lib/diparnux/models
+	ModelsDir string `json:"models_dir"` // 절대 경로, 기본 /var/lib/opereta/models
 	HFToken   string `json:"hf_token"`   // Hugging Face 토큰, 진단 리포트에서는 가린다
 	// Gateway 가 true 이면 데몬이 공개 포트(Port)를 받아 키를 확인하고 llama-server 로 넘긴다. llama-server 는
 	// 127.0.0.1:InternalPort 에서만 연다. 키 변경이 서버 재시작 없이 반영되고 키별 사용량을 알 수 있다. false 이면
@@ -92,7 +92,7 @@ func Default() Config {
 		Port:         8080,
 		Autostart:    true,
 		AutoRestart:  true,
-		ModelsDir:    "/var/lib/diparnux/models",
+		ModelsDir:    "/var/lib/opereta/models",
 		Gateway:      true,
 		InternalPort: 18080,
 		LocalNoKey:   true,

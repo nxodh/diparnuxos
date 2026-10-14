@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // fakePkg 는 가짜 시스템의 설치된 패키지 하나다.
@@ -38,6 +38,7 @@ type fakeSys struct {
 	dkmsFail       map[string]bool // 이 커널은 DKMS 빌드가 실패한다.
 	upgradeFail    bool            // dist-upgrade 가 실패한다.
 	updateFail     bool            // apt-get update 가 실패한다.
+	channelFail    bool            // apt-get update 에서 Opereta 채널(channelURL)만 받지 못한다.
 	oldUnavailable bool            // 이전 버전 설치가 실패한다.
 	removeOnUpg    []string        // dist-upgrade 시뮬레이션이 지우겠다고 하는 패키지.
 
@@ -74,7 +75,7 @@ func newFakeSys(t *testing.T) *fakeSys {
 	add("linux-headers-6.12.111+deb13-amd64", "6.12.111-1", "linux", true)
 	add("nvidia-kernel-open-dkms", "595.91.07-1", "nvidia-graphics-drivers", true)
 	add("nvidia-driver", "595.91.07-1", "nvidia-graphics-drivers", true)
-	add("diparnux-nvidia", "0.3.0", "diparnux-nvidia", false)
+	add("opereta-nvidia", "0.3.0", "opereta-nvidia", false)
 	add("bash", "5.2.37-2", "bash", false)
 	f.modules["6.12.111+deb13-amd64"] = "595.91.07"
 
@@ -104,6 +105,7 @@ func (f *fakeSys) engine() *Engine {
 			BootDir:     f.path("boot"),
 			RootDir:     f.root,
 			TmpDir:      f.root,
+			ChannelFile: f.path("etc/apt/sources.list.d/opereta.sources"),
 		},
 		Run:       f,
 		FreeBytes: func(string) (uint64, error) { return 100 << 30, nil },
@@ -138,7 +140,7 @@ func (f *fakeSys) kernels() []string {
 func (f *fakeSys) writeGrub() {
 	var b strings.Builder
 	for _, rel := range f.kernels() {
-		fmt.Fprintf(&b, "menuentry 'Diparnux, with Linux %s' --class debian $menuentry_id_option 'gnulinux-%s-advanced-uuid' {\n}\n", rel, rel)
+		fmt.Fprintf(&b, "menuentry 'Opereta, with Linux %s' --class debian $menuentry_id_option 'gnulinux-%s-advanced-uuid' {\n}\n", rel, rel)
 	}
 	if err := os.WriteFile(f.path("boot/grub/grub.cfg"), []byte(b.String()), 0o644); err != nil {
 		f.t.Fatal(err)
@@ -244,7 +246,7 @@ func (f *fakeSys) Run(ctx context.Context, cmd platform.Command) (platform.Resul
 		}
 		return out(""), nil
 	}
-	if strings.HasSuffix(cmd.Name, "diparnux-gpu-check") {
+	if strings.HasSuffix(cmd.Name, "opereta-gpu-check") {
 		return platform.Result{ExitCode: f.gpuExit}, nil
 	}
 	f.t.Fatalf("unexpected command: %s", line)
@@ -311,6 +313,9 @@ func (f *fakeSys) apt(args []string) platform.Result {
 	}
 	switch verb {
 	case "update":
+		if f.channelFail {
+			return fail(100, "E: Failed to fetch "+channelURL+"/InRelease  404  Not Found [IP: 140.82.112.4 443]\nE: The repository '"+channelURL+" ./ InRelease' is no longer signed.")
+		}
 		if f.updateFail {
 			return fail(100, "W: Failed to fetch http://example.invalid/Release  Temporary failure resolving 'example.invalid'\nE: Some index files failed to download.")
 		}
@@ -444,4 +449,20 @@ func (f *fakeSys) install(pkgs []string) platform.Result {
 		}
 	}
 	return out("")
+}
+
+// channelURL 은 시험의 Opereta 업데이트 채널 주소다.
+const channelURL = "https://example.invalid/latest/download"
+
+// writeChannel 은 켜진 Opereta 소스 파일을 만든다.
+func (f *fakeSys) writeChannel() {
+	f.t.Helper()
+	p := f.path("etc/apt/sources.list.d/opereta.sources")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		f.t.Fatal(err)
+	}
+	body := "Types: deb\nURIs: " + channelURL + "\nSuites: ./\nEnabled: yes\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		f.t.Fatal(err)
+	}
 }

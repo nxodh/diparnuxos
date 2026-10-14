@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 오류 코드다. API 계층이 HTTP 상태로 바꾼다.

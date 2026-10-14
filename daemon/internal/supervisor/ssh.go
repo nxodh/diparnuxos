@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // sshUnit은 Debian의 OpenSSH 서버 유닛 이름이다.
@@ -70,7 +70,7 @@ func (s *Supervisor) sshPasswordAuth(ctx context.Context) string {
 
 // SetSSHUnit은 SSH 유닛을 시작하거나 멈춘다.
 //
-// enable 과 disable 은 쓰지 않는다. diparnuxd 는 ProtectSystem 아래에서 돌아 /etc 에 링크를 만들 수 없고,
+// enable 과 disable 은 쓰지 않는다. operetad 는 ProtectSystem 아래에서 돌아 /etc 에 링크를 만들 수 없고,
 // Debian 의 ssh.service 는 SysV 스크립트 동기화(update-rc.d)까지 하려 해서 실패한다. 부팅 때의 시작은 데몬이 설정의
 // ssh_enabled 를 보고 다시 시작해 주므로 enable 이 필요 없다. 호스트 키 생성과 정책 파일은 헬퍼(PrepareSSH)가 맡는다.
 // 켤 때 유닛이 설치되어 있지 않으면 CodeSSHNotInstalled 다. 끄는 것은 항상 시도한다.

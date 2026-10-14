@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
-	"github.com/nxodh/diparnuxos/daemon/internal/svcctl"
-	"github.com/nxodh/diparnuxos/daemon/internal/sysstat"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/svcctl"
+	"github.com/nxodh/operetaos/daemon/internal/sysstat"
 )
 
 type fakeServices struct {
@@ -50,7 +50,7 @@ func TestServiceEndpoints(t *testing.T) {
 		t.Fatalf("did = %v", fs.did)
 	}
 	fs.fail = &svcctl.Error{Code: svcctl.CodeProtected, Message: "not from here"}
-	w = e.do("POST", "/v1/services/diparnuxd.service/stop", "")
+	w = e.do("POST", "/v1/services/operetad.service/stop", "")
 	wantStatus(t, w, http.StatusForbidden)
 	fs.fail = &svcctl.Error{Code: svcctl.CodeNotAllowed, Message: "not managed"}
 	w = e.do("POST", "/v1/services/cron.service/stop", "")

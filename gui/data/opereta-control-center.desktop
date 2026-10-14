@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Opereta Control Center
+Name[ko]=Opereta 제어 센터
+Comment=Manage the local LLM server
+Comment[ko]=로컬 LLM 서버를 관리합니다
+Exec=opereta-control-center
+Icon=opereta
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

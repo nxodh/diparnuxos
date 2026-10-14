@@ -1,0 +1,18 @@
+opereta-vedecaps (0.6.0) trixie; urgency=medium
+
+  * OS 이름을 바꾼다(두 번째 이름 변경). 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다. 새 로고와 8px 모서리 디자인을 쓴다.
+  * 연동하는 에이전트의 로고(Deberopa)를 아이콘으로 추가했다. 에이전트의 이름과 고정 버전은 그대로다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 22:00:00 +0900
+
+opereta-vedecaps (0.5.4) trixie; urgency=medium
+
+  * Vedecaps 0.1.5(VE2 options.ca, VE1 Opereta 인식·키 환경 변수, VE3 max_concurrency, VE4 debug local --check-tools)로 올렸다. SHA-256 은 opereta.conf.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 21:00:00 +0900
+
+opereta-vedecaps (0.5.3) trixie; urgency=medium
+
+  * 새 패키지: Vedecaps 0.1.3 릴리스 실행 파일(linux-x64, glibc)을 SHA-256 확인 뒤 /usr/bin/vedecaps 에 설치한다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 18:00:00 +0900

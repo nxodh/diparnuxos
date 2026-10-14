@@ -15,21 +15,25 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 기본 경로다. 테스트는 Config 로 바꾼다.
 const (
-	DefaultStateDir = "/var/lib/diparnux/update"
+	DefaultStateDir = "/var/lib/opereta/update"
 	// PolicyPackage 는 드라이버 핀과 정확한 의존성을 가진 패키지다. 드라이버는 이 패키지를 통해서만 올라간다.
-	PolicyPackage = "diparnux-nvidia"
+	PolicyPackage = "opereta-nvidia"
 	// DriverPackage 는 드라이버 버전을 대표하는 패키지다.
 	DriverPackage = "nvidia-kernel-open-dkms"
+	// OSPackage 는 Opereta 릴리스 버전을 대표하는 패키지다. opereta-* 패키지는 모두 같은 릴리스 버전을 쓴다.
+	OSPackage = "opereta-base"
 )
 
 // Config 는 Engine 이 읽고 쓰는 경로와 제한이다. 빈 값은 기본값이다.
 type Config struct {
-	StateDir       string
+	StateDir string
+	// ChannelFile 은 Opereta 패키지 저장소 소스 파일이다. 비어 있으면 DefaultChannelFile 이다.
+	ChannelFile    string
 	GrubCfg        string
 	ProcCmdline    string
 	ProcNvidia     string
@@ -56,10 +60,10 @@ func (c Config) withDefaults() Config {
 	def(&c.ProcNvidia, "/proc/driver/nvidia/version")
 	def(&c.LiveDir, "/run/live")
 	def(&c.PrefsDir, "/etc/apt/preferences.d")
-	def(&c.PolicyPrefName, "00-diparnux-nvidia.pref")
+	def(&c.PolicyPrefName, "00-opereta-nvidia.pref")
 	def(&c.BootDir, "/boot")
 	def(&c.RootDir, "/")
-	def(&c.GPUCheck, "/usr/sbin/diparnux-gpu-check")
+	def(&c.GPUCheck, "/usr/sbin/opereta-gpu-check")
 	def(&c.TmpDir, os.TempDir())
 	if c.MinFreeBoot == 0 {
 		c.MinFreeBoot = 512 << 20
@@ -82,6 +86,8 @@ type Engine struct {
 	Out io.Writer
 
 	state *State
+	// channelErr 는 마지막 aptUpdate 에서 Opereta 채널만 실패했을 때의 설명이다.
+	channelErr string
 }
 
 var driverModules = []string{"nvidia", "nvidia-modeset", "nvidia-uvm", "nvidia-drm"}
@@ -445,7 +451,31 @@ func statfsFree(dir string) (uint64, error) {
 	return uint64(st.Bavail) * uint64(st.Bsize), nil
 }
 
+// failedFetchRE 는 apt-get update 의 "Failed to fetch <주소> <이유>" 줄에서 주소를 뽑는다.
+var failedFetchRE = regexp.MustCompile(`Failed to fetch (\S+)`)
+
+// onlyChannelFailed 는 받지 못한 주소가 모두 Opereta 업데이트 채널의 것인지 본다.
+func onlyChannelFailed(stderr string, ch Channel) bool {
+	if !ch.Enabled || ch.URL == "" {
+		return false
+	}
+	urls := failedFetchRE.FindAllStringSubmatch(stderr, -1)
+	if len(urls) == 0 {
+		return false
+	}
+	base := strings.TrimRight(ch.URL, "/")
+	for _, m := range urls {
+		if !strings.HasPrefix(m[1], base) {
+			return false
+		}
+	}
+	return true
+}
+
+// aptUpdate 는 패키지 인덱스를 새로 받는다. Opereta 업데이트 채널만 받지 못하면(릴리스가 아직 없거나 GitHub 에 닿지
+// 못함) Debian 과 NVIDIA 갱신까지 막지 않고 계속한다. 이때의 설명은 e.channelErr 에 남는다.
 func (e *Engine) aptUpdate(ctx context.Context) error {
+	e.channelErr = ""
 	res, err := e.sh(ctx, updateTimeout, aptEnv, "apt-get", "update", "-q")
 	if err != nil {
 		return errf(CodeNetwork, "apt-get update: %v", err)
@@ -455,16 +485,21 @@ func (e *Engine) aptUpdate(ctx context.Context) error {
 		return errf(CodeDpkgLocked, "another package manager is running")
 	}
 	if res.ExitCode != 0 || strings.Contains(stderr, "Failed to fetch") || strings.Contains(stderr, "Temporary failure resolving") {
+		if ch := ReadChannel(e.cfg().ChannelFile); onlyChannelFailed(stderr, ch) {
+			e.channelErr = "the Opereta update channel could not be reached (" + ch.URL + "): " + tailString(stderr, 300)
+			e.event("refresh", "%s; continuing with the other repositories", e.channelErr)
+			return nil
+		}
 		return errf(CodeNetwork, "the package indexes could not be refreshed: %s", tailString(stderr, 400))
 	}
 	return nil
 }
 
 // prefsOverride 는 드라이버 핀 파일을 뺀 apt preferences 디렉터리를 임시로 만든다.
-// 드라이버를 올리려면 새 diparnux-nvidia 가 가져올 정확한 버전을 apt 가 고를 수 있어야 한다. 브랜치 핀은 남긴다.
+// 드라이버를 올리려면 새 opereta-nvidia 가 가져올 정확한 버전을 apt 가 고를 수 있어야 한다. 브랜치 핀은 남긴다.
 func (e *Engine) prefsOverride() (dir string, cleanup func(), err error) {
 	c := e.cfg()
-	dir, err = os.MkdirTemp(c.TmpDir, "diparnux-prefs-")
+	dir, err = os.MkdirTemp(c.TmpDir, "opereta-prefs-")
 	if err != nil {
 		return "", nil, err
 	}
@@ -520,7 +555,7 @@ func (e *Engine) buildPlan(ctx context.Context, pkgs []pkgInfo, prefsDir string)
 	if err != nil {
 		return nil, err
 	}
-	p := &Plan{Changes: changes, Removals: removals, DriverFrom: versionOf(pkgs, DriverPackage), PolicyFrom: versionOf(pkgs, PolicyPackage)}
+	p := &Plan{Changes: changes, Removals: removals, DriverFrom: versionOf(pkgs, DriverPackage), PolicyFrom: versionOf(pkgs, PolicyPackage), OSFrom: versionOf(pkgs, OSPackage)}
 	for _, c := range changes {
 		if rel := kernelRelease(c.Name); rel != "" && c.New {
 			p.Kernels = append(p.Kernels, rel)
@@ -533,10 +568,15 @@ func (e *Engine) buildPlan(ctx context.Context, pkgs []pkgInfo, prefsDir string)
 			p.DriverTo = c.To
 		case PolicyPackage:
 			p.PolicyTo = c.To
+		case OSPackage:
+			p.OSTo = c.To
 		}
 	}
 	if p.DriverTo == p.DriverFrom {
 		p.DriverTo = ""
+	}
+	if p.OSTo == p.OSFrom {
+		p.OSTo = ""
 	}
 	p.UpToDate = len(changes) == 0
 	return p, nil
@@ -595,7 +635,7 @@ func (e *Engine) checkPath() string { return filepath.Join(e.cfg().StateDir, "ch
 
 // saveCheck 는 check 결과를 파일로 남긴다. 쓰지 못해도 check 자체는 실패로 보지 않는다.
 func (e *Engine) saveCheck(plan *Plan, err error) {
-	r := CheckResult{Time: e.stamp(), Plan: plan}
+	r := CheckResult{Time: e.stamp(), Plan: plan, ChannelError: e.channelErr}
 	if err != nil {
 		var ue *Error
 		if !errors.As(err, &ue) {
@@ -797,6 +837,8 @@ func (e *Engine) Apply(ctx context.Context, opt ApplyOptions) (*State, error) {
 	st.Before = managedSnapshot(pkgs, held)
 	st.DriverFrom = plan.DriverFrom
 	st.DriverTo = plan.DriverTo
+	st.OSFrom = plan.OSFrom
+	st.OSTo = plan.OSTo
 	prevKernel := e.runningKernel(ctx)
 	st.PreviousKernel = prevKernel
 	if res, gerr := e.sh(ctx, shortTimeout, nil, e.cfg().GPUCheck); gerr == nil {
@@ -1190,7 +1232,7 @@ func (e *Engine) Status(ctx context.Context) (*Status, error) {
 
 // protectedPackage 는 갱신 중 지워지면 안 되는 패키지다.
 func protectedPackage(name string) bool {
-	for _, p := range []string{"diparnux-", "nvidia-", "libnvidia-", "cuda-", "libcublas", "linux-image", "linux-headers", "linux-kbuild", "dkms", "grub-", "shim-", "initramfs-tools", "systemd", "base-files", "libc6"} {
+	for _, p := range []string{"opereta-", "nvidia-", "libnvidia-", "cuda-", "libcublas", "linux-image", "linux-headers", "linux-kbuild", "dkms", "grub-", "shim-", "initramfs-tools", "systemd", "base-files", "libc6"} {
 		if strings.HasPrefix(name, p) {
 			return true
 		}

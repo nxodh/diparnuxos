@@ -6,7 +6,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from diparnux_cc import api  # noqa: E402
+from opereta_cc import api  # noqa: E402
 from tests.fakedaemon import FakeDaemon  # noqa: E402
 
 
@@ -83,15 +83,15 @@ class ClientTests(unittest.TestCase):
 
     def test_missing_socket_is_unavailable(self):
         with self.assertRaises(api.DaemonUnavailable) as cm:
-            api.Client("/nonexistent/diparnuxd.sock").status()
+            api.Client("/nonexistent/operetad.sock").status()
         self.assertEqual(cm.exception.code, "unavailable")
 
     def test_permission_denied_is_distinct(self):
         with mock.patch.object(socket.socket, "connect", side_effect=PermissionError()):
             with self.assertRaises(api.DaemonUnavailable) as cm:
-                api.Client("/run/diparnux/diparnuxd.sock").status()
+                api.Client("/run/opereta/operetad.sock").status()
         self.assertEqual(cm.exception.code, "permission_denied")
-        self.assertIn("diparnux", cm.exception.message)
+        self.assertIn("opereta", cm.exception.message)
 
     def test_query_parameters_skip_none_and_escape(self):
         routes = {("GET", "/v1/server/plan"): (200, {"model_id": "m"})}
@@ -139,9 +139,9 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(bodies[("POST", "/v1/users")], {"name": "alice", "password": "correct-horse-9", "admin": False})
 
     def test_report_is_returned_as_text(self):
-        with FakeDaemon({("GET", "/v1/report"): (200, "Diparnux report\nline 2\n")}) as d:
+        with FakeDaemon({("GET", "/v1/report"): (200, "Opereta report\nline 2\n")}) as d:
             text = api.Client(d.path).report()
-        self.assertTrue(text.startswith("Diparnux report"))
+        self.assertTrue(text.startswith("Opereta report"))
 
 
 if __name__ == "__main__":

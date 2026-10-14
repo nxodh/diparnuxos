@@ -11,7 +11,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/gguf"
+	"github.com/nxodh/operetaos/daemon/internal/gguf"
 )
 
 // ErrExists 는 같은 이름의 모델이나 받는 중인 파일이 이미 있을 때 돌려준다.

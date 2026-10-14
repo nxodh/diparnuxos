@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 func baseConnectionInput() connectionInput {
@@ -23,7 +23,7 @@ func baseConnectionInput() connectionInput {
 		},
 		KeyCount: 1,
 		ModelIDs: []string{"gemma.gguf"},
-		Hostname: "diparnux",
+		Hostname: "opereta",
 	}
 }
 
@@ -38,7 +38,7 @@ func TestConnectionListsReachableAddresses(t *testing.T) {
 	if c.Addresses[1].URL != "http://[2001:db8::23]:8080/v1" {
 		t.Fatalf("ipv6 url = %q", c.Addresses[1].URL)
 	}
-	if c.MDNSURL != "http://diparnux.local:8080/v1" {
+	if c.MDNSURL != "http://opereta.local:8080/v1" {
 		t.Fatalf("mdns = %q", c.MDNSURL)
 	}
 	if len(c.Warnings) != 0 || !c.KeyRequired {
@@ -48,7 +48,7 @@ func TestConnectionListsReachableAddresses(t *testing.T) {
 		t.Fatalf("examples = %v", c.Examples)
 	}
 	for _, ex := range c.Examples {
-		if strings.Contains(ex, "dpx_") {
+		if strings.Contains(ex, "opr_") {
 			t.Fatal("an example must never contain a real key")
 		}
 	}
@@ -79,7 +79,7 @@ func TestConnectionVedecapsExampleAndLocalKeyState(t *testing.T) {
 	in.Server.Plan = &autoconf.Output{SlotCtx: 32768, Parallel: 2}
 	c := buildConnection(in)
 	ex := c.Examples["vedecaps"]
-	for _, want := range []string{`"api": "http://192.168.0.23:8080/v1"`, `"model": "diparnux/gemma.gguf"`, `"context": 32768`, `{env:DIPARNUX_API_KEY}`} {
+	for _, want := range []string{`"api": "http://192.168.0.23:8080/v1"`, `"model": "opereta/gemma.gguf"`, `"context": 32768`, `{env:OPERETA_API_KEY}`} {
 		if !strings.Contains(ex, want) {
 			t.Fatalf("example lacks %s:\n%s", want, ex)
 		}
@@ -119,16 +119,16 @@ func TestConnectionWithTLSUsesHTTPSAddresses(t *testing.T) {
 	if c.Addresses[0].URL != "https://192.168.0.23:8444/v1" || c.Addresses[1].URL != "https://[2001:db8::23]:8444/v1" {
 		t.Fatalf("addresses = %+v", c.Addresses)
 	}
-	if c.MDNSURL != "https://diparnux.local:8444/v1" {
+	if c.MDNSURL != "https://opereta.local:8444/v1" {
 		t.Fatalf("mdns = %q", c.MDNSURL)
 	}
-	if !strings.Contains(c.Examples["curl"], "--cacert diparnux-ca.pem https://192.168.0.23:8444/v1/chat/completions") {
+	if !strings.Contains(c.Examples["curl"], "--cacert opereta-ca.pem https://192.168.0.23:8444/v1/chat/completions") {
 		t.Fatalf("curl = %s", c.Examples["curl"])
 	}
-	if !strings.Contains(c.Examples["openai_python"], "verify=\"diparnux-ca.pem\"") {
+	if !strings.Contains(c.Examples["openai_python"], "verify=\"opereta-ca.pem\"") {
 		t.Fatalf("python = %s", c.Examples["openai_python"])
 	}
-	if !strings.Contains(c.Examples["vedecaps"], `"ca": "~/.config/vedecaps/diparnux-ca.pem"`) {
+	if !strings.Contains(c.Examples["vedecaps"], `"ca": "~/.config/vedecaps/opereta-ca.pem"`) {
 		t.Fatalf("vedecaps = %s", c.Examples["vedecaps"])
 	}
 	found := false

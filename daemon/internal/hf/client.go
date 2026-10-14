@@ -19,7 +19,7 @@ import (
 // Defaults and limits.
 const (
 	defaultBaseURL   = "https://huggingface.co"
-	defaultUserAgent = "diparnuxd"
+	defaultUserAgent = "operetad"
 	maxJSONBytes     = 16 << 20 // Largest JSON response body accepted.
 	maxPages         = 100      // Most pages followed in one listing.
 	maxSearchLimit   = 100      // Largest limit accepted by Search.
@@ -58,7 +58,7 @@ type Client struct {
 	HTTP *http.Client
 	// Token is the access token. It is sent only in the Authorization header.
 	Token string
-	// UserAgent is sent with every request. An empty value means "diparnuxd".
+	// UserAgent is sent with every request. An empty value means "operetad".
 	UserAgent string
 }
 

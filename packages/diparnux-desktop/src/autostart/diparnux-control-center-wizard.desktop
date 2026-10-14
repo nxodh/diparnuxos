@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Diparnux first-boot wizard
-Comment=Opens the Control Center only while the first-boot wizard is not finished
-Exec=diparnux-control-center --autostart
-Icon=diparnux
-OnlyShowIn=XFCE;
-NoDisplay=true

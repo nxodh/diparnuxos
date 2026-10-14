@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 실행 제한 상수다.

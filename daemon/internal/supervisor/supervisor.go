@@ -20,21 +20,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 기본값이다. Options에서 비워 두면 이 값을 쓴다.
 const (
-	defaultGPUStatusPath = "/run/diparnux/gpu-status"
-	defaultEnvFilePath   = "/run/diparnux/llama-server.env"
-	defaultServerBinary  = "/usr/lib/diparnux/llama/llama-server"
-	defaultUnit          = "diparnux-llama.service"
-	defaultFirewallPath  = "/var/lib/diparnux/firewall.nft"
+	defaultGPUStatusPath = "/run/opereta/gpu-status"
+	defaultEnvFilePath   = "/run/opereta/llama-server.env"
+	defaultServerBinary  = "/usr/lib/opereta/llama/llama-server"
+	defaultUnit          = "opereta-llama.service"
+	defaultFirewallPath  = "/var/lib/opereta/firewall.nft"
 	defaultProcRoot      = "/proc"
 	defaultHealthTimeout = 10 * time.Minute
 	defaultPollInterval  = 2 * time.Second
@@ -149,15 +149,15 @@ type Options struct {
 	Config func() config.Config
 	// MemInfo 는 메모리 상태를 돌려준다. nil 이면 RAM 검사를 건너뛴다.
 	MemInfo func() (platform.MemInfo, error)
-	// GPUStatusPath 는 GPU 진단 상태 파일이다. 기본 /run/diparnux/gpu-status.
+	// GPUStatusPath 는 GPU 진단 상태 파일이다. 기본 /run/opereta/gpu-status.
 	GPUStatusPath string
-	// EnvFilePath 는 systemd EnvironmentFile 경로다. 기본 /run/diparnux/llama-server.env.
+	// EnvFilePath 는 systemd EnvironmentFile 경로다. 기본 /run/opereta/llama-server.env.
 	EnvFilePath string
 	// ServerBinary 는 llama-server 실행 파일이다.
 	ServerBinary string
-	// Unit 은 llama-server systemd 유닛이다. 기본 diparnux-llama.service.
+	// Unit 은 llama-server systemd 유닛이다. 기본 opereta-llama.service.
 	Unit string
-	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/diparnux/firewall.nft.
+	// FirewallPath 는 생성한 nftables 규칙 파일의 경로다. 기본 /var/lib/opereta/firewall.nft.
 	FirewallPath string
 	// FirewallExtras 는 규칙 파일에 더할 것을 돌려준다: 켜진 기능이 여는 포트와 사용자 규칙. nil 이면 둘 다 없다.
 	FirewallExtras func() firewall.Extras

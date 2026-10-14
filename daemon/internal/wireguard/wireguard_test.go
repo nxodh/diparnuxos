@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 type files struct {
@@ -108,7 +108,7 @@ func TestEnableCreatesKeysAndFiles(t *testing.T) {
 
 func TestAddPeerGeneratesAClientConfigOnce(t *testing.T) {
 	m, f, _ := newManager(t)
-	m.DefaultEndpoint = func() string { return "diparnux.local" }
+	m.DefaultEndpoint = func() string { return "opereta.local" }
 	if _, _, err := m.AddPeer(context.Background(), "phone", "", ""); err == nil {
 		t.Fatal("a peer was added while the VPN is off")
 	}
@@ -121,7 +121,7 @@ func TestAddPeerGeneratesAClientConfigOnce(t *testing.T) {
 	if peer.AllowedIPs[0] != "10.8.0.2/32" || !ValidPublicKey(peer.PublicKey) {
 		t.Fatalf("peer = %+v", peer)
 	}
-	for _, want := range []string{"[Interface]", "PrivateKey = ", "Address = 10.8.0.2/32", "PublicKey = " + view.PublicKey, "Endpoint = diparnux.local:51820", "AllowedIPs = 10.8.0.0/24"} {
+	for _, want := range []string{"[Interface]", "PrivateKey = ", "Address = 10.8.0.2/32", "PublicKey = " + view.PublicKey, "Endpoint = opereta.local:51820", "AllowedIPs = 10.8.0.0/24"} {
 		if !strings.Contains(cfg, want) {
 			t.Fatalf("client config lacks %q:\n%s", want, cfg)
 		}

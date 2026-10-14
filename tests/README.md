@@ -1,6 +1,6 @@
 # 테스트
 
-Diparnux 의 테스트는 진단 분기, 완성된 ISO 검사, QEMU 부팅, 실기 체크리스트로 나뉜다.
+Opereta 의 테스트는 진단 분기, 완성된 ISO 검사, QEMU 부팅, 실기 체크리스트로 나뉜다.
 
 | 경로 | 목적 | 실행 위치 |
 |---|---|---|
@@ -9,7 +9,7 @@ Diparnux 의 테스트는 진단 분기, 완성된 ISO 검사, QEMU 부팅, 실�
 | `tests/qemu/boot-smoke.sh` | ISO 가 UEFI 로 부팅되어 로그인 프롬프트와 GPU 진단 줄까지 직렬 콘솔에 나오는지 확인. `BOOT_MEDIA` 로 CD-ROM 또는 USB 저장 장치 부팅을 고른다 | Linux (KVM 있으면 KVM, 없으면 TCG) |
 | `tests/qemu/cpu-inference.sh` | UEFI 직렬 로그인, 실제 Hugging Face 내려받기·SHA-256, 데몬 권한, CPU 추론·중지와 오류 응답 확인 | Linux QEMU/OVMF 또는 Debian Docker |
 | `tests/qemu/test_cpu_inference.py` | 제어된 직렬 프로세스로 E2E 드라이버의 실패 판정과 정리 경로 확인. 실제 ISO 검증은 하지 않는다 | Python 3 표준 라이브러리 |
-| `tests/hw/run.sh` | 실 기기에서 확인할 체크리스트 중 현재 단계에서 확인 가능한 항목 실행 | 실 기기의 Diparnux 시스템 |
+| `tests/hw/run.sh` | 실 기기에서 확인할 체크리스트 중 현재 단계에서 확인 가능한 항목 실행 | 실 기기의 Opereta 시스템 |
 | `tests/hw/RESULT_TEMPLATE.md` | 실 기기 측정 결과를 옮겨 적는 양식 | 문서 |
 
 `make lint` 는 셸 스크립트의 정적 검사를 수행한다. 검사 범위는 `Makefile` 에 정의된다.
@@ -18,8 +18,8 @@ Diparnux 의 테스트는 진단 분기, 완성된 ISO 검사, QEMU 부팅, 실�
 
 ### 목적
 
-빌드된 ISO 가 QEMU 와 OVMF(UEFI 펌웨어)에서 부팅되고, 직렬 콘솔에 `diparnux login:` 과 `Diparnux GPU [no_gpu]:` 안내가 나오는지 확인한다.
-이 프롬프트는 호스트 이름 `diparnux` 에 의존한다. `Diparnux GPU [no_gpu]:` 줄은 `/run/issue.d/*.issue` 를 agetty 가 로그인 프롬프트 위에 출력한 것이다. 직렬 포트의 getty 는 커널 명령줄의 `console=ttyS0,115200` 으로 systemd-getty-generator 가 만든다.
+빌드된 ISO 가 QEMU 와 OVMF(UEFI 펌웨어)에서 부팅되고, 직렬 콘솔에 `opereta login:` 과 `Opereta GPU [no_gpu]:` 안내가 나오는지 확인한다.
+이 프롬프트는 호스트 이름 `opereta` 에 의존한다. `Opereta GPU [no_gpu]:` 줄은 `/run/issue.d/*.issue` 를 agetty 가 로그인 프롬프트 위에 출력한 것이다. 직렬 포트의 getty 는 커널 명령줄의 `console=ttyS0,115200` 으로 systemd-getty-generator 가 만든다.
 
 ### 실행
 
@@ -28,8 +28,8 @@ make test-qemu          # 호스트의 QEMU 와 OVMF 로 실행
 make test-qemu-docker   # Debian 컨테이너 안에서 실행 (호스트에 QEMU 가 없어도 된다. CI 가 쓰는 방식)
 make test-qemu-usb-docker   # 같은 확인을 ISO 를 USB 저장 장치로 붙여 한다 (BOOT_MEDIA=usb)
 # 또는 직접
-tests/qemu/boot-smoke.sh out/diparnux-<버전>-amd64.iso
-BOOT_MEDIA=usb tests/qemu/boot-smoke.sh out/diparnux-<버전>-amd64.iso
+tests/qemu/boot-smoke.sh out/opereta-<버전>-amd64.iso
+BOOT_MEDIA=usb tests/qemu/boot-smoke.sh out/opereta-<버전>-amd64.iso
 ```
 
 ### 환경 변수
@@ -46,8 +46,8 @@ OVMF 후보 경로는 Debian 13(`ovmf` 패키지)과 Ubuntu 24.04(`ovmf` 패키�
 
 ### 판정
 
-- 성공: 제한 시간 안에 `diparnux login:` 과 `Diparnux GPU [no_gpu]:` 가 모두 직렬 로그에 나타나면 종료 코드 0.
-- 실패: 직렬 로그에 `Diparnux` 를 포함하고 ASCII 가 아닌 바이트가 있는 줄이 있으면 실패한다. 실기 텍스트 콘솔은 한글을 표시하지 못하기 때문이다.
+- 성공: 제한 시간 안에 `opereta login:` 과 `Opereta GPU [no_gpu]:` 가 모두 직렬 로그에 나타나면 종료 코드 0.
+- 실패: 직렬 로그에 `Opereta` 를 포함하고 ASCII 가 아닌 바이트가 있는 줄이 있으면 실패한다. 실기 텍스트 콘솔은 한글을 표시하지 못하기 때문이다.
 - 실패: 프롬프트나 GPU 줄이 나오지 않고 제한 시간이 지나거나, 프롬프트 전에 QEMU 가 끝나면 로그 끝 80줄을 출력하고 종료 코드 1.
 - 사용 오류(ISO 없음, 펌웨어나 QEMU 없음, 잘못된 인자)는 종료 코드 2.
 
@@ -61,24 +61,24 @@ OVMF 후보 경로는 Debian 13(`ovmf` 패키지)과 Ubuntu 24.04(`ovmf` 패키�
 ## Phase 2 CPU 추론 E2E
 
 `boot-smoke.sh` 다음 단계로, 완성된 **amd64 Phase 2 ISO**를 OVMF에서 CD-ROM으로 부팅해 `user` / `live`로 직렬 로그인한다.
-`diparnux --json status`, `model pull ggml-org/tiny-llamas --file stories260K.gguf`, `model default`, `serve plan`, `serve start`, `chat`, `serve stop`을 실제 라이브 사용자가 실행한다.
+`opereta --json status`, `model pull ggml-org/tiny-llamas --file stories260K.gguf`, `model default`, `serve plan`, `serve start`, `chat`, `serve stop`을 실제 라이브 사용자가 실행한다.
 자동 계획을 확인하려고 `--ngl`은 지정하지 않는다. 작은 모델의 컨텍스트와 배치만 `--ctx 256 --batch 32`로 제한하고, 채팅은 16토큰으로 제한한다.
 게스트에는 4096 MiB를 할당한다. 모델 다운로드 뒤에도 데몬의 기존 1 GiB 여유 공간 검사를 만족시키기 위한 E2E 환경 설정이다. 다운로드 직전 루트 파일시스템 용량·여유 공간과 게스트 메모리 정보를 로그에 남긴다.
 
 ```sh
 # ISO 는 별도 빌드나 CI 산출물을 사용한다. 이 실행기는 ISO 를 만들지 않는다.
-bash scripts/test-qemu-e2e-in-docker.sh out/diparnux-<버전>-amd64.iso
+bash scripts/test-qemu-e2e-in-docker.sh out/opereta-<버전>-amd64.iso
 # Linux 에 QEMU, OVMF, Python 3 이 이미 있을 때
-bash tests/qemu/cpu-inference.sh out/diparnux-<버전>-amd64.iso
+bash tests/qemu/cpu-inference.sh out/opereta-<버전>-amd64.iso
 # ISO 없이 드라이버와 Docker 실행기의 제어 흐름만 검사한다.
 python3 -B tests/qemu/test_cpu_inference.py
 ```
 
 ### 검사 항목
 
-- 게스트가 `x86_64` UEFI이며 로그인 사용자가 root가 아닌 `user`인지, 현재 세션에 `diparnux` 그룹이 있는지 확인한다.
-- 제어 소켓이 실제 소켓이고 `root:diparnux`, `0660`인지 확인한다. `nobody`의 접근 거부와 없는 소켓의 CLI 종료 코드 3도 검사한다.
-- `diparnuxd.socket`, `diparnuxd.service`, 기본 방화벽, GPU 진단 유닛이 활성 상태인지 확인한다. llama 유닛은 시작 전·중지 후 inactive, 추론 중 active/running이어야 하며 데몬 PID와 systemd MainPID가 같아야 한다.
+- 게스트가 `x86_64` UEFI이며 로그인 사용자가 root가 아닌 `user`인지, 현재 세션에 `opereta` 그룹이 있는지 확인한다.
+- 제어 소켓이 실제 소켓이고 `root:opereta`, `0660`인지 확인한다. `nobody`의 접근 거부와 없는 소켓의 CLI 종료 코드 3도 검사한다.
+- `operetad.socket`, `operetad.service`, 기본 방화벽, GPU 진단 유닛이 활성 상태인지 확인한다. llama 유닛은 시작 전·중지 후 inactive, 추론 중 active/running이어야 하며 데몬 PID와 systemd MainPID가 같아야 한다.
 - 모든 관련 유닛은 loaded이어야 하며 failed나 오류 Result를 거부한다. 저장된 방화벽 유닛은 첫 부팅에 파일이 없어 inactive일 수 있다.
 - 없는 모델의 `no_model`, 시작 전·중지 후 채팅의 `server_not_running`을 종료 코드 1과 오류 코드로 검사한다.
 - Hugging Face 다운로드 작업의 완료 상태·바이트 수와 모델 목록의 저장소·SHA-256·완전성을 검사한다. 게스트에서 실제 GGUF 파일에 `sha256sum`을 실행해 고정 해시와 다시 대조한다.
@@ -139,7 +139,7 @@ OVMF 변수는 임시 사본만 쓰고, Secure Boot·USB E2E·GPU 오프로드�
 
 실 기기에서 부팅한 뒤 확인해야 할 항목을 한 번에 점검한다. 전체 체크리스트의 순서는 다음과 같다.
 
-1. 부팅 (os-release `ID=diparnux`)
+1. 부팅 (os-release `ID=opereta`)
 2. 오픈 커널 모듈 로드 (`/proc/driver/nvidia/version` 에 `Open Kernel Module`)
 3. `nvidia-smi` 동작
 4. compute_cap 확인 (8.6 / 8.9 / 12.0 과 대조)
@@ -159,7 +159,7 @@ tests/hw/run.sh
 
 | 항목 | 판정 |
 |---|---|
-| os-release 의 `ID=diparnux` | PASS 또는 FAIL |
+| os-release 의 `ID=opereta` | PASS 또는 FAIL |
 | 커널 버전 | PASS (기록용) |
 | UEFI 부팅 (`/sys/firmware/efi` 존재) | PASS 또는 FAIL |
 | Secure Boot 상태 (`mokutil --sb-state`, mokutil 이 있을 때) | PASS(기록용) 또는 SKIP |
@@ -173,7 +173,7 @@ tests/hw/run.sh
 
 항목마다 `PASS`, `FAIL`, `SKIP` 중 하나를 한 줄로 출력한다. FAIL 이 하나라도 있으면 종료 코드 1, 없으면 0.
 
-테스트용 환경 변수: `DIPARNUX_OS_RELEASE`, `DIPARNUX_EFI_DIR`, `DIPARNUX_NVIDIA_VERSION_FILE`.
+테스트용 환경 변수: `OPERETA_OS_RELEASE`, `OPERETA_EFI_DIR`, `OPERETA_NVIDIA_VERSION_FILE`.
 
 ### 결과 기록
 

@@ -22,17 +22,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/llamaargs"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/llamaargs"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 const (
 	testServerBinary = "/fake/llama-server"
-	testUnit         = "diparnux-llama.service"
+	testUnit         = "opereta-llama.service"
 	offloadOK        = "load_tensors: offloaded 33/33 layers to GPU\n"
 	deviceOK         = "Available devices:\n  CUDA0: NVIDIA GeForce RTX 4090 (24564 MiB, 23000 MiB free)\n"
 	testPID          = 4242
@@ -462,14 +462,14 @@ func writeStatus(t *testing.T, path, state string) {
 	t.Helper()
 	var b strings.Builder
 	if state == "ready" {
-		b.WriteString("DIPARNUX_GPU_STATUS=ready\nDIPARNUX_GPU_PRESENT=1\nDIPARNUX_GPU_PCI_COUNT=1\nDIPARNUX_GPU_COUNT=1\n")
-		b.WriteString("DIPARNUX_GPU_USABLE_COUNT=1\nDIPARNUX_GPU_USABLE_INDEXES=0\nDIPARNUX_SECURE_BOOT=disabled\n")
-		b.WriteString("DIPARNUX_DRIVER_VERSION=595.91.07\nDIPARNUX_GPU_MESSAGE=\"GPU ready\"\n")
-		b.WriteString("DIPARNUX_GPU_0_NAME=\"GeForce RTX 4090\"\nDIPARNUX_GPU_0_COMPUTE_CAP=8.9\nDIPARNUX_GPU_0_SUPPORTED=1\nDIPARNUX_GPU_0_REASON=ok\n")
+		b.WriteString("OPERETA_GPU_STATUS=ready\nOPERETA_GPU_PRESENT=1\nOPERETA_GPU_PCI_COUNT=1\nOPERETA_GPU_COUNT=1\n")
+		b.WriteString("OPERETA_GPU_USABLE_COUNT=1\nOPERETA_GPU_USABLE_INDEXES=0\nOPERETA_SECURE_BOOT=disabled\n")
+		b.WriteString("OPERETA_DRIVER_VERSION=595.91.07\nOPERETA_GPU_MESSAGE=\"GPU ready\"\n")
+		b.WriteString("OPERETA_GPU_0_NAME=\"GeForce RTX 4090\"\nOPERETA_GPU_0_COMPUTE_CAP=8.9\nOPERETA_GPU_0_SUPPORTED=1\nOPERETA_GPU_0_REASON=ok\n")
 	} else {
-		b.WriteString("DIPARNUX_GPU_STATUS=no_gpu\nDIPARNUX_GPU_PRESENT=0\nDIPARNUX_GPU_PCI_COUNT=0\nDIPARNUX_GPU_COUNT=0\n")
-		b.WriteString("DIPARNUX_GPU_USABLE_COUNT=0\nDIPARNUX_GPU_USABLE_INDEXES=\nDIPARNUX_SECURE_BOOT=unknown\n")
-		b.WriteString("DIPARNUX_DRIVER_VERSION=\nDIPARNUX_GPU_MESSAGE=\"no NVIDIA GPU\"\n")
+		b.WriteString("OPERETA_GPU_STATUS=no_gpu\nOPERETA_GPU_PRESENT=0\nOPERETA_GPU_PCI_COUNT=0\nOPERETA_GPU_COUNT=0\n")
+		b.WriteString("OPERETA_GPU_USABLE_COUNT=0\nOPERETA_GPU_USABLE_INDEXES=\nOPERETA_SECURE_BOOT=unknown\n")
+		b.WriteString("OPERETA_DRIVER_VERSION=\nOPERETA_GPU_MESSAGE=\"no NVIDIA GPU\"\n")
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
@@ -1055,7 +1055,7 @@ func TestStartLANWithKeyBindsAllInterfaces(t *testing.T) {
 	if !strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+snapshots[0]+`"`) || strings.Contains(string(env), `LLAMA_ARG_API_KEY_FILE="`+f.keys.KeyFile+`"`) {
 		t.Fatalf("env file lacks key file path: %s", env)
 	}
-	if strings.Contains(string(env), "dpx_") {
+	if strings.Contains(string(env), "opr_") {
 		t.Fatal("env file must not contain a plaintext key")
 	}
 	snapshot, err := os.ReadFile(snapshots[0])

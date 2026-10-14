@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=/dev/null
-. "${ROOT}/diparnux.conf"
+. "${ROOT}/opereta.conf"
 
 die() {
     echo "test-qemu-desktop-in-docker: $*" >&2
@@ -12,7 +12,7 @@ die() {
 }
 
 [[ $# -le 1 ]] || die "usage: $0 [iso-path]"
-ISO="${1:-${ROOT}/out/diparnux-${DIPARNUX_VERSION}-amd64.iso}"
+ISO="${1:-${ROOT}/out/opereta-${OPERETA_VERSION}-amd64.iso}"
 [[ -f "$ISO" ]] || die "ISO not found: $ISO"
 command -v docker >/dev/null 2>&1 || die "docker is required"
 docker info >/dev/null 2>&1 || die "Docker daemon is unavailable"
@@ -22,8 +22,8 @@ iso_name="$(basename "$ISO")"
 log_dir="${E2E_LOG_DIR:-${ROOT}/out/qemu-desktop}"
 mkdir -p "$log_dir"
 log_dir="$(cd "$log_dir" && pwd)"
-cid_file="$(mktemp "${TMPDIR:-/tmp}/diparnux-desktop-cid.XXXXXX")"
-container_name="diparnux-qemu-desktop-${cid_file##*.}"
+cid_file="$(mktemp "${TMPDIR:-/tmp}/opereta-desktop-cid.XXXXXX")"
+container_name="opereta-qemu-desktop-${cid_file##*.}"
 docker_pid=""
 rm -f "$cid_file"
 

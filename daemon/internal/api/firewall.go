@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
 )
 
 // firewallBuiltins 는 설정과 켜진 기능 때문에 열리는 포트다. 규칙 화면에 읽기 전용으로 보인다.

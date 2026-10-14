@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Opereta first-boot wizard
+Comment=Opens the Control Center only while the first-boot wizard is not finished
+Exec=opereta-control-center --autostart
+Icon=opereta
+OnlyShowIn=XFCE;
+NoDisplay=true

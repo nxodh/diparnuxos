@@ -25,24 +25,24 @@
 |---|---|
 | 시작 메뉴 → 종료, 다시 시작 | 동작한다 |
 | 터미널: `sudo poweroff`, `sudo shutdown -h now`, `sudo reboot` | 동작한다 |
-| 전원 버튼을 눌러서 끔 | 동작한다(Diparnux 가 이 설정을 바꾸지 않는다) |
+| 전원 버튼을 눌러서 끔 | 동작한다(Opereta 가 이 설정을 바꾸지 않는다) |
 | 전원 버튼 길게 누름 | 하드웨어 강제 종료다 |
 
 즉 막는 대상은 "사용자가 의도하지 않은 절전과 종료"이고 "사용자가 의도한 종료"는 막지 않는다.
 
-설정 파일은 두 개다. `/usr/lib/systemd/logind.conf.d/50-diparnux-always-on.conf` 와 `/usr/lib/systemd/sleep.conf.d/50-diparnux-always-on.conf`. 끄면 `/etc/systemd/` 의 같은 이름 자리에 `/dev/null` 로 연결된 링크가 생겨 위 파일을 덮는다(systemd 의 표준 방법).
+설정 파일은 두 개다. `/usr/lib/systemd/logind.conf.d/50-opereta-always-on.conf` 와 `/usr/lib/systemd/sleep.conf.d/50-opereta-always-on.conf`. 끄면 `/etc/systemd/` 의 같은 이름 자리에 `/dev/null` 로 연결된 링크가 생겨 위 파일을 덮는다(systemd 의 표준 방법).
 
 ## 사용법
 
 ```sh
-diparnux power          # 상태: 상시 가동 여부, 덮개, 전원(AC/배터리), 잔량, 가동 시간, 통과하지 못한 검사
-diparnux power off      # 상시 가동을 끈다(덮개를 닫으면 절전한다)
-diparnux power on       # 다시 켠다(기본)
+opereta power          # 상태: 상시 가동 여부, 덮개, 전원(AC/배터리), 잔량, 가동 시간, 통과하지 못한 검사
+opereta power off      # 상시 가동을 끈다(덮개를 닫으면 절전한다)
+opereta power on       # 다시 켠다(기본)
 ```
 
 제어 센터의 시스템 페이지 "상시 가동" 에서도 같은 상태를 보고 켜고 끌 수 있다.
 
-상태는 파일의 존재가 아니라 **실행 중인 logind 에 물어 얻는다**. `HandleLidSwitch` 등의 속성이 `ignore` 이고 `CanSuspend`, `CanHibernate`, `CanHybridSleep`, `CanSuspendThenHibernate` 가 `no`(또는 하드웨어가 없어 `na`)인지 확인한다. 다른 설정이 값을 덮고 있으면 `diparnux power` 가 "failed checks" 로 어느 항목인지 알려 준다.
+상태는 파일의 존재가 아니라 **실행 중인 logind 에 물어 얻는다**. `HandleLidSwitch` 등의 속성이 `ignore` 이고 `CanSuspend`, `CanHibernate`, `CanHybridSleep`, `CanSuspendThenHibernate` 가 `no`(또는 하드웨어가 없어 `na`)인지 확인한다. 다른 설정이 값을 덮고 있으면 `opereta power` 가 "failed checks" 로 어느 항목인지 알려 준다.
 
 ## 한계(소프트웨어로는 막을 수 없는 것)
 
@@ -58,5 +58,5 @@ diparnux power on       # 다시 켠다(기본)
 
 1. 서버를 시작하고 다른 컴퓨터에서 접속을 유지한다.
 2. 노트북 덮개를 닫는다. 접속과 응답이 이어져야 한다.
-3. 몇 시간 둔 뒤에도 같은 컴퓨터가 응답하고 `diparnux power` 의 가동 시간이 이어져 있어야 한다.
-4. 문제가 있으면 `diparnux power` 의 "failed checks" 와 `journalctl -b -u systemd-logind` 를 확인한다.
+3. 몇 시간 둔 뒤에도 같은 컴퓨터가 응답하고 `opereta power` 의 가동 시간이 이어져 있어야 한다.
+4. 문제가 있으면 `opereta power` 의 "failed checks" 와 `journalctl -b -u systemd-logind` 를 확인한다.

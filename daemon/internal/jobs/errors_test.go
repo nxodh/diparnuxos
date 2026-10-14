@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/hf"
+	"github.com/nxodh/operetaos/daemon/internal/hf"
 )
 
 // TestClassifyMapsHubErrors 는 hf 의 오류가 작업 오류 코드로 옮겨지는지 확인한다.

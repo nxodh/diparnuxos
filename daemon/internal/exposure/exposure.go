@@ -69,39 +69,39 @@ func Evaluate(in Input) []Finding {
 	switch {
 	case in.LANExposed && in.KeyCount == 0:
 		add(Error, "Other computers may connect but there is no API key",
-			"Connections are refused without a key. Create one: diparnux apikey create <name>.")
+			"Connections are refused without a key. Create one: opereta apikey create <name>.")
 	case in.LANExposed && !in.GatewayOn:
 		add(Warn, "The gateway is off",
-			"API key changes need a server restart and per-key usage is not counted. Turn it on: diparnux config set gateway on.")
+			"API key changes need a server restart and per-key usage is not counted. Turn it on: opereta config set gateway on.")
 	case in.LANExposed && in.TLSOn && in.PlainOpen:
 		add(Warn, "Plain HTTP is still open on the local network",
-			fmt.Sprintf("Port %d accepts unencrypted connections, so API keys and prompts can be read on the network. TLS is also on (port %d). Close the plain port: diparnux tls plain off.", in.APIPort, in.TLSPort))
+			fmt.Sprintf("Port %d accepts unencrypted connections, so API keys and prompts can be read on the network. TLS is also on (port %d). Close the plain port: opereta tls plain off.", in.APIPort, in.TLSPort))
 	case in.LANExposed && in.TLSOn:
 		add(OK, "The model server is open to the local network over TLS", fmt.Sprintf("Port %d is encrypted and needs an API key (%d key(s)). This computer still uses plain HTTP on 127.0.0.1:%d.", in.TLSPort, in.KeyCount, in.APIPort))
 	case in.LANExposed:
 		add(OK, "The model server is open to the local network",
-			fmt.Sprintf("Port %d needs an API key (%d key(s)). Connections from other computers are not encrypted (plain HTTP); encrypt them with: diparnux tls on, or use the VPN: diparnux vpn on.", in.APIPort, in.KeyCount))
+			fmt.Sprintf("Port %d needs an API key (%d key(s)). Connections from other computers are not encrypted (plain HTTP); encrypt them with: opereta tls on, or use the VPN: opereta vpn on.", in.APIPort, in.KeyCount))
 	default:
 		add(OK, "The model server is reachable only from this computer", "Turn on LAN exposure to let other computers connect.")
 	}
 
 	if in.SSHEnabled {
 		if in.SSHPasswordOn {
-			add(Warn, "SSH accepts password logins", "Keys are safer: add a public key, then run 'diparnux ssh password off'.")
+			add(Warn, "SSH accepts password logins", "Keys are safer: add a public key, then run 'opereta ssh password off'.")
 		} else {
 			add(OK, "SSH accepts keys only", "")
 		}
 	}
 	if in.WebAdminOn {
 		if in.WebAdminSource == "any" {
-			add(Warn, "The web admin page accepts connections from any address", "Limit it to your network: diparnux webadmin on --from lan.")
+			add(Warn, "The web admin page accepts connections from any address", "Limit it to your network: opereta webadmin on --from lan.")
 		} else {
 			add(Info, "The web admin page is on", "Allowed from "+in.WebAdminSource+".")
 		}
 	}
 	if in.RDPOn {
 		if in.RDPSource == "any" {
-			add(Warn, "Remote desktop accepts connections from any address", "Limit it to your network: diparnux remote-desktop on --from lan.")
+			add(Warn, "Remote desktop accepts connections from any address", "Limit it to your network: opereta remote-desktop on --from lan.")
 		} else {
 			add(Info, "Remote desktop is on", "Allowed from "+in.RDPSource+".")
 		}

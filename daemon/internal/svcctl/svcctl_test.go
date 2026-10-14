@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 type runner struct {
@@ -20,8 +20,8 @@ func (r *runner) Run(ctx context.Context, c platform.Command) (platform.Result, 
 	return platform.Result{Stdout: []byte(r.out), ExitCode: r.exit, Stderr: []byte(r.stderr)}, nil
 }
 
-const showOut = `Id=diparnuxd.service
-Description=Diparnux daemon (diparnuxd)
+const showOut = `Id=operetad.service
+Description=Opereta daemon (operetad)
 LoadState=loaded
 ActiveState=active
 SubState=running
@@ -62,7 +62,7 @@ func TestListMarksMissingUnitsAndLimitsActions(t *testing.T) {
 	for _, s := range list {
 		by[s.Unit] = s
 	}
-	d := by["diparnuxd.service"]
+	d := by["operetad.service"]
 	if d.Active != "active" || d.PID != 812 || d.MemoryMiB != 14 || len(d.Actions) != 0 {
 		t.Fatalf("daemon = %+v", d)
 	}
@@ -98,11 +98,11 @@ func TestDoOnlyAllowedActionsOnAllowedUnits(t *testing.T) {
 		t.Fatalf("call = %q", last)
 	}
 	for _, tc := range []struct{ unit, action string }{
-		{"diparnuxd.service", "stop"}, // 데몬은 자기 자신을 멈추지 못한다
-		{"diparnuxd.service", "restart"},
-		{"cron.service", "stop"},             // 허용 목록 밖
-		{"ssh.service", "mask"},              // 허용 동작 밖
-		{"diparnux-llama.service", "enable"}, // 부팅 때 시작은 autostart 설정이 맡는다
+		{"operetad.service", "stop"}, // 데몬은 자기 자신을 멈추지 못한다
+		{"operetad.service", "restart"},
+		{"cron.service", "stop"},            // 허용 목록 밖
+		{"ssh.service", "mask"},             // 허용 동작 밖
+		{"opereta-llama.service", "enable"}, // 부팅 때 시작은 autostart 설정이 맡는다
 		{"ssh.service; reboot", "start"},
 	} {
 		before := len(r.calls)

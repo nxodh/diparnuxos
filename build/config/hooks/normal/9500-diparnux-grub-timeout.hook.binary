@@ -1,8 +1,0 @@
-#!/bin/sh
-# live-build 의 GRUB 템플릿에는 timeout 이 없어 메뉴에서 키 입력을 무한 대기한다.
-# 5초 뒤 기본 항목으로 부팅하게 한다. 바이너리 훅은 binary/ 를 현재 디렉터리로 실행된다.
-set -e
-
-printf '\nset timeout=5\n' >> boot/grub/config.cfg
-# 로고의 흑백 두 색에 맞춘 메뉴 색이다(설치된 시스템은 diparnux-branding 의 grub.d 조각이 같은 값을 쓴다).
-printf 'set color_normal=light-gray/black\nset color_highlight=black/light-gray\nset menu_color_normal=light-gray/black\nset menu_color_highlight=black/light-gray\n' >> boot/grub/config.cfg

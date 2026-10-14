@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/llamastats"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/llamastats"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // serverStatsView 는 GET /v1/server/stats 의 응답이다.

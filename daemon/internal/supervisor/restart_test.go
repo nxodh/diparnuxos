@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
 )
 
 // killServer 는 돌던 서버가 예상 밖으로 죽은 것처럼 만들고 감시를 한 번 돌린다.

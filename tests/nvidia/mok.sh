@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# diparnux-mok 를 명령 스텁으로 확인한다. 실제 dkms, mokutil, UEFI 는 쓰지 않는다.
+# opereta-mok 를 명령 스텁으로 확인한다. 실제 dkms, mokutil, UEFI 는 쓰지 않는다.
 set -Eeuo pipefail
 trap 'echo "FAIL: mok test at line $LINENO: $BASH_COMMAND" >&2' ERR
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SCRIPT="$ROOT/packages/diparnux-nvidia/src/diparnux-mok.sh"
+SCRIPT="$ROOT/packages/opereta-nvidia/src/opereta-mok.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 BIN="$WORK/bin"
@@ -38,10 +38,10 @@ STUB
 chmod 755 "$BIN"/*
 
 export PATH="$BIN:$PATH" STUB_LOG="$LOG" STUB_KEYS="$KEYS"
-export DIPARNUX_MOK_KEY_DIR="$KEYS" DIPARNUX_MOK_KERNEL=6.12.99-test
+export OPERETA_MOK_KEY_DIR="$KEYS" OPERETA_MOK_KERNEL=6.12.99-test
 echo 'quiet splash' > "$WORK/cmdline-installed"
 echo 'boot=live components quiet' > "$WORK/cmdline-live"
-run() { DIPARNUX_MOK_CMDLINE="$1" sh "$SCRIPT" "${@:2}"; }
+run() { OPERETA_MOK_CMDLINE="$1" sh "$SCRIPT" "${@:2}"; }
 # 호출 기록에 패턴이 없어야 한다.
 not_called() {
     if grep -q -- "$1" "$LOG"; then
@@ -117,4 +117,4 @@ echo 'PASS: missing machine key is an error'
 if STUB_DKMS_STATUS='other/1.0, 6.12.99-test, x86_64: installed' run "$WORK/cmdline-installed" enroll >/dev/null 2>"$WORK/err"; then echo 'FAIL: no nvidia module must fail' >&2; exit 1; fi
 grep -q 'no NVIDIA DKMS module' "$WORK/err"
 echo 'PASS: no NVIDIA module is an error'
-echo 'PASS: diparnux-mok'
+echo 'PASS: opereta-mok'

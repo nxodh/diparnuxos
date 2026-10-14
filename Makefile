@@ -1,17 +1,17 @@
-# Diparnux 빌드 진입점. 버전과 저장소 값은 diparnux.conf 에서만 읽는다.
+# Opereta 빌드 진입점. 버전과 저장소 값은 opereta.conf 에서만 읽는다.
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-DIPARNUX_CONF := $(ROOT)/diparnux.conf
-export DIPARNUX_CONF
+OPERETA_CONF := $(ROOT)/opereta.conf
+export OPERETA_CONF
 
-DIPARNUX_VERSION := $(shell . "$(DIPARNUX_CONF)" && printf '%s' "$$DIPARNUX_VERSION")
-ISO ?= $(ROOT)/out/diparnux-$(DIPARNUX_VERSION)-amd64.iso
+OPERETA_VERSION := $(shell . "$(OPERETA_CONF)" && printf '%s' "$$OPERETA_VERSION")
+ISO ?= $(ROOT)/out/opereta-$(OPERETA_VERSION)-amd64.iso
 
-SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name diparnux-panel-net -o -name diparnux-session-setup -o -name 55diparnux-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
+SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name opereta-panel-net -o -name opereta-session-setup -o -name 55opereta-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-vedecaps-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-release-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-vedecaps-docker
 
-# Docker 안에서 ISO 를 빌드한다. diparnux-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
+# Docker 안에서 ISO 를 빌드한다. opereta-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
 	bash "$(ROOT)/scripts/build-in-docker.sh"
 
@@ -23,7 +23,7 @@ iso-native:
 deb:
 	bash "$(ROOT)/scripts/build-debs.sh"
 
-# llama.cpp 를 Docker 안에서 빌드해 out/llama/ 에 diparnux-llm .deb 를 만든다. 입력이 같으면 건너뛴다.
+# llama.cpp 를 Docker 안에서 빌드해 out/llama/ 에 opereta-llm .deb 를 만든다. 입력이 같으면 건너뛴다.
 # 로컬 CPU 스모크 빌드: LLAMA_CUDA=OFF LLAMA_PLATFORM=linux/arm64 make llama (산출물은 검사 뒤 지운다. llama/README.md 참고)
 llama:
 	bash "$(ROOT)/scripts/build-llama-in-docker.sh"
@@ -61,6 +61,10 @@ test-network-docker:
 	bash "$(ROOT)/scripts/test-network-in-docker.sh"
 
 # 서명된 자체 APT 저장소를 만들고 apt 가 서명 검증, 변조 거절, 우선순위를 지키는지 컨테이너에서 확인한다.
+# 릴리스 자산(ISO, 평평한 업데이트 저장소, 체크섬)을 모으는 스크립트를 컨테이너에서 확인한다.
+test-release-docker:
+	bash "$(ROOT)/scripts/test-release-in-docker.sh"
+
 test-apt-repo-docker:
 	bash "$(ROOT)/scripts/test-apt-repo-in-docker.sh"
 
@@ -68,11 +72,11 @@ test-apt-repo-docker:
 test-installer-config-docker:
 	bash "$(ROOT)/scripts/test-installer-config-in-docker.sh"
 
-# 실제 apt 와 dpkg 로 diparnux-update 의 갱신, 롤백, 실패 복구를 컨테이너에서 확인한다.
+# 실제 apt 와 dpkg 로 opereta-update 의 갱신, 롤백, 실패 복구를 컨테이너에서 확인한다.
 test-update-docker:
 	bash "$(ROOT)/scripts/test-update-in-docker.sh"
 
-# 실제 Vedecaps 실행 파일(고정 버전)을 Diparnux 게이트웨이와 가짜 모델 서버에 붙여 연결과 키 규칙을 컨테이너에서 확인한다.
+# 실제 Vedecaps 실행 파일(고정 버전)을 Opereta 게이트웨이와 가짜 모델 서버에 붙여 연결과 키 규칙을 컨테이너에서 확인한다.
 test-vedecaps-docker:
 	bash "$(ROOT)/scripts/test-vedecaps-in-docker.sh"
 
@@ -100,7 +104,7 @@ test-daemon:
 test-nvidia-image-docker:
 	bash "$(ROOT)/scripts/test-nvidia-image-in-docker.sh" "$(ISO)"
 
-# ISO 의 로그인 프롬프트와 GPU 진단 줄(Diparnux GPU [no_gpu]:)을 QEMU 직렬 콘솔에서 확인한다.
+# ISO 의 로그인 프롬프트와 GPU 진단 줄(Opereta GPU [no_gpu]:)을 QEMU 직렬 콘솔에서 확인한다.
 test-qemu:
 	bash "$(ROOT)/tests/qemu/boot-smoke.sh" "$(ISO)"
 
@@ -135,7 +139,7 @@ test-qemu-install-docker:
 	bash "$(ROOT)/scripts/test-qemu-install-in-docker.sh" "$(ISO)"
 
 # 산출물(out/)과 빌드된 .deb 를 지운다. out/llama 는 빌드가 오래 걸리므로 남긴다(clean-llama 로 지운다).
-# 작업 디렉터리(/var/tmp/diparnux-build)는 지우지 않는다.
+# 작업 디렉터리(/var/tmp/opereta-build)는 지우지 않는다.
 clean:
 	@if [ -d "$(ROOT)/out" ]; then find "$(ROOT)/out" -mindepth 1 -maxdepth 1 ! -name llama -exec rm -rf {} +; fi
 	find "$(ROOT)/build/config/packages.chroot" -name '*.deb' -delete

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/netconf"
+	"github.com/nxodh/operetaos/daemon/internal/netconf"
 )
 
 // NetConfManager 는 유선 IP 설정, 호스트 이름, 깨우기, 진단이다. *netconf.Manager 가 만족한다.

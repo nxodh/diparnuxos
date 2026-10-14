@@ -8,26 +8,26 @@
 ## 구조
 
 ```
-외부 컴퓨터 ──(키)──> 공개 포트 8080: diparnuxd 게이트웨이 ──> llama-server 127.0.0.1:18080
+외부 컴퓨터 ──(키)──> 공개 포트 8080: operetad 게이트웨이 ──> llama-server 127.0.0.1:18080
 ```
 
-- 공개 포트(`port`, 기본 8080)는 `diparnuxd` 가 받는다. llama-server 는 내부 포트(`internal_port`, 기본 18080)에서 `127.0.0.1` 로만 듣는다.
+- 공개 포트(`port`, 기본 8080)는 `operetad` 가 받는다. llama-server 는 내부 포트(`internal_port`, 기본 18080)에서 `127.0.0.1` 로만 듣는다.
 - 게이트웨이가 API 키를 확인하므로 **키를 만들고 지워도 서버를 다시 시작하지 않는다**(키 캐시 2초).
 - `/health`, `/v1/health` 는 키 없이 열려 있다. 나머지는 키가 하나라도 있으면 키가 필요하다. LAN 공개 상태에서 키가 없으면 모든 요청을 거부한다.
 - **이 컴퓨터의 요청은 키 없이 통과한다**(0.5.3, `local_no_key`, 기본 켬). 출발지가 루프백이거나 이 컴퓨터의 인터페이스 주소인 요청이며, 키를 내면 그 키로 사용량을 센다.
-  다른 컴퓨터는 항상 키가 필요하다. 여러 사람이 쓰는 컴퓨터에서는 `diparnux config set local-no-key off` 로 끈다.
-- 모든 응답에 `X-Diparnux: <버전>` 이 붙고, 키 없이 읽는 `GET /diparnux/info` 가 버전, 서버 상태, 모델 이름, 요청당 컨텍스트, 슬롯 수를 낸다(경로와 설정은 담지 않는다).
+  다른 컴퓨터는 항상 키가 필요하다. 여러 사람이 쓰는 컴퓨터에서는 `opereta config set local-no-key off` 로 끈다.
+- 모든 응답에 `X-Opereta: <버전>` 이 붙고, 키 없이 읽는 `GET /opereta/info` 가 버전, 서버 상태, 모델 이름, 요청당 컨텍스트, 슬롯 수를 낸다(경로와 설정은 담지 않는다).
 - 키는 `Authorization: Bearer <키>` 또는 `X-Api-Key` 로 보낸다. 키는 llama-server 로 넘기지 않는다.
-- 스트리밍(SSE)은 그대로 통과한다. 키별 요청 수, 오류 수, 토큰 수, 마지막 사용은 `/var/lib/diparnux/api-usage.json`(0600)에 남는다. 요청 본문은 읽거나 저장하지 않는다.
-- 게이트웨이를 끄면(`diparnux config set gateway off`) 예전처럼 llama-server 가 공개 포트를 직접 받고 키 파일을 시작할 때 한 번 읽는다. 서버를 다시 시작해야 반영된다.
+- 스트리밍(SSE)은 그대로 통과한다. 키별 요청 수, 오류 수, 토큰 수, 마지막 사용은 `/var/lib/opereta/api-usage.json`(0600)에 남는다. 요청 본문은 읽거나 저장하지 않는다.
+- 게이트웨이를 끄면(`opereta config set gateway off`) 예전처럼 llama-server 가 공개 포트를 직접 받고 키 파일을 시작할 때 한 번 읽는다. 서버를 다시 시작해야 반영된다.
 
 ## 연결 정보
 
 ```sh
-diparnux connection            # 주소(IPv4, <호스트>.local), 키 필요 여부, 경고
-diparnux connection examples   # curl, OpenAI Python, 환경 변수 예시
-diparnux gateway               # 게이트웨이 상태와 키별 사용량
-diparnux apikey create orca    # 키는 만들 때 한 번만 보인다
+opereta connection            # 주소(IPv4, <호스트>.local), 키 필요 여부, 경고
+opereta connection examples   # curl, OpenAI Python, 환경 변수 예시
+opereta gateway               # 게이트웨이 상태와 키별 사용량
+opereta apikey create orca    # 키는 만들 때 한 번만 보인다
 ```
 
 제어 센터의 **연결** 페이지에도 같은 정보가 있다(복사 단추, 연결 확인, 키별 사용량, 안전 점검).
@@ -36,8 +36,8 @@ diparnux apikey create orca    # 키는 만들 때 한 번만 보인다
 ## 동시 요청(병렬 슬롯)
 
 ```sh
-diparnux config set parallel 2          # 1~16, auto 로 되돌림
-diparnux serve plan --parallel 4 --ctx 4096
+opereta config set parallel 2          # 1~16, auto 로 되돌림
+opereta serve plan --parallel 4 --ctx 4096
 ```
 
 - 슬롯 수를 정하지 않으면(기본, `auto`) llama-server 가 스스로 정한다. 고정 커밋에서는 슬롯 4개가 **하나의 컨텍스트를 나눠 쓴다**(통합 KV, QEMU 실측 `total_slots=4`).
@@ -48,10 +48,10 @@ diparnux serve plan --parallel 4 --ctx 4096
 
 ## 서버 현황과 운영
 
-- `diparnux serve stats`: 사용 중인 슬롯, 생성·입력 속도, 처리 중·대기 요청, 게이트웨이 집계. 데몬이 서버의 `/slots`, `/metrics` 를 **요청할 때만** 읽는다(상주 수집기 없음).
-- **자동 재시작**: 서버가 예상 밖으로 멈추면 데몬이 10초, 30초, 2분, 5분, 15분 뒤에 다시 시작하고 모두 실패하면 멈춘다(`diparnux config set auto-restart on|off`, 기본 켬). 10분 넘게 돌면 횟수를 잊는다. 사용자가 멈춘 서버는 다시 시작하지 않는다. 마지막 오류와 진행은 `diparnux status`, 제어 센터에 나온다.
-- **모델 가져오기**: `diparnux model import <파일.gguf> [--name 이름]`. 파일은 CLI 가 사용자 권한으로 읽어 데몬에 스트리밍한다(읽을 수 있는 파일만 가져온다). SHA-256 을 계산하고 GGUF 머리글을 확인하며 같은 이름은 덮어쓰지 않는다. 처음 가져온 모델이 기본 모델이 된다.
-- **노출 점검**: `diparnux exposure`. LAN 공개와 키, SSH 비밀번호 로그인, 웹 관리·원격 데스크톱의 허용 범위, 사용자 규칙이 연 포트를 점검하고 위험한 것을 먼저 보인다. 경고나 오류가 있으면 종료 코드 1.
+- `opereta serve stats`: 사용 중인 슬롯, 생성·입력 속도, 처리 중·대기 요청, 게이트웨이 집계. 데몬이 서버의 `/slots`, `/metrics` 를 **요청할 때만** 읽는다(상주 수집기 없음).
+- **자동 재시작**: 서버가 예상 밖으로 멈추면 데몬이 10초, 30초, 2분, 5분, 15분 뒤에 다시 시작하고 모두 실패하면 멈춘다(`opereta config set auto-restart on|off`, 기본 켬). 10분 넘게 돌면 횟수를 잊는다. 사용자가 멈춘 서버는 다시 시작하지 않는다. 마지막 오류와 진행은 `opereta status`, 제어 센터에 나온다.
+- **모델 가져오기**: `opereta model import <파일.gguf> [--name 이름]`. 파일은 CLI 가 사용자 권한으로 읽어 데몬에 스트리밍한다(읽을 수 있는 파일만 가져온다). SHA-256 을 계산하고 GGUF 머리글을 확인하며 같은 이름은 덮어쓰지 않는다. 처음 가져온 모델이 기본 모델이 된다.
+- **노출 점검**: `opereta exposure`. LAN 공개와 키, SSH 비밀번호 로그인, 웹 관리·원격 데스크톱의 허용 범위, 사용자 규칙이 연 포트를 점검하고 위험한 것을 먼저 보인다. 경고나 오류가 있으면 종료 코드 1.
 
 ## 코딩 에이전트와 함께 쓰기
 

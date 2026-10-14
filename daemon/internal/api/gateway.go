@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/gateway"
 )
 
 // GatewayView 는 게이트웨이의 상태와 통계다. *gateway.Manager 가 만족한다.

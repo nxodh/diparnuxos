@@ -77,8 +77,8 @@ func TestStatusDecodesAndKeepsRawBody(t *testing.T) {
 }
 
 func TestCreateAPIKeyDecodesRestartRequired(t *testing.T) {
-	const key = "dpx_api-key-once"
-	body := fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"dpx_api-","created":"2026-10-11T09:00:00Z","key":%q,"note":"shown once","restart_required":true}`, key)
+	const key = "opr_api-key-once"
+	body := fmt.Sprintf(`{"id":"k1","label":"laptop","prefix":"opr_api-","created":"2026-10-11T09:00:00Z","key":%q,"note":"shown once","restart_required":true}`, key)
 	created, raw, err := New(newSocketServer(t, writeJSONHandler(http.StatusCreated, body))).CreateAPIKey(context.Background(), "laptop")
 	if err != nil {
 		t.Fatal("CreateAPIKey:", err)

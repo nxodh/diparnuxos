@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/wireguard"
+	"github.com/nxodh/operetaos/daemon/internal/wireguard"
 )
 
 // VPNManager 는 WireGuard VPN 이다. *wireguard.Manager 가 만족한다.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Diparnux APT 저장소 서명 키를 만든다. 개인 키는 이 저장소 밖(GNUPGHOME)에 두고, 공개 키만 keys/ 에 내보낸다.
+# Opereta APT 저장소 서명 키를 만든다. 개인 키는 이 저장소 밖(GNUPGHOME)에 두고, 공개 키만 keys/ 에 내보낸다.
 #
 #   scripts/apt-keygen.sh /path/to/private-gnupg-home
 #
@@ -10,7 +10,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOME_DIR="${1:-}"
-KEYS_DIR="${DIPARNUX_KEYS_DIR:-${ROOT}/keys}"
+KEYS_DIR="${OPERETA_KEYS_DIR:-${ROOT}/keys}"
 die() { echo "apt-keygen: $*" >&2; exit 2; }
 [[ -n "$HOME_DIR" ]] || die "usage: $0 /path/to/private-gnupg-home"
 command -v docker >/dev/null 2>&1 || die "docker is required"
@@ -29,13 +29,13 @@ apt-get update -qq >/dev/null
 apt-get install -y -qq --no-install-recommends gnupg >/dev/null
 export GNUPGHOME=/gnupg
 chmod 700 /gnupg
-gpg --batch --pinentry-mode loopback --passphrase "" --quick-generate-key "Diparnux Archive Signing Key <noreply@users.noreply.github.com>" ed25519 sign 5y
+gpg --batch --pinentry-mode loopback --passphrase "" --quick-generate-key "Opereta Archive Signing Key <noreply@users.noreply.github.com>" ed25519 sign 5y
 fpr="$(gpg --batch --with-colons --list-secret-keys | awk -F: "/^fpr:/ {print \$10; exit}")"
-gpg --batch --export "$fpr" > /keys/diparnux-archive-keyring.pgp
-gpg --batch --armor --export "$fpr" > /keys/diparnux-archive-keyring.asc
-echo "$fpr" > /keys/diparnux-archive-keyring.fingerprint
+gpg --batch --export "$fpr" > /keys/opereta-archive-keyring.pgp
+gpg --batch --armor --export "$fpr" > /keys/opereta-archive-keyring.asc
+echo "$fpr" > /keys/opereta-archive-keyring.fingerprint
 chown -R "$(stat -c %u:%g /keys)" /keys
 echo "key fingerprint: $fpr"
 '
-echo "apt-keygen: the public key was written to ${KEYS_DIR}/diparnux-archive-keyring.pgp (binary) and .asc (armored)."
+echo "apt-keygen: the public key was written to ${KEYS_DIR}/opereta-archive-keyring.pgp (binary) and .asc (armored)."
 echo "apt-keygen: the private key is in $HOME_DIR. It has an empty passphrase; protect the directory or add a passphrase with gpg --edit-key."

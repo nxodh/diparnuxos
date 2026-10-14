@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/certstore"
+	"github.com/nxodh/operetaos/daemon/internal/certstore"
 )
 
 func freeAddr(t *testing.T) (string, int) {
@@ -151,8 +151,8 @@ func TestTLSListenerSharesTheHandlerAndNeverRedirects(t *testing.T) {
 	if tlsResp.StatusCode != 200 || plainResp.StatusCode != 200 {
 		t.Fatalf("status tls=%d plain=%d body=%s", tlsResp.StatusCode, plainResp.StatusCode, body)
 	}
-	if tlsResp.Header.Get("X-Diparnux") != "0.5.4-test" || plainResp.Header.Get("X-Diparnux") != "0.5.4-test" {
-		t.Fatalf("X-Diparnux: tls=%q plain=%q", tlsResp.Header.Get("X-Diparnux"), plainResp.Header.Get("X-Diparnux"))
+	if tlsResp.Header.Get("X-Opereta") != "0.5.4-test" || plainResp.Header.Get("X-Opereta") != "0.5.4-test" {
+		t.Fatalf("X-Opereta: tls=%q plain=%q", tlsResp.Header.Get("X-Opereta"), plainResp.Header.Get("X-Opereta"))
 	}
 	// 리다이렉트가 없다: 3xx 도 Location 도 아니다.
 	for name, r := range map[string]*http.Response{"tls": tlsResp, "plain": plainResp} {
@@ -177,7 +177,7 @@ func TestTLSListenerSharesTheHandlerAndNeverRedirects(t *testing.T) {
 // U9: 키 규칙이 두 리스너에서 같다.
 func TestTLSListenerAppliesTheSameKeyRules(t *testing.T) {
 	keys := &fakeKeys{}
-	secret := "dpx_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	secret := "opr_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	keys.set(keyFor("k1", "laptop", secret))
 	rig := newTLSRig(t, keys)
 	rig.setRunning(true)

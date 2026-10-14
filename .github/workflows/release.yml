@@ -1,0 +1,220 @@
+# Opereta 릴리스
+#
+# 태그(v<버전>)를 푸시하면 ISO 와 OS 업데이트 저장소를 만들어 GitHub 릴리스로 게시한다.
+# 태그는 `main` 에 병합되어 CI(iso 워크플로)가 통과한 커밋에만 붙인다. 이 워크플로가 그 조건을 확인한다.
+# 절차와 서명 키 준비는 docs/releases.md 에 있다.
+#
+# 서명 키(저장소 비밀 값 OPERETA_APT_SIGNING_KEY)가 없으면 ISO 만 게시하고 OS 업데이트 저장소는 만들지 않는다.
+# 서명되지 않은 저장소는 올리지 않는다. 개인 키는 이 저장소에 두지 않는다.
+#
+# 액션 버전은 iso.yml 과 같은 방식으로 최신 릴리스 태그와 그 커밋 SHA 로 고정했다.
+#   actions/checkout v7.0.1, actions/cache v6.1.0, actions/upload-artifact v7.0.2, actions/download-artifact v8.0.2
+
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish again (for example v0.6.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  verify:
+    name: verify tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - name: Check out the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Tag matches the version, is on main, and its CI passed
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          . ./opereta.conf
+          if [ "${TAG}" != "v${OPERETA_VERSION}" ]; then
+            echo "::error::tag ${TAG} does not match OPERETA_VERSION ${OPERETA_VERSION} in opereta.conf"
+            exit 1
+          fi
+          sha="$(git rev-parse HEAD)"
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${sha}" origin/main; then
+            echo "::error::${TAG} (${sha}) is not on main. Merge the release commit into main first."
+            exit 1
+          fi
+          # 같은 커밋에서 iso 워크플로(린트, ISO, 부팅·설치 E2E)가 성공했는지 본다.
+          ok="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/iso.yml/runs?head_sha=${sha}&status=success&per_page=5" --jq '.total_count')"
+          if [ "${ok}" = "0" ]; then
+            echo "::error::no successful iso workflow run for ${sha}. Wait for CI on main, or fix it, before publishing."
+            exit 1
+          fi
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+          echo "tag ${TAG} -> ${sha}; CI passed (${ok} successful run(s))"
+
+  build:
+    name: build ISO and update repository
+    needs: verify
+    runs-on: ubuntu-24.04
+    # CUDA 캐시가 없으면 llama.cpp 를 다시 컴파일한다(약 1시간). iso.yml 과 같은 한도를 둔다.
+    timeout-minutes: 180
+    steps:
+      - name: Check out the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      # 키는 현재 단계의 임시 GNUPGHOME 에만 풀고 로그에 쓰지 않는다. 비밀 값이 없으면 이 단계는 아무것도 하지 않는다.
+      - name: Import the update repository signing key
+        id: signing
+        env:
+          OPERETA_APT_SIGNING_KEY: ${{ secrets.OPERETA_APT_SIGNING_KEY }}
+          OPERETA_APT_SIGNING_PASSPHRASE: ${{ secrets.OPERETA_APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPERETA_APT_SIGNING_KEY}" ]; then
+            echo "::warning::OPERETA_APT_SIGNING_KEY is not set; the release will carry the ISO only and installed systems cannot update to it."
+            exit 0
+          fi
+          home="${RUNNER_TEMP}/apt-gnupg"
+          mkdir -m 700 "${home}"
+          printf '%s' "${OPERETA_APT_SIGNING_KEY}" | GNUPGHOME="${home}" gpg --batch --quiet --import
+          fpr="$(GNUPGHOME="${home}" gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/ {print $10; exit}')"
+          [ -n "${fpr}" ] || { echo "::error::the signing key could not be imported"; exit 1; }
+          if [ -n "${OPERETA_APT_SIGNING_PASSPHRASE}" ]; then
+            ( umask 077; printf '%s' "${OPERETA_APT_SIGNING_PASSPHRASE}" > "${RUNNER_TEMP}/apt-passphrase" )
+            echo "OPERETA_APT_PASSPHRASE_FILE=${RUNNER_TEMP}/apt-passphrase" >> "${GITHUB_ENV}"
+          fi
+          echo "OPERETA_APT_GNUPGHOME=${home}" >> "${GITHUB_ENV}"
+          echo "OPERETA_APT_KEY_ID=${fpr}" >> "${GITHUB_ENV}"
+          echo "signing key ${fpr} imported"
+
+      - name: Enable KVM (best effort)
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          fi
+
+      # main 의 CI 가 같은 입력으로 만든 CUDA 산출물을 쓴다(키는 iso.yml 과 같다). 없으면 새로 컴파일한다.
+      - name: Restore llama.cpp build output
+        id: llama-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/llama
+          key: llama-${{ runner.os }}-${{ hashFiles('llama/**', '!llama/README.md', 'opereta.conf') }}
+
+      - name: Build llama.cpp package (opereta-llm)
+        run: make llama
+
+      - name: Save verified llama.cpp package
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/llama
+          key: ${{ steps.llama-cache.outputs.cache-primary-key }}
+
+      - name: Build ISO
+        run: make iso
+
+      # 전체 E2E 는 main 의 CI 가 이미 통과했다(verify 단계가 확인한다). 여기서는 만든 ISO 가 부팅하는지만 본다.
+      - name: Check NVIDIA modules and image policy
+        run: make test-nvidia-image-docker
+
+      - name: Boot test (UEFI, serial login prompt)
+        run: make test-qemu-docker
+
+      - name: Collect release assets
+        run: bash scripts/make-release-assets.sh
+
+      - name: Remove the signing key material
+        if: always()
+        run: |
+          rm -rf "${RUNNER_TEMP}/apt-gnupg" "${RUNNER_TEMP}/apt-passphrase"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: opereta-release
+          path: out/release/
+          if-no-files-found: error
+          retention-days: 3
+          # ISO 는 이미 압축된 파일이다.
+          compression-level: 0
+
+  publish:
+    name: publish GitHub release
+    needs: [verify, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      # 릴리스를 만드는 쓰기 권한은 이 작업에만 있다.
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: opereta-release
+          path: release
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ needs.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cd release
+          (sha256sum -c SHA256SUMS > /dev/null) || { echo "::error::SHA256SUMS does not verify"; exit 1; }
+          version="${TAG#v}"
+          iso="opereta-${version}-amd64.iso"
+          sha="$(cut -d' ' -f1 "${iso}.sha256")"
+          if [ -s InRelease ]; then
+            channel="이 릴리스는 OS 업데이트 저장소를 포함한다. 설치된 시스템은 \`opereta update\` 로 이 버전을 받는다(서명 검증)."
+          else
+            channel='이 릴리스에는 OS 업데이트 저장소가 없다(서명 키가 설정되지 않았다). ISO 로만 설치할 수 있다.'
+          fi
+          notes="${RUNNER_TEMP}/notes.md"
+          {
+            echo "Opereta ${version}"
+            echo
+            echo "- ISO: \`${iso}\`"
+            echo "- SHA-256: \`${sha}\`"
+            echo "- ${channel}"
+            echo "- 실기 검증 범위와 알려진 한계는 저장소의 \`docs/support-matrix.md\` 와 \`docs/verification-*.md\` 를 본다."
+            echo "- 소스 커밋: \`${SOURCE_SHA}\`"
+          } > "${notes}"
+          flags=()
+          case "${TAG}" in *-*) flags+=(--prerelease) ;; esac
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "release ${TAG} already exists; uploading missing assets only"
+            gh release upload "${TAG}" ./* --clobber
+          else
+            gh release create "${TAG}" --verify-tag --title "Opereta ${version}" --notes-file "${notes}" "${flags[@]}" ./*
+          fi

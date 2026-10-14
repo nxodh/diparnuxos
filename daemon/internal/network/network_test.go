@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // managedJSON 은 실제 busctl --json=short 가 낸 GetManagedObjects 출력의 모양이다(tests/network/fake_iwd.py 로 확인).

@@ -1,4 +1,4 @@
-// Package client는 diparnuxd 의 REST API 를 유닉스 소켓으로 호출하는 클라이언트다.
+// Package client는 operetad 의 REST API 를 유닉스 소켓으로 호출하는 클라이언트다.
 //
 // 메서드마다 경로와 응답 타입이 하나씩 있다. 응답 타입은 internal/api 의 JSON 모양과 같은 태그를 쓴다.
 // api 패키지는 뷰 타입을 내보내지 않으므로 여기에 같은 모양을 다시 정의한다.
@@ -29,11 +29,11 @@ const (
 // 연결 실패를 구분하는 오류다. errors.Is 로 확인한다.
 var (
 	// ErrUnavailable 은 소켓이 없거나 데몬이 연결을 받지 않을 때 돌려준다.
-	ErrUnavailable = errors.New("diparnuxd is not reachable")
+	ErrUnavailable = errors.New("operetad is not reachable")
 	// ErrPermission 은 소켓에 연결할 권한이 없을 때 돌려준다.
-	ErrPermission = errors.New("permission denied on the diparnuxd socket")
+	ErrPermission = errors.New("permission denied on the operetad socket")
 	// ErrTooLarge 는 응답 본문이 상한을 넘을 때 돌려준다.
-	ErrTooLarge = errors.New("response from diparnuxd is larger than the limit")
+	ErrTooLarge = errors.New("response from operetad is larger than the limit")
 )
 
 // APIError 는 데몬이 {"error":{"code","message"}} 형태로 돌려준 오류다.
@@ -51,7 +51,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s: %s (HTTP %d)", e.Code, e.Message, e.Status)
 }
 
-// Client 는 diparnuxd 소켓에 연결하는 API 클라이언트다. 여러 고루틴에서 같이 써도 된다.
+// Client 는 operetad 소켓에 연결하는 API 클라이언트다. 여러 고루틴에서 같이 써도 된다.
 type Client struct {
 	socket string
 	hc     *http.Client
@@ -111,7 +111,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, limit in
 		}
 		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://diparnuxd"+path, rd)
+	req, err := http.NewRequestWithContext(ctx, method, "http://operetad"+path, rd)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/accounts"
+	"github.com/nxodh/operetaos/daemon/internal/accounts"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 func TestSSHStatusReflectsConfigAndUnit(t *testing.T) {
@@ -211,10 +211,10 @@ func TestRecommendationsFallBackToRAMWithoutGPU(t *testing.T) {
 // writeReadyStatusFile 은 GPU 한 장이 ready 인 상태 파일을 쓴다.
 func writeReadyStatusFile(t *testing.T, path string) {
 	t.Helper()
-	text := "DIPARNUX_GPU_STATUS=ready\nDIPARNUX_GPU_PRESENT=1\nDIPARNUX_GPU_PCI_COUNT=1\nDIPARNUX_GPU_COUNT=1\n" +
-		"DIPARNUX_GPU_USABLE_COUNT=1\nDIPARNUX_GPU_USABLE_INDEXES=\"0\"\nDIPARNUX_SECURE_BOOT=disabled\n" +
-		"DIPARNUX_DRIVER_VERSION=595.91.07\nDIPARNUX_GPU_MESSAGE=\"ready\"\n" +
-		"DIPARNUX_GPU_0_NAME=\"RTX 3060 Laptop\"\nDIPARNUX_GPU_0_COMPUTE_CAP=8.6\nDIPARNUX_GPU_0_SUPPORTED=1\nDIPARNUX_GPU_0_REASON=ok\n"
+	text := "OPERETA_GPU_STATUS=ready\nOPERETA_GPU_PRESENT=1\nOPERETA_GPU_PCI_COUNT=1\nOPERETA_GPU_COUNT=1\n" +
+		"OPERETA_GPU_USABLE_COUNT=1\nOPERETA_GPU_USABLE_INDEXES=\"0\"\nOPERETA_SECURE_BOOT=disabled\n" +
+		"OPERETA_DRIVER_VERSION=595.91.07\nOPERETA_GPU_MESSAGE=\"ready\"\n" +
+		"OPERETA_GPU_0_NAME=\"RTX 3060 Laptop\"\nOPERETA_GPU_0_COMPUTE_CAP=8.6\nOPERETA_GPU_0_SUPPORTED=1\nOPERETA_GPU_0_REASON=ok\n"
 	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""xfwm4 테마 `Diparnux` 의 이미지를 만든다. 결과는 assets/brand/generated/xfwm4/ 에 쓰고 커밋한다.
+"""xfwm4 테마 `Opereta` 의 이미지를 만든다. 결과는 assets/brand/generated/xfwm4/ 에 쓰고 커밋한다.
 
 실행은 Pillow 가 있는 컨테이너에서 한다(scripts/make-brand-assets.sh 가 함께 부른다).
 색은 docs/design.md 의 흑백 팔레트만 쓴다. xfwm4 테마는 프레임 조각과 버튼 이미지로 이루어진다.
 Debian 의 Default 테마와 같은 파일 이름과 크기를 쓴다(title-1~5: 4x29, 좌우 테두리 5x24, 아래 테두리 24x5,
-모서리 8x29 와 16x16, 버튼 21x29). 모서리는 반지름 6px 의 둥근 모양이며 알파가 창 모양을 정한다.
+모서리 8x29 와 16x16, 버튼 21x29). 모서리는 반지름 8px 의 둥근 모양이며(모서리 조각의 너비가 8 이라 이 값이 한계다) 알파가 창 모양을 정한다.
 """
 
 import os
@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "brand", "generated", "xfwm4")
 
 S = 4  # 안티앨리어싱용 확대 배율
-RADIUS = 6
+RADIUS = 8
 TITLE_H = 29
 BORDER = 5
 FRAME_W, FRAME_H = 80, 100

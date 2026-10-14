@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/exposure"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/exposure"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // getExposure 는 이 컴퓨터가 네트워크에 내놓는 것을 점검한다. 열린 포트는 ss 로 읽고 나머지는 설정에서 모은다.

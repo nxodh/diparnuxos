@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/webadmin"
+	"github.com/nxodh/operetaos/daemon/internal/webadmin"
 )
 
 // WebAdminManager 는 원격 관리 웹 페이지다. *webadmin.Manager 가 만족한다.

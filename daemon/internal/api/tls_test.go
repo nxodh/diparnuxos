@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/certstore"
-	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/certstore"
+	"github.com/nxodh/operetaos/daemon/internal/gateway"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // testTLS 는 실제 certstore 를 쓰는 TLSManager 다. 이름은 고정이다.

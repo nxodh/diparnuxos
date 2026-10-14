@@ -1,4 +1,4 @@
-"""유닉스 소켓 위에서 diparnuxd API 를 흉내 내는 테스트용 서버."""
+"""유닉스 소켓 위에서 operetad API 를 흉내 내는 테스트용 서버."""
 
 import json
 import os
@@ -54,7 +54,7 @@ class FakeDaemon:
         self.routes = dict(routes or {})
         self.calls = []
         self._dir = tempfile.TemporaryDirectory()
-        self.path = os.path.join(self._dir.name, "diparnuxd.sock")
+        self.path = os.path.join(self._dir.name, "operetad.sock")
         self._server = None
 
     def __enter__(self):

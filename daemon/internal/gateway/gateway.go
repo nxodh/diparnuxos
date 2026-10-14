@@ -32,7 +32,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/operetaos/daemon/internal/apikeys"
 )
 
 // KeySource 는 키 목록이다. *apikeys.Store 가 만족한다.
@@ -106,9 +106,9 @@ type Gateway struct {
 	// 이미 로컬 프로세스에 열려 있으므로 로컬 요청에 키를 요구해도 보안 이득이 없고, 같은 컴퓨터의 클라이언트
 	// (자동 감지를 하는 코딩 에이전트 등)가 키 없이 서버를 찾지 못하게 막을 뿐이다. nil 이면 거짓이다.
 	LocalNoKey func() bool
-	// Version 은 모든 응답의 X-Diparnux 헤더와 /diparnux/info 에 담는다.
+	// Version 은 모든 응답의 X-Opereta 헤더와 /opereta/info 에 담는다.
 	Version string
-	// Info 는 /diparnux/info 의 본문이다(키 없이 읽힌다. 모델 경로나 설정은 담지 않는다). nil 이면 이 경로를 모델 서버로 넘긴다.
+	// Info 는 /opereta/info 의 본문이다(키 없이 읽힌다. 모델 경로나 설정은 담지 않는다). nil 이면 이 경로를 모델 서버로 넘긴다.
 	Info func() map[string]any
 
 	localMu   sync.Mutex
@@ -261,9 +261,9 @@ func (g *Gateway) Handler(backend *url.URL) http.Handler {
 		g.mu.Unlock()
 		start := g.now()
 		if g.Version != "" {
-			w.Header().Set("X-Diparnux", g.Version)
+			w.Header().Set("X-Opereta", g.Version)
 		}
-		if g.Info != nil && r.Method == http.MethodGet && r.URL.Path == "/diparnux/info" {
+		if g.Info != nil && r.Method == http.MethodGet && r.URL.Path == "/opereta/info" {
 			writeJSON(w, http.StatusOK, g.Info())
 			return
 		}
@@ -286,7 +286,7 @@ func (g *Gateway) Handler(backend *url.URL) http.Handler {
 			case len(keys) > 0:
 				k, ok := match(keys, presentedKey(r))
 				if !ok {
-					w.Header().Set("WWW-Authenticate", `Bearer realm="diparnux"`)
+					w.Header().Set("WWW-Authenticate", `Bearer realm="opereta"`)
 					g.deny(w, r, start, "invalid_api_key", "a valid API key is required (Authorization: Bearer <key>)")
 					return
 				}
@@ -505,7 +505,7 @@ type Manager struct {
 	Logf     func(format string, args ...any)
 
 	// WantedTLS 는 TLS 리스너가 떠야 하는지와 주소(host:port)를 돌려준다. nil 이면 TLS 를 쓰지 않는다.
-	// TLS 리스너는 평문 리스너와 같은 핸들러를 쓴다(키 규칙, 429, /diparnux/info 가 같다). 리다이렉트는 하지 않는다.
+	// TLS 리스너는 평문 리스너와 같은 핸들러를 쓴다(키 규칙, 429, /opereta/info 가 같다). 리다이렉트는 하지 않는다.
 	WantedTLS func() (enabled bool, listenAddr string)
 	// Cert 는 핸드셰이크에 쓸 서버 인증서를 돌려준다(tls.Config.GetCertificate). 갱신된 인증서는 새 연결부터 쓴다.
 	Cert func(*tls.ClientHelloInfo) (*tls.Certificate, error)

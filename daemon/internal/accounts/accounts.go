@@ -1,7 +1,7 @@
 // Package accounts는 사용자가 정한 이름과 비밀번호로 로그인 계정을 만들고 지운다.
 //
-// diparnuxd 는 ProtectSystem 과 ProtectHome 아래에서 돌아 /etc 와 /home 에 쓸 수 없다. 그래서 실제 작업은
-// 하드닝이 없는 헬퍼(diparnux-user)가 하고, 데몬은 systemd-run --pipe 로 그 헬퍼를 호출한다. 비밀번호는 표준 입력으로만
+// operetad 는 ProtectSystem 과 ProtectHome 아래에서 돌아 /etc 와 /home 에 쓸 수 없다. 그래서 실제 작업은
+// 하드닝이 없는 헬퍼(opereta-user)가 하고, 데몬은 systemd-run --pipe 로 그 헬퍼를 호출한다. 비밀번호는 표준 입력으로만
 // 넘기며 인자, 환경 변수, 파일, 로그에 남기지 않는다.
 package accounts
 
@@ -17,13 +17,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 기본 경로다.
 const (
-	DefaultHelper   = "/usr/lib/diparnux/diparnux-user"
-	DefaultListPath = "/var/lib/diparnux/users.list"
+	DefaultHelper   = "/usr/lib/opereta/opereta-user"
+	DefaultListPath = "/var/lib/opereta/users.list"
 )
 
 // 오류 코드다. API 계층이 HTTP 상태로 바꾼다.
@@ -45,7 +45,7 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
-// Account는 Diparnux 를 통해 만든 계정이다.
+// Account는 Opereta 를 통해 만든 계정이다.
 type Account struct {
 	Name    string `json:"name"`
 	Admin   bool   `json:"admin"`
@@ -79,7 +79,7 @@ func ValidName(name string) bool {
 	if !nameRE.MatchString(name) || reserved[name] {
 		return false
 	}
-	return !strings.HasPrefix(name, "diparnux") && !strings.HasPrefix(name, "systemd")
+	return !strings.HasPrefix(name, "opereta") && !strings.HasPrefix(name, "systemd")
 }
 
 // ValidPassword는 비밀번호가 8~128자의 출력 가능한 문자이고 사용자 이름과 다른지 본다.
@@ -164,7 +164,7 @@ func (m *Manager) Add(ctx context.Context, name, password string, admin bool) er
 	return m.run(ctx, args, []byte(password+"\n"))
 }
 
-// Remove는 Diparnux 가 만든 계정을 지운다. 홈 디렉터리는 남긴다.
+// Remove는 Opereta 가 만든 계정을 지운다. 홈 디렉터리는 남긴다.
 func (m *Manager) Remove(ctx context.Context, name string) error {
 	if !ValidName(name) {
 		return &Error{CodeInvalidUsername, "the user name is not allowed"}
@@ -173,7 +173,7 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 }
 
 // PrepareSSH는 없는 SSH 호스트 키를 만들고 sshd 드롭인을 현재 계정 목록에 맞춘다.
-// diparnuxd 는 /etc 에 쓸 수 없어 이 일도 헬퍼가 한다. SSH 를 켜기 전에 부른다.
+// operetad 는 /etc 에 쓸 수 없어 이 일도 헬퍼가 한다. SSH 를 켜기 전에 부른다.
 func (m *Manager) PrepareSSH(ctx context.Context) error {
 	return m.run(ctx, []string{"ssh-prepare"}, nil)
 }
@@ -203,7 +203,7 @@ func (m *Manager) run(ctx context.Context, helperArgs []string, stdin []byte) er
 // parseResult는 헬퍼가 표준 출력 마지막에 쓴 결과 줄을 읽는다.
 // systemd-run 의 종료 코드에 기대지 않는다. 결과 줄이 없으면 실패다.
 func parseResult(res platform.Result) error {
-	const prefix = "DIPARNUX_USER_RESULT="
+	const prefix = "OPERETA_USER_RESULT="
 	var last string
 	for _, line := range bytes.Split(res.Stdout, []byte("\n")) {
 		if s := strings.TrimSpace(string(line)); strings.HasPrefix(s, prefix) {

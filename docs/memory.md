@@ -3,7 +3,7 @@
 - 확인 날짜: 2026-10-12
 - 상태: 수정 전(0.1.0)의 QEMU 실측값이 있다. 수정 후(0.1.2) 실측값은 미측정이다. 드라이버를 로드한 실기 값은 아직 없다.
 
-Diparnux의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌리는 것이다. 이 문서는 목표치, 측정 방법 초안, 실측값 표를 둔다. 실측값은 QEMU에서 잰 수정 전 값이 있다(3절). 드라이버를 로드한 실기 값은 아직 없다.
+Opereta의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌리는 것이다. 이 문서는 목표치, 측정 방법 초안, 실측값 표를 둔다. 실측값은 QEMU에서 잰 수정 전 값이 있다(3절). 드라이버를 로드한 실기 값은 아직 없다.
 
 ---
 
@@ -12,13 +12,13 @@ Diparnux의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌
 > **2026-10-14: 새 목표를 확정했다(사용자): 유휴 램 상한은 헤드리스(서버 모드) 500 MiB, 데스크톱 모드 800 MiB 이다.** 측정은 `MemTotal - MemAvailable`, 로그인 직후, 추론 요청 없음(`llama-server` 제외)이다.
 > CI 의 QEMU 기준선은 헤드리스 약 374 MiB, 데스크톱 약 679 MiB 이고(3.3절), 데스크톱 E2E 가 이 상한을 넘으면 실패한다(`tests/qemu/desktop-session.py`). 실기(드라이버, NIC)의 값은 아직 없어 확정된 것은 상한이며 달성 여부는 실기에서 재야 한다.
 >
-> **2026-10-12: 아래 램 목표(헤드리스 600 MB, GUI 900 MB)는 사용자가 철회했다**([decisions.md](decisions.md) U13). 0.5.0(Xfce)은 먼저 동작하게 만들고, 그다음 경량화 단계에서 실측을 바탕으로 새 목표를 정한다. 표의 수치는 철회 전 값이며 참고용이다. `llama-server` 제외와 `diparnuxd` 30 MB 이하는 따로 정해지기 전까지 참고로만 둔다.
+> **2026-10-12: 아래 램 목표(헤드리스 600 MB, GUI 900 MB)는 사용자가 철회했다**([decisions.md](decisions.md) U13). 0.5.0(Xfce)은 먼저 동작하게 만들고, 그다음 경량화 단계에서 실측을 바탕으로 새 목표를 정한다. 표의 수치는 철회 전 값이며 참고용이다. `llama-server` 제외와 `operetad` 30 MB 이하는 따로 정해지기 전까지 참고로만 둔다.
 
 | 구분 | 상태 | 목표 (유휴 기준) |
 |---|---|---|
 | 헤드리스 | 그래픽 세션 없음, 부팅 후 multi-user 상태 | **500 MiB 이하**(2026-10-14 확정. 이전: 2026-10-12 에 600 MB 로 완화했다가 철회) |
 | 데스크톱(Xfce, lightdm) | 로그인 직후, Control Center 열림 | **800 MiB 이하**(2026-10-14 확정. 이전 표의 900 MB 는 철회) |
-| `diparnuxd` | 데몬 프로세스 하나 | 30 MB 이하 |
+| `operetad` | 데몬 프로세스 하나 | 30 MB 이하 |
 | `llama-server` | 추론 서버 | **목표에서 제외.** 모델 크기와 컨텍스트에 따라 크게 달라진다. |
 
 - 목표는 유휴 상태(추론 요청이 없을 때)에서 잰다.
@@ -45,7 +45,7 @@ Diparnux의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌
 
 ### 2.3 프로세스 단위
 
-- `diparnuxd`의 RSS와 PSS를 본다. RSS는 공유 라이브러리를 중복 계산하므로 PSS를 함께 본다.
+- `operetad`의 RSS와 PSS를 본다. RSS는 공유 라이브러리를 중복 계산하므로 PSS를 함께 본다.
 - PSS를 읽는 방법은 `/proc/<pid>/smaps_rollup`을 쓴다(확인 필요).
 
 ### 2.4 측정 조건
@@ -68,8 +68,8 @@ Diparnux의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌
 | 헤드리스 유휴 | 600 MB 이하 (당시 목표 300 MB) | 234 MiB (부팅 3분, NIC 없음). 3시간 52분 방치 후 319 MiB로 목표를 넘었다. | 2026-10-11 | 0.1.0 (수정 전) | QEMU 10.0.13 TCG, vCPU 1, 메모리 2G, GPU 없음, 0.1.0 ISO, 수정 전 |
 | 헤드리스 유휴 (드라이버 로드) | 600 MB 이하 | 미측정 | — | — | 실기 NVIDIA GPU 필요 |
 | GUI 유휴 | 900 MB 이하 | 약 634 MiB (Control Center 창과 패널 포함, 단일 값) | 2026-10-12 | 0.2.0 + Phase 3 | QEMU/KVM, vCPU 2, 메모리 4 GiB, GPU 없음, 부팅 직후. 실기 값이 아니다 |
-| `diparnuxd` 유휴 | 30 MB 이하 | 미측정 | — | — | — |
-| 헤드리스 유휴 (수정 후) | 600 MB 이하 | 약 374~384 MiB (목표 이내) | 2026-10-12 | 0.2.0 + Phase 3 | QEMU/KVM, vCPU 2, 메모리 4 GiB, GPU 없음, 로그인 직후 5초, `diparnuxd` 실행 중. 0.1.0 측정과 조건이 달라 직접 비교할 수 없다 |
+| `operetad` 유휴 | 30 MB 이하 | 미측정 | — | — | — |
+| 헤드리스 유휴 (수정 후) | 600 MB 이하 | 약 374~384 MiB (목표 이내) | 2026-10-12 | 0.2.0 + Phase 3 | QEMU/KVM, vCPU 2, 메모리 4 GiB, GPU 없음, 로그인 직후 5초, `operetad` 실행 중. 0.1.0 측정과 조건이 달라 직접 비교할 수 없다 |
 
 ### 3.1 수정 전 측정 기록 (0.1.0, QEMU)
 
@@ -95,8 +95,8 @@ Diparnux의 목표는 램을 최소로 쓰면서 로컬 LLM 추론 서버를 돌
 
 0.1.2에서 바꾼 것:
 
-- journald를 `Storage=volatile`과 `RuntimeMaxUse=16M`으로 제한했다(`build/config/includes.chroot/etc/systemd/journald.conf.d/diparnux.conf`).
-- apt-daily와 apt-daily-upgrade 타이머를 `/dev/null`로 마스크했다. 갱신은 Phase 4의 `diparnux-update`가 맡는다.
+- journald를 `Storage=volatile`과 `RuntimeMaxUse=16M`으로 제한했다(`build/config/includes.chroot/etc/systemd/journald.conf.d/opereta.conf`).
+- apt-daily와 apt-daily-upgrade 타이머를 `/dev/null`로 마스크했다. 갱신은 Phase 4의 `opereta-update`가 맡는다.
 - `--apt-indices false`로 apt 목록을 이미지에서 뺐다. `--apt-source-archives false`로 deb-src를 끈다(`build/auto/config`).
 - ifupdown과 dhcpcd-base를 제거해 DHCP 클라이언트를 systemd-networkd 하나로 줄였다. 이것이 램에 주는 영향은 측정하지 않았다.
 
@@ -120,15 +120,15 @@ CI 실행 38453616075 의 로그에서 가져온 값이다. 조건은 QEMU(KVM �
 
 | 프로세스 | RSS | 비고 |
 |---|---|---|
-| diparnux-control-center | 약 215,000 | Python + GTK4 + libadwaita. 가장 크다 |
+| opereta-control-center | 약 215,000 | Python + GTK4 + libadwaita. 가장 크다 |
 | Xorg | 약 150,000 | |
 | xfdesktop | 약 36,000~44,000 | |
-| diparnuxd | 약 36,000 | 0.1.x 의 30 MB 참고 목표를 조금 넘는다. 시작 직후 33~34 MB |
+| operetad | 약 36,000 | 0.1.x 의 30 MB 참고 목표를 조금 넘는다. 시작 직후 33~34 MB |
 | xfce4-panel | 약 31,700 | |
 | fcitx5 | 약 31,000 | |
 | xfwm4 | 약 30,700 | |
 
-누수 점검(8분): 어느 프로세스도 늘지 않았다(diparnuxd +68 kB, 나머지 0).
+누수 점검(8분): 어느 프로세스도 늘지 않았다(operetad +68 kB, 나머지 0).
 
 **새 램 목표(2026-10-14 사용자가 제안대로 확정)**: 이 값은 "먼저 동작하게, 경량화는 그다음" 방침에 따라 정한 기준선이며 목표가 아니다. 제안은 다음과 같다.
 

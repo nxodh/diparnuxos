@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/firewall"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 func firewallEnv(t *testing.T, sup *fakeSup) *env {

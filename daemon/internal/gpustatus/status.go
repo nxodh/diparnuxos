@@ -1,6 +1,6 @@
-// Package gpustatus reads the GPU diagnosis state file that diparnux-gpu-check writes.
+// Package gpustatus reads the GPU diagnosis state file that opereta-gpu-check writes.
 //
-// The file is /run/diparnux/gpu-status by default. Its format and exit-code contract
+// The file is /run/opereta/gpu-status by default. Its format and exit-code contract
 // are defined in docs/drivers.md, section "GPU 진단 계약". The file is a sequence of
 // KEY=VALUE lines that a shell can source. A value is either bare or wrapped in double
 // quotes. Values are taken literally: no shell expansion is performed.
@@ -17,10 +17,10 @@ import (
 	"strings"
 )
 
-// State is the diagnosis result written to DIPARNUX_GPU_STATUS.
+// State is the diagnosis result written to OPERETA_GPU_STATUS.
 type State string
 
-// The states that diparnux-gpu-check can write.
+// The states that opereta-gpu-check can write.
 const (
 	StateReady             State = "ready"
 	StateNoGPU             State = "no_gpu"
@@ -128,20 +128,20 @@ func Parse(r io.Reader) (Status, error) {
 // keyPattern accepts shell variable names only.
 var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// gpuKeyPattern matches the per-GPU keys, such as DIPARNUX_GPU_0_NAME.
-var gpuKeyPattern = regexp.MustCompile(`^DIPARNUX_GPU_([0-9]+)_(NAME|COMPUTE_CAP|SUPPORTED|REASON)$`)
+// gpuKeyPattern matches the per-GPU keys, such as OPERETA_GPU_0_NAME.
+var gpuKeyPattern = regexp.MustCompile(`^OPERETA_GPU_([0-9]+)_(NAME|COMPUTE_CAP|SUPPORTED|REASON)$`)
 
 // topKeys lists the top-level keys that the script always writes.
 var topKeys = map[string]bool{
-	"DIPARNUX_GPU_STATUS":         true,
-	"DIPARNUX_GPU_PRESENT":        true,
-	"DIPARNUX_GPU_PCI_COUNT":      true,
-	"DIPARNUX_GPU_COUNT":          true,
-	"DIPARNUX_GPU_USABLE_COUNT":   true,
-	"DIPARNUX_GPU_USABLE_INDEXES": true,
-	"DIPARNUX_SECURE_BOOT":        true,
-	"DIPARNUX_DRIVER_VERSION":     true,
-	"DIPARNUX_GPU_MESSAGE":        true,
+	"OPERETA_GPU_STATUS":         true,
+	"OPERETA_GPU_PRESENT":        true,
+	"OPERETA_GPU_PCI_COUNT":      true,
+	"OPERETA_GPU_COUNT":          true,
+	"OPERETA_GPU_USABLE_COUNT":   true,
+	"OPERETA_GPU_USABLE_INDEXES": true,
+	"OPERETA_SECURE_BOOT":        true,
+	"OPERETA_DRIVER_VERSION":     true,
+	"OPERETA_GPU_MESSAGE":        true,
 }
 
 // knownStates is the set of states that the script can write.
@@ -310,54 +310,54 @@ func (p *parser) build() (Status, error) {
 	}
 
 	var s Status
-	s.State = State(p.top["DIPARNUX_GPU_STATUS"])
+	s.State = State(p.top["OPERETA_GPU_STATUS"])
 	if !knownStates[s.State] {
-		return Status{}, fmt.Errorf("unknown state %q", p.top["DIPARNUX_GPU_STATUS"])
+		return Status{}, fmt.Errorf("unknown state %q", p.top["OPERETA_GPU_STATUS"])
 	}
 
-	switch p.top["DIPARNUX_GPU_PRESENT"] {
+	switch p.top["OPERETA_GPU_PRESENT"] {
 	case "0":
 		s.Present = false
 	case "1":
 		s.Present = true
 	default:
-		return Status{}, fmt.Errorf("invalid DIPARNUX_GPU_PRESENT %q", p.top["DIPARNUX_GPU_PRESENT"])
+		return Status{}, fmt.Errorf("invalid OPERETA_GPU_PRESENT %q", p.top["OPERETA_GPU_PRESENT"])
 	}
 
 	var err error
-	if s.PCICount, err = parseCount("DIPARNUX_GPU_PCI_COUNT", p.top["DIPARNUX_GPU_PCI_COUNT"]); err != nil {
+	if s.PCICount, err = parseCount("OPERETA_GPU_PCI_COUNT", p.top["OPERETA_GPU_PCI_COUNT"]); err != nil {
 		return Status{}, err
 	}
-	if s.Count, err = parseCount("DIPARNUX_GPU_COUNT", p.top["DIPARNUX_GPU_COUNT"]); err != nil {
+	if s.Count, err = parseCount("OPERETA_GPU_COUNT", p.top["OPERETA_GPU_COUNT"]); err != nil {
 		return Status{}, err
 	}
-	if s.UsableCount, err = parseCount("DIPARNUX_GPU_USABLE_COUNT", p.top["DIPARNUX_GPU_USABLE_COUNT"]); err != nil {
+	if s.UsableCount, err = parseCount("OPERETA_GPU_USABLE_COUNT", p.top["OPERETA_GPU_USABLE_COUNT"]); err != nil {
 		return Status{}, err
 	}
 
-	if raw := p.top["DIPARNUX_GPU_USABLE_INDEXES"]; raw != "" {
+	if raw := p.top["OPERETA_GPU_USABLE_INDEXES"]; raw != "" {
 		seen := make(map[int]bool)
 		for _, part := range strings.Split(raw, ",") {
 			idx, err := parseIndex(part)
 			if err != nil {
-				return Status{}, fmt.Errorf("DIPARNUX_GPU_USABLE_INDEXES: %w", err)
+				return Status{}, fmt.Errorf("OPERETA_GPU_USABLE_INDEXES: %w", err)
 			}
 			if seen[idx] {
-				return Status{}, fmt.Errorf("DIPARNUX_GPU_USABLE_INDEXES repeats index %d", idx)
+				return Status{}, fmt.Errorf("OPERETA_GPU_USABLE_INDEXES repeats index %d", idx)
 			}
 			seen[idx] = true
 			s.UsableIndexes = append(s.UsableIndexes, idx)
 		}
 	}
 
-	switch sb := p.top["DIPARNUX_SECURE_BOOT"]; sb {
+	switch sb := p.top["OPERETA_SECURE_BOOT"]; sb {
 	case "enabled", "disabled", "unknown":
 		s.SecureBoot = sb
 	default:
-		return Status{}, fmt.Errorf("invalid DIPARNUX_SECURE_BOOT %q", sb)
+		return Status{}, fmt.Errorf("invalid OPERETA_SECURE_BOOT %q", sb)
 	}
-	s.DriverVersion = p.top["DIPARNUX_DRIVER_VERSION"]
-	s.Message = p.top["DIPARNUX_GPU_MESSAGE"]
+	s.DriverVersion = p.top["OPERETA_DRIVER_VERSION"]
+	s.Message = p.top["OPERETA_GPU_MESSAGE"]
 
 	for idx, g := range p.gpus {
 		gpu, err := buildGPU(idx, g)
@@ -386,12 +386,12 @@ func buildGPU(idx int, g *gpuFields) (GPU, error) {
 	case "1":
 		supported = true
 	default:
-		return GPU{}, fmt.Errorf("invalid DIPARNUX_GPU_%d_SUPPORTED %q", idx, g.supported)
+		return GPU{}, fmt.Errorf("invalid OPERETA_GPU_%d_SUPPORTED %q", idx, g.supported)
 	}
 	switch g.reason {
 	case "ok", "compute_cap", "name":
 	default:
-		return GPU{}, fmt.Errorf("invalid DIPARNUX_GPU_%d_REASON %q", idx, g.reason)
+		return GPU{}, fmt.Errorf("invalid OPERETA_GPU_%d_REASON %q", idx, g.reason)
 	}
 	if supported != (g.reason == "ok") {
 		return GPU{}, fmt.Errorf("GPU %d: SUPPORTED and REASON disagree", idx)
@@ -405,10 +405,10 @@ func buildGPU(idx int, g *gpuFields) (GPU, error) {
 // checkConsistency enforces the cross-field rules of the contract.
 func checkConsistency(s Status) error {
 	if s.Present != (s.PCICount > 0) {
-		return errors.New("DIPARNUX_GPU_PRESENT disagrees with DIPARNUX_GPU_PCI_COUNT")
+		return errors.New("OPERETA_GPU_PRESENT disagrees with OPERETA_GPU_PCI_COUNT")
 	}
 	if s.Count != len(s.GPUs) {
-		return fmt.Errorf("DIPARNUX_GPU_COUNT is %d but %d GPU entries were written", s.Count, len(s.GPUs))
+		return fmt.Errorf("OPERETA_GPU_COUNT is %d but %d GPU entries were written", s.Count, len(s.GPUs))
 	}
 	if s.UsableCount > 0 && s.State != StateReady {
 		return fmt.Errorf("usable GPU count is %d but state is %s", s.UsableCount, s.State)
@@ -429,7 +429,7 @@ func checkConsistency(s Status) error {
 		return fmt.Errorf("usable GPU count %d exceeds the %d supported GPU entries", s.UsableCount, len(supported))
 	}
 	if len(s.UsableIndexes) != s.UsableCount {
-		return fmt.Errorf("DIPARNUX_GPU_USABLE_INDEXES lists %d indexes but the usable count is %d", len(s.UsableIndexes), s.UsableCount)
+		return fmt.Errorf("OPERETA_GPU_USABLE_INDEXES lists %d indexes but the usable count is %d", len(s.UsableIndexes), s.UsableCount)
 	}
 	for _, idx := range s.UsableIndexes {
 		if !supported[idx] {

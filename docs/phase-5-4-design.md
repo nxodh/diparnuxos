@@ -1,4 +1,4 @@
-# Diparnux 0.5.4 설계서: 게이트웨이 TLS, Vedecaps 2차 연동, 경량화와 실기 수정
+# Opereta 0.5.4 설계서: 게이트웨이 TLS, Vedecaps 2차 연동, 경량화와 실기 수정
 
 - 작성: 2026-10-14
 - 기준 코드: `main` 의 0.5.2 + `phase-5-3`(0.5.3, PR #12). 0.5.3 이 병합되어 있다고 가정한다.
@@ -34,11 +34,11 @@
 
 | 사실 | 근거 |
 |---|---|
-| 게이트웨이는 데몬 안에서 도는 하나의 `http.Server` 이고, `Manager.reconcile` 이 `net.Listen("tcp", addr)` 한 번으로 연다. 주소는 LAN 공개가 꺼져 있으면 `127.0.0.1:Port`, 켜져 있으면 `0.0.0.0:Port` | `daemon/internal/gateway/gateway.go`, `daemon/cmd/diparnuxd/main.go` 의 `Wanted` |
+| 게이트웨이는 데몬 안에서 도는 하나의 `http.Server` 이고, `Manager.reconcile` 이 `net.Listen("tcp", addr)` 한 번으로 연다. 주소는 LAN 공개가 꺼져 있으면 `127.0.0.1:Port`, 켜져 있으면 `0.0.0.0:Port` | `daemon/internal/gateway/gateway.go`, `daemon/cmd/operetad/main.go` 의 `Wanted` |
 | 모델 서버(llama-server)는 `127.0.0.1:InternalPort(18080)` 에서만 듣고, 게이트웨이가 키를 확인한 뒤 넘긴다 | `config.Config.InternalPort`, `Manager.Backend` |
 | 방화벽은 `APIPort: cfg.Port, APIOpen: cfg.LANExposed` 로 API 포트를 LAN 에 연다 | `daemon/internal/supervisor/system.go` |
 | 이 컴퓨터의 요청은 `local_no_key`(기본 켬) 로 키 없이 통과하고, 판정은 요청 출발지 주소로 한다 | `gateway.go` 의 `isLocal` |
-| `/diparnux/info`, `X-Diparnux` 헤더가 키 없이 읽힌다 | 0.5.3 |
+| `/opereta/info`, `X-Opereta` 헤더가 키 없이 읽힌다 | 0.5.3 |
 | **TLS 부품이 이미 있다**: 원격 관리 웹(webadmin)은 데몬이 만든 자체 서명 ECDSA P-256 인증서(10년), 이름 집합 `covers` 검사, 지문 표시, 주소가 바뀌면 재발급을 쓴다 | `daemon/internal/webadmin/webadmin.go` 의 `ensureCert`, `hostNames`, `covers`, `fingerprint` |
 | 연결 정보(`/v1/connection`)와 `connect vedecaps` 가 만드는 주소는 모두 `http://` 이다 | `daemon/internal/api/connection.go`, `daemon/internal/vedecaps` |
 | `remote-access.md` 의 안내는 "평문 HTTP 이므로 같은 LAN 이나 VPN 안에서만" | `docs/vedecaps.md` 2절 |
@@ -52,7 +52,7 @@
 | `src/provider/openai.ts`, `src/provider/local.ts` 가 `redirect: "error"` 로 요청한다 | 게이트웨이가 `http` → `https` 리다이렉트를 내면 기존 연결이 **깨진다** |
 | 자동 감지가 `http://127.0.0.1:8080` 만 본다(`detectLocalServers`) | 루프백을 TLS 로 바꾸면 자동 감지가 깨진다 → 루프백은 평문 유지 |
 | HTTPS 주소의 인증서는 Bun 의 기본 신뢰 저장소로만 검증하고 CA 옵션이 없다 | 자체 CA 를 믿게 하려면 **VE2(`options.ca`)** 가 필요하다 |
-| `isLocalURL` 이 `.local`, 사설 IP 를 로컬로 본다(컴팩트 프롬프트 규칙) | `https://diparnux.local:8444` 도 로컬로 취급된다. 변경 불필요 |
+| `isLocalURL` 이 `.local`, 사설 IP 를 로컬로 본다(컴팩트 프롬프트 규칙) | `https://opereta.local:8444` 도 로컬로 취급된다. 변경 불필요 |
 | `provider.*.api/env/baseURL/headers` 는 신뢰하지 않은 프로젝트 설정에서 제거된다 | `ca` 도 같은 부류로 제거해야 한다(VE2 의 신뢰 규칙) |
 
 ## 2. 목표와 비목표
@@ -62,7 +62,7 @@
 - G1. LAN 의 다른 컴퓨터가 API 키와 대화를 **암호화된 연결**로 보낸다.
 - G2. 클라이언트가 서버를 **확인**한다(CA 배포 후 위조 서버, 중간자를 거부).
 - G3. 같은 컴퓨터의 기존 사용법(`http://127.0.0.1:8080`, Vedecaps 자동 감지)이 **바뀌지 않는다.**
-- G4. 켜기·끄기·CA 배포·갱신이 `diparnux` 명령, 제어 센터, MCP 도구(읽기)로 가능하다.
+- G4. 켜기·끄기·CA 배포·갱신이 `opereta` 명령, 제어 센터, MCP 도구(읽기)로 가능하다.
 - G5. 인증서가 만료되거나 주소가 바뀌어도 사용자가 손대지 않아도 된다(자동 갱신).
 
 **비목표**
@@ -78,13 +78,13 @@
 |---|---|---|
 | LAN 의 누군가가 패킷을 엿봄(키, 프롬프트, 코드) | 가능 | 막힘 |
 | LAN 의 누군가가 응답을 바꿈(도구 호출 주입) | 가능 | 클라이언트가 CA 를 확인하면 막힘 |
-| 같은 이름(`diparnux.local`)을 사칭하는 서버(mDNS 위조) | 가능 | CA 로 발급받지 못하므로 거부됨 |
+| 같은 이름(`opereta.local`)을 사칭하는 서버(mDNS 위조) | 가능 | CA 로 발급받지 못하므로 거부됨 |
 | 공격자가 CA 개인 키를 얻음 | 해당 없음 | **위험**. 아래 대응 |
 | 서버 컴퓨터 자체가 침해됨 | 위험 | 위험(TLS 로 해결되지 않음) |
 | 키 값이 로그에 남음 | 이미 가림 | 같음 |
 
 **CA 개인 키 대응**: (1) 파일은 `root:root 0600`, 데몬만 읽는다. (2) CA 에 **DNS 이름 제약**(허용 DNS: `.local`, 이 컴퓨터의 호스트 이름)을
-넣어, 키를 얻어도 공개 사이트 인증서를 위조할 수 없게 한다. (3) CA 를 재발급하면 이전 CA 는 클라이언트에서 지워야 한다는 안내(`diparnux tls renew-ca`)를 낸다.
+넣어, 키를 얻어도 공개 사이트 인증서를 위조할 수 없게 한다. (3) CA 를 재발급하면 이전 CA 는 클라이언트에서 지워야 한다는 안내(`opereta tls renew-ca`)를 낸다.
 이름 제약을 클라이언트 쪽 Windows, macOS 시스템 저장소가 모두 지키는지는 **확인하지 않았다**(curl, Python 은 지킨다고 알려져 있다. 실기 검증 항목).
 
 **IP 제약은 넣지 않는다(Vedecaps 개발 에이전트의 확인, 2026-10-14)**: Vedecaps 가 쓰는 Bun 은 CA 에 IP 주소 이름 제약이 있고 서버 인증서에 IP SAN 이 있으면
@@ -112,7 +112,7 @@
 | 켜짐 | 켜짐 | **127.0.0.1** (LAN 평문 닫음) | 0.0.0.0 |
 | 켜짐 | 켜짐 + `lan_plain` 켬 | 0.0.0.0 | 0.0.0.0 |
 
-두 리스너는 **같은 핸들러**(`Gateway.Handler(backend)`)를 쓴다. 키 규칙, `local_no_key`, 429, `/diparnux/info` 가 같다.
+두 리스너는 **같은 핸들러**(`Gateway.Handler(backend)`)를 쓴다. 키 규칙, `local_no_key`, 429, `/opereta/info` 가 같다.
 `isLocal` 은 요청 출발지 주소로 판정하므로 TLS 리스너에서도 그대로 맞다(이 컴퓨터의 LAN 주소로 접속해도 로컬로 판정한다).
 
 ### 4.2 인증서 모델(결정 T2)
@@ -127,7 +127,7 @@
 **이름(SAN)**: `localhost`, `127.0.0.1`, `::1`, 이 컴퓨터의 호스트 이름, `<호스트>.local`, 지금 인터페이스의 모든 IPv4/IPv6 주소, 설정에서 추가한 이름(`tls_names`).
 주소가 바뀌면 서버 인증서를 자동으로 다시 발급한다(CA 는 그대로). webadmin 의 `hostNames`, `covers` 를 공통 부품으로 쓴다.
 
-**수명**: 서버 인증서 397일(macOS/iOS 가 신뢰하는 서버 인증서 최대 수명에 맞춘다), 만료 30일 전에 자동 갱신. CA 는 10년, 만료 1년 전부터 `diparnux tls status` 와 제어 센터가 경고한다.
+**수명**: 서버 인증서 397일(macOS/iOS 가 신뢰하는 서버 인증서 최대 수명에 맞춘다), 만료 30일 전에 자동 갱신. CA 는 10년, 만료 1년 전부터 `opereta tls status` 와 제어 센터가 경고한다.
 
 **알고리즘**: ECDSA P-256 (webadmin 과 같음). 최소 TLS 1.2, 1.3 우선(Go 기본). 오래된 클라이언트와의 호환을 위해 1.2 를 허용한다.
 
@@ -135,13 +135,13 @@
 
 | 파일 | 경로(제안) | 권한 | 내용 |
 |---|---|---|---|
-| CA 인증서 | `/var/lib/diparnux/tls/ca.pem` | 0644 | 배포용 공개 인증서 |
-| CA 개인 키 | `/var/lib/diparnux/tls/ca-key.pem` | **0600 root** | 데몬만. API 로 돌려주지 않는다 |
-| 서버 인증서 | `/var/lib/diparnux/tls/server.pem` | 0644 | |
-| 서버 개인 키 | `/var/lib/diparnux/tls/server-key.pem` | **0600 root** | |
+| CA 인증서 | `/var/lib/opereta/tls/ca.pem` | 0644 | 배포용 공개 인증서 |
+| CA 개인 키 | `/var/lib/opereta/tls/ca-key.pem` | **0600 root** | 데몬만. API 로 돌려주지 않는다 |
+| 서버 인증서 | `/var/lib/opereta/tls/server.pem` | 0644 | |
+| 서버 개인 키 | `/var/lib/opereta/tls/server-key.pem` | **0600 root** | |
 
-원칙: 개인 키는 API 응답, 로그, 보고서(`diparnux report`), MCP 도구, 제어 센터 어디에도 나오지 않는다. 시험은 가짜 키만 쓴다(`docs/security.md` 의 규칙).
-`diparnux report` 의 비밀 가림 목록에 새 파일 이름을 추가한다.
+원칙: 개인 키는 API 응답, 로그, 보고서(`opereta report`), MCP 도구, 제어 센터 어디에도 나오지 않는다. 시험은 가짜 키만 쓴다(`docs/security.md` 의 규칙).
+`opereta report` 의 비밀 가림 목록에 새 파일 이름을 추가한다.
 
 ### 4.4 코드 구조(제안)
 
@@ -153,23 +153,23 @@
 | `supervisor/system.go` | 방화벽 옵션에 `TLSPort`, `TLSOpen` 추가. `APIOpen` 은 `lan_plain` 또는 TLS 꺼짐일 때만 평문 포트를 연다 |
 | `exposure` | TLS 켜짐/꺼짐에 따른 경고: LAN 공개인데 TLS 꺼짐이면 "평문"을 경고(지금도 있는 경고에 근거 추가), TLS 켜짐이면 해소. `lan_plain` 켬이면 "평문이 LAN 에 열려 있음" |
 | `api` | `GET /v1/tls`(상태, 지문, 만료, 이름, CA 경로), `POST /v1/tls/enable`, `/disable`, `/renew`, `GET /v1/tls/ca`(CA PEM, 인증 필요 없음, 공개 값) |
-| `cmd/diparnux` | `diparnux tls status|on|off|ca|fingerprint|renew|renew-ca`, `diparnux config set tls on` 는 같은 일 |
+| `cmd/opereta` | `opereta tls status|on|off|ca|fingerprint|renew|renew-ca`, `opereta config set tls on` 는 같은 일 |
 | `connection.go` | `https_url`, `https_mdns_url`, CA 지문을 연결 정보에 더한다(키는 없음) |
 | `daemon/internal/vedecaps` | `connect vedecaps --remote` 가 TLS 켜짐이면 `https://` 주소와 `options.ca` 를 쓴다(5절) |
-| `mcpserver` | `diparnux_connection` 도구가 TLS 정보를 낸다(읽기 전용 유지) |
+| `mcpserver` | `opereta_connection` 도구가 TLS 정보를 낸다(읽기 전용 유지) |
 | GUI | 서버 페이지에 TLS 스위치와 지문·만료 표시, Vedecaps 페이지의 "설정 조각" 이 https 주소를 쓴다 |
 | 문서 | `remote-access.md`, `vedecaps.md`, `ai-server.md`, `security.md`, `firewall.md` |
 
 ### 4.5 CLI 예
 
 ```
-diparnux tls status               # 켜짐/꺼짐, 포트, CA 지문, 서버 인증서 만료, 이름
-diparnux tls on                   # CA 와 서버 인증서를 만들고 8444 에서 듣는다. LAN 공개와 키가 필요하다
-diparnux tls ca --out diparnux-ca.pem   # 다른 컴퓨터에 복사할 CA(공개 값)
-diparnux tls fingerprint          # CA 의 SHA-256 지문. 복사한 CA 와 비교한다
-diparnux tls renew                # 서버 인증서를 지금 다시 발급
-diparnux tls renew-ca             # CA 를 다시 만든다(클라이언트에 새 CA 를 다시 배포해야 한다고 경고)
-diparnux tls off
+opereta tls status               # 켜짐/꺼짐, 포트, CA 지문, 서버 인증서 만료, 이름
+opereta tls on                   # CA 와 서버 인증서를 만들고 8444 에서 듣는다. LAN 공개와 키가 필요하다
+opereta tls ca --out opereta-ca.pem   # 다른 컴퓨터에 복사할 CA(공개 값)
+opereta tls fingerprint          # CA 의 SHA-256 지문. 복사한 CA 와 비교한다
+opereta tls renew                # 서버 인증서를 지금 다시 발급
+opereta tls renew-ca             # CA 를 다시 만든다(클라이언트에 새 CA 를 다시 배포해야 한다고 경고)
+opereta tls off
 ```
 
 `tls on` 의 사전 조건: LAN 공개(`lan on`)가 켜져 있고 API 키가 하나 이상 있다. 아니면 이유와 다음 명령을 알려 주고 거부한다(TLS 만 켜고 키가 없으면 의미가 없다).
@@ -185,7 +185,7 @@ diparnux tls off
 |---|---|
 | 0.5.3 에서 올라온 컴퓨터 | `tls` 기본 **꺼짐**(동작 변화 없음). LAN 공개가 켜져 있으면 `status` 와 제어 센터가 "TLS 를 켜면 평문을 닫을 수 있다"고 알린다 |
 | 새 설치 | 기본 꺼짐. 첫 부팅 마법사의 "LAN 공개" 선택 단계에서 TLS 를 함께 권한다(Q1) |
-| 롤백(0.5.3 이미지) | TLS 를 켜지 않은 설정 파일은 0.5.3 과 같아서(키가 `omitempty`) 그대로 읽힌다. TLS 를 켠 뒤에는 이전 버전이 모르는 필드로 거부하므로 `diparnux tls off --yes` 로 끈 뒤 되돌린다. 되돌리면 8080 이 다시 LAN 에 열린다 |
+| 롤백(0.5.3 이미지) | TLS 를 켜지 않은 설정 파일은 0.5.3 과 같아서(키가 `omitempty`) 그대로 읽힌다. TLS 를 켠 뒤에는 이전 버전이 모르는 필드로 거부하므로 `opereta tls off --yes` 로 끈 뒤 되돌린다. 되돌리면 8080 이 다시 LAN 에 열린다 |
 
 ## 5. Vedecaps 연동(2차)
 
@@ -194,7 +194,7 @@ diparnux tls off
 | 시나리오 | 방식 | Vedecaps 변경 필요 |
 |---|---|---|
 | 같은 컴퓨터 | `http://127.0.0.1:8080/v1`(자동 감지 또는 설정) | 없음 |
-| LAN 의 다른 컴퓨터, TLS 켬 | `https://<이름>.local:8444/v1` + `options.ca` + `DIPARNUX_API_KEY` | **VE2** |
+| LAN 의 다른 컴퓨터, TLS 켬 | `https://<이름>.local:8444/v1` + `options.ca` + `OPERETA_API_KEY` | **VE2** |
 | LAN, TLS 꺼짐 | 평문(경고), 지금과 같음 | 없음 |
 | VPN 안 | 평문 HTTP 가능(터널이 암호화) | 없음 |
 
@@ -203,11 +203,11 @@ diparnux tls off
 ```jsonc
 {
   "provider": {
-    "diparnux": {
-      "name": "Diparnux",
-      "api": "https://diparnux.local:8444/v1",
-      "env": ["DIPARNUX_API_KEY"],
-      "options": { "ca": "~/.config/vedecaps/diparnux-ca.pem", "max_concurrency": 2 },
+    "opereta": {
+      "name": "Opereta",
+      "api": "https://opereta.local:8444/v1",
+      "env": ["OPERETA_API_KEY"],
+      "options": { "ca": "~/.config/vedecaps/opereta-ca.pem", "max_concurrency": 2 },
       "models": { "<모델>": { "limit": { "context": 16384 } } }
     }
   }
@@ -221,9 +221,9 @@ diparnux tls off
 
 ### 5.3 CA 배포 방법(사용자 안내)
 
-1. 서버에서 `diparnux tls ca --out diparnux-ca.pem` 과 `diparnux tls fingerprint`.
+1. 서버에서 `opereta tls ca --out opereta-ca.pem` 과 `opereta tls fingerprint`.
 2. 파일을 클라이언트로 복사한다(USB, `scp` 등 이미 믿는 경로).
-3. 클라이언트에서 지문을 계산해 서버의 지문과 비교한다(`openssl x509 -in diparnux-ca.pem -noout -fingerprint -sha256` 또는 Vedecaps 가 지문을 보여 주는 기능을 VE4 에 더할지 결정, Q6).
+3. 클라이언트에서 지문을 계산해 서버의 지문과 비교한다(`openssl x509 -in opereta-ca.pem -noout -fingerprint -sha256` 또는 Vedecaps 가 지문을 보여 주는 기능을 VE4 에 더할지 결정, Q6).
 4. Vedecaps 설정의 `options.ca` 경로를 맞춘다.
 
 ## 6. 시험 계획
@@ -240,15 +240,15 @@ diparnux tls off
 | U6 | 파일 권한 | 개인 키 0600, 디렉터리 0700 |
 | U7 | 리스너 표(4.1) 의 모든 조합 | 각 조합의 주소와 포트 |
 | U8 | HTTP→HTTPS 리다이렉트 없음 | 평문 요청이 3xx 를 받지 않음 |
-| U9 | 두 리스너에서 키 규칙·429·`/diparnux/info` 동일 | 같은 응답 |
+| U9 | 두 리스너에서 키 규칙·429·`/opereta/info` 동일 | 같은 응답 |
 | U10 | `Validate` 의 포트 충돌 | 거부 |
 | U11 | 개인 키가 API, 로그, 보고서에 없다 | 비밀 가림 시험 |
 | U12 | webadmin 이 공통 부품으로 바뀐 뒤 기존 시험 | 모두 통과(회귀 없음) |
 
 ### 6.2 QEMU E2E(`check_tls`, 새 단계)
 
-1. LAN 공개와 키를 켜고 `diparnux tls on`.
-2. 게스트 안에서 `curl --cacert ca.pem https://<게스트 LAN 주소>:8444/diparnux/info` 가 성공한다.
+1. LAN 공개와 키를 켜고 `opereta tls on`.
+2. 게스트 안에서 `curl --cacert ca.pem https://<게스트 LAN 주소>:8444/opereta/info` 가 성공한다.
 3. CA 없이는 실패한다(`curl` 이 검증 오류). 틀린 CA 로도 실패한다.
 4. `curl http://<게스트 LAN 주소>:8080/...` 는 **연결 거부**, `curl http://127.0.0.1:8080/...` 는 성공한다.
 5. `lan_plain` 을 켜면 LAN 주소의 8080 이 다시 응답한다.
@@ -276,13 +276,13 @@ OpenAI Python SDK(`httpx` 의 `verify=ca.pem`), `curl`, 브라우저(CA 설치 �
 | W4 | 제어 센터(서버 페이지, Vedecaps 페이지), 번역 | W3 |
 | W5 | `connect vedecaps` 의 https·`options.ca`·`--ca-out` | W3, Vedecaps VE2 형식 합의 |
 | W6 | E2E `check_tls`, 문서, 버전 0.5.4 | W2~W5 |
-| W7 | Vedecaps 새 릴리스 고정(`diparnux.conf` 버전·SHA-256), 호환 시험 | Vedecaps 릴리스 |
+| W7 | Vedecaps 새 릴리스 고정(`opereta.conf` 버전·SHA-256), 호환 시험 | Vedecaps 릴리스 |
 | W8 | **경량화**: 램 목표 확정 후 줄이기(9절), 기준선 재측정 | 사용자의 램 목표 결정 |
 | W9 | **GPU 서버 시작 실패** 원인 확인과 수정(9절) | 사용자 로그 |
 | W10 | **실기 검증에서 나온 수정**(9절) | 실기 검증 결과 |
 
 **릴리스 순서(결정 Q7)**: Vedecaps(VE2 포함)가 먼저 나와야 0.5.4 가 그 버전을 이미지에 고정할 수 있다. **0.5.4 는 Vedecaps 릴리스를 기다린 뒤 낸다.**
-고정할 버전은 **Vedecaps 0.1.5**(VE2 포함, 사용자 결정 2026-10-14)다. `diparnux.conf` 의 `VEDECAPS_VERSION` 을 `0.1.5` 와 그 릴리스의 SHA-256 으로 바꾼다.
+고정할 버전은 **Vedecaps 0.1.5**(VE2 포함, 사용자 결정 2026-10-14)다. `opereta.conf` 의 `VEDECAPS_VERSION` 을 `0.1.5` 와 그 릴리스의 SHA-256 으로 바꾼다.
 TLS 만 먼저 내지 않는다. 기다리는 동안 W1~W6 과 W8~W10 을 진행하고, W7 은 릴리스가 나온 뒤 마지막에 한다.
 따라서 0.5.4 의 일정은 (1) Vedecaps 릴리스, (2) 램 목표 결정, (3) GPU 로그, (4) 실기 검증 결과에 달려 있다. 이 넷이 늦으면 0.5.4 도 늦는다(8절).
 
@@ -306,7 +306,7 @@ TLS 만 먼저 내지 않는다. 기다리는 동안 W1~W6 과 W8~W10 을 진행
 | 후보 | 상태 | 필요한 것 |
 |---|---|---|
 | 경량화: 헤드리스 ≤ 500 MiB, 데스크톱 ≤ 800 MiB | 목표 제안만 있음(`docs/memory.md` 3.3절). 기준선은 CI QEMU 값(헤드리스 약 374 MiB, 데스크톱 약 679 MiB) | **사용자의 목표 결정**. 줄일 곳은 Control Center(약 215 MB), Xorg(약 150 MB). 후보는 `phase-5-2-design.md` 의 아직 적용하지 않은 항목과 3.3절의 Control Center 페이지 지연 생성, `fcitx5` 필요 시 기동 |
-| GPU 모델 서버 시작 실패 | 원인 불명. 로그 없이 추측으로 고치지 않는다 | **사용자 로그**: `sudo journalctl -u diparnux-llama -b -o cat --no-pager \| tail -60`, `-u diparnuxd`, llama-server 직접 실행 결과 |
+| GPU 모델 서버 시작 실패 | 원인 불명. 로그 없이 추측으로 고치지 않는다 | **사용자 로그**: `sudo journalctl -u opereta-llama -b -o cat --no-pager \| tail -60`, `-u operetad`, llama-server 직접 실행 결과 |
 | 실기 검증에서 나온 수정 | 아직 없음. 검증 항목은 `phase-5-3-verification.md` 와 `vedecaps.md` 9절 | 실기 검증 결과(GPU 코딩 모델 작업, agent 프로필 값, 원격 Vedecaps, 덮개·한글·Wi-Fi 등) |
 | Vedecaps 새 버전 연동(D1~D5) | Vedecaps 릴리스 대기(다른 세션에서 개발 중) | `vedecaps-repo-changes-design.md` 7.4절 |
 

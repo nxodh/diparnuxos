@@ -1,0 +1,16 @@
+#!/bin/sh
+# xrdp 는 설치하면 서비스를 켜고 TCP 3389 를 연다. 이 이미지는 원격 데스크톱을 기본으로 꺼 둔다(0.5.2).
+# 켜는 일은 'opereta remote-desktop on' 이나 제어 센터가 한다(서비스를 켜고 방화벽에서 포트를 정한 범위에만 연다).
+set -e
+
+if [ -e /lib/systemd/system/xrdp.service ] || [ -e /usr/lib/systemd/system/xrdp.service ]; then
+    systemctl disable xrdp.service xrdp-sesman.service >/dev/null 2>&1 || true
+    for unit in xrdp.service xrdp-sesman.service; do
+        state="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
+        if [ "$state" = enabled ]; then
+            echo "opereta-xrdp: $unit is still enabled" >&2
+            exit 1
+        fi
+    done
+    echo 'opereta-xrdp: xrdp 서비스를 꺼 두었다'
+fi

@@ -1,0 +1,42 @@
+#!/usr/bin/make -f
+# 키링은 저장소 루트의 keys/opereta-archive-keyring.pgp(공개 키) 에서 가져온다. build-debs.sh 가 keys/ 를 임시 사본에 넣는다.
+# 키가 없거나 저장소 주소(OPERETA_APT_URL)가 비어 있으면 소스를 Enabled: no 로 둔다.
+OPERETA_CONF ?= $(CURDIR)/../../opereta.conf
+DEST = debian/opereta-archive-keyring
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	set -e; \
+	url=""; \
+	layout=flat; \
+	if [ -r "$(OPERETA_CONF)" ]; then . "$(OPERETA_CONF)"; url="$${OPERETA_APT_URL:-}"; layout="$${OPERETA_APT_LAYOUT:-flat}"; fi; \
+	enabled=yes; \
+	[ -n "$$url" ] || enabled=no; \
+	if [ -s keys/opereta-archive-keyring.pgp ]; then \
+	  install -D -m 644 keys/opereta-archive-keyring.pgp $(DEST)/usr/share/keyrings/opereta-archive-keyring.pgp; \
+	else \
+	  enabled=no; \
+	fi; \
+	[ -n "$$url" ] || url="https://example.invalid/opereta"; \
+	install -d $(DEST)/etc/apt/sources.list.d; \
+	if [ "$$layout" = flat ]; then suites='Suites: ./'; comps=''; else suites='Suites: opereta'; comps='Components: main'; fi; \
+	{ \
+	  printf '%s\n' \
+	    '# Opereta 패키지 저장소(opereta-* 패키지만 제공한다).' \
+	    '# Enabled: no 이면 저장소 주소나 서명 키가 정해지지 않은 빌드다.' \
+	    'Types: deb' \
+	    "URIs: $$url" \
+	    "$$suites"; \
+	  [ -z "$$comps" ] || printf '%s\n' "$$comps"; \
+	  printf '%s\n' \
+	    'Architectures: amd64' \
+	    'Signed-By: /usr/share/keyrings/opereta-archive-keyring.pgp' \
+	    "Enabled: $$enabled"; \
+	} > $(DEST)/etc/apt/sources.list.d/opereta.sources; \
+	chmod 644 $(DEST)/etc/apt/sources.list.d/opereta.sources
+	install -D -m 644 src/10-opereta.pref $(DEST)/etc/apt/preferences.d/10-opereta.pref

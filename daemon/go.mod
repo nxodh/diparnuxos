@@ -1,4 +1,4 @@
-module github.com/nxodh/diparnuxos/daemon
+module github.com/nxodh/operetaos/daemon
 
 go 1.24
 

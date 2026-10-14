@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# diparnux-llm 패키지 규칙. 파일은 llama/build.sh 가 staging/ 에 이미 모아 두었다.
+# opereta-llm 패키지 규칙. 파일은 llama/build.sh 가 staging/ 에 이미 모아 두었다.
 # 여기서는 그대로 옮기고, 의존성과 배포 파일 처리만 맞춘다.
 
 %:
@@ -15,12 +15,12 @@ override_dh_auto_test:
 	# 테스트는 저장소의 tests/llama/package.sh 가 맡는다.
 
 override_dh_auto_install:
-	install -d debian/diparnux-llm
-	cp -a staging/. debian/diparnux-llm/
+	install -d debian/opereta-llm
+	cp -a staging/. debian/opereta-llm/
 
 # libggml-cuda.so 는 CUDA 런타임(libcudart.so.13, libcublas.so.13)에 링크된다.
 # 이 라이브러리에는 dpkg 의 shlibs 정보가 없어 자동 의존성 계산이 실패하므로 제외한다.
-# CUDA 의존성은 control 의 diparnux-nvidia 가 맡는다. CPU 빌드에는 이 이름의 파일이 없어 영향이 없다.
+# CUDA 의존성은 control 의 opereta-nvidia 가 맡는다. CPU 빌드에는 이 이름의 파일이 없어 영향이 없다.
 override_dh_shlibdeps:
 	dh_shlibdeps -X libggml-cuda.so
 
@@ -28,7 +28,7 @@ override_dh_shlibdeps:
 override_dh_strip:
 	dh_strip --no-automatic-dbgsym
 
-# 공유 라이브러리는 /usr/lib/diparnux/llama 에 있는 비공개 라이브러리다. ld 검색 경로가 아니므로
+# 공유 라이브러리는 /usr/lib/opereta/llama 에 있는 비공개 라이브러리다. ld 검색 경로가 아니므로
 # shlibs 파일과 ldconfig 트리거를 만들지 않는다. 이렇게 하지 않으면 다른 패키지가 이 라이브러리를 시스템 제공으로 볼 수 있다.
 override_dh_makeshlibs:
 	# dh_makeshlibs 를 실행하지 않는다.

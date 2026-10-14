@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 type fakeRunner struct {
@@ -21,15 +21,15 @@ func (f *fakeRunner) Run(ctx context.Context, c platform.Command) (platform.Resu
 
 func TestAllowedPath(t *testing.T) {
 	good := []string{
-		"/etc/systemd/network/10-diparnux-enp3s0.network",
-		"/etc/systemd/network/50-diparnux-wg0.netdev",
-		"/etc/ssh/sshd_config.d/40-diparnux-ssh.conf",
+		"/etc/systemd/network/10-opereta-enp3s0.network",
+		"/etc/systemd/network/50-opereta-wg0.netdev",
+		"/etc/ssh/sshd_config.d/40-opereta-ssh.conf",
 		"/etc/hosts",
 	}
 	bad := []string{
 		"/etc/passwd", "/etc/shadow", "/etc/systemd/network/10-other.network", "/etc/systemd/network/../../passwd",
-		"/etc/ssh/sshd_config", "/etc/ssh/sshd_config.d/50-diparnux.conf", "relative/path", "/etc//hosts",
-		"/etc/systemd/system/evil.service", "/etc/sudoers.d/diparnux",
+		"/etc/ssh/sshd_config", "/etc/ssh/sshd_config.d/50-opereta.conf", "relative/path", "/etc//hosts",
+		"/etc/systemd/system/evil.service", "/etc/sudoers.d/opereta",
 	}
 	for _, p := range good {
 		if !AllowedPath(p) {
@@ -46,11 +46,11 @@ func TestAllowedPath(t *testing.T) {
 func TestClientWriteSendsTheContentOnStdinOnly(t *testing.T) {
 	r := &fakeRunner{res: platform.Result{Stdout: []byte("\n" + ResultPrefix + "ok\n")}}
 	c := &Client{Runner: r}
-	if err := c.Write(context.Background(), "/etc/systemd/network/10-diparnux-enp3s0.network", []byte("[Match]\nName=enp3s0\n"), false); err != nil {
+	if err := c.Write(context.Background(), "/etc/systemd/network/10-opereta-enp3s0.network", []byte("[Match]\nName=enp3s0\n"), false); err != nil {
 		t.Fatal(err)
 	}
 	call := r.calls[0]
-	if call.Name != "systemd-run" || !strings.Contains(strings.Join(call.Args, " "), DefaultHelper+" write /etc/systemd/network/10-diparnux-enp3s0.network") {
+	if call.Name != "systemd-run" || !strings.Contains(strings.Join(call.Args, " "), DefaultHelper+" write /etc/systemd/network/10-opereta-enp3s0.network") {
 		t.Fatalf("call = %+v", call)
 	}
 	if string(call.Stdin) != "[Match]\nName=enp3s0\n" {

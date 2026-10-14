@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	keyPrefix        = "dpx_" // 키 접두사
+	keyPrefix        = "opr_" // 키 접두사
 	keyRandomBytes   = 32     // 키의 무작위 바이트 수, base64url 인코딩 후 43자
 	idRandomBytes    = 16     // ID의 무작위 바이트 수, hex 인코딩 후 32자
 	displayPrefixLen = 8      // 메타 파일에 저장하는 평문 앞 글자 수
@@ -360,7 +360,7 @@ func (s *Store) rng() io.Reader {
 	return rand.Reader
 }
 
-// newPlaintext는 "dpx_" 접두사와 base64url(패딩 없음) 32바이트로 키를 만든다. 전체 47자다.
+// newPlaintext는 "opr_" 접두사와 base64url(패딩 없음) 32바이트로 키를 만든다. 전체 47자다.
 func (s *Store) newPlaintext() (string, error) {
 	raw := make([]byte, keyRandomBytes)
 	if _, err := io.ReadFull(s.rng(), raw); err != nil {

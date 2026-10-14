@@ -70,13 +70,13 @@ ROUTES = {
         "on_battery": False, "battery_percent": -1, "uptime_seconds": 5, "notes": ["Always-on is turned off."]}),
     ("GET", "/v1/connection"): (200, {
         "server_state": "running", "model_id": "a.gguf", "models": ["a.gguf"], "public_port": 8080, "lan_exposed": True,
-        "gateway": True, "key_required": True, "key_count": 1, "hostname": "diparnux", "local_url": "http://127.0.0.1:8080/v1",
+        "gateway": True, "key_required": True, "key_count": 1, "hostname": "opereta", "local_url": "http://127.0.0.1:8080/v1",
         "addresses": [{"interface": "enp3s0", "address": "192.168.0.23", "family": "ipv4", "url": "http://192.168.0.23:8080/v1"}],
-        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."], "slot_ctx": 8192,
-        "examples": {"vedecaps": "{\n  \"model\": \"diparnux/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
+        "mdns_url": "http://opereta.local:8080/v1", "warnings": ["No API key exists."], "slot_ctx": 8192,
+        "examples": {"vedecaps": "{\n  \"model\": \"opereta/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
     ("GET", "/v1/gateway"): (200, {"enabled": True, "public_port": 8080, "lan_exposed": True, "state": {"listening": True, "addr": "0.0.0.0:8080", "backend_port": 18080},
         "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
-        "keys": [{"id": "k1", "label": "orca", "prefix": "dpx_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
+        "keys": [{"id": "k1", "label": "orca", "prefix": "opr_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
     ("POST", "/v1/server/toolcheck"): (200, {"ok": False, "code": "no_tool_call", "message": "the model answered in text", "finish_reason": "stop", "latency_ms": 5}),
     ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
     ("GET", "/v1/firewall"): (200, {"policy": "drop", "max_rule": 64,
@@ -87,7 +87,7 @@ ROUTES = {
     ("DELETE", "/v1/firewall/rules/r1"): (200, {"id": "r1", "deleted": True}),
     ("GET", "/v1/services"): (200, {"services": [
         {"unit": "ssh.service", "title": "SSH server", "installed": True, "active": "active", "sub": "running", "enabled": "enabled", "memory_mib": 4, "actions": ["start", "stop", "restart", "enable", "disable"]},
-        {"unit": "diparnuxd.service", "title": "Diparnux daemon", "installed": True, "active": "active", "sub": "running", "enabled": "enabled", "actions": []},
+        {"unit": "operetad.service", "title": "Opereta daemon", "installed": True, "active": "active", "sub": "running", "enabled": "enabled", "actions": []},
         {"unit": "xrdp.service", "title": "Remote desktop (RDP)", "installed": False, "active": "inactive", "sub": "dead", "enabled": "not-found", "actions": []}]}),
     ("POST", "/v1/services/ssh.service/restart"): (200, {"unit": "ssh.service", "action": "restart", "done": True}),
     ("GET", "/v1/resources"): (200, {"system": {"uptime_seconds": 3700,
@@ -110,7 +110,7 @@ ROUTES = {
         "peers": [{"name": "phone", "public_key": "peerpub", "allowed_ips": ["10.8.0.2/32"]}]}),
     ("GET", "/v1/tls"): (200, {"enabled": False, "active": False, "port": 8444, "lan_plain": False, "names": [], "plain_port": 8080, "plain_lan_open": False, "listening": False}),
     ("GET", "/v1/webadmin"): (200, {"enabled": False, "running": False, "port": 8443, "source": "lan", "password_set": False, "urls": []}),
-    ("GET", "/v1/network/config"): (200, {"hostname": "diparnux", "wake_on_lan": False, "pending": None,
+    ("GET", "/v1/network/config"): (200, {"hostname": "opereta", "wake_on_lan": False, "pending": None,
         "interfaces": [{"interface": "enp3s0", "mode": "dhcp", "addresses": [], "managed": False}]}),
     ("PUT", "/v1/network/interfaces/enp3s0"): (200, {"config": {"interface": "enp3s0", "mode": "static"}, "pending": {"interface": "enp3s0", "deadline": "x"}, "confirm_seconds": 60}),
     ("POST", "/v1/network/diagnose"): (200, {"checks": [{"name": "address", "ok": True, "detail": "enp3s0 192.168.0.23/24"}, {"name": "dns", "ok": False, "detail": "huggingface.co could not be resolved"}]}),
@@ -141,18 +141,18 @@ def pump(seconds, until=None):
 @unittest.skipUnless(HAVE_GTK, "GTK4 and libadwaita with a display are required")
 class SmokeTests(unittest.TestCase):
     def setUp(self):
-        from diparnux_cc import api, i18n
-        from diparnux_cc.context import Context
+        from opereta_cc import api, i18n
+        from opereta_cc.context import Context
 
         i18n.setup(localedir="/nonexistent")
         self.daemon = FakeDaemon(ROUTES).__enter__()
         self.addCleanup(self.daemon.__exit__, None, None, None)
         self.ctx = Context(api.Client(self.daemon.path))
-        self.app = Adw.Application(application_id="io.github.nxodh.diparnuxos.Test")
+        self.app = Adw.Application(application_id="io.github.nxodh.operetaos.Test")
         self.app.register(None)
 
     def test_main_window_fills_pages(self):
-        from diparnux_cc.window import MainWindow
+        from opereta_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -188,24 +188,24 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_connection_page_shows_addresses_examples_and_usage(self):
-        from diparnux_cc.connection import ConnectionPage
+        from opereta_cc.connection import ConnectionPage
 
         page = ConnectionPage(self.ctx)
         self.assertTrue(pump(5, until=lambda: len(page._addr_rows) == 3), "the addresses were not shown")
         self.assertEqual(page._addr_rows[0].get_title(), "http://192.168.0.23:8080/v1")
-        self.assertEqual(page._addr_rows[1].get_title(), "http://diparnux.local:8080/v1")
+        self.assertEqual(page._addr_rows[1].get_title(), "http://opereta.local:8080/v1")
         self.assertEqual(len(page._example_rows), 2)
         self.assertTrue(page.notes_row.get_visible())
         self.assertIn("No API key exists.", page.notes_row.get_subtitle())
         self.assertTrue(pump(5, until=lambda: len(page._usage_rows) == 2), "the usage was not shown")
         sub = page._usage_rows[0].get_subtitle()
         self.assertIn("1.5K", sub)
-        self.assertIn("dpx_ab12", sub)
+        self.assertIn("opr_ab12", sub)
         page.check()
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
 
     def test_vedecaps_page_connects_checks_tools_and_offers_the_agent_profile(self):
-        import diparnux_cc.vedecaps as vp
+        import opereta_cc.vedecaps as vp
 
         calls = []
         orig_run, orig_find = vp.run_connect, vp.find_vedecaps
@@ -233,7 +233,7 @@ class SmokeTests(unittest.TestCase):
     def test_models_page_imports_a_file(self):
         import tempfile
 
-        from diparnux_cc.models import ModelsPage
+        from opereta_cc.models import ModelsPage
 
         page = ModelsPage(self.ctx)
         self.assertTrue(pump(5, until=lambda: len(page._installed_rows) >= 1))
@@ -246,7 +246,7 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(pump(5, until=lambda: not page._job_rows), "the import row was not removed")
 
     def test_server_page_renders_live_stats(self):
-        from diparnux_cc.server import ServerPage
+        from opereta_cc.server import ServerPage
 
         page = ServerPage(self.ctx)
         page._render_stats({
@@ -260,7 +260,7 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(page.slots_row.get_subtitle(), "Not available")
 
     def test_main_window_has_a_sidebar_with_every_page(self):
-        from diparnux_cc.window import MainWindow
+        from opereta_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -279,7 +279,7 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_firewall_page_lists_features_and_rules_and_adds_one(self):
-        from diparnux_cc.firewall import FirewallPage
+        from opereta_cc.firewall import FirewallPage
 
         page = FirewallPage(self.ctx)
         self.assertTrue(pump(5, until=lambda: len(page._rule_rows) == 1 and len(page._builtin_rows) == 1))
@@ -295,18 +295,18 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(post[2], {"name": "Range", "protocol": "udp", "port": 6000, "source": "any", "port_end": 6010})
 
     def test_services_page_offers_only_the_allowed_actions(self):
-        from diparnux_cc.services import ServicesPage
+        from opereta_cc.services import ServicesPage
 
         page = ServicesPage(self.ctx)
         page.reload()
         self.assertTrue(pump(5, until=lambda: len(page._rows) == 3))
         titles = [r.get_title() for r in page._rows]
-        self.assertEqual(titles, ["SSH server", "Diparnux daemon", "Remote desktop (RDP)"])
+        self.assertEqual(titles, ["SSH server", "Opereta daemon", "Remote desktop (RDP)"])
         page.act("ssh.service", "restart", "SSH server")
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/services/ssh.service/restart" for c in self.daemon.calls)))
 
     def test_resources_page_renders_a_measurement(self):
-        from diparnux_cc.resources import ResourcesPage
+        from opereta_cc.resources import ResourcesPage
 
         page = ResourcesPage(self.ctx)
         page.refresh()
@@ -317,7 +317,7 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("2.0 KiB/s", page._rows[page.net_group][0].get_subtitle())
 
     def test_remote_page_shows_ssh_vpn_and_asks_before_changing(self):
-        from diparnux_cc.remote import RemotePage
+        from opereta_cc.remote import RemotePage
 
         page = RemotePage(self.ctx)
         page.reload()
@@ -333,26 +333,26 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(post[2]["key"], "ssh-ed25519 AAAA test")
 
     def test_network_page_wired_settings_and_diagnose(self):
-        from diparnux_cc.network import NetworkPage
+        from opereta_cc.network import NetworkPage
 
         page = NetworkPage(self.ctx)
         page.wired.reload()
         self.assertTrue(pump(5, until=lambda: len(page.wired._wired_rows) == 1))
-        self.assertEqual(page.wired.host_row.get_text(), "diparnux")
+        self.assertEqual(page.wired.host_row.get_text(), "opereta")
         self.assertFalse(page.wired.pending_group.get_visible())
         page.wired.diagnose()
         self.assertTrue(pump(5, until=lambda: len(page.wired._diag_rows) == 2))
         self.assertIn("Problem", page.wired._diag_rows[1].get_subtitle())
 
     def test_connection_page_shows_the_safety_check(self):
-        from diparnux_cc.connection import ConnectionPage
+        from opereta_cc.connection import ConnectionPage
 
         page = ConnectionPage(self.ctx)
         self.assertTrue(pump(5, until=lambda: len(page._safety_rows) == 2))
         self.assertEqual(page._safety_rows[0].get_title(), "SSH accepts password logins")
 
     def test_system_page_lists_accounts(self):
-        from diparnux_cc.window import MainWindow
+        from opereta_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -361,7 +361,7 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_system_page_shows_always_on_state_and_toggles(self):
-        from diparnux_cc.window import MainWindow
+        from opereta_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         win.present()
@@ -377,8 +377,8 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_create_account_dialog_validates_and_posts(self):
-        from diparnux_cc.accounts import CreateAccountDialog
-        from diparnux_cc.window import MainWindow
+        from opereta_cc.accounts import CreateAccountDialog
+        from opereta_cc.window import MainWindow
 
         win = MainWindow(self.app, self.ctx)
         created = []
@@ -402,7 +402,7 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_network_page_lists_wifi_and_asks_for_the_password(self):
-        from diparnux_cc.network import NetworkPage, WifiPasswordDialog
+        from opereta_cc.network import NetworkPage, WifiPasswordDialog
 
         page = NetworkPage(self.ctx)
         page.refresh()
@@ -430,11 +430,11 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(posts[0][2], {"ssid": "Office 5G", "passphrase": "correct horse battery"})
 
     def test_daemon_down_shows_banner(self):
-        from diparnux_cc import api
-        from diparnux_cc.context import Context
-        from diparnux_cc.window import MainWindow
+        from opereta_cc import api
+        from opereta_cc.context import Context
+        from opereta_cc.window import MainWindow
 
-        ctx = Context(api.Client("/nonexistent/diparnuxd.sock"))
+        ctx = Context(api.Client("/nonexistent/operetad.sock"))
         win = MainWindow(self.app, ctx)
         win.present()
         ctx.refresh()
@@ -443,9 +443,9 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_wizard_walks_all_steps_and_completes(self):
-        from diparnux_cc import logic
-        from diparnux_cc.window import MainWindow
-        from diparnux_cc.wizard import WizardWindow
+        from opereta_cc import logic
+        from opereta_cc.window import MainWindow
+        from opereta_cc.wizard import WizardWindow
 
         win = MainWindow(self.app, self.ctx)
         done = []
@@ -464,9 +464,9 @@ class SmokeTests(unittest.TestCase):
         win.destroy()
 
     def test_wizard_model_step_lets_the_user_pick_the_use(self):
-        from diparnux_cc import logic
-        from diparnux_cc.window import MainWindow
-        from diparnux_cc.wizard import WizardWindow
+        from opereta_cc import logic
+        from opereta_cc.window import MainWindow
+        from opereta_cc.wizard import WizardWindow
 
         win = MainWindow(self.app, self.ctx)
         wiz = WizardWindow(self.ctx, parent=win)

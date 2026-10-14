@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+# 모든 고정 버전은 opereta.conf 에서 읽는다.
+OPERETA_CONF ?= $(CURDIR)/../../opereta.conf
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	sh debian/gen-control.sh "$(OPERETA_CONF)"
+
+override_dh_auto_build:
+	# 컴파일할 대상은 없다.
+
+override_dh_auto_install:
+	sh debian/gen-config.sh "$(OPERETA_CONF)" "$(CURDIR)/debian/opereta-nvidia"
+	install -D -m 755 src/gpu-check.sh debian/opereta-nvidia/usr/sbin/opereta-gpu-check
+	install -D -m 644 src/opereta-gpu-check.service debian/opereta-nvidia/usr/lib/systemd/system/opereta-gpu-check.service
+	install -D -m 755 src/opereta-mok.sh debian/opereta-nvidia/usr/sbin/opereta-mok
+
+override_dh_installinit:
+	# initramfs 재생성은 DKMS 검증 후 live-build 훅에서 한다.

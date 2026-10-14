@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // 오류 코드다.
@@ -41,9 +41,9 @@ var all = []string{"start", "stop", "restart", "enable", "disable"}
 
 // Catalog 는 제어 센터와 CLI 에서 다룰 수 있는 서비스다. 목록에 없는 유닛은 보이지도 제어되지도 않는다.
 var Catalog = []Service{
-	{"diparnuxd.service", "Diparnux daemon", nil}, // 보기만 한다: 멈추면 이 API 가 사라진다
-	{"diparnux-llama.service", "Model server (llama-server)", []string{"start", "stop", "restart"}},
-	{"diparnux-firewall.service", "Saved firewall rules", nil},
+	{"operetad.service", "Opereta daemon", nil}, // 보기만 한다: 멈추면 이 API 가 사라진다
+	{"opereta-llama.service", "Model server (llama-server)", []string{"start", "stop", "restart"}},
+	{"opereta-firewall.service", "Saved firewall rules", nil},
 	{"ssh.service", "SSH server", all},
 	{"xrdp.service", "Remote desktop (RDP)", all},
 	{"xrdp-sesman.service", "Remote desktop sessions", []string{"restart"}},

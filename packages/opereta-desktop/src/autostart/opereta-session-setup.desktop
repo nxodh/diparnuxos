@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Opereta session setup
+Comment=First-login defaults (wallpaper on every monitor, input method profile, user folders)
+Exec=opereta-session-setup
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-Phase=Initialization

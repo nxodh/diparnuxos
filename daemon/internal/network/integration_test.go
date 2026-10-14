@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/runner"
+	"github.com/nxodh/operetaos/daemon/internal/runner"
 )
 
 // 이 시험은 실제 busctl 로 tests/network/fake_iwd.py 가 띄운 사설 D-Bus 서비스를 부른다.
-// scripts/test-network-in-docker.sh 가 버스와 서비스를 만들고 DIPARNUX_TEST_BUS 를 준다.
+// scripts/test-network-in-docker.sh 가 버스와 서비스를 만들고 OPERETA_TEST_BUS 를 준다.
 func liveManager(t *testing.T) *Manager {
 	t.Helper()
-	addr := os.Getenv("DIPARNUX_TEST_BUS")
+	addr := os.Getenv("OPERETA_TEST_BUS")
 	if addr == "" {
-		t.Skip("DIPARNUX_TEST_BUS is not set")
+		t.Skip("OPERETA_TEST_BUS is not set")
 	}
 	dir := t.TempDir()
 	sys := filepath.Join(dir, "sys")

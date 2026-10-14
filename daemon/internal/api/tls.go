@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/certstore"
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
+	"github.com/nxodh/operetaos/daemon/internal/certstore"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/gateway"
 )
 
 // TLSManager 는 게이트웨이 TLS 의 인증서와 리스너 상태다. 데몬이 이름과 주소를 모아 만든다.
@@ -76,9 +76,9 @@ func tlsView(cfg config.Config, info certstore.Info, l gateway.ManagerState) tls
 	}
 	switch {
 	case cfg.TLS && !cfg.LANExposed:
-		r.Notes = append(r.Notes, "TLS is on but LAN exposure is off, so nothing is encrypted for other computers yet: diparnux config set lan on")
+		r.Notes = append(r.Notes, "TLS is on but LAN exposure is off, so nothing is encrypted for other computers yet: opereta config set lan on")
 	case cfg.TLS && !cfg.Gateway:
-		r.Notes = append(r.Notes, "TLS needs the gateway: diparnux config set gateway on")
+		r.Notes = append(r.Notes, "TLS needs the gateway: opereta config set gateway on")
 	case cfg.TLSActive() && cfg.LANPlain:
 		r.Notes = append(r.Notes, "plain HTTP is also open on the local network (lan_plain); keys and prompts sent there are not encrypted")
 	}
@@ -159,10 +159,10 @@ func (s *server) putTLS(w http.ResponseWriter, r *http.Request) {
 	if next.TLS && !old.TLS {
 		switch {
 		case !next.Gateway:
-			writeError(w, http.StatusConflict, "gateway_required", "TLS needs the gateway: diparnux config set gateway on")
+			writeError(w, http.StatusConflict, "gateway_required", "TLS needs the gateway: opereta config set gateway on")
 			return
 		case !next.LANExposed:
-			writeError(w, http.StatusConflict, "lan_required", "TLS encrypts connections from other computers, so LAN exposure must be on first: diparnux config set lan on")
+			writeError(w, http.StatusConflict, "lan_required", "TLS encrypts connections from other computers, so LAN exposure must be on first: opereta config set lan on")
 			return
 		}
 		n, err := s.keyCount()
@@ -171,7 +171,7 @@ func (s *server) putTLS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if n == 0 {
-			writeError(w, http.StatusConflict, "api_key_required", "create an API key first: diparnux apikey create <name>")
+			writeError(w, http.StatusConflict, "api_key_required", "create an API key first: opereta apikey create <name>")
 			return
 		}
 	}
@@ -232,7 +232,7 @@ func (s *server) postTLSRenew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !cur.Present && !body.CA {
-		writeError(w, http.StatusConflict, "tls_not_set_up", "there is no certificate yet: diparnux tls on")
+		writeError(w, http.StatusConflict, "tls_not_set_up", "there is no certificate yet: opereta tls on")
 		return
 	}
 	var info certstore.Info
@@ -247,7 +247,7 @@ func (s *server) postTLSRenew(w http.ResponseWriter, r *http.Request) {
 	}
 	view := tlsView(cfg, info, m.Listener())
 	if body.CA {
-		view.Notes = append(view.Notes, "the CA changed: give every client the new CA (diparnux tls ca) and compare the fingerprint")
+		view.Notes = append(view.Notes, "the CA changed: give every client the new CA (opereta tls ca) and compare the fingerprint")
 	}
 	writeJSON(w, http.StatusOK, view)
 }
@@ -260,7 +260,7 @@ func (s *server) getTLSCA(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := m.CAPEM()
 	if err != nil {
-		writeError(w, http.StatusNotFound, "tls_not_set_up", "there is no CA yet: diparnux tls on")
+		writeError(w, http.StatusNotFound, "tls_not_set_up", "there is no CA yet: opereta tls on")
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-pem-file")

@@ -10,10 +10,10 @@ import unittest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-from diparnux_cc import i18n  # noqa: E402
+from opereta_cc import i18n  # noqa: E402
 
 PO = os.path.join(HERE, "po", "ko.po")
-POT = os.path.join(HERE, "po", "diparnux-control-center.pot")
+POT = os.path.join(HERE, "po", "opereta-control-center.pot")
 
 
 def read(path):
@@ -43,9 +43,9 @@ class CatalogTests(unittest.TestCase):
         # 소스에 새 문자열이 생기면 .pot 을 다시 만들어야 한다(xgettext, 아래 README 참고).
         wanted = set()
         pattern = re.compile(r'\b_\(\s*"((?:[^"\\]|\\.)*)"', re.S)
-        for name in os.listdir(os.path.join(HERE, "diparnux_cc")):
+        for name in os.listdir(os.path.join(HERE, "opereta_cc")):
             if name.endswith(".py") and name != "i18n.py":
-                src = read(os.path.join(HERE, "diparnux_cc", name))
+                src = read(os.path.join(HERE, "opereta_cc", name))
                 wanted.update(m.group(1) for m in pattern.finditer(src))
         have = {i.replace('\\"', '"') for i in msgids(POT)}
         missing = sorted(w for w in wanted if w not in have)

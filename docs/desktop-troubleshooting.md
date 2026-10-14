@@ -3,7 +3,7 @@
 - 확인 날짜: 2026-10-13
 - 상태: 0.5.0(Xfce, lightdm)의 화면은 Docker(Xvfb, Xephyr)와 QEMU(virtio-gpu)에서만 시험했다. 실기, NVIDIA 화면, VMware, VirtualBox는 미검증이다.
 
-데스크톱 모드는 `diparnux mode desktop` 으로 켠다. 로그인 화면은 lightdm(lightdm-gtk-greeter)이고, 로그인하면 Xfce(`startxfce4`) 세션이 Xorg 위에서 시작한다. **라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.** 설치된 시스템은 로그인 화면을 보여 준다. `diparnux mode server` 로 서버 모드로 돌아간다.
+데스크톱 모드는 `opereta mode desktop` 으로 켠다. 로그인 화면은 lightdm(lightdm-gtk-greeter)이고, 로그인하면 Xfce(`startxfce4`) 세션이 Xorg 위에서 시작한다. **라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.** 설치된 시스템은 로그인 화면을 보여 준다. `opereta mode server` 로 서버 모드로 돌아간다.
 
 ## 로그인 화면이 안 뜨거나 검은 화면이다
 
@@ -23,7 +23,7 @@
 
    ```sh
    sudo systemctl reset-failed lightdm.service
-   diparnux mode desktop
+   opereta mode desktop
    ```
 4. 가상 머신에서는 Xorg 의 `modesetting` 드라이버가 virtio-gpu, bochs, vmwgfx 로 동작한다. 3D 가속이 없어도 소프트웨어 렌더링(llvmpipe)으로 뜬다. VMware 에서 안 되면 위 로그를 첨부해 알려 주세요.
 
@@ -58,10 +58,10 @@ sudo systemctl restart lightdm.service     # 로그인 화면이 나온다
 
 ## 화면 구성이 이상하다 (배경, 패널, 테마)
 
-- Diparnux 의 기본값은 `/etc/xdg/diparnux/xfce4/` 에 있고 `/etc/X11/Xsession.d/55diparnux-xdg` 가 `XDG_CONFIG_DIRS` 맨 앞에 둔다. 확인: 세션에서 `echo $XDG_CONFIG_DIRS` 가 `/etc/xdg/diparnux:/etc/xdg` 로 시작해야 한다.
+- Opereta 의 기본값은 `/etc/xdg/opereta/xfce4/` 에 있고 `/etc/X11/Xsession.d/55opereta-xdg` 가 `XDG_CONFIG_DIRS` 맨 앞에 둔다. 확인: 세션에서 `echo $XDG_CONFIG_DIRS` 가 `/etc/xdg/opereta:/etc/xdg` 로 시작해야 한다.
 - 사용자가 바꾼 설정은 `~/.config/xfce4/` 에 저장되어 기본값보다 우선한다. 기본값으로 되돌리려면 그 폴더를 지우고 다시 로그인한다.
-- 배경 화면은 첫 로그인에 `diparnux-session-setup` 이 모든 모니터에 적용한다. 표식 파일 `~/.config/diparnux/session-setup-done` 을 지우고 다시 로그인하면 다시 적용한다.
-- GTK 테마 `Diparnux`, 창 관리자 테마 `Diparnux`, 아이콘 `Adwaita` 는 설정 관리자(모양, 창 관리자)에서 바꿀 수 있다.
+- 배경 화면은 첫 로그인에 `opereta-session-setup` 이 모든 모니터에 적용한다. 표식 파일 `~/.config/opereta/session-setup-done` 을 지우고 다시 로그인하면 다시 적용한다.
+- GTK 테마 `Opereta`, 창 관리자 테마 `Opereta`, 아이콘 `Adwaita` 는 설정 관리자(모양, 창 관리자)에서 바꿀 수 있다.
 
 ## 한글 입력
 
@@ -83,7 +83,7 @@ curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.d
 sudo apt-get install -y ./google-chrome-stable_current_amd64.deb   # dpkg -i 가 아니라 apt 로 설치해야 의존성이 해결된다
 ```
 
-- 데스크톱 세션(`diparnux mode desktop` 뒤 로그인)의 터미널에서 실행한다. 텍스트 콘솔(tty)에서는 `DISPLAY` 가 없어 창을 열 수 없다.
+- 데스크톱 세션(`opereta mode desktop` 뒤 로그인)의 터미널에서 실행한다. 텍스트 콘솔(tty)에서는 `DISPLAY` 가 없어 창을 열 수 없다.
 - 라이브 세션에서는 설치한 패키지와 내려받은 파일이 램에 쌓인다. 브라우저는 수백 MB 를 쓴다.
 
 ## 로그 명령

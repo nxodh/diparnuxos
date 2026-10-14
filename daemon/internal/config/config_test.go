@@ -11,7 +11,7 @@ import (
 // writeFile은 테스트용 설정 파일을 임시 디렉터리에 쓴다.
 func writeFile(t *testing.T, body string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "diparnuxd.json")
+	file := filepath.Join(t.TempDir(), "operetad.json")
 	if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -20,7 +20,7 @@ func writeFile(t *testing.T, body string) string {
 
 func TestDefault(t *testing.T) {
 	d := Default()
-	if d.Port != 8080 || d.LANExposed || !d.Autostart || d.ModelsDir != "/var/lib/diparnux/models" || d.HFToken != "" {
+	if d.Port != 8080 || d.LANExposed || !d.Autostart || d.ModelsDir != "/var/lib/opereta/models" || d.HFToken != "" {
 		t.Fatalf("Default = %+v", d)
 	}
 	if err := d.Validate(); err != nil {
@@ -44,7 +44,7 @@ func TestLoadPartialKeepsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.Port != 9000 || !cfg.Autostart || cfg.ModelsDir != "/var/lib/diparnux/models" {
+	if cfg.Port != 9000 || !cfg.Autostart || cfg.ModelsDir != "/var/lib/opereta/models" {
 		t.Fatalf("partial load = %+v", cfg)
 	}
 }
@@ -104,7 +104,7 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 
 func TestSaveLoadRoundTripAndMode(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "diparnuxd.json")
+	file := filepath.Join(dir, "operetad.json")
 	ngl := "17"
 	ctx := 8192
 	in := Default()
@@ -156,7 +156,7 @@ func TestSaveOverwritesExisting(t *testing.T) {
 }
 
 func TestSaveRefusesInvalidConfig(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "diparnuxd.json")
+	file := filepath.Join(t.TempDir(), "operetad.json")
 	bad := Default()
 	bad.ModelsDir = "relative"
 	if err := Save(file, bad); err == nil {
@@ -213,7 +213,7 @@ func TestRedactedWithoutToken(t *testing.T) {
 
 // TLS 를 켜지 않은 설정은 0.5.3 과 같은 파일로 저장된다(되돌려도 읽힌다).
 func TestSaveWithoutTLSWritesNoTLSKeys(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "diparnuxd.json")
+	file := filepath.Join(t.TempDir(), "operetad.json")
 	if err := Save(file, Default()); err != nil {
 		t.Fatal(err)
 	}

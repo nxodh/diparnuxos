@@ -1,0 +1,22 @@
+#!/bin/sh
+# user-setup 뒤 라이브 사용자를 데몬 제어 그룹에 넣는다. 설치된 시스템 계정은 바꾸지 않는다.
+set -eu
+# shellcheck source=/dev/null
+. /lib/live/config.sh
+[ -e /var/lib/live/config/opereta-groups ] && exit 0
+live_user="${LIVE_USERNAME:-user}"
+for parameter in ${LIVE_CONFIG_CMDLINE:-}; do
+    case "$parameter" in
+        live-config.username=*|username=*) live_user="${parameter#*username=}" ;;
+    esac
+done
+if ! getent passwd "$live_user" >/dev/null; then
+    echo "Opereta live groups: user does not exist: $live_user" >&2
+    exit 1
+fi
+if ! getent group opereta >/dev/null; then
+    echo 'Opereta live groups: opereta group does not exist' >&2
+    exit 1
+fi
+usermod -a -G opereta "$live_user"
+touch /var/lib/live/config/opereta-groups

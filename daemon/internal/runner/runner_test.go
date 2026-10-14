@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 // TestRunCapturesOutputAndExitZero 는 stdout 과 stderr 를 나눠 모으고 종료 코드 0 을 돌려주는지 확인한다.
@@ -38,7 +38,7 @@ func TestNonZeroExitIsNotAnError(t *testing.T) {
 
 // TestMissingExecutableWrapsErrNotFound 는 실행 파일이 없을 때 exec.ErrNotFound 로 판별되는지 확인한다.
 func TestMissingExecutableWrapsErrNotFound(t *testing.T) {
-	for _, name := range []string{"no-such-binary-diparnux-test", "/nonexistent/dir/diparnux-test"} {
+	for _, name := range []string{"no-such-binary-opereta-test", "/nonexistent/dir/opereta-test"} {
 		_, err := Exec{}.Run(context.Background(), platform.Command{Name: name})
 		if !errors.Is(err, exec.ErrNotFound) {
 			t.Fatalf("Run(%q) error = %v, want exec.ErrNotFound", name, err)
@@ -57,8 +57,8 @@ func TestEmptyNameIsAnError(t *testing.T) {
 func TestEnvIsAppended(t *testing.T) {
 	res, err := Exec{}.Run(context.Background(), platform.Command{
 		Name: "sh",
-		Args: []string{"-c", `printf "%s|%s" "$DPX_TEST_VALUE" "$PATH"`},
-		Env:  []string{"DPX_TEST_VALUE=yes"},
+		Args: []string{"-c", `printf "%s|%s" "$OPR_TEST_VALUE" "$PATH"`},
+		Env:  []string{"OPR_TEST_VALUE=yes"},
 	})
 	if err != nil {
 		t.Fatalf("Run: %v", err)

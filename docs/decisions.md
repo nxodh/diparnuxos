@@ -1,9 +1,9 @@
-# Diparnux 기술 결정 기록
+# Opereta 기술 결정 기록
 
 - 확인 날짜: 2026-10-10
 - 상태: 초안
 
-이 문서는 Diparnux의 기술 결정을 번호별로 모은다. 각 항목은 세 부분으로 나뉜다.
+이 문서는 Opereta의 기술 결정을 번호별로 모은다. 각 항목은 세 부분으로 나뉜다.
 
 - **원래 결정**: 최초 사양에 적힌 결정(검증 기록에 적힌 요약 기준).
 - **2026-10-10 변경**: 검증자가 제안하고 사용자가 수용한 변경. 사용자가 따로 확정한 내용이 검증자 제안과 다르면 사용자 결정을 따른다.
@@ -16,11 +16,11 @@
 - `clarify`: 결정 방향은 유지하되 구체적인 기준이 필요한 항목.
 - `사용자 확정`: 사용자가 직접 정한 항목.
 
-원래 사양의 조직 이름은 이 저장소 결정으로 대체되었다. 현재 저장소는 https://github.com/nxodh/diparnuxos 이다.
+원래 사양의 조직 이름은 이 저장소 결정으로 대체되었다. 현재 저장소는 https://github.com/nxodh/operetaos 이다.
 
 ### Phase 2 검증 상태 메모 (2026-10-11)
 
-이 문서는 기술 결정을 기록하며, 아래 D4의 CI 링크는 해당 패키지 검사 결과의 출처다. [CI 38131367776](https://github.com/nxodh/diparnuxos/actions/runs/38131367776)의 CUDA 패키지 빌드와 CPU 컨테이너 추론은 실제 NVIDIA 오프로드를 입증하지 않는다. 후속 ISO E2E는 38138886386에서 잘못된 context assertion, 38140520091에서 CPU MainPID 런타임 증거 확인으로 끝났고, [CI 38142350756](https://github.com/nxodh/diparnuxos/actions/runs/38142350756)(`035dfb4`)에서 live CPU E2E가 전체 통과했다. 이 통과도 GPU 없는 VM의 CPU 경로이며 실제 GPU 오프로드는 확인되지 않았다. 실행별 구분과 남은 검증은 [Phase 2 검증 기록](verification-phase-2.md)에 있다.
+이 문서는 기술 결정을 기록하며, 아래 D4의 CI 링크는 해당 패키지 검사 결과의 출처다. [CI 38131367776](https://github.com/nxodh/operetaos/actions/runs/38131367776)의 CUDA 패키지 빌드와 CPU 컨테이너 추론은 실제 NVIDIA 오프로드를 입증하지 않는다. 후속 ISO E2E는 38138886386에서 잘못된 context assertion, 38140520091에서 CPU MainPID 런타임 증거 확인으로 끝났고, [CI 38142350756](https://github.com/nxodh/operetaos/actions/runs/38142350756)(`035dfb4`)에서 live CPU E2E가 전체 통과했다. 이 통과도 GPU 없는 VM의 CPU 경로이며 실제 GPU 오프로드는 확인되지 않았다. 실행별 구분과 남은 검증은 [Phase 2 검증 기록](verification-phase-2.md)에 있다.
 
 ---
 
@@ -28,7 +28,7 @@
 
 | 번호 | 결정 | 근거 |
 |---|---|---|
-| U1 | 저장소는 https://github.com/nxodh/diparnuxos 로 한다. | 사용자 확정. 원래 사양의 조직 이름을 대체한다. |
+| U1 | 저장소는 https://github.com/nxodh/operetaos 로 한다. | 사용자 확정. 원래 사양의 조직 이름을 대체한다. |
 | U2 | 검증자가 제안한 decision_changes를 모두 수용한다. 단 U3과 충돌하는 부분은 U3을 따른다. | 사용자 확정. 항목별 내용은 D1~D9에 적는다. |
 | U3 | CUDA 런타임(`cudart`, `cublas`)은 첫 부팅 때 설치하지 않고 ISO에 포함한다. | 사용자 확정. 검증자는 CUDA 런타임만 첫 부팅 설치를 제안했으나 사용자가 ISO 포함으로 정했다. CUDA EULA 1.1.2 조건을 어떻게 읽을지에 대한 위험이 남는다(아래 D8과 [licenses.md](licenses.md) 참고). 법률 자문을 받은 결과가 아니다. |
 | U4 | NVIDIA 드라이버도 ISO에 포함한다. 바이너리는 수정하지 않고 라이선스 전문을 함께 제공한다. | 사용자 확정. 근거는 D8 참고. |
@@ -37,12 +37,13 @@
 | U7 | 프로젝트 자체 라이선스는 아직 정하지 않는다. LICENSE 파일은 만들지 않는다. | 사용자 확정. [licenses.md](licenses.md) 참고. |
 | U8 | **(U13에서 철회됨)** 램 목표를 완화한다(2026-10-12). 헤드리스 서버 모드 유휴 램은 300 MB에서 600 MB로(처음 400 MB, 이어서 200 MB 더), 데스크톱 모드는 700 MB에서 900 MB로 바꾼다. | 사용자 확정. 목표와 실측은 MiB 기준으로 비교한다. Phase 3의 QEMU 참고 측정은 서버 약 374~384 MiB, 데스크톱 약 618~621 MiB(창을 연 채)로 목표 안이다. 실기와 장시간 값은 Phase 5에서 다시 잰다([memory.md](memory.md)). |
 | U9 | Phase 4 는 사용자가 "Phase 4 를 새 브랜치에서 시작"하라고 지시했고(2026-10-12), 설계서의 기본값으로 진행한다(Q1~Q6 은 사용자 결정 대기). | 사용자 지시. 근거와 기본값은 [phase-4-design.md](phase-4-design.md) 3절과 9절. |
-| U10 | 업데이트는 사용자가 시작할 때만 한다. 새 커널은 `grub-reboot` 로 한 번만 부팅해 보고, 부팅 뒤 확인이 통과해야 기본 커널을 바꾼다. 드라이버는 `diparnux-nvidia` 패키지를 통해서만 올라가며 같은 브랜치(595) 안에서만 바뀐다. | 설계 기본값. SPEC 의 "성공했을 때만 기본 부팅 커널을 바꾸고 실패하면 이전 커널을 유지한다"를 부팅 뒤 확인까지 확장했다. [updates.md](updates.md). |
+| U10 | 업데이트는 사용자가 시작할 때만 한다. 새 커널은 `grub-reboot` 로 한 번만 부팅해 보고, 부팅 뒤 확인이 통과해야 기본 커널을 바꾼다. 드라이버는 `opereta-nvidia` 패키지를 통해서만 올라가며 같은 브랜치(595) 안에서만 바뀐다. | 설계 기본값. SPEC 의 "성공했을 때만 기본 부팅 커널을 바꾸고 실패하면 이전 커널을 유지한다"를 부팅 뒤 확인까지 확장했다. [updates.md](updates.md). |
 | U11 | 설치는 GPT(ESP 1 GiB FAT32 + ext4 루트)로 디스크 전체를 쓴다. 암호화, LVM, swap 파티션, btrfs 스냅샷은 이번 단계에서 지원하지 않는다. 설치된 시스템에서 Calamares 는 지운다. | 설계 기본값(Q3, Q4). [installation.md](installation.md). |
 | U12 | 자체 APT 저장소는 `apt-ftparchive` 와 `gpg` 로 만들고, 호스팅 주소와 서명 키는 사용자가 정한다. 개인 키는 저장소에 두지 않는다. | 설계 기본값(Q1, Q2). [apt-repository.md](apt-repository.md). |
 | U13 | 램 목표(U8의 서버 600 MB, 데스크톱 900 MB)를 철회한다(2026-10-12). 먼저 잘 동작하게 만들고, 그다음 검토해서 최대한 경량화한다. | 사용자 확정. 0.5.0의 합격 조건에 램 수치를 쓰지 않는다. 누수 검사(소크 시험)는 유지한다. 수치 목표는 경량화 단계에서 실측으로 새로 정한다. [memory.md](memory.md). |
-| U14 | 0.5.0은 데스크톱 환경을 Xfce로 바꾸고 Diparnux 로고와 통일된 디자인을 적용한다. 일반 배포판에 가까운 사용성을 주되 무거운 기능은 제외한다. SPEC의 "labwc + greetd" 결정을 대체한다. | 사용자 지시(2026-10-12). 설계 기본값과 질문은 [phase-5-design.md](phase-5-design.md). |
-| U15 | 0.5.1 부터 OS 이름은 **Diparnux** 이고 새 로고를 쓴다. 이전 이름의 흔적을 두지 않는다(호환 별칭, 이전 경로, 이전 이름 `Replaces`/`Conflicts` 없음). GitHub 저장소는 `nxodh/diparnuxos` 로 바꾸고 git 이력은 다시 쓰지 않는다. | 사용자 지시(2026-10-13). [phase-5-1-design.md](phase-5-1-design.md). 이전 이름의 설치본은 새 이미지로 새로 설치한다. |
+| U14 | 0.5.0은 데스크톱 환경을 Xfce로 바꾸고 Opereta 로고와 통일된 디자인을 적용한다. 일반 배포판에 가까운 사용성을 주되 무거운 기능은 제외한다. SPEC의 "labwc + greetd" 결정을 대체한다. | 사용자 지시(2026-10-12). 설계 기본값과 질문은 [phase-5-design.md](phase-5-design.md). |
+| U15 | 0.5.1 에서 OS 이름과 로고를 바꿨다. 이전 이름의 흔적을 두지 않는다(호환 별칭, 이전 경로, 이전 이름 `Replaces`/`Conflicts` 없음). GitHub 저장소 이름도 바꾸고 git 이력은 다시 쓰지 않는다. 0.6.0(U16)에서 같은 규칙으로 한 번 더 바뀌었다. | 사용자 지시(2026-10-13). [phase-5-1-design.md](phase-5-1-design.md). 이전 이름의 설치본은 새 이미지로 새로 설치한다. |
+| U16 | 0.6.0 에서 OS 이름을 **Opereta** 로 한 번 더 바꾸고 새 로고와 8px 모서리 디자인을 쓴다(U15 와 같은 규칙: 이전 이름의 흔적 없음, 이력은 다시 쓰지 않음). 저장소 이름은 `nxodh/operetaos`(기본안). Vedecaps 의 Deberopa 로의 이름 변경은 Deberopa 릴리스가 생길 때까지 하지 않는다. 0.6.0 부터 태그를 게시하고 GitHub 릴리스와 ISO 를 올리며, 릴리스 자산을 OS 업데이트 저장소(평평한 APT 형식)로 쓴다. | 사용자 지시(2026-10-14). [phase-6-design.md](phase-6-design.md), [releases.md](releases.md). 저장소 이름과 Deberopa 보류는 기본안이며 사용자가 바꿀 수 있다. ISO 공개 배포(M6)와 프로젝트 라이선스(U7)는 여전히 사용자 결정 대기다. |
 
 ---
 
@@ -65,7 +66,7 @@
 ## D2. 설치기
 
 - **원래 결정**: 설치기는 Calamares를 쓴다.
-- **2026-10-10 변경**: Calamares 자체는 유지한다(`should_change`). 다만 Debian 기본 설정 패키지(`calamares-settings-debian`)를 그대로 쓰지 않고 Diparnux 전용 설정 패키지를 만든다.
+- **2026-10-10 변경**: Calamares 자체는 유지한다(`should_change`). 다만 Debian 기본 설정 패키지(`calamares-settings-debian`)를 그대로 쓰지 않고 Opereta 전용 설정 패키지를 만든다.
   - `displaymanager` 모듈 목록에는 greetd를 넣지 않는다. Calamares 3.3.14의 greetd 처리 코드는 그리터 사용자를 `greeter`로 가정하고 설정 파일을 다시 쓴다. 그러나 Debian의 greetd 기본 사용자는 `_greetd`이므로, 그대로 쓰면 설치된 시스템의 그리터가 깨진다. 대신 완성된 `/etc/greetd/config.toml`을 squashfs에 넣는다.
   - 라이브 전용 자동 로그인 설정은 `shellprocess` 단계에서 지운다.
   - 오프라인 설치를 위해 부트로더 패키지(`grub-efi`, `grub-efi-amd64-signed`, `shim-signed`)를 squashfs에 미리 넣는다. 기본 설정은 타깃에서 `apt-get -y install grub-efi`를 실행한다. 세 패키지의 존재와 버전은 이번 조사에서 확인하지 않았다.
@@ -172,12 +173,12 @@
 
 - **2026-10-10 확인**: GitHub의 정식 최신 릴리스는 v0.6.0(2026-10-05)이다. 매 빌드는 `bNNNNN` 태그로 올라오는 prerelease다. 검증 시점의 v0.6.0 빌드 번호는 b11429다.
 - **결정**: `v0.6.0`을 쓴다.
-- **2026-10-11 Phase 2 반영**: 커밋 해시를 `diparnux.conf`의 `LLAMA_CPP_COMMIT="d81235049384534c167caea52b85a694f6103d14"`로 고정했다. 빌드는 태그 이름이 아니라 이 커밋을 `git fetch --depth 1`로 받고, 받은 커밋이 같은지 확인한다. 자동 생성 tarball은 해시가 고정되지 않으므로 쓰지 않는다. 확인: `gh api repos/ggml-org/llama.cpp/git/ref/tags/v0.6.0`(태그 객체 `69ecae92…`)과 `git/tags/69ecae92…`의 역참조.
+- **2026-10-11 Phase 2 반영**: 커밋 해시를 `opereta.conf`의 `LLAMA_CPP_COMMIT="d81235049384534c167caea52b85a694f6103d14"`로 고정했다. 빌드는 태그 이름이 아니라 이 커밋을 `git fetch --depth 1`로 받고, 받은 커밋이 같은지 확인한다. 자동 생성 tarball은 해시가 고정되지 않으므로 쓰지 않는다. 확인: `gh api repos/ggml-org/llama.cpp/git/ref/tags/v0.6.0`(태그 객체 `69ecae92…`)과 `git/tags/69ecae92…`의 역참조.
 - **근거**: https://api.github.com/repos/ggml-org/llama.cpp/releases/latest , https://github.com/ggml-org/llama.cpp/releases
 
 ### D4-4. 런타임 라이브러리와 재배포 (`사용자 확정`)
 
-- llama.cpp CUDA 백엔드는 `CUDA::cudart`, `CUDA::cublas`, `CUDA::cuda_driver`에 링크한다(`GGML_CUDA_NO_VMM`이 아닐 때 `cuda_driver`가 추가된다). 역사적 패키지 근거인 [Phase 2 CI 38131367776](https://github.com/nxodh/diparnuxos/actions/runs/38131367776)에서 amd64 CUDA 패키지 빌드와 `NEEDED`·`ldd` 검사가 통과했다. 검사는 `llama/build.sh`와 `tests/llama/package.sh`에 있다. 이 결과는 이후 live ISO E2E 실패를 없애거나 실 GPU 오프로드를 증명하지 않는다.
+- llama.cpp CUDA 백엔드는 `CUDA::cudart`, `CUDA::cublas`, `CUDA::cuda_driver`에 링크한다(`GGML_CUDA_NO_VMM`이 아닐 때 `cuda_driver`가 추가된다). 역사적 패키지 근거인 [Phase 2 CI 38131367776](https://github.com/nxodh/operetaos/actions/runs/38131367776)에서 amd64 CUDA 패키지 빌드와 `NEEDED`·`ldd` 검사가 통과했다. 검사는 `llama/build.sh`와 `tests/llama/package.sh`에 있다. 이 결과는 이후 live ISO E2E 실패를 없애거나 실 GPU 오프로드를 증명하지 않는다.
 - ISO에 `cudart`와 `cublas`를 넣는 것은 사용자 확정 U3이다. 재배포 근거와 남은 해석 위험은 [licenses.md](licenses.md)에 적는다.
 - **근거**: https://raw.githubusercontent.com/ggml-org/llama.cpp/v0.6.0/ggml/src/ggml-cuda/CMakeLists.txt , https://docs.nvidia.com/cuda/eula/index.html
 
@@ -185,11 +186,11 @@
 
 - **결정**: 별도 CPU 전용 빌드를 만들지 않는다. CUDA를 포함한 빌드 한 벌이 `llama-server`, `libggml-cpu-*.so`(CPU 변형 여러 개), `libggml-cuda.so`를 함께 만든다. CUDA 백엔드는 실행 중에 `dlopen`되므로, CUDA 라이브러리나 GPU가 없으면 로드에 실패하고 CPU 백엔드로 돈다.
 - **근거**: 조사 기록 `docs/verification-phase-2-research.md`의 "설계에 영향을 주는 발견" 1번. 소스에서 `GGML_BACKEND_DL=ON`이면 CUDA 백엔드가 `MODULE`이고 실행 파일에 링크되지 않음을 확인했다(`ggml/src/CMakeLists.txt:381-385`). `dlopen`이 실패하면 Release 빌드는 조용히 넘어간다(`ggml-backend-reg.cpp:221-228, 578-599`). CUDA 없는 환경에서 가짜 `libggml-cuda.so`를 로드해 `--list-devices`와 `/v1/chat/completions`가 정상임을 직접 확인했다.
-- **실제 확인**: 로컬에서는 CPU 전용 스모크 빌드만 실행했다. 역사적 패키지 검사인 [CI 38131367776](https://github.com/nxodh/diparnuxos/actions/runs/38131367776)의 `make test-llama-docker`는 nvcc로 만든 CUDA 모듈을 가진 `.deb`에서 `libcudart.so.13 => not found`와 실제 CPU 추론을 확인해 통과했다. 이는 CUDA 없는 컨테이너 결과다. live ISO의 CPU E2E는 CI 38142350756에서 통과했지만, GPU가 있는 기기의 CUDA 오프로드는 확인되지 않았다.
+- **실제 확인**: 로컬에서는 CPU 전용 스모크 빌드만 실행했다. 역사적 패키지 검사인 [CI 38131367776](https://github.com/nxodh/operetaos/actions/runs/38131367776)의 `make test-llama-docker`는 nvcc로 만든 CUDA 모듈을 가진 `.deb`에서 `libcudart.so.13 => not found`와 실제 CPU 추론을 확인해 통과했다. 이는 CUDA 없는 컨테이너 결과다. live ISO의 CPU E2E는 CI 38142350756에서 통과했지만, GPU가 있는 기기의 CUDA 오프로드는 확인되지 않았다.
 
 ---
 
-## D5. diparnuxd 데몬
+## D5. operetad 데몬
 
 - **원래 결정**: Go 단일 바이너리, NVIDIA `go-nvml` 사용.
 - **2026-10-10 변경**: `clarify`. "단일 바이너리"의 뜻을 다음과 같이 좁힌다.

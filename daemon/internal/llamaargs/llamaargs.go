@@ -16,7 +16,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
+	"github.com/nxodh/operetaos/daemon/internal/autoconf"
 )
 
 // llama-server 환경 변수 이름이다. 모두 llama.cpp v0.6.0 common/arg.cpp의 set_env 호출에서 확인했다.

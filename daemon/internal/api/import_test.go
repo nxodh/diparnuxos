@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 // importGGUF 는 아주 작은 GGUF v3 파일이다.
@@ -103,7 +103,7 @@ func TestImportModelRejectsBadRequests(t *testing.T) {
 			}
 		})
 	}
-	if entries, _ := os.ReadDir(e.dir); len(entries) != 1 { // diparnuxd.json 만 있다.
+	if entries, _ := os.ReadDir(e.dir); len(entries) != 1 { // operetad.json 만 있다.
 		t.Fatalf("files were left behind: %v", entries)
 	}
 }

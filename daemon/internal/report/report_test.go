@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/config"
-	"github.com/nxodh/diparnuxos/daemon/internal/models"
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/models"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/supervisor"
 )
 
 const (
-	plainKey  = "dpx_PLAINKEYabcdefghijklmnopqrstuvwxyz0123456789ABC"
+	plainKey  = "opr_PLAINKEYabcdefghijklmnopqrstuvwxyz0123456789ABC"
 	hfToken   = "hf_HFTOKENabcdefghijklmnopqrstuv"
-	bearerKey = "dpx_UNLISTEDKEYabcdefghijklmnopqrstuvwxyz"
+	bearerKey = "opr_UNLISTEDKEYabcdefghijklmnopqrstuvwxyz"
 )
 
 // fakeRunner는 명령마다 다른 출력을 낸다. journalctl 에는 비밀을 섞는다.

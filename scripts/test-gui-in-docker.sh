@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${DIPARNUX_GUI_TEST_IMAGE:-debian:trixie}"
+IMAGE="${OPERETA_GUI_TEST_IMAGE:-debian:trixie}"
 
 command -v docker >/dev/null 2>&1 || { echo "test-gui: docker is required" >&2; exit 2; }
 

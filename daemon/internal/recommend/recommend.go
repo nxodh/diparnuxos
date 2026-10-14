@@ -16,7 +16,7 @@ type Model struct {
 	Quant   string `json:"quant"`
 	SizeMiB int64  `json:"size_mib"`
 	License string `json:"license"`
-	// Tools 는 모델 카드 기준으로 채팅 틀이 도구 호출을 지원하는지다. 이 컴퓨터에서의 실제 동작은 `diparnux serve toolcheck` 로 확인한다.
+	// Tools 는 모델 카드 기준으로 채팅 틀이 도구 호출을 지원하는지다. 이 컴퓨터에서의 실제 동작은 `opereta serve toolcheck` 로 확인한다.
 	Tools bool `json:"tools"`
 	// Agent 는 코딩 에이전트에 권하는지다. 도구 호출을 지원하고 8B 이상이어야 한다. 더 작은 모델은 도구를 불러도 파일을 안정적으로 고치지 못한다.
 	Agent bool `json:"agent"`

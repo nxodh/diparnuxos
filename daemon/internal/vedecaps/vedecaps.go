@@ -1,8 +1,8 @@
-// Package vedecaps는 Diparnux 모델 서버를 코딩 에이전트 Vedecaps 에 연결하는 설정을 만든다.
+// Package vedecaps는 Opereta 모델 서버를 코딩 에이전트 Vedecaps 에 연결하는 설정을 만든다.
 //
 // Vedecaps 는 llama.cpp 서버를 127.0.0.1:8080 에서 키 없이 스스로 찾는다. 그래도 설정 조각을 두는 이유는 셋이다.
 // 키가 필요한 원격 접속과 슬롯당 컨텍스트(limit.context)를 정확히 알려 주는 것이다.
-// 도구 호출(tool_call)은 Vedecaps 가 기본으로 켜 두므로 적지 않는다. 실제 동작은 `diparnux serve toolcheck` 로 확인한다.
+// 도구 호출(tool_call)은 Vedecaps 가 기본으로 켜 두므로 적지 않는다. 실제 동작은 `opereta serve toolcheck` 로 확인한다.
 // 설정 형식은 Vedecaps 의 config.schema.json 의 provider 절을 따른다(additionalProperties 가 false 라서 모르는 키는 넣지 않는다).
 package vedecaps
 
@@ -16,15 +16,15 @@ import (
 	"strings"
 )
 
-// ProviderID 는 Vedecaps 설정에서 Diparnux 서버를 가리키는 제공자 이름이다.
-const ProviderID = "diparnux"
+// ProviderID 는 Vedecaps 설정에서 Opereta 서버를 가리키는 제공자 이름이다.
+const ProviderID = "opereta"
 
 // DefaultKeyEnv 는 원격 접속에서 API 키를 읽을 환경 변수 이름이다. 키 값은 설정 파일에 쓰지 않는다.
-const DefaultKeyEnv = "DIPARNUX_API_KEY"
+const DefaultKeyEnv = "OPERETA_API_KEY"
 
 // DefaultCAFile 은 다른 컴퓨터의 Vedecaps 설정이 가리킬 CA 인증서 경로의 기본값이다. 파일은 사용자가 그 컴퓨터에 둔다
-// (`diparnux tls ca --out`). 설정 파일에는 경로만 쓴다.
-const DefaultCAFile = "~/.config/vedecaps/diparnux-ca.pem"
+// (`opereta tls ca --out`). 설정 파일에는 경로만 쓴다.
+const DefaultCAFile = "~/.config/vedecaps/opereta-ca.pem"
 
 // defaultOutput 은 응답 최대 길이로 알려 줄 값이다. 슬롯 컨텍스트보다 작게 잡는다.
 const defaultOutput = 4096
@@ -44,10 +44,10 @@ type Input struct {
 	// CAFile 은 https 주소의 서버 인증서를 믿게 할 CA 인증서(PEM) 경로다. 비어 있으면 쓰지 않는다. Vedecaps 가
 	// options.ca 를 지원하는 버전(0.1.5 이상)에서 쓰이고, 모르는 버전은 이 키를 무시한다.
 	CAFile string
-	// Packaged 가 true 이면 Diparnux 패키지가 /usr/bin 에 둔 Vedecaps 다. 사용자가 이 파일을 바꿀 수 없으므로
-	// 자체 업데이트 확인을 끈다(업데이트는 Diparnux 업데이트로 온다).
+	// Packaged 가 true 이면 Opereta 패키지가 /usr/bin 에 둔 Vedecaps 다. 사용자가 이 파일을 바꿀 수 없으므로
+	// 자체 업데이트 확인을 끈다(업데이트는 Opereta 업데이트로 온다).
 	Packaged bool
-	// MCP 가 true 이면 `diparnux mcp` 를 Vedecaps 의 MCP 서버로 등록하는 조각도 넣는다.
+	// MCP 가 true 이면 `opereta mcp` 를 Vedecaps 의 MCP 서버로 등록하는 조각도 넣는다.
 	MCP bool
 }
 
@@ -63,7 +63,7 @@ func Fragment(in Input) (map[string]any, error) {
 		return nil, errors.New("vedecaps: the model name has characters that are not allowed")
 	}
 	provider := map[string]any{
-		"name":     "Diparnux",
+		"name":     "Opereta",
 		"protocol": "openai",
 		"api":      strings.TrimRight(in.BaseURL, "/"),
 	}
@@ -99,7 +99,7 @@ func Fragment(in Input) (map[string]any, error) {
 	if in.MCP {
 		// 읽기 전용 도구만 내는 기본 모드다. 서버를 바꾸는 도구(--allow-control)는 설정 조각에 넣지 않는다.
 		frag["mcp"] = map[string]any{ProviderID: map[string]any{
-			"type": "local", "command": []string{"diparnux", "mcp"}, "enabled": true,
+			"type": "local", "command": []string{"opereta", "mcp"}, "enabled": true,
 		}}
 	}
 	if in.ModelID != "" {
@@ -153,7 +153,7 @@ var ErrNeedsManualMerge = errors.New("vedecaps: the existing config is not plain
 
 // MergeOptions 는 합치는 방법이다.
 type MergeOptions struct {
-	// MakeDefault 가 true 이면 이미 다른 기본 모델이 있어도 Diparnux 로 바꾼다. false 이면 기본 모델이 없을 때만 넣는다.
+	// MakeDefault 가 true 이면 이미 다른 기본 모델이 있어도 Opereta 로 바꾼다. false 이면 기본 모델이 없을 때만 넣는다.
 	MakeDefault bool
 }
 
@@ -163,8 +163,8 @@ type MergeResult struct {
 	Notes []string
 }
 
-// Merge 는 기존 설정(비어 있을 수 있다)에 조각을 합친다. 합치는 곳은 provider.diparnux 와 model 뿐이다.
-// 다른 제공자와 나머지 설정은 건드리지 않고, 기존 provider.diparnux 는 통째로 바꾼다.
+// Merge 는 기존 설정(비어 있을 수 있다)에 조각을 합친다. 합치는 곳은 provider.opereta 와 model 뿐이다.
+// 다른 제공자와 나머지 설정은 건드리지 않고, 기존 provider.opereta 는 통째로 바꾼다.
 func Merge(existing []byte, frag map[string]any, opt MergeOptions) (MergeResult, error) {
 	root := map[string]any{}
 	if len(bytes.TrimSpace(existing)) > 0 {
@@ -198,7 +198,7 @@ func Merge(existing []byte, frag map[string]any, opt MergeOptions) (MergeResult,
 		// 사용자가 이미 정한 값은 바꾸지 않는다.
 		if _, set := root["autoupdate"]; !set {
 			root["autoupdate"] = au
-			res.Notes = append(res.Notes, "turned off Vedecaps self-update (updates come with Diparnux updates)")
+			res.Notes = append(res.Notes, "turned off Vedecaps self-update (updates come with Opereta updates)")
 		}
 	}
 	if fragMCP, ok := frag["mcp"].(map[string]any); ok {

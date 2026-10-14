@@ -1,6 +1,6 @@
 # llama.cpp 빌더 이미지. 내용은 llama/build.sh 가 컨테이너 안에서 빌드한다.
 # nvidia/cuda 이미지는 Debian 변형이 없으므로 쓰지 않고, debian:<suite> 에 NVIDIA 저장소를 더한다.
-# 값은 scripts/build-llama-in-docker.sh 가 diparnux.conf 에서 읽어 --build-arg 로 넘긴다.
+# 값은 scripts/build-llama-in-docker.sh 가 opereta.conf 에서 읽어 --build-arg 로 넘긴다.
 ARG DEBIAN_SUITE
 FROM debian:${DEBIAN_SUITE}
 
@@ -40,7 +40,7 @@ RUN apt-get update \
 # CUDA 빌드 패키지. LLAMA_CUDA=OFF 이면 이 단계를 건너뛴다(CPU 전용 스모크 빌드용).
 # cuda-keyring 은 NVIDIA 저장소 항목과 키를 설치하며, 내려받은 파일은 sha256 으로 검증한다.
 # 두 패키지만 정확한 버전으로 고정한다. 나머지 CUDA 의존 패키지는 이 버전의 Depends 를 따라 설치되며,
-# 설치된 버전은 빌드 후 usr/share/doc/diparnux-llm/build-info.txt 에 기록된다.
+# 설치된 버전은 빌드 후 usr/share/doc/opereta-llm/build-info.txt 에 기록된다.
 RUN if [ "${LLAMA_CUDA}" = "ON" ]; then \
       set -eux; \
       apt-get update; \

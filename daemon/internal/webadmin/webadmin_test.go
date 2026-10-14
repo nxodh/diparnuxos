@@ -26,7 +26,7 @@ func newManager(t *testing.T) (*Manager, *[]string) {
 	})
 	m := &Manager{
 		API: api, StateDir: t.TempDir(),
-		Addresses: func() []string { return []string{"diparnux.local", "192.168.0.23"} },
+		Addresses: func() []string { return []string{"opereta.local", "192.168.0.23"} },
 		FailDelay: time.Millisecond, Iterations: 1000,
 	}
 	return m, &seen
@@ -52,7 +52,7 @@ func do(t *testing.T, h http.Handler, method, path, body string, cookie *http.Co
 	return w
 }
 
-var admin = map[string]string{"X-Diparnux-Admin": "1"}
+var admin = map[string]string{"X-Opereta-Admin": "1"}
 
 func login(t *testing.T, h http.Handler, pw string) (*http.Cookie, *httptest.ResponseRecorder) {
 	t.Helper()
@@ -140,7 +140,7 @@ func TestLoginSessionAndAllowList(t *testing.T) {
 	if w := do(t, h, "POST", "/v1/server/stop", `{}`, ck, nil); w.Code != http.StatusForbidden {
 		t.Fatalf("no csrf header = %d", w.Code)
 	}
-	if w := do(t, h, "POST", "/v1/server/stop", `{}`, ck, map[string]string{"X-Diparnux-Admin": "1", "Origin": "https://evil.example"}); w.Code != http.StatusForbidden {
+	if w := do(t, h, "POST", "/v1/server/stop", `{}`, ck, map[string]string{"X-Opereta-Admin": "1", "Origin": "https://evil.example"}); w.Code != http.StatusForbidden {
 		t.Fatalf("cross origin = %d", w.Code)
 	}
 	// 로그아웃하면 세션이 끝난다.

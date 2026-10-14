@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/network"
-	"github.com/nxodh/diparnuxos/daemon/internal/power"
-	"github.com/nxodh/diparnuxos/daemon/internal/updatectl"
+	"github.com/nxodh/operetaos/daemon/internal/network"
+	"github.com/nxodh/operetaos/daemon/internal/power"
+	"github.com/nxodh/operetaos/daemon/internal/updatectl"
 )
 
 // Status 는 GET /v1/status 를 부른다. 응답과 원본 본문을 돌려준다.
@@ -232,7 +232,7 @@ func (c *Client) Report(ctx context.Context) (string, error) {
 	return string(raw), nil
 }
 
-// Users 는 GET /v1/users 로 Diparnux 계정 목록을 받는다.
+// Users 는 GET /v1/users 로 Opereta 계정 목록을 받는다.
 func (c *Client) Users(ctx context.Context) (UserList, []byte, error) {
 	return call[UserList](ctx, c, http.MethodGet, "/v1/users", nil, defaultLimit)
 }
@@ -291,7 +291,7 @@ func (c *Client) Gateway(ctx context.Context) (Gateway, []byte, error) {
 // 큰 파일이므로 시간 제한은 ctx 에 맡긴다. r 이 읽힌 만큼이 진행률이다.
 func (c *Client) ImportModel(ctx context.Context, name string, r io.Reader, size int64) (ImportResult, []byte, error) {
 	var out ImportResult
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://diparnuxd/v1/models/import?name="+url.QueryEscape(name), r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, "http://operetad/v1/models/import?name="+url.QueryEscape(name), r)
 	if err != nil {
 		return out, nil, fmt.Errorf("build request: %w", err)
 	}

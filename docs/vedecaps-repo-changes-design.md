@@ -1,29 +1,29 @@
 # Vedecaps 저장소 변경 설계서 (VE1 ~ VE4)
 
-- 작성: 2026-10-14, Diparnux 0.5.3 개발 세션
+- 작성: 2026-10-14, Opereta 0.5.3 개발 세션
 - 대상 저장소: <https://github.com/nxodh/vedecaps> `main` `f187450`(Vedecaps 0.1.3)
 - 상태: **제안서 겸 구현 지침.** 이 세션은 Vedecaps 저장소를 바꾸지 않았다. 아래 코드는 구현을 쉽게 하려고 쓴 **스케치**이며, 컴파일이나 실행을 해 보지 않았다.
-- 근거: 위 커밋의 소스를 읽었다(파일과 함수 이름으로 가리킨다. 줄 번호는 바뀌므로 쓰지 않는다). Diparnux 쪽 사실은 이 저장소의 `phase-5-3` 브랜치 코드다.
+- 근거: 위 커밋의 소스를 읽었다(파일과 함수 이름으로 가리킨다. 줄 번호는 바뀌므로 쓰지 않는다). Opereta 쪽 사실은 이 저장소의 `phase-5-3` 브랜치 코드다.
 - 관련 문서: [vedecaps-research.md](vedecaps-research.md)(조사), [phase-5-3-design.md](phase-5-3-design.md) 4절(제안 요약), [vedecaps.md](vedecaps.md)(사용법)
 
 ## 0. 요약
 
-Diparnux 0.5.3 은 Vedecaps 를 **고치지 않고도** 동작한다(실제 Vedecaps 0.1.3 으로 5개 시나리오를 확인했다).
+Opereta 0.5.3 은 Vedecaps 를 **고치지 않고도** 동작한다(실제 Vedecaps 0.1.3 으로 5개 시나리오를 확인했다).
 그래도 Vedecaps 쪽을 아래처럼 바꾸면 더 잘 맞는다.
 
 | 번호 | 변경 | 한 줄 이유 | 크기 | 권장 |
 |---|---|---|---|---|
-| **VE1** | Diparnux 서버 인식, 키 환경 변수, 구성된 제공자의 모델 정보 보강 | 키가 있는 서버에서 감지가 조용히 실패하는 일과 컨텍스트를 잘못 가정하는 일을 없앤다 | 중 | 한다 |
+| **VE1** | Opereta 서버 인식, 키 환경 변수, 구성된 제공자의 모델 정보 보강 | 키가 있는 서버에서 감지가 조용히 실패하는 일과 컨텍스트를 잘못 가정하는 일을 없앤다 | 중 | 한다 |
 | **VE3** | 제공자별 동시 요청 상한 `options.max_concurrency` | 서버 슬롯 수보다 많은 요청을 보내 429 로 되튀기는 일을 막는다 | 중 | 한다 |
 | **VE4** | `vedecaps debug local` 에 도구 호출 시험과 슬롯 정보 | 에이전트가 안 되는 이유를 사용자가 바로 알게 한다 | 소 | 한다 |
-| **VE2** | 제공자별 CA 인증서 `options.ca` | 자체 서명 HTTPS 게이트웨이를 믿게 한다 | 중 | Diparnux 가 TLS 를 넣을 때(0.5.4 이후)로 미룬다 |
+| **VE2** | 제공자별 CA 인증서 `options.ca` | 자체 서명 HTTPS 게이트웨이를 믿게 한다 | 중 | Opereta 가 TLS 를 넣을 때(0.5.4 이후)로 미룬다 |
 
 VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가 이미 있다.
 
 **호환 원칙**
 
-1. 새 설정 키를 모르는 Vedecaps 0.1.3 은 그 키를 **무시한다**(런타임이 설정을 JSON 스키마로 검증하지 않는다. 스키마는 편집기용이다). 그러므로 Diparnux 가 새 키를 써도 옛 Vedecaps 는 깨지지 않는다.
-2. Diparnux 가 아닌 서버(진짜 llama.cpp, Ollama 등)에서는 동작이 **지금과 같아야** 한다. 새 동작은 Diparnux 표식이 있을 때, 또는 사용자가 새 키를 쓸 때만 켜진다.
+1. 새 설정 키를 모르는 Vedecaps 0.1.3 은 그 키를 **무시한다**(런타임이 설정을 JSON 스키마로 검증하지 않는다. 스키마는 편집기용이다). 그러므로 Opereta 가 새 키를 써도 옛 Vedecaps 는 깨지지 않는다.
+2. Opereta 가 아닌 서버(진짜 llama.cpp, Ollama 등)에서는 동작이 **지금과 같아야** 한다. 새 동작은 Opereta 표식이 있을 때, 또는 사용자가 새 키를 쓸 때만 켜진다.
 3. 새 기능은 기본값이 현재 동작이다(`max_concurrency` 가 없으면 무제한).
 4. 키는 새로 보낼 곳을 만들지 않는다. 지금 키가 가는 곳(구성된 제공자, 감지된 로컬 주소)에만 간다.
 
@@ -43,7 +43,7 @@ VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가
 - 사용자가 `provider.<id>.api` 로 직접 적은 제공자는 `addLocalProviders` 의 첫 단계에서 `discoverOpenAIModels` 로 `GET {api}/models` 만 읽는다(키가 있으면 Bearer 포함).
   이 함수는 `max_model_len`, `context_length`, `context_window`, `max_context_length` 중 하나를 컨텍스트로 쓴다. **llama.cpp 의 `/props` 는 읽지 않는다.**
 - 모델에 컨텍스트가 없으면 `toModel` 이 **128,000 으로 가정**한다. 작은 로컬 모델에는 터무니없이 큰 값이라 압축 시점이 틀어진다.
-  그래서 지금 `diparnux connect vedecaps` 는 `limit.context` 를 직접 적어 준다.
+  그래서 지금 `opereta connect vedecaps` 는 `limit.context` 를 직접 적어 준다.
 - 구성된 제공자의 `env` 는 설정 또는 카탈로그의 값이고, **자동 감지된** 제공자는 `env: []` 다. 즉 감지된 서버에는 키를 줄 길이 없다.
 
 ### 1.3 요청과 병렬 — `src/session/prompt.ts`, `src/provider/stream.ts`
@@ -54,13 +54,13 @@ VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가
 - 재시도: `ProviderError.retryable` 이고 `attempt < MAX_RETRIES`(6)이고 아직 도구 실행이 시작되지 않았을 때, 지연은 `Retry-After`, 없으면 `2000 * 2^(attempt-1)`, 상한 60 s. 상태는 `retry` 로 표시된다.
 - **동시 요청 수를 제한하는 장치가 없다.** 서버가 거부(429)하면 위 재시도로 대응하는 구조다.
 
-### 1.4 Diparnux 쪽 사실(`phase-5-3`)
+### 1.4 Opereta 쪽 사실(`phase-5-3`)
 
-- 모든 게이트웨이 응답에 `X-Diparnux: <버전>` 헤더가 붙는다(`daemon/internal/gateway/gateway.go`).
-- `GET /diparnux/info` 는 키 없이 읽힌다(`daemon/cmd/diparnuxd/main.go`). 응답 예:
+- 모든 게이트웨이 응답에 `X-Opereta: <버전>` 헤더가 붙는다(`daemon/internal/gateway/gateway.go`).
+- `GET /opereta/info` 는 키 없이 읽힌다(`daemon/cmd/operetad/main.go`). 응답 예:
 
 ```json
-{ "diparnux": "0.5.3", "server": "running", "model": "qwen2.5-coder-7b-instruct-q4_k_m.gguf", "ctx_per_slot": 16384, "slots": 2 }
+{ "opereta": "0.5.3", "server": "running", "model": "qwen2.5-coder-7b-instruct-q4_k_m.gguf", "ctx_per_slot": 16384, "slots": 2 }
 ```
 
   슬롯 수를 사용자가 정하지 않았으면 `slots` 대신 `"slots_auto": true` 가 온다(llama-server 가 자동으로 정하므로 값을 지어내지 않는다).
@@ -73,16 +73,16 @@ VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가
 
 **목표**
 
-- G1. 키가 있는 Diparnux 서버에서도 감지·모델 목록·컨텍스트 감지가 된다.
-- G2. Diparnux 서버가 알려 주는 슬롯 수와 슬롯당 컨텍스트를 Vedecaps 가 알고, 병렬도를 그에 맞출 수 있다.
+- G1. 키가 있는 Opereta 서버에서도 감지·모델 목록·컨텍스트 감지가 된다.
+- G2. Opereta 서버가 알려 주는 슬롯 수와 슬롯당 컨텍스트를 Vedecaps 가 알고, 병렬도를 그에 맞출 수 있다.
 - G3. 에이전트가 동작하지 않을 때(401, 도구 호출 안 됨, 컨텍스트 작음) `debug local` 한 번으로 원인이 보인다.
 - G4. (VE2) 자체 서명 HTTPS 서버를 안전하게 믿을 수 있다.
 
 **비목표**
 
-- 제공자 이름 `diparnux` 를 Vedecaps 에 새로 내장하는 것. 지금은 설정이 만든다. 내장하면 카탈로그·우선순위(`PRIORITY`)·문서가 한꺼번에 바뀐다. 다만 VE1 로 `llamacpp` 감지가 Diparnux 를 알아보면 충분하다.
-- Vedecaps 가 Diparnux 의 MCP 서버를 자동으로 켜는 것. 사용자의 `mcp` 설정(`diparnux connect vedecaps --mcp` 가 쓴다)이 하는 일이다.
-- `/slots`, `/metrics` 를 Vedecaps 가 읽는 것. 상태 연계는 Diparnux 의 MCP 도구가 맡는다(`diparnux_server_stats`).
+- 제공자 이름 `opereta` 를 Vedecaps 에 새로 내장하는 것. 지금은 설정이 만든다. 내장하면 카탈로그·우선순위(`PRIORITY`)·문서가 한꺼번에 바뀐다. 다만 VE1 로 `llamacpp` 감지가 Opereta 를 알아보면 충분하다.
+- Vedecaps 가 Opereta 의 MCP 서버를 자동으로 켜는 것. 사용자의 `mcp` 설정(`opereta connect vedecaps --mcp` 가 쓴다)이 하는 일이다.
+- `/slots`, `/metrics` 를 Vedecaps 가 읽는 것. 상태 연계는 Opereta 의 MCP 도구가 맡는다(`opereta_server_stats`).
 - 인증서 검증을 끄는 옵션. **만들지 않는다**(2.1 참조).
 
 ### 2.1 인증서 검증 끄기를 거절하는 이유
@@ -90,27 +90,27 @@ VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가
 "자체 서명이라 안 되니 검증을 끄자"는 편하지만, 키가 평문과 다름없이 새고 중간자가 모델 응답에 도구 호출을 끼워 넣을 수 있다.
 코딩 에이전트는 응답으로 **명령을 실행**한다. 그래서 VE2 는 "이 CA 를 믿어라"만 주고, "검증하지 마라"는 주지 않는다.
 
-## 3. VE1 — Diparnux 서버 인식과 키
+## 3. VE1 — Opereta 서버 인식과 키
 
 ### 3.1 변경 요약
 
-1. **키가 있는 서버 감지**: 감지 요청에 키가 있으면 `Authorization: Bearer` 를 붙인다. 키는 환경 변수 `DIPARNUX_API_KEY`, 그다음 `LLAMA_API_KEY`(llama-server 자신의 이름)에서 읽는다.
+1. **키가 있는 서버 감지**: 감지 요청에 키가 있으면 `Authorization: Bearer` 를 붙인다. 키는 환경 변수 `OPERETA_API_KEY`, 그다음 `LLAMA_API_KEY`(llama-server 자신의 이름)에서 읽는다.
 2. **조용한 실패 제거**: 401/403 이면 "서버가 있는데 키가 필요하다"를 기억해 `debug local` 이 알려 준다(감지 결과로는 여전히 "없음").
-3. **Diparnux 표식 인식**: 응답 헤더 `X-Diparnux` 가 있거나 `/diparnux/info` 가 `diparnux` 문자열을 주면 Diparnux 서버로 본다. 버전, 슬롯 수, 슬롯당 컨텍스트, 상태를 읽어 둔다.
-4. **구성된 제공자 보강**: `api` 로 직접 적은 제공자도 같은 `/diparnux/info` 를 읽어, 모델의 컨텍스트가 비어 있을 때 `ctx_per_slot` 을 쓴다(설정의 `limit.context` 가 항상 이긴다).
+3. **Opereta 표식 인식**: 응답 헤더 `X-Opereta` 가 있거나 `/opereta/info` 가 `opereta` 문자열을 주면 Opereta 서버로 본다. 버전, 슬롯 수, 슬롯당 컨텍스트, 상태를 읽어 둔다.
+4. **구성된 제공자 보강**: `api` 로 직접 적은 제공자도 같은 `/opereta/info` 를 읽어, 모델의 컨텍스트가 비어 있을 때 `ctx_per_slot` 을 쓴다(설정의 `limit.context` 가 항상 이긴다).
 
-### 3.2 `/diparnux/info` 계약(Vedecaps 가 가정할 것)
+### 3.2 `/opereta/info` 계약(Vedecaps 가 가정할 것)
 
 | 규칙 | 내용 |
 |---|---|
-| 호출 | `GET {root}/diparnux/info`, 인증 헤더 없음, 타임아웃 700 ms(감지)/1500 ms(debug) |
-| 인식 | 상태 200, JSON 객체, `typeof diparnux === "string"` |
+| 호출 | `GET {root}/opereta/info`, 인증 헤더 없음, 타임아웃 700 ms(감지)/1500 ms(debug) |
+| 인식 | 상태 200, JSON 객체, `typeof opereta === "string"` |
 | `server` | 문자열. `running`, `running_cpu` 만 "쓸 수 있음". 그 밖(`stopped`, `starting`, `error` 등)은 표시만 한다 |
 | `model` | 문자열(없을 수 있음). `/v1/models` 의 id 와 같다 |
 | `ctx_per_slot` | 양의 정수(없을 수 있음) |
 | `slots` / `slots_auto` | `slots` 는 양의 정수, `slots_auto: true` 면 모른다 |
 | 알 수 없는 필드 | 무시(앞으로 필드가 늘 수 있다) |
-| 실패 | 404, 타임아웃, JSON 아님 → "Diparnux 아님". **오류로 만들지 않는다**(진짜 llama.cpp 는 이 경로가 없다) |
+| 실패 | 404, 타임아웃, JSON 아님 → "Opereta 아님". **오류로 만들지 않는다**(진짜 llama.cpp 는 이 경로가 없다) |
 
 값 검증: 숫자는 `Number.isInteger` 이고 `1 ≤ n ≤ 1_000_000`(터무니없는 값은 무시), 문자열은 길이 200 이하로 자른다.
 서버가 주는 문자열은 화면에 찍기 전에 제어 문자를 제거한다(`debug local` 은 사용자 터미널에 쓴다).
@@ -121,7 +121,7 @@ VE5(자체 업데이트 억제)는 필요 없다. 설정 `autoupdate: false` 가
 
 ```ts
 // 새 타입
-export interface DiparnuxInfo {
+export interface OperetaInfo {
   version: string
   state?: string
   model?: string
@@ -132,8 +132,8 @@ export interface DiparnuxInfo {
 
 export interface LocalServer {
   // ... 기존 필드
-  /** Diparnux 가 알려 준 값. 진짜 llama.cpp 등에는 없다. */
-  diparnux?: DiparnuxInfo
+  /** Opereta 가 알려 준 값. 진짜 llama.cpp 등에는 없다. */
+  opereta?: OperetaInfo
   /** 감지 주소가 401/403 으로 거절됐을 때만 채운다. */
 }
 
@@ -145,21 +145,21 @@ export interface DetectFailure {
 ```
 
 - `getJSON` 을 `probe(url, timeoutMs, init)` 로 일반화한다. 반환은 `{ ok, status, json?, headers? }`. 기존 `getJSON` 은 `probe` 위의 얇은 래퍼로 남겨 호출부(Ollama, LM Studio, vLLM)를 건드리지 않는다.
-- 새 함수 `localAPIKey(env = process.env)`: `DIPARNUX_API_KEY`, `LLAMA_API_KEY` 순서로 비어 있지 않은 첫 값. 값은 `registerSecret` 으로 등록해 로그·오류에서 가린다.
+- 새 함수 `localAPIKey(env = process.env)`: `OPERETA_API_KEY`, `LLAMA_API_KEY` 순서로 비어 있지 않은 첫 값. 값은 `registerSecret` 으로 등록해 로그·오류에서 가린다.
 - `detectLlamaCpp(baseURL, timeoutMs, key?)`:
   1. `/props` 를 키와 함께 요청한다. 401/403 이면 `DetectFailure` 를 모아 두고 `undefined`.
   2. 성공하면 `/v1/models` 도 같은 헤더로.
-  3. `X-Diparnux` 헤더가 있거나 `/diparnux/info` 가 인식되면 `server.diparnux` 를 채운다.
-  4. `diparnux.ctxPerSlot` 이 있고 `props` 의 컨텍스트와 다르면 **작은 값**을 `context` 로 쓴다(과대 추정이 압축 시점을 틀리게 하므로 작은 쪽이 안전하다). 두 값은 `debug local` 에 모두 보인다.
-  5. 모델 `details` 에 `Diparnux 0.5.3 · 2 slots` 를 넣는다(이미 있는 `details` 표시 칸을 쓴다).
+  3. `X-Opereta` 헤더가 있거나 `/opereta/info` 가 인식되면 `server.opereta` 를 채운다.
+  4. `opereta.ctxPerSlot` 이 있고 `props` 의 컨텍스트와 다르면 **작은 값**을 `context` 로 쓴다(과대 추정이 압축 시점을 틀리게 하므로 작은 쪽이 안전하다). 두 값은 `debug local` 에 모두 보인다.
+  5. 모델 `details` 에 `Opereta 0.5.3 · 2 slots` 를 넣는다(이미 있는 `details` 표시 칸을 쓴다).
 - `detectLocalServers` 는 실패 목록을 돌려줄 길이 필요하다. 반환 형식을 바꾸지 않으려면 모듈 안에 `lastDetectFailures()` 를 두고 `debug` 가 읽게 한다(감지는 한 프로세스에서 한 번이다).
 
 **`src/provider/provider.ts`**
 
-- `addLocalProviders` 의 구성된 제공자 단계에서, `provider.baseURL` 의 루트에 `/diparnux/info` 를 한 번 시도한다(Diparnux 가 아니면 404 로 끝난다. 호스팅 API 에는 보내지 않는다 → 아래 조건).
+- `addLocalProviders` 의 구성된 제공자 단계에서, `provider.baseURL` 의 루트에 `/opereta/info` 를 한 번 시도한다(Opereta 가 아니면 404 로 끝난다. 호스팅 API 에는 보내지 않는다 → 아래 조건).
   - **조건**: `provider.local === true`(`isLocalURL`)일 때만. 호스팅 API(OpenAI 등)에 존재하지 않는 경로를 두드리지 않는다.
   - 결과로 모델의 컨텍스트가 비어 있으면 `ctx_per_slot` 으로 채운다. 이미 값이 있거나 `limit.context` 가 설정되어 있으면 건드리지 않는다.
-- 자동 감지된 제공자의 `env` 는 `["DIPARNUX_API_KEY", "LLAMA_API_KEY"]` 로 둔다. 키가 환경에 있으면 `apiKey`/`source: "env"` 가 되어 요청에도 쓰인다(지금은 감지된 제공자가 `source: "local"`, 키 없음).
+- 자동 감지된 제공자의 `env` 는 `["OPERETA_API_KEY", "LLAMA_API_KEY"]` 로 둔다. 키가 환경에 있으면 `apiKey`/`source: "env"` 가 되어 요청에도 쓰인다(지금은 감지된 제공자가 `source: "local"`, 키 없음).
 - 키는 **감지된 주소(기본 127.0.0.1:8080)와 사용자가 적은 주소로만** 간다. 새로운 대상은 없다.
 
 **`src/cli/commands/debug.ts`** — VE4 와 함께 3절 아래 5.2 에서 다룬다.
@@ -170,8 +170,8 @@ export interface DetectFailure {
 
 | 위험 | 대응 |
 |---|---|
-| 키가 엉뚱한 곳으로 새는가 | 보내는 곳은 이미 키가 가던 곳(구성된 제공자, 감지된 루프백 주소)이다. 호스팅 API 에는 `/diparnux/info` 를 보내지 않는다. 감지 요청도 `redirect: "error"` 라 리다이렉트로 다른 호스트에 키가 가지 않는다 |
-| `/diparnux/info` 응답이 악의적 | 값 검증(3.2). 숫자 범위 제한, 문자열 길이 제한과 제어 문자 제거. 이 값으로 **실행하는 것은 없다**. 컨텍스트와 표시 문구만 바뀐다 |
+| 키가 엉뚱한 곳으로 새는가 | 보내는 곳은 이미 키가 가던 곳(구성된 제공자, 감지된 루프백 주소)이다. 호스팅 API 에는 `/opereta/info` 를 보내지 않는다. 감지 요청도 `redirect: "error"` 라 리다이렉트로 다른 호스트에 키가 가지 않는다 |
+| `/opereta/info` 응답이 악의적 | 값 검증(3.2). 숫자 범위 제한, 문자열 길이 제한과 제어 문자 제거. 이 값으로 **실행하는 것은 없다**. 컨텍스트와 표시 문구만 바뀐다 |
 | 컨텍스트를 작게 거짓 보고 | 최악이 "자주 압축"이다. 설정의 `limit.context` 로 덮을 수 있다 |
 | 키가 `debug` 출력에 찍힘 | `registerSecret` 과 `redact` 를 통과한다(AGENTS 규칙). 출력에는 키가 있다/없다만 쓴다 |
 
@@ -179,21 +179,21 @@ export interface DetectFailure {
 
 | # | 시나리오 | 기대 |
 |---|---|---|
-| T1.1 | `/props` 가 키 없이 401, 키 있으면 200 | `DIPARNUX_API_KEY` 가 있으면 감지됨, 없으면 `lastDetectFailures()` 에 401 |
+| T1.1 | `/props` 가 키 없이 401, 키 있으면 200 | `OPERETA_API_KEY` 가 있으면 감지됨, 없으면 `lastDetectFailures()` 에 401 |
 | T1.2 | 키 값이 요청 헤더에 정확히 한 번 | 모의 서버가 받은 `authorization` 이 `Bearer <값>` |
-| T1.3 | `X-Diparnux` 헤더 + `/diparnux/info` 정상 | `server.diparnux.version/slots/ctxPerSlot` 채움, `details` 에 슬롯 표시 |
-| T1.4 | `/diparnux/info` 404(진짜 llama.cpp) | 지금과 같은 결과(회귀 없음) |
-| T1.5 | `/diparnux/info` 가 문자열 `slots`, 음수, 1e12, 제어 문자 | 해당 필드 무시, 표시 안전 |
+| T1.3 | `X-Opereta` 헤더 + `/opereta/info` 정상 | `server.opereta.version/slots/ctxPerSlot` 채움, `details` 에 슬롯 표시 |
+| T1.4 | `/opereta/info` 404(진짜 llama.cpp) | 지금과 같은 결과(회귀 없음) |
+| T1.5 | `/opereta/info` 가 문자열 `slots`, 음수, 1e12, 제어 문자 | 해당 필드 무시, 표시 안전 |
 | T1.6 | `props` n_ctx 32768, `ctx_per_slot` 16384 | `context` 는 16384 |
 | T1.7 | 구성된 제공자(`api` 로컬 주소, 컨텍스트 없음) | `ctx_per_slot` 으로 채움 |
 | T1.8 | 같은 제공자에 `limit.context` 지정 | 설정 값 유지 |
-| T1.9 | 구성된 제공자가 호스팅 주소 | `/diparnux/info` 요청이 **나가지 않음**(모의 DNS 로 확인) |
+| T1.9 | 구성된 제공자가 호스팅 주소 | `/opereta/info` 요청이 **나가지 않음**(모의 DNS 로 확인) |
 | T1.10 | 리다이렉트 응답 | 오류 처리, 키가 두 번째 호스트로 안 감 |
 | T1.11 | 키 값이 로그·오류·`debug` 출력에 없다 | 비밀 가림 시험(`test/secrets.test.ts` 방식) |
 
 ### 3.6 수용 기준
 
-- 키가 켜진 모의 Diparnux 에서 `vedecaps debug local` 이 모델, 슬롯, 컨텍스트를 보여 준다.
+- 키가 켜진 모의 Opereta 에서 `vedecaps debug local` 이 모델, 슬롯, 컨텍스트를 보여 준다.
 - 진짜 llama.cpp 에서 출력이 0.1.3 과 **같다**(스냅숏 비교).
 - `npx tsc --noEmit`, `npx bun test`, `npx bun run script/scan-secrets.ts` 통과.
 
@@ -211,7 +211,7 @@ export interface DetectFailure {
 ```jsonc
 {
   "provider": {
-    "diparnux": {
+    "opereta": {
       "api": "http://127.0.0.1:8080/v1",
       "options": { "max_concurrency": 2 }
     }
@@ -224,10 +224,10 @@ export interface DetectFailure {
 | 위치 | `provider.<id>.options.max_concurrency`(정수 1~64) |
 | 기본 | 없음 = 무제한(지금 동작) |
 | 잘못된 값(0, 음수, 소수, 문자열) | 무시하고 경고 로그(`debug` 에 표시). 무제한으로 둔다 |
-| 자동값 | VE1 로 Diparnux 가 `slots`(고정) 를 알려 주고 사용자가 `max_concurrency` 를 적지 않았으면 **`slots`** 를 쓴다. `slots_auto` 이면 자동값을 쓰지 않는다(무제한) |
+| 자동값 | VE1 로 Opereta 가 `slots`(고정) 를 알려 주고 사용자가 `max_concurrency` 를 적지 않았으면 **`slots`** 를 쓴다. `slots_auto` 이면 자동값을 쓰지 않는다(무제한) |
 | 우선순위 | 사용자가 적은 값 > 자동값 > 무제한 |
 
-자동값을 쓰는 이유: Diparnux 는 슬롯 수를 아는데 사용자가 두 군데에 같은 숫자를 적게 하는 것은 틀리기 쉽다.
+자동값을 쓰는 이유: Opereta 는 슬롯 수를 아는데 사용자가 두 군데에 같은 숫자를 적게 하는 것은 틀리기 쉽다.
 다만 **적은 값이 이긴다**. 작은 값으로 줄이는 것은 항상 안전하고 더 큰 값을 적었다면 사용자 의도다.
 
 ### 4.3 구현
@@ -308,7 +308,7 @@ async function* limited(inner: AsyncGenerator<StreamEvent>, limiter: Limiter, si
 | T3.4 | `max=1`, 부모가 `task` 2 개 | 끝까지 진행(교착 없음) |
 | T3.5 | `priority: low` 와 `normal` 이 대기 | `normal` 이 먼저 |
 | T3.6 | 잘못된 값 `0`, `-1`, `1.5`, `"2"` | 무제한으로 동작, 경고 |
-| T3.7 | 자동값: 모의 `/diparnux/info slots: 3`, 설정 없음 | 상한 3 |
+| T3.7 | 자동값: 모의 `/opereta/info slots: 3`, 설정 없음 | 상한 3 |
 | T3.8 | 자동값 vs 설정 `max_concurrency: 1` | 1 |
 | T3.9 | `slots_auto: true` | 무제한 |
 | T3.10 | 429 + `Retry-After` 재시도 | 대기 중 슬롯 미점유, 재시도가 정상 |
@@ -322,7 +322,7 @@ async function* limited(inner: AsyncGenerator<StreamEvent>, limiter: Limiter, si
 
 ### 5.1 변경 요약
 
-- 서버 줄에 Diparnux 표식과 슬롯, 슬롯당 컨텍스트, 서버 상태를 보여 준다(VE1 의 값).
+- 서버 줄에 Opereta 표식과 슬롯, 슬롯당 컨텍스트, 서버 상태를 보여 준다(VE1 의 값).
 - 새 옵션 `--check-tools`: 모델 호출을 **한 번** 보내 도구 호출이 되는지 본다. 기본은 꺼 둔다(생성을 일으키므로 사용자가 명시할 때만).
 - 401/403 으로 거절된 서버가 있으면 그 사실과 조치를 안내한다(1.1 의 "조용한 실패" 해소).
 
@@ -332,7 +332,7 @@ async function* limited(inner: AsyncGenerator<StreamEvent>, limiter: Limiter, si
 Probing local model servers (Ollama, LM Studio, llama.cpp, vLLM)...
 
 llama.cpp  http://127.0.0.1:8080/v1  (openai protocol)
-  Diparnux 0.5.3 · server running · 2 slots · 16,384 ctx per slot
+  Opereta 0.5.3 · server running · 2 slots · 16,384 ctx per slot
   qwen2.5-coder-7b-instruct-q4_k_m.gguf   16,384 ctx   tools
   tool call check: ok (structured tool_calls, 1.8 s)
 
@@ -343,7 +343,7 @@ Use one with:  vedecaps -m llamacpp/qwen2.5-coder-7b-instruct-q4_k_m.gguf
 
 ```
 llama.cpp  http://127.0.0.1:8080  answered 401: this server needs an API key.
-  Set DIPARNUX_API_KEY (or LLAMA_API_KEY) and run this again.
+  Set OPERETA_API_KEY (or LLAMA_API_KEY) and run this again.
 ```
 
 경고 규칙:
@@ -352,12 +352,12 @@ llama.cpp  http://127.0.0.1:8080  answered 401: this server needs an API key.
 |---|---|
 | `slots` 가 있고 컨텍스트/슬롯 < 8192 | `! 16K 미만` 계열의 기존 경고를 슬롯 기준으로 표시(요청당 컨텍스트가 작다) |
 | `slots_auto` | `slots: chosen by the server; set max_concurrency if you see 429` |
-| `server` 가 `running` 이 아님 | `! the server is <state>; start it with: diparnux serve start` |
+| `server` 가 `running` 이 아님 | `! the server is <state>; start it with: opereta serve start` |
 | 도구 호출 시험 실패 | 5.4 의 판정표 |
 
-### 5.3 도구 호출 시험 요청(Diparnux 의 `serve toolcheck` 와 같은 모양)
+### 5.3 도구 호출 시험 요청(Opereta 의 `serve toolcheck` 와 같은 모양)
 
-Diparnux `daemon/internal/api/toolcheck.go` 의 요청과 **같은 본문**을 쓰면 두 쪽의 결과가 서로 설명된다.
+Opereta `daemon/internal/api/toolcheck.go` 의 요청과 **같은 본문**을 쓰면 두 쪽의 결과가 서로 설명된다.
 
 ```json
 {
@@ -369,15 +369,15 @@ Diparnux `daemon/internal/api/toolcheck.go` 의 요청과 **같은 본문**을 �
 }
 ```
 
-### 5.4 판정 — Diparnux 의 시험과 **다른 점**
+### 5.4 판정 — Opereta 의 시험과 **다른 점**
 
-Diparnux `toolcheck` 는 구조화된 `tool_calls` 만 인정한다. 그러나 **Vedecaps 는 텍스트로 쓴 도구 호출도 복구해서 쓴다**(`src/provider/compat.ts`: Hermes/Qwen `<tool_call>`, Mistral, Llama, JSON 코드 블록).
+Opereta `toolcheck` 는 구조화된 `tool_calls` 만 인정한다. 그러나 **Vedecaps 는 텍스트로 쓴 도구 호출도 복구해서 쓴다**(`src/provider/compat.ts`: Hermes/Qwen `<tool_call>`, Mistral, Llama, JSON 코드 블록).
 그래서 Vedecaps 쪽 시험은 세 단계로 판정한다.
 
 | 결과 | 조건 | 의미 |
 |---|---|---|
 | `ok` | 응답에 `tool_calls` 가 있고 이름이 `get_time`, 인수가 JSON 객체 | 서버가 구조화된 도구 호출을 낸다 |
-| `recovered` | `tool_calls` 는 없으나 `parseTextToolCalls`(compat) 가 호출을 복구함 | **Vedecaps 에서는 동작한다.** 다만 Diparnux 의 `serve toolcheck` 는 실패로 본다(차이를 설명한다) |
+| `recovered` | `tool_calls` 는 없으나 `parseTextToolCalls`(compat) 가 호출을 복구함 | **Vedecaps 에서는 동작한다.** 다만 Opereta 의 `serve toolcheck` 는 실패로 본다(차이를 설명한다) |
 | `failed` | 둘 다 아님(글로만 답함, 잘못된 도구, 깨진 인수) | 에이전트가 파일을 못 읽고 고친다. 모델의 채팅 틀에 도구 지원이 없다 |
 
 시험은 `streamModel` 이 아니라 **래퍼를 거치지 않은 원 어댑터**로 한 번만 보낸다(복구 층이 결과를 가리지 않게). 비스트리밍 요청이므로 `openai.ts` 의 `buildBody` 를 그대로 쓰지 않고 시험 전용 `fetch` 를 쓴다(헤더·키·`redirect: "error"` 규칙은 같다).
@@ -395,21 +395,21 @@ Ollama 프로토콜 서버는 이 단계를 건너뛰고 "native API: not checke
 | T4.6 | `slots_auto: true` | 해당 문구, 숫자를 지어내지 않음 |
 | T4.7 | 진짜 llama.cpp(표식 없음) | 슬롯 줄 없음, 기존 출력과 동일 |
 
-## 6. VE2 — 제공자별 CA 인증서(`options.ca`) — Diparnux TLS 와 함께
+## 6. VE2 — 제공자별 CA 인증서(`options.ca`) — Opereta TLS 와 함께
 
-**Diparnux 는 0.5.3 에서 TLS 를 넣지 않았다(0.5.4 이후)**. 그때까지는 VPN(WireGuard) 안내만 있다. 이 절은 그때 바로 쓸 수 있게 미리 정해 둔다.
+**Opereta 는 0.5.3 에서 TLS 를 넣지 않았다(0.5.4 이후)**. 그때까지는 VPN(WireGuard) 안내만 있다. 이 절은 그때 바로 쓸 수 있게 미리 정해 둔다.
 
 ### 6.1 설정
 
 ```jsonc
-"provider": { "diparnux": { "api": "https://diparnux.local:8443/v1",
-  "options": { "ca": "~/.config/vedecaps/diparnux-ca.pem" } } }
+"provider": { "opereta": { "api": "https://opereta.local:8443/v1",
+  "options": { "ca": "~/.config/vedecaps/opereta-ca.pem" } } }
 ```
 
 | 규칙 | 내용 |
 |---|---|
 | 값 | PEM 파일 경로 문자열 또는 문자열 배열. 상대 경로는 **설정 파일이 있는 폴더 기준**. `~` 는 홈. 인라인 PEM 문자열(`-----BEGIN CERTIFICATE-----`로 시작)도 허용 |
-| 적용 대상 | 그 제공자로 가는 **모든** `fetch`: 스트리밍 요청(`openai.ts`, `ollama.ts`), 목록(`discoverOpenAIModels`), 감지(`local.ts`), VE1 의 `/diparnux/info`, VE4 의 시험 |
+| 적용 대상 | 그 제공자로 가는 **모든** `fetch`: 스트리밍 요청(`openai.ts`, `ollama.ts`), 목록(`discoverOpenAIModels`), 감지(`local.ts`), VE1 의 `/opereta/info`, VE4 의 시험 |
 | 구현 | Bun 의 `fetch(url, { tls: { ca } })`. 기본 신뢰 저장소에 **더해** 주는지 대체하는지 Bun 동작을 시험으로 확인한다(대체라면 사용자 CA 만 믿게 되어 더 안전하다. 어느 쪽이든 문서에 쓴다) |
 | 파일이 없거나 PEM 이 아님 | 그 제공자를 **사용 불가**로 두고 이유를 알린다. 조용히 기본 저장소로 폴백하지 않는다(보안 의도가 사라지므로) |
 | 검증 끄기 | 만들지 않는다(2.1) |
@@ -438,7 +438,7 @@ AGENTS.md 의 "새 설정 키 중 실행이나 요청 경로에 영향을 주는
 | `config.schema.json` | `provider.*.options` 에 `max_concurrency`(integer, 1~64), (VE2 때) `ca`(string 또는 string 배열). `additionalProperties: false` 이므로 **키를 추가하지 않으면 편집기가 경고**한다 |
 | `README.md`, `README.en.md` | 로컬 모델 절에 "키가 있는 서버", "동시 요청 상한", `debug local --check-tools` |
 | `CHANGELOG.md` | Unreleased 에 항목(VE1, VE3, VE4 각각) |
-| `docs/development-status.md` | 구현·검증 범위와 **검증하지 못한 것**(실제 Diparnux 서버 대상 시험은 Diparnux 쪽 CI) |
+| `docs/development-status.md` | 구현·검증 범위와 **검증하지 못한 것**(실제 Opereta 서버 대상 시험은 Opereta 쪽 CI) |
 | `src/config/trust.ts` | VE2 만 해당(6.2). VE1/VE3/VE4 는 신뢰 규칙 변경 없음. 단 `max_concurrency` 는 요청 경로를 바꾸지 않으므로 stripUntrusted 대상이 아니다 |
 
 ### 7.2 코드 규칙 점검표(AGENTS.md)
@@ -448,7 +448,7 @@ AGENTS.md 의 "새 설정 키 중 실행이나 요청 경로에 영향을 주는
 - UI 는 단색(굵게, 흐리게, 반전). 폭 계산은 `string-width`.
 - 키·토큰·개인 이메일·절대 경로를 올리지 않는다. 시험 값은 `sk-test-not-a-real-key` 같은 가짜.
 - 시스템 프롬프트·도구 목록은 결정적이어야 한다(프롬프트 캐시). **이 변경은 둘 다 건드리지 않는다**(VE4 의 시험 요청은 별도 호출이다).
-- 로컬 모델 동작 변경은 모의 서버만이 아니라 실제 서버로도 확인한다(`docker run` 의 llama.cpp 또는 Diparnux).
+- 로컬 모델 동작 변경은 모의 서버만이 아니라 실제 서버로도 확인한다(`docker run` 의 llama.cpp 또는 Opereta).
 
 ### 7.3 PR 분할과 순서
 
@@ -456,16 +456,16 @@ AGENTS.md 의 "새 설정 키 중 실행이나 요청 경로에 영향을 주는
 |---|---|---|---|
 | A | `probe`/`localAPIKey` 리팩터 + VE1 + VE4 | 1 | VE4 가 VE1 의 값을 보여 준다. 같은 파일(`local.ts`, `debug.ts`)을 건드린다 |
 | B | VE3 `limiter` + `streamModel` 래퍼 + 자동값(A 의 슬롯 정보 사용) | 2 | A 가 있어야 자동값이 의미가 있다. 독립적으로도 `max_concurrency` 수동 값은 동작한다 |
-| C | VE2 `ca` + 신뢰 규칙 + 시험용 인증서 | Diparnux TLS 와 같은 시기 | Diparnux 쪽 TLS 가 없으면 쓸 곳이 없다 |
+| C | VE2 `ca` + 신뢰 규칙 + 시험용 인증서 | Opereta TLS 와 같은 시기 | Opereta 쪽 TLS 가 없으면 쓸 곳이 없다 |
 
 A + B(VE1, VE3, VE4)를 **0.1.4**, C(VE2)가 포함된 릴리스를 **0.1.5** 로 한다(사용자 결정 2026-10-14). 각 PR 은 `npx tsc --noEmit`, `npx bun test`, `scan-secrets` 를 통과해야 한다.
 
-### 7.4 Diparnux 쪽 후속 작업(Vedecaps 릴리스 뒤)
+### 7.4 Opereta 쪽 후속 작업(Vedecaps 릴리스 뒤)
 
 | # | 작업 | 위치 |
 |---|---|---|
-| D1 | `VEDECAPS_VERSION` 과 `VEDECAPS_SHA256` 을 새 릴리스의 `checksums.txt` 값으로 갱신 | `diparnux.conf` |
-| D2 | `diparnux connect vedecaps` 가 `options.max_concurrency` 를 슬롯 수(고정일 때)로 쓰도록 한다. **설치된 Vedecaps 가 새 키를 모를 때도 무해**하므로 버전 조건 없이 써도 된다. 다만 JSON 스키마 시험이 새 키를 알도록 스키마 사본을 갱신 | `daemon/internal/vedecaps` |
+| D1 | `VEDECAPS_VERSION` 과 `VEDECAPS_SHA256` 을 새 릴리스의 `checksums.txt` 값으로 갱신 | `opereta.conf` |
+| D2 | `opereta connect vedecaps` 가 `options.max_concurrency` 를 슬롯 수(고정일 때)로 쓰도록 한다. **설치된 Vedecaps 가 새 키를 모를 때도 무해**하므로 버전 조건 없이 써도 된다. 다만 JSON 스키마 시험이 새 키를 알도록 스키마 사본을 갱신 | `daemon/internal/vedecaps` |
 | D3 | `make test-vedecaps-docker` 시나리오 추가: 키 필요 서버 감지, 표식·슬롯 인식, 동시 요청 최대치, `--check-tools` 판정 | `tests/vedecaps/`, `daemon/internal/gateway/harness` |
 | D4 | `docs/vedecaps.md` 의 7절(문제 해결)과 4절에서 "Vedecaps 쪽 변경 필요" 문구 정리, `docs/phase-5-3-design.md` 4절 상태 갱신 | 문서 |
 | D5 | 호환 시험에서 Vedecaps 가 새 키를 쓰는지 `vedecaps debug` 로 확인하는 단계를 `check_vedecaps`(E2E)에 추가 | `tests/qemu` |
@@ -473,18 +473,18 @@ A + B(VE1, VE3, VE4)를 **0.1.4**, C(VE2)가 포함된 릴리스를 **0.1.5** �
 ### 7.5 롤백
 
 - 각 변경은 기본값이 현재 동작이므로, 문제가 생기면 사용자가 새 설정을 지우면 된다.
-- VE1 의 Diparnux 인식은 환경 변수나 설정으로 끌 수 있게 한다(`VEDECAPS_DISABLE_LOCAL_DETECT` 가 이미 감지를 통째로 끈다. 별도 스위치는 만들지 않는다).
-- 릴리스에서 문제가 나오면 Diparnux 는 `diparnux.conf` 의 고정 버전을 이전 값으로 되돌리면 된다(이미지에 고정되어 있어 사용자 컴퓨터가 자동으로 바뀌지 않는다).
+- VE1 의 Opereta 인식은 환경 변수나 설정으로 끌 수 있게 한다(`VEDECAPS_DISABLE_LOCAL_DETECT` 가 이미 감지를 통째로 끈다. 별도 스위치는 만들지 않는다).
+- 릴리스에서 문제가 나오면 Opereta 는 `opereta.conf` 의 고정 버전을 이전 값으로 되돌리면 된다(이미지에 고정되어 있어 사용자 컴퓨터가 자동으로 바뀌지 않는다).
 
 ## 8. 위험과 한계
 
 | 위험 | 내용 | 완화 |
 |---|---|---|
-| 실제 서버 미검증 | 이 설계는 소스 읽기와 Diparnux 쪽 시험에 근거한다. 실제 GPU 에서 코딩 모델로 병렬 작업을 돌려 본 적이 없다 | `max_concurrency` 기본이 무제한이라 해가 없고, 효과 측정은 실기 검증 항목으로 남긴다 |
-| 슬롯과 컨텍스트 해석 | llama-server 의 `n_ctx` 가 슬롯당인지 전체인지는 빌드와 옵션에 따라 다르다 | Diparnux 가 `ctx_per_slot` 을 따로 알려 주고, 두 값이 다르면 작은 값을 쓴다 |
+| 실제 서버 미검증 | 이 설계는 소스 읽기와 Opereta 쪽 시험에 근거한다. 실제 GPU 에서 코딩 모델로 병렬 작업을 돌려 본 적이 없다 | `max_concurrency` 기본이 무제한이라 해가 없고, 효과 측정은 실기 검증 항목으로 남긴다 |
+| 슬롯과 컨텍스트 해석 | llama-server 의 `n_ctx` 가 슬롯당인지 전체인지는 빌드와 옵션에 따라 다르다 | Opereta 가 `ctx_per_slot` 을 따로 알려 주고, 두 값이 다르면 작은 값을 쓴다 |
 | 제목 생성의 우선순위 | 슬롯 1 개에서 제목이 늦어질 수 있다 | `low` 우선순위, 실패 시 본문 앞 60 자 대체가 이미 있다 |
 | Bun `tls` 옵션의 플랫폼 차이 | Windows 에서 CA 처리가 다를 수 있다 | VE2 시험을 Windows·Ubuntu·Debian·Alpine CI 에서 모두 돌린다 |
-| Vedecaps 0.1.x 의 빠른 변화 | 하루 사이 0.1.0 → 0.1.3 | Diparnux 는 고정 버전을 쓰고 `make test-vedecaps-docker` 로 짝을 확인한다 |
+| Vedecaps 0.1.x 의 빠른 변화 | 하루 사이 0.1.0 → 0.1.3 | Opereta 는 고정 버전을 쓰고 `make test-vedecaps-docker` 로 짝을 확인한다 |
 | 스키마 | `additionalProperties: false` 라 새 키가 스키마에 없으면 편집기 경고 | 7.1 에서 스키마를 같이 바꾼다 |
 
 ## 9. 열린 질문(Vedecaps 저장소 소유자 결정)
@@ -501,7 +501,7 @@ A + B(VE1, VE3, VE4)를 **0.1.4**, C(VE2)가 포함된 릴리스를 **0.1.5** �
 **PR A (VE1 + VE4)**
 - [ ] `local.ts`: `probe` 도입, `getJSON` 래퍼 유지
 - [ ] `local.ts`: `localAPIKey`, `detectLlamaCpp` 키·표식·실패 기록
-- [ ] `local.ts`: `DiparnuxInfo` 파싱과 값 검증
+- [ ] `local.ts`: `OperetaInfo` 파싱과 값 검증
 - [ ] `provider.ts`: 감지 제공자 `env`, 구성된 제공자(로컬만) 컨텍스트 보강
 - [ ] `debug.ts`: 서버 줄, 401 안내, `--check-tools`, 판정 3단계
 - [ ] 시험 T1.1~T1.11, T4.1~T4.7
@@ -523,5 +523,5 @@ A + B(VE1, VE3, VE4)를 **0.1.4**, C(VE2)가 포함된 릴리스를 **0.1.5** �
 
 - 소스는 `f187450` 을 읽어 확인했다. 함수·파일 이름은 그 커밋 기준이다.
 - 제안 코드는 스케치이며 컴파일, 실행하지 않았다.
-- `/diparnux/info` 응답 모양은 Diparnux `phase-5-3` 코드(`daemon/cmd/diparnuxd/main.go`)에서 확인했다.
+- `/opereta/info` 응답 모양은 Opereta `phase-5-3` 코드(`daemon/cmd/operetad/main.go`)에서 확인했다.
 - Bun 의 `fetch` `tls` 옵션 동작과 Windows 동작은 확인하지 않았다(VE2 구현 때 확인한다).

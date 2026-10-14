@@ -70,7 +70,7 @@ func (s *Supervisor) restartTick(ctx context.Context) {
 		s.restart.gaveUp = true
 		s.restart.nextAt = time.Time{}
 		s.mu.Unlock()
-		s.logf("auto restart: giving up after %d attempts; start the server from the Control Center or with 'diparnux serve start'", len(restartBackoff))
+		s.logf("auto restart: giving up after %d attempts; start the server from the Control Center or with 'opereta serve start'", len(restartBackoff))
 		return
 	}
 	if s.restart.nextAt.IsZero() {

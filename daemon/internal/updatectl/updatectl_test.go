@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
-	"github.com/nxodh/diparnuxos/daemon/internal/update"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/update"
 )
 
 type fakeRunner struct {
@@ -37,11 +37,14 @@ func newController(t *testing.T, r *fakeRunner) *Controller {
 	t.Helper()
 	dir := t.TempDir()
 	return &Controller{
-		Runner:       r,
-		StateDir:     filepath.Join(dir, "update"),
-		LiveDir:      filepath.Join(dir, "live"),
-		OSRelease:    filepath.Join(dir, "osrelease"),
-		HelperExists: func(string) bool { return true },
+		Runner:    r,
+		StateDir:  filepath.Join(dir, "update"),
+		LiveDir:   filepath.Join(dir, "live"),
+		OSRelease: filepath.Join(dir, "osrelease"),
+		// 호스트의 os-release 와 소스 파일을 읽지 않도록 임시 경로를 쓴다.
+		OSReleaseFile: filepath.Join(dir, "os-release"),
+		SourcesFile:   filepath.Join(dir, "opereta.sources"),
+		HelperExists:  func(string) bool { return true },
 	}
 }
 
@@ -130,7 +133,7 @@ func TestStartRunsTransientUnit(t *testing.T) {
 		}
 	}
 	args := strings.Join(run.Args, " ")
-	for _, want := range []string{"--unit=diparnux-update-run", "--collect", "--service-type=exec", DefaultHelper + " apply --json --reboot"} {
+	for _, want := range []string{"--unit=opereta-update-run", "--collect", "--service-type=exec", DefaultHelper + " apply --json --reboot"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("systemd-run args %q miss %q", args, want)
 		}
@@ -197,5 +200,30 @@ func TestStartRefusals(t *testing.T) {
 	c = newController(t, &fakeRunner{exit: 1})
 	if got := code(c.Start(context.Background(), ActionApply, false)); got != CodeUnavailable {
 		t.Errorf("systemd-run failure: %s", got)
+	}
+}
+
+func TestInfoReportsOSVersionAndChannel(t *testing.T) {
+	c := newController(t, &fakeRunner{})
+	if err := os.WriteFile(c.OSReleaseFile, []byte("NAME=\"Opereta\"\nID=opereta\nVERSION_ID=\"0.6.0\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 소스 파일이 없으면 채널은 꺼져 있다.
+	info, err := c.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.OSVersion != "0.6.0" || info.Channel.Enabled || info.Channel.Reason != update.ChannelMissing {
+		t.Fatalf("info = %+v", info)
+	}
+	if err := os.WriteFile(c.SourcesFile, []byte("Types: deb\nURIs: https://example.invalid/latest/download\nSuites: ./\nEnabled: yes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err = c.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Channel.Enabled || info.Channel.URL != "https://example.invalid/latest/download" {
+		t.Fatalf("channel = %+v", info.Channel)
 	}
 }

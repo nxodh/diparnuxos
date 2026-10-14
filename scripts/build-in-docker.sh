@@ -7,8 +7,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLATFORM="linux/amd64"
 
 # shellcheck source=/dev/null
-. "${ROOT}/diparnux.conf"
-IMAGE_TAG="diparnux-builder:${DEBIAN_SUITE}"
+. "${ROOT}/opereta.conf"
+IMAGE_TAG="opereta-builder:${DEBIAN_SUITE}"
 
 die() {
     echo "build-in-docker: $*" >&2
@@ -33,14 +33,14 @@ docker build \
     "${ROOT}/build"
 
 # --privileged: live-build 가 chroot 안에서 mount 와 debootstrap 을 쓰기 때문이다.
-# out/llama 는 make llama 가 만든 diparnux-llm .deb 를 담으며, 컨테이너에서는 읽기 전용이다.
+# out/llama 는 make llama 가 만든 opereta-llm .deb 를 담으며, 컨테이너에서는 읽기 전용이다.
 docker run --rm --privileged \
     --platform "${PLATFORM}" \
     -v "${ROOT}:/src:ro" \
     -v "${ROOT}/out:/out" \
     -v "${ROOT}/out/llama:/llama:ro" \
-    -e DIPARNUX_OUT=/out \
-    -e DIPARNUX_WORKDIR=/var/tmp/diparnux-build \
+    -e OPERETA_OUT=/out \
+    -e OPERETA_WORKDIR=/var/tmp/opereta-build \
     "${IMAGE_TAG}" \
     /src/scripts/build-iso.sh
 

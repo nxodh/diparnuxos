@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Xfce 데스크톱 구성을 컨테이너에서 확인한다. 화면이 없어서 Xvfb 를 쓴다.
 #   1. 설정 파일 문법(XML, 셸), 패널 배치의 플러그인이 실제로 설치되는지
-#   2. diparnux-branding 과 diparnux-desktop 패키지를 빌드해 apt 로 설치한다(Depends 해석 확인)
-#   3. Xvfb 에서 Xsession 으로 Xfce 세션을 띄우고 xfwm4, xfce4-panel, xfdesktop 이 뜨는지, Diparnux 기본값이 적용되는지 본다
+#   2. opereta-branding 과 opereta-desktop 패키지를 빌드해 apt 로 설치한다(Depends 해석 확인)
+#   3. Xvfb 에서 Xsession 으로 Xfce 세션을 띄우고 xfwm4, xfce4-panel, xfdesktop 이 뜨는지, Opereta 기본값이 적용되는지 본다
 # 화면 캡처는 OUT_DIR(기본: 없음)이 있으면 그곳에 PNG 로 남긴다.
 # Mac 호스트에는 아무것도 설치하지 않는다. 저장소는 읽기 전용으로 마운트한다.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${DIPARNUX_DESKTOP_TEST_IMAGE:-debian:trixie}"
+IMAGE="${OPERETA_DESKTOP_TEST_IMAGE:-debian:trixie}"
 OUT_DIR="${OUT_DIR:-}"
 command -v docker >/dev/null 2>&1 || { echo "test-desktop-config: docker is required" >&2; exit 2; }
 
@@ -23,9 +23,9 @@ docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" ${mount_out[@
 apt-get update -qq >/dev/null
 apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils python3 xvfb xauth scrot procps x11-utils xdotool fcitx5 fcitx5-hangul fcitx5-frontend-gtk3 >/dev/null
 
-D=/src/packages/diparnux-desktop/src
+D=/src/packages/opereta-desktop/src
 echo "== 1. static checks"
-for f in $D/diparnux-panel-net $D/diparnux-session-setup $D/xsession/55diparnux-xdg; do
+for f in $D/opereta-panel-net $D/opereta-session-setup $D/xsession/55opereta-xdg; do
   sh -n "$f"; echo "ok: syntax $(basename "$f")"
 done
 find $D/xdg -name "*.xml" -print0 | xargs -0 xmllint --noout
@@ -41,33 +41,33 @@ if missing or not ids:
     sys.exit("panel plugin ids without a definition: %s" % missing)
 print("ok: panel layout has", len(ids), "plugins")
 PY
-# genmon 출력 형식: diparnux 명령이 없으면 Offline.
-out="$(sh $D/diparnux-panel-net)"
+# genmon 출력 형식: opereta 명령이 없으면 Offline.
+out="$(sh $D/opereta-panel-net)"
 printf "%s\n" "$out" | grep -qx "<txt>Offline</txt>" || { echo "FAIL: panel script output: $out" >&2; exit 1; }
-printf "%s\n" "$out" | grep -q "<txtclick>diparnux-control-center --page network</txtclick>" || { echo "FAIL: panel click action" >&2; exit 1; }
+printf "%s\n" "$out" | grep -q "<txtclick>opereta-control-center --page network</txtclick>" || { echo "FAIL: panel click action" >&2; exit 1; }
 echo "ok: panel script"
 
 echo "== 2. build and install packages"
 mkdir -p /tmp/build && cd /tmp/build
-cp -a /src/packages/diparnux-desktop ./diparnux-desktop
-cp -a /src/packages/diparnux-branding ./diparnux-branding
-cp -a /src/assets/brand ./diparnux-branding/assets
-cp -a /src/assets/brand ./diparnux-desktop/assets
-for p in diparnux-branding diparnux-desktop; do
+cp -a /src/packages/opereta-desktop ./opereta-desktop
+cp -a /src/packages/opereta-branding ./opereta-branding
+cp -a /src/assets/brand ./opereta-branding/assets
+cp -a /src/assets/brand ./opereta-desktop/assets
+for p in opereta-branding opereta-desktop; do
   (cd $p && dpkg-buildpackage -us -uc -b >/tmp/build-$p.log 2>&1) || { echo "FAIL: building $p"; tail -30 /tmp/build-$p.log; exit 1; }
 done
 ls /tmp/build/*.deb
-apt-get install -y -qq --no-install-recommends /tmp/build/diparnux-branding_*.deb /tmp/build/diparnux-desktop_*.deb >/dev/null
+apt-get install -y -qq --no-install-recommends /tmp/build/opereta-branding_*.deb /tmp/build/opereta-desktop_*.deb >/dev/null
 echo "ok: packages installed"
-for f in /etc/xdg/diparnux/xfce4/panel/default.xml /etc/X11/Xsession.d/55diparnux-xdg /usr/share/lightdm/lightdm.conf.d/50-diparnux.conf \
-         /usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-diparnux.conf /usr/bin/diparnux-panel-net; do
+for f in /etc/xdg/opereta/xfce4/panel/default.xml /etc/X11/Xsession.d/55opereta-xdg /usr/share/lightdm/lightdm.conf.d/50-opereta.conf \
+         /usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-opereta.conf /usr/bin/opereta-panel-net; do
   test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
 done
 echo "ok: installed files"
 # Debian 이 싣는 /etc/xdg 파일을 이 패키지가 덮지 않았는지(소유 패키지가 다르다).
 for f in /etc/xdg/xfce4/panel/default.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; do
   owner="$(dpkg -S "$f" | cut -d: -f1)"
-  [ "$owner" != diparnux-desktop ] || { echo "FAIL: diparnux-desktop owns $f" >&2; exit 1; }
+  [ "$owner" != opereta-desktop ] || { echo "FAIL: opereta-desktop owns $f" >&2; exit 1; }
 done
 # 패널 배치가 쓰는 플러그인이 설치되어 있다.
 for p in whiskermenu tasklist separator systray genmon pulseaudio power-manager-plugin clock actions; do
@@ -97,18 +97,18 @@ penv() { su tester -c "tr \"\\0\" \"\\n\" < /proc/$pid/environ"; }
 bus="$(penv | sed -n "s/^DBUS_SESSION_BUS_ADDRESS=//p")"
 q() { su tester -c "DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus xfconf-query $*" 2>&1; }
 theme="$(q -c xsettings -p /Net/ThemeName)"
-[ "$theme" = Diparnux ] || { echo "FAIL: xsettings /Net/ThemeName=$theme (expected Diparnux; XDG_CONFIG_DIRS not applied?)"; exit 1; }
+[ "$theme" = Opereta ] || { echo "FAIL: xsettings /Net/ThemeName=$theme (expected Opereta; XDG_CONFIG_DIRS not applied?)"; exit 1; }
 icons="$(q -c xsettings -p /Net/IconThemeName)"
 [ "$icons" = Adwaita ] || { echo "FAIL: icon theme=$icons"; exit 1; }
 wm="$(q -c xfwm4 -p /general/theme)"
-[ "$wm" = Diparnux ] || { echo "FAIL: xfwm4 theme=$wm"; exit 1; }
-echo "ok: Diparnux defaults applied (GTK theme, icons, window manager theme)"
+[ "$wm" = Opereta ] || { echo "FAIL: xfwm4 theme=$wm"; exit 1; }
+echo "ok: Opereta defaults applied (GTK theme, icons, window manager theme)"
 plugins="$(su tester -c "DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus xfconf-query -c xfce4-panel -l" | grep -c "^/plugins/plugin-[0-9]*$" || true)"
 echo "info: panel plugins configured: $plugins"
 env_session="$(penv | grep -E "^(XDG_CURRENT_DESKTOP|XDG_SESSION_DESKTOP|XDG_CONFIG_DIRS)=" || true)"
 echo "$env_session"
 su tester -c "export DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus; nohup xfce4-terminal --geometry=70x12+120+80 >/tmp/term.log 2>&1 &"
-su tester -c "export DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus; nohup thunar /usr/share/diparnux >/tmp/thunar.log 2>&1 &"
+su tester -c "export DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus; nohup thunar /usr/share/opereta >/tmp/thunar.log 2>&1 &"
 sleep 6
 if [ -d /out ]; then
   su tester -c "DISPLAY=:99 scrot /tmp/desktop.png" && cp /tmp/desktop.png /out/xfce-desktop.png
@@ -116,7 +116,7 @@ if [ -d /out ]; then
 fi
 # 터미널 색: 첫 로그인 스크립트가 사용자 설정으로 복사했는지 본다.
 su tester -c "test -r ~/.config/xfce4/terminal/terminalrc && grep -q ColorBackground=#0d0d0d ~/.config/xfce4/terminal/terminalrc" || { echo "FAIL: terminal colors were not seeded"; exit 1; }
-su tester -c "test -e ~/.config/diparnux/session-setup-done" || { echo "FAIL: first-login setup marker missing"; exit 1; }
+su tester -c "test -e ~/.config/opereta/session-setup-done" || { echo "FAIL: first-login setup marker missing"; exit 1; }
 echo "ok: first-login setup ran"
 
 # 한글 입력기: 자동 시작으로 fcitx5 가 떠야 하고, 네 가지 전환 키가 실제 GTK 앱에서 한/영을 오가야 한다.
@@ -150,8 +150,8 @@ echo "ok: Hangul, Shift+Space and Ctrl+Space toggle the input method"
 # 오른쪽 Alt 를 그대로 두드리는 전환은 수정 키 단독 입력이라 누르는 시간이 짧아야 한다. 참고용으로만 본다.
 before="$(im)"; su tester -c "DISPLAY=:99 xdotool key --clearmodifiers Alt_R"; sleep 1
 if [ "$before" != "$(im)" ]; then echo "info: a quick right Alt tap toggles the input method"; su tester -c "DISPLAY=:99 xdotool key --clearmodifiers Alt_R"; sleep 1; else echo "info: a right Alt tap did not toggle (the Xorg option korean:ralt_hangul makes it a real Hangul key)"; fi
-test -s /etc/X11/xorg.conf.d/90-diparnux-keyboard.conf || { echo "FAIL: Xorg keyboard options file is missing"; exit 1; }
-grep -q "korean:ralt_hangul" /etc/X11/xorg.conf.d/90-diparnux-keyboard.conf || { echo "FAIL: ralt_hangul option missing"; exit 1; }
+test -s /etc/X11/xorg.conf.d/90-opereta-keyboard.conf || { echo "FAIL: Xorg keyboard options file is missing"; exit 1; }
+grep -q "korean:ralt_hangul" /etc/X11/xorg.conf.d/90-opereta-keyboard.conf || { echo "FAIL: ralt_hangul option missing"; exit 1; }
 su tester -c "pkill -x mousepad" || true
 
 echo "== 4. login screen (lightdm --test-mode in Xephyr)"

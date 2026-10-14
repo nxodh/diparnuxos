@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nxodh/diparnuxos/daemon/internal/platform"
+	"github.com/nxodh/operetaos/daemon/internal/platform"
 )
 
 const testPassword = "correct-horse-9"
 
 func goodOptions() Options {
 	return Options{
-		Disk: "/dev/vda", Hostname: "diparnux", User: "tester", Password: testPassword, Admin: true,
+		Disk: "/dev/vda", Hostname: "opereta", User: "tester", Password: testPassword, Admin: true,
 		Mode: "server", Locale: "ko_KR.UTF-8", Timezone: "Asia/Seoul", Keyboard: "kr", Console: "serial",
 	}
 }
@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 		"partition not disk": func(o *Options) { o.Disk = "/dev/vda1" },
 		"loop device":        func(o *Options) { o.Disk = "/dev/loop0" },
 		"relative disk":      func(o *Options) { o.Disk = "vda" },
-		"host upper":         func(o *Options) { o.Hostname = "Diparnux" },
+		"host upper":         func(o *Options) { o.Hostname = "Opereta" },
 		"host underscore":    func(o *Options) { o.Hostname = "my_host" },
 		"host hyphen start":  func(o *Options) { o.Hostname = "-host" },
 		"reserved user":      func(o *Options) { o.User = "root" },
@@ -226,8 +226,8 @@ func (r *recorder) Run(_ context.Context, cmd platform.Command) (platform.Result
 		}
 		rest := cmd.Args[1:]
 		switch rest[0] {
-		case "/usr/lib/diparnux/diparnux-user":
-			return platform.Result{Stdout: []byte("DIPARNUX_USER_RESULT=ok\n")}, nil
+		case "/usr/lib/opereta/opereta-user":
+			return platform.Result{Stdout: []byte("OPERETA_USER_RESULT=ok\n")}, nil
 		case "dpkg-query":
 			joined := strings.Join(rest, " ")
 			switch {
@@ -286,17 +286,17 @@ func TestInstallRunsStepsInOrderAndWritesConfiguration(t *testing.T) {
 		"wipefs --all --force /dev/vda",
 		"sfdisk --wipe always --wipe-partitions always /dev/vda",
 		"mkfs.vfat -F 32 -n LXESP /dev/vda1",
-		"mkfs.ext4 -F -q -L diparnux-root /dev/vda2",
+		"mkfs.ext4 -F -q -L opereta-root /dev/vda2",
 		"mount /dev/vda2 " + in.TargetRoot,
 		"mount /dev/vda1 " + in.TargetRoot + "/boot/efi",
 		"rsync -aHAXx --numeric-ids " + in.LiveSource + "/ " + in.TargetRoot + "/",
 		"systemd-machine-id-setup --root=" + in.TargetRoot,
 		"locale-gen",
-		"/usr/lib/diparnux/diparnux-user add tester --admin",
+		"/usr/lib/opereta/opereta-user add tester --admin",
 		"apt-get -y -q purge live-boot live-config live-config-systemd",
 		"systemctl --root=" + in.TargetRoot + " set-default multi-user.target",
 		"update-initramfs -u -k all",
-		"grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=diparnux --uefi-secure-boot",
+		"grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=opereta --uefi-secure-boot",
 		"grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --uefi-secure-boot",
 		"update-grub",
 		"grub-set-default gnulinux-6.12.111+deb13-amd64-advanced-fakeuuid",
@@ -336,7 +336,7 @@ func TestInstallRunsStepsInOrderAndWritesConfiguration(t *testing.T) {
 	if !strings.Contains(fstab, "UUID=uuid-of-vda2 / ext4") || !strings.Contains(fstab, "UUID=uuid-of-vda1 /boot/efi vfat") {
 		t.Errorf("fstab = %q", fstab)
 	}
-	if read("etc/hostname") != "diparnux\n" || !strings.Contains(read("etc/hosts"), "127.0.1.1\tdiparnux") {
+	if read("etc/hostname") != "opereta\n" || !strings.Contains(read("etc/hosts"), "127.0.1.1\topereta") {
 		t.Error("host name files are wrong")
 	}
 	if read("etc/default/locale") != "LANG=ko_KR.UTF-8\n" || !strings.Contains(read("etc/locale.gen"), "ko_KR.UTF-8 UTF-8") {
@@ -348,7 +348,7 @@ func TestInstallRunsStepsInOrderAndWritesConfiguration(t *testing.T) {
 	if !strings.Contains(read("etc/default/keyboard"), `XKBLAYOUT="kr"`) {
 		t.Error("keyboard file is wrong")
 	}
-	if !strings.Contains(read("etc/default/grub.d/30-diparnux-console.cfg"), "console=ttyS0,115200") {
+	if !strings.Contains(read("etc/default/grub.d/30-opereta-console.cfg"), "console=ttyS0,115200") {
 		t.Error("serial console drop-in is missing")
 	}
 	if link, err := os.Readlink(filepath.Join(in.TargetRoot, "etc/localtime")); err != nil || link != "/usr/share/zoneinfo/Asia/Seoul" {
@@ -365,7 +365,7 @@ func TestInstallRunsStepsInOrderAndWritesConfiguration(t *testing.T) {
 	for _, c := range rec.calls {
 		if strings.Contains(string(c.Stdin), testPassword) {
 			sawStdin = true
-			if c.Name != "chroot" || !strings.Contains(strings.Join(c.Args, " "), "diparnux-user add") {
+			if c.Name != "chroot" || !strings.Contains(strings.Join(c.Args, " "), "opereta-user add") {
 				t.Errorf("password sent to %s", c.Name)
 			}
 		}
@@ -434,20 +434,20 @@ func TestPrepareTargetPurgesInstallerAndVerifiesProtectedPackages(t *testing.T) 
 		t.Fatal(err)
 	}
 	lines := rec.lines()
-	if indexOf(lines, "apt-get -y -q purge --autoremove calamares diparnux-installer") < 0 {
+	if indexOf(lines, "apt-get -y -q purge --autoremove calamares opereta-installer") < 0 {
 		t.Errorf("installer was not purged: %v", lines)
 	}
 	if indexOf(lines, "systemctl --root="+root+" set-default graphical.target") < 0 {
 		t.Errorf("mode was not set: %v", lines)
 	}
-	b, err := os.ReadFile(filepath.Join(root, "var/lib/diparnux/users.list"))
+	b, err := os.ReadFile(filepath.Join(root, "var/lib/opereta/users.list"))
 	if err != nil || !strings.HasPrefix(string(b), "alice 1 2026-10-12T08:00:00Z") {
 		t.Errorf("users.list = %q, %v", b, err)
 	}
 
 	// 보호 패키지가 없으면 실패한다.
 	rec2 := &recorder{chrootR: func(args []string) platform.Result {
-		if strings.Contains(strings.Join(args, " "), "${db:Status-Status}") && strings.HasSuffix(strings.Join(args, " "), "diparnux-daemon") {
+		if strings.Contains(strings.Join(args, " "), "${db:Status-Status}") && strings.HasSuffix(strings.Join(args, " "), "opereta-daemon") {
 			return platform.Result{Stdout: []byte("not-installed")}
 		}
 		return platform.Result{}
@@ -541,7 +541,7 @@ func TestGrubInstallFallsBackToNoNVRAM(t *testing.T) {
 			_ = os.MkdirAll(dir, 0o755)
 			_ = os.WriteFile(filepath.Join(dir, "grub.cfg"), []byte("menuentry 'x' $menuentry_id_option 'gnulinux-6.12.1-amd64-advanced-u' {\n}\n"), 0o644)
 		}
-		if len(args) >= 2 && args[1] == "grub-install" && strings.Contains(strings.Join(args, " "), "--bootloader-id=diparnux") && !strings.Contains(strings.Join(args, " "), "--no-nvram") {
+		if len(args) >= 2 && args[1] == "grub-install" && strings.Contains(strings.Join(args, " "), "--bootloader-id=opereta") && !strings.Contains(strings.Join(args, " "), "--no-nvram") {
 			calls++
 			return platform.Result{ExitCode: 1, Stderr: []byte("efibootmgr failed")}
 		}
@@ -552,7 +552,7 @@ func TestGrubInstallFallsBackToNoNVRAM(t *testing.T) {
 	if err := in.Install(context.Background(), &o); err != nil {
 		t.Fatalf("Install: %v", err)
 	}
-	if calls != 1 || indexOf(rec.lines(), "--bootloader-id=diparnux --uefi-secure-boot --no-nvram") < 0 {
+	if calls != 1 || indexOf(rec.lines(), "--bootloader-id=opereta --uefi-secure-boot --no-nvram") < 0 {
 		t.Errorf("no-nvram retry missing (calls=%d): %v", calls, rec.lines())
 	}
 }
