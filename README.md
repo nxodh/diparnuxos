@@ -171,6 +171,7 @@ out/             빌드 산출물(git 제외)
 | [docs/phase-5-3-verification.md](docs/phase-5-3-verification.md) | 0.5.3 검증 범위와 확인하지 못한 것 |
 | [docs/vedecaps-research.md](docs/vedecaps-research.md) | 이전 이름(Vedecaps) 시절의 조사 기록 |
 | [docs/phase-6-2-design.md](docs/phase-6-2-design.md) | 0.6.2 설계(Vedecaps → Deberopa 이름 변경과 0.2.0 고정, Deberopa 자동 갱신, 디자인 개편과 Pretendard, 램 상한 해제) |
+| [docs/phase-6-3-design.md](docs/phase-6-3-design.md) | 0.6.3 설계 초안(부팅 항목 문제, 창 가장자리와 단추, 제어 센터 확장, 데스크톱 디자인 재구성) |
 | [docs/deberopa-agent-handoff-0.6.1.md](docs/deberopa-agent-handoff-0.6.1.md) | Deberopa(Deberopa 의 새 이름) 개발 에이전트용 인계 문서: 이름 변경, Opereta 인식, 릴리스 형식 |
 | [docs/security.md](docs/security.md) | 비밀 정보 취급 규칙(공개 저장소에 올리면 안 되는 것, 자동 검사, 실수로 올렸을 때) |
 | [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |
