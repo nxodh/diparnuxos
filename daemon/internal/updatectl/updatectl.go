@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nxodh/operetaos/daemon/internal/agentupdate"
 	"github.com/nxodh/operetaos/daemon/internal/platform"
 	"github.com/nxodh/operetaos/daemon/internal/update"
 )
@@ -34,7 +35,24 @@ const (
 	ActionRollback = "rollback"
 	// ActionCUDARuntime 은 CUDA 런타임(cudart, cublas)을 NVIDIA 저장소에서 받아 설치한다.
 	ActionCUDARuntime = "cuda_runtime"
+	// 코딩 에이전트 Deberopa 의 갱신이다. OS 갱신과 달리 재부팅이 필요 없다.
+	ActionDeberopaCheck   = "deberopa_check"
+	ActionDeberopaUpdate  = "deberopa_update"
+	ActionDeberopaAutoOn  = "deberopa_auto_on"
+	ActionDeberopaAutoOff = "deberopa_auto_off"
 )
+
+// helperArgs 는 동작에 해당하는 헬퍼 명령 인자다.
+var helperArgs = map[string][]string{
+	ActionCheck:           {"check"},
+	ActionApply:           {"apply"},
+	ActionRollback:        {"rollback"},
+	ActionCUDARuntime:     {"cuda-runtime"},
+	ActionDeberopaCheck:   {"deberopa", "check"},
+	ActionDeberopaUpdate:  {"deberopa", "apply"},
+	ActionDeberopaAutoOn:  {"deberopa", "auto", "on"},
+	ActionDeberopaAutoOff: {"deberopa", "auto", "off"},
+}
 
 // 오류 코드다.
 const (
@@ -69,6 +87,8 @@ type Controller struct {
 	SourcesFile string
 	// NvidiaConf 는 CUDA 런타임의 고정 버전을 적은 파일이다. 비어 있으면 update.DefaultNvidiaConf 다.
 	NvidiaConf string
+	// DeberopaDir 은 Deberopa 갱신의 상태 디렉터리다. 비어 있으면 agentupdate.DefaultDir 다.
+	DeberopaDir string
 	// HelperExists 는 테스트가 바꾼다. nil 이면 파일이 있는지 본다.
 	HelperExists func(path string) bool
 }
@@ -152,9 +172,11 @@ type Info struct {
 	// Channel 은 Opereta 패키지 저장소(OS 업데이트 채널)의 상태다. 꺼져 있으면 새 Opereta 버전은 보이지 않는다.
 	Channel update.Channel `json:"channel"`
 	// CUDARuntime 은 GPU 가속에 필요한 CUDA 런타임의 설치 상태다. 이미지에는 들어 있지 않고 NVIDIA 에서 직접 받는다.
-	CUDARuntime update.CUDARuntime  `json:"cuda_runtime"`
-	State       update.State        `json:"state"`
-	LastCheck   *update.CheckResult `json:"last_check,omitempty"`
+	CUDARuntime update.CUDARuntime `json:"cuda_runtime"`
+	// Deberopa 는 코딩 에이전트의 설치 버전, 최신 버전, 자동 갱신 설정이다.
+	Deberopa  agentupdate.Info    `json:"deberopa"`
+	State     update.State        `json:"state"`
+	LastCheck *update.CheckResult `json:"last_check,omitempty"`
 	// RollbackAvailable 은 되돌릴 수 있는 갱신 기록이 있다는 뜻이다.
 	RollbackAvailable bool `json:"rollback_available"`
 }
@@ -175,6 +197,7 @@ func (c *Controller) Info(ctx context.Context) (Info, error) {
 	}
 	out.OSVersion = readVersionID(c.osReleaseFile())
 	out.Channel = update.ReadChannel(c.SourcesFile)
+	out.Deberopa = (&agentupdate.Updater{Dir: c.DeberopaDir}).ReadInfo()
 	if c.Runner != nil {
 		eng := &update.Engine{Cfg: update.Config{NvidiaConf: c.NvidiaConf}, Run: c.Runner}
 		out.CUDARuntime = eng.CUDARuntimeStatus(ctx)
@@ -226,10 +249,9 @@ func (c *Controller) active(ctx context.Context) bool {
 
 // Start 는 갱신 동작을 transient 유닛으로 시작하고 바로 돌려준다.
 func (c *Controller) Start(ctx context.Context, action string, reboot bool) error {
-	switch action {
-	case ActionCheck, ActionApply, ActionRollback, ActionCUDARuntime:
-	default:
-		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply, rollback or cuda_runtime, not %q", action)}
+	hargs, known := helperArgs[action]
+	if !known {
+		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply, rollback, cuda_runtime or deberopa_check|update|auto_on|auto_off, not %q", action)}
 	}
 	// CUDA 런타임은 라이브 세션에서도 받을 수 있다(재부팅하면 사라진다). 나머지 동작은 설치된 시스템에서만 한다.
 	if _, err := os.Stat(c.liveDir()); err == nil && action != ActionCUDARuntime {
@@ -246,10 +268,11 @@ func (c *Controller) Start(ctx context.Context, action string, reboot bool) erro
 			return &Error{update.CodePendingBoot, "the previous update is waiting for a reboot; reboot first so it can be verified"}
 		}
 	}
-	helperCmd := strings.ReplaceAll(action, "_", "-") // cuda_runtime -> cuda-runtime
 	args := []string{"--unit=" + strings.TrimSuffix(c.unit(), ".service"), "--collect", "--service-type=exec", "--quiet",
-		"--description=Opereta update (" + action + ")", c.helper(), helperCmd, "--json"}
-	if reboot && action != ActionCheck {
+		"--description=Opereta update (" + action + ")", c.helper()}
+	args = append(args, hargs...)
+	args = append(args, "--json")
+	if reboot && (action == ActionApply || action == ActionRollback) {
 		args = append(args, "--reboot")
 	}
 	res, err := c.Runner.Run(context.WithoutCancel(ctx), platform.Command{Name: "systemd-run", Args: args, Timeout: 30 * time.Second, MaxOutput: 8 << 10})

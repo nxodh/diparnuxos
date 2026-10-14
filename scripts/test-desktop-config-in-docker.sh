@@ -21,7 +21,7 @@ fi
 docker run --rm --init --platform linux/amd64 -v "${ROOT}:/src:ro" ${mount_out[@]+"${mount_out[@]}"} \
     -e DEBIAN_FRONTEND=noninteractive "${IMAGE}" bash -euc '
 apt-get update -qq >/dev/null
-apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils python3 xvfb xauth scrot procps x11-utils xdotool fcitx5 fcitx5-hangul fcitx5-frontend-gtk3 >/dev/null
+apt-get install -y -qq --no-install-recommends build-essential dpkg-dev debhelper fakeroot libxml2-utils fontconfig python3 xvfb xauth scrot procps x11-utils xdotool fcitx5 fcitx5-hangul fcitx5-frontend-gtk3 >/dev/null
 
 D=/src/packages/opereta-desktop/src
 echo "== 1. static checks"
@@ -63,7 +63,18 @@ for f in /etc/xdg/opereta/xfce4/panel/default.xml /etc/X11/Xsession.d/55opereta-
          /usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-opereta.conf /usr/bin/opereta-panel-net; do
   test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
 done
+for f in /usr/share/themes/Opereta/xfwm4/themerc /usr/share/themes/Opereta/xfwm4/close-active.png \
+         /usr/share/themes/Opereta-Dark/xfwm4/themerc /usr/share/themes/Opereta-Dark/xfwm4/close-active.png \
+         /usr/share/themes/Opereta/gtk-3.0/gtk.css /usr/share/themes/Opereta-Dark/gtk-3.0/gtk.css \
+         /usr/share/icons/Opereta/index.theme /usr/share/icons/Opereta/scalable/ui/window-close-symbolic.svg \
+         /usr/share/icons/Opereta/scalable/ui/ctl-close-light.png /usr/share/icons/Opereta/scalable/ui/ctl-maximize-dark.png \
+         /etc/fonts/conf.d/60-opereta-pretendard.conf /usr/share/opereta/wallpaper-light.png; do
+  test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
+done
 echo "ok: installed files"
+# Pretendard 가 기본 산세리프가 된다(글꼴 패키지는 이 테스트 이미지에서 따로 설치한다).
+fc-match sans-serif family | grep -qi pretendard || { echo "FAIL: sans-serif is not Pretendard: $(fc-match sans-serif)" >&2; exit 1; }
+echo "ok: Pretendard is the default sans-serif"
 # Debian 이 싣는 /etc/xdg 파일을 이 패키지가 덮지 않았는지(소유 패키지가 다르다).
 for f in /etc/xdg/xfce4/panel/default.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; do
   owner="$(dpkg -S "$f" | cut -d: -f1)"
@@ -99,7 +110,11 @@ q() { su tester -c "DISPLAY=:99 DBUS_SESSION_BUS_ADDRESS=$bus xfconf-query $*" 2
 theme="$(q -c xsettings -p /Net/ThemeName)"
 [ "$theme" = Opereta ] || { echo "FAIL: xsettings /Net/ThemeName=$theme (expected Opereta; XDG_CONFIG_DIRS not applied?)"; exit 1; }
 icons="$(q -c xsettings -p /Net/IconThemeName)"
-[ "$icons" = Adwaita ] || { echo "FAIL: icon theme=$icons"; exit 1; }
+[ "$icons" = Opereta ] || { echo "FAIL: icon theme=$icons"; exit 1; }
+font="$(q -c xsettings -p /Gtk/FontName)"
+[ "$font" = "Pretendard 10" ] || { echo "FAIL: UI font=$font"; exit 1; }
+layout="$(q -c xfwm4 -p /general/button_layout)"
+[ "$layout" = "CHM|" ] || { echo "FAIL: window button layout=$layout"; exit 1; }
 wm="$(q -c xfwm4 -p /general/theme)"
 [ "$wm" = Opereta ] || { echo "FAIL: xfwm4 theme=$wm"; exit 1; }
 echo "ok: Opereta defaults applied (GTK theme, icons, window manager theme)"
@@ -115,7 +130,7 @@ if [ -d /out ]; then
   cp /tmp/session.log /out/session.log 2>/dev/null || true
 fi
 # 터미널 색: 첫 로그인 스크립트가 사용자 설정으로 복사했는지 본다.
-su tester -c "test -r ~/.config/xfce4/terminal/terminalrc && grep -q ColorBackground=#0d0d0d ~/.config/xfce4/terminal/terminalrc" || { echo "FAIL: terminal colors were not seeded"; exit 1; }
+su tester -c "test -r ~/.config/xfce4/terminal/terminalrc && grep -q ColorBackground=#fbfbfb ~/.config/xfce4/terminal/terminalrc" || { echo "FAIL: terminal colors were not seeded"; exit 1; }
 su tester -c "test -e ~/.config/opereta/session-setup-done" || { echo "FAIL: first-login setup marker missing"; exit 1; }
 echo "ok: first-login setup ran"
 

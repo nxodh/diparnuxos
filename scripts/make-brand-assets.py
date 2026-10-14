@@ -15,6 +15,7 @@
   opereta-mark-black.png     글자 O 만 검정, 배경 투명 512
   deberopa-<N>.png           연동 에이전트 아이콘(원) 32, 64, 128, 256
   wallpaper.png               어두운 바탕용 희미한 마크 256(가운데 배치)
+  wallpaper-light.png         밝은 바탕용 희미한 마크 256(가운데 배치)
   calamares-logo.png          Calamares 사이드바 로고 128
   calamares-welcome.png       Calamares 환영 화면 이미지 640x300(어두운 바탕에 원 로고)
   grub-background-1280x720.png 참고용(GRUB 배경은 쓰지 않는다. 색만 쓴다)
@@ -33,7 +34,9 @@ OUT = os.path.join(HERE, "..", "assets", "brand", "generated")
 INSTALLER = os.path.join(HERE, "..", "packages", "opereta-installer", "src", "branding")
 
 BG_DARK = (13, 13, 13, 255)  # #0D0D0D
-MARK_DIM = (58, 58, 58)  # 배경 마크의 색(#3A3A3A)
+MARK_DIM = (58, 58, 58)  # 어두운 배경의 마크 색(#3A3A3A)
+BG_LIGHT = (242, 242, 242, 255)  # #F2F2F2, 밝은 테마의 창 바탕색과 같다
+MARK_LIGHT = (216, 216, 219)  # 밝은 배경의 마크 색(#D8D8DB)
 MASTER = 1024
 SS = 4  # 마스크 안티앨리어싱용 확대 배율
 
@@ -104,8 +107,8 @@ def _fit_rect(img, size):
     return canvas
 
 
-def on_dark(img, size, canvas_size):
-    canvas = Image.new("RGBA", canvas_size, BG_DARK)
+def on_dark(img, size, canvas_size, bg=BG_DARK):
+    canvas = Image.new("RGBA", canvas_size, bg)
     scaled = img.resize((size, size), Image.LANCZOS)
     canvas.paste(scaled, ((canvas_size[0] - size) // 2, (canvas_size[1] - size) // 2), scaled)
     return canvas
@@ -123,10 +126,11 @@ def main():
 
     dim = mark(master, MARK_DIM)
     fit(dim, 256).save(os.path.join(OUT, "wallpaper.png"), optimize=True)
+    fit(mark(master, MARK_LIGHT), 256).save(os.path.join(OUT, "wallpaper-light.png"), optimize=True)
 
     logo128 = fit(master, 128)
     logo128.save(os.path.join(OUT, "calamares-logo.png"), optimize=True)
-    welcome = on_dark(master, 220, (640, 300))
+    welcome = on_dark(master, 220, (640, 300), BG_LIGHT)
     welcome.save(os.path.join(OUT, "calamares-welcome.png"), optimize=True)
 
     bg = on_dark(master, 260, (1280, 720))

@@ -37,6 +37,98 @@ def save_settings(data):
         pass
 
 
+# 데스크톱(Xfce) 전체의 밝기. 제어 센터의 선택이 창 관리자와 GTK3 앱에도 적용되도록 xfconf 값을 바꾼다.
+_OS_THEMES = {"light": "Opereta", "dark": "Opereta-Dark", "default": "Opereta"}
+
+# 터미널 색(xfce4-terminal 은 시스템 기본값이 아니라 사용자 terminalrc 를 읽는다). 값은 packages 의 terminalrc 와 같다.
+_TERMINAL_COLORS = {
+    False: {
+        "ColorForeground": "#1d1d1f",
+        "ColorBackground": "#fbfbfb",
+        "ColorCursor": "#1d1d1f",
+        "ColorPalette": "#1d1d1f;#b3433f;#4f7a4f;#9a7b2e;#4a6f94;#7d5f94;#4a8189;#c8c8cc;#6e6e73;#c9605b;#68925f;#b8943f;#6389b0;#9a7bb0;#62a0a8;#ffffff",
+    },
+    True: {
+        "ColorForeground": "#f2f2f4",
+        "ColorBackground": "#1c1c1e",
+        "ColorCursor": "#f2f2f4",
+        "ColorPalette": "#2b2b2c;#e0726d;#7fb07f;#d3b76a;#79a0c9;#b496c8;#78b4bc;#c8c8cc;#6e6e73;#ef8c87;#98c698;#e3cc85;#93b6d9;#c8aedb;#92c8cf;#ffffff",
+    },
+}
+
+
+def _set_terminal_colors(dark, home=None):
+    """사용자의 terminalrc 가 있으면 색 줄만 바꾼다(다른 설정은 그대로 둔다)."""
+    path = os.path.join(home or os.path.expanduser("~"), ".config", "xfce4", "terminal", "terminalrc")
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().split("\n")
+    except OSError:
+        return
+    want = dict(_TERMINAL_COLORS[bool(dark)])
+    out = []
+    for line in lines:
+        key = line.split("=", 1)[0]
+        if key in want:
+            out.append("%s=%s" % (key, want.pop(key)))
+        else:
+            out.append(line)
+    if want:  # 빠진 키는 [Configuration] 구역 끝에 더한다
+        try:
+            idx = max(i for i, line in enumerate(out) if line.strip())
+        except ValueError:
+            idx = -1
+        out[idx + 1:idx + 1] = ["%s=%s" % kv for kv in want.items()]
+    tmp = path + ".opereta-tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(out))
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def apply_os_scheme(name):
+    """GTK 테마, 창 관리자 테마, 배경 화면, 터미널 색을 밝은/어두운 테마에 맞춘다.
+
+    xfconf-query 가 없거나 Xfce 세션이 아니면 아무것도 하지 않는다.
+    """
+    import shutil
+    import subprocess
+
+    exe = shutil.which("xfconf-query")
+    if not exe:
+        return
+    dark = name == "dark"
+    theme = _OS_THEMES.get(name, "Opereta")
+
+    def run(*args, capture=False):
+        try:
+            res = subprocess.run([exe, *args], check=False, timeout=10, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, text=True)
+            return res.stdout if capture else ""
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    for channel, prop in (("xsettings", "/Net/ThemeName"), ("xfwm4", "/general/theme")):
+        run("-c", channel, "-p", prop, "-s", theme)
+    # GTK4 와 libadwaita 앱은 테마 이름이 아니라 이 값으로 어두운 모양을 고른다.
+    run("-c", "xsettings", "-p", "/Gtk/ApplicationPreferDarkTheme", "-n", "-t", "bool", "-s", "true" if dark else "false")
+    # 배경 화면: 모니터마다 있는 last-image 와 같은 폴더의 rgba1 을 바꾼다.
+    wallpaper = "/usr/share/opereta/wallpaper.png" if dark else "/usr/share/opereta/wallpaper-light.png"
+    shade = "0.050980" if dark else "0.949020"
+    for prop in run("-c", "xfce4-desktop", "-l", capture=True).splitlines():
+        prop = prop.strip()
+        if prop.endswith("/last-image"):
+            current = run("-c", "xfce4-desktop", "-p", prop, capture=True).strip()
+            if current.startswith("/usr/share/opereta/wallpaper"):  # 사용자가 고른 그림은 바꾸지 않는다
+                base = prop[: -len("last-image")]
+                run("-c", "xfce4-desktop", "-p", prop, "-s", wallpaper)
+                run("-c", "xfce4-desktop", "-p", base + "rgba1", "-n", "-a", "-t", "double", "-s", shade, "-t", "double", "-s", shade,
+                    "-t", "double", "-s", shade, "-t", "double", "-s", "1.000000")
+    _set_terminal_colors(dark)
+
+
 def apply_color_scheme(name):
     mgr = Adw.StyleManager.get_default()
     mgr.set_color_scheme(
@@ -98,8 +190,8 @@ class SystemPage(Adw.PreferencesPage):
         look_group = Adw.PreferencesGroup(title=_("Appearance"))
         self.scheme_combo = Adw.ComboRow(title=_("Color scheme"))
         self.scheme_combo.set_model(Gtk.StringList.new([_("Follow the system"), _("Light"), _("Dark")]))
-        # Opereta 데스크톱(Xfce)은 어두운 테마를 쓰므로 처음 값은 어둡게 한다. 사용자가 바꾸면 그 값을 따른다.
-        saved = load_settings().get("color_scheme", "dark")
+        # 처음 값은 시스템을 따른다. 데스크톱의 기본은 밝은 테마다. 사용자가 바꾸면 그 값을 따른다.
+        saved = load_settings().get("color_scheme", "default")
         self.scheme_combo.set_selected(_SCHEMES.index(saved) if saved in _SCHEMES else 0)
         apply_color_scheme(saved)
         self.scheme_combo.connect("notify::selected", self._on_scheme)
@@ -125,6 +217,21 @@ class SystemPage(Adw.PreferencesPage):
         self._btn_cuda.set_sensitive(False)
         self._cuda_row.add_suffix(self._btn_cuda)
         upd_group.add(self._cuda_row)
+        # 코딩 에이전트 Deberopa 는 하루에 한 번 최신 릴리스를 확인해 뒤처졌으면 자동으로 갱신한다.
+        self._agent_row = action_row(_("Deberopa (coding agent)"), "-")
+        agent_buttons = Gtk.Box(spacing=6, valign=Gtk.Align.CENTER)
+        self._btn_agent_check = text_button(_("Check"), lambda: self.start_deberopa("deberopa_check"))
+        self._btn_agent_update = text_button(_("Update"), lambda: self.start_deberopa("deberopa_update"), "suggested-action")
+        for b in (self._btn_agent_check, self._btn_agent_update):
+            b.set_sensitive(False)
+            agent_buttons.append(b)
+        self._agent_row.add_suffix(agent_buttons)
+        upd_group.add(self._agent_row)
+        self._agent_auto = Adw.SwitchRow(title=_("Update Deberopa automatically"))
+        self._agent_auto.set_subtitle(_("Checks for a new release once a day and installs it. The downloaded file is verified first."))
+        self._agent_auto_updating = False
+        self._agent_auto.connect("notify::active", self._on_agent_auto)
+        upd_group.add(self._agent_auto)
         self.add(upd_group)
 
         maint = Adw.PreferencesGroup(title=_("Maintenance"))
@@ -324,6 +431,7 @@ class SystemPage(Adw.PreferencesPage):
     def _on_scheme(self, combo, _pspec):
         name = _SCHEMES[combo.get_selected()]
         apply_color_scheme(name)
+        apply_os_scheme(name)
         data = load_settings()
         data["color_scheme"] = name
         save_settings(data)
@@ -343,6 +451,15 @@ class SystemPage(Adw.PreferencesPage):
         self._cuda_row.set_subtitle(GLib.markup_escape_text(c["text"]))
         self._btn_cuda.set_sensitive(c["can_install"] and not d["busy"])
         self._btn_cuda.set_visible(not c["installed"])
+        a = logic.describe_deberopa(info)
+        self._agent_row.set_subtitle(GLib.markup_escape_text(a["text"]))
+        self._btn_agent_check.set_sensitive(a["can_check"])
+        self._btn_agent_update.set_sensitive(a["can_update"])
+        self._btn_agent_update.set_visible(a["can_update"])
+        if self._agent_auto.get_active() != a["auto"]:
+            self._agent_auto_updating = True
+            self._agent_auto.set_active(a["auto"])
+            self._agent_auto_updating = False
         if d["busy"] and self._update_poll is None:
             self._update_poll = GLib.timeout_add_seconds(3, self._poll_update)
 
@@ -370,6 +487,37 @@ class SystemPage(Adw.PreferencesPage):
                 self._update_poll = GLib.timeout_add_seconds(3, self._poll_update)
 
         run_async(lambda: self.ctx.client.update_start(action), done, self.ctx.toast_error)
+
+    def start_deberopa(self, action):
+        def done(_r):
+            self.ctx.toast(_("Checking Deberopa…") if action == "deberopa_check" else _("Updating Deberopa…"))
+            self._btn_agent_check.set_sensitive(False)
+            self._btn_agent_update.set_sensitive(False)
+            self._agent_row.set_subtitle(GLib.markup_escape_text(_("Working…")))
+            if self._update_poll is None:
+                self._update_poll = GLib.timeout_add_seconds(3, self._poll_agent)
+
+        run_async(lambda: self.ctx.client.update_start(action), done, self.ctx.toast_error)
+
+    def _poll_agent(self):
+        """갱신 유닛이 끝날 때까지 상태를 다시 읽는다. 끝나면 표시를 새로 고친다."""
+
+        def done(info):
+            self._on_update_info(info)
+            if not (info.get("running") or (info.get("state") or {}).get("phase") == "running"):
+                self._update_poll = None
+
+        def failed(_exc):
+            self._update_poll = None
+
+        run_async(self.ctx.client.update_info, done, failed)
+        return GLib.SOURCE_CONTINUE if self._update_poll is not None else GLib.SOURCE_REMOVE
+
+    def _on_agent_auto(self, row, _pspec):
+        if self._agent_auto_updating:
+            return
+        action = "deberopa_auto_on" if row.get_active() else "deberopa_auto_off"
+        run_async(lambda: self.ctx.client.update_start(action), lambda _r: None, self.ctx.toast_error)
 
     def install_update(self):
         confirm(

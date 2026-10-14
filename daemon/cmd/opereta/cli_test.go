@@ -1535,3 +1535,52 @@ func TestGPURuntimeInstallWithYesStartsTheAction(t *testing.T) {
 		t.Fatalf("request bodies = %v", got)
 	}
 }
+
+func TestDeberopaStatus(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/update", 200, `{"available":true,"running":false,"state":{"phase":"idle"},"deberopa":{"auto":true,"installed":"0.3.1","packaged":"0.2.0","latest":"0.3.1","override":true,"status":"updated","checked":"2026-10-14T12:00:00Z"}}`)
+	res := runCLI(t, f, "deberopa")
+	wantCode(t, res, exitOK)
+	wantContains(t, "installed", res.stdout, "deberopa: 0.3.1")
+	wantContains(t, "image", res.stdout, "image version: 0.2.0")
+	wantContains(t, "auto", res.stdout, "automatic updates: on")
+}
+
+func TestDeberopaUpdateStartsTheActionAndWaitsForTheCheck(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"deberopa_update","reboot":false}`)
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UTC().Format(time.RFC3339)
+		_, _ = fmt.Fprintf(w, `{"available":true,"running":false,"state":{"phase":"idle"},"deberopa":{"auto":true,"installed":"0.3.1","latest":"0.3.1","override":true,"status":"updated","checked":%q}}`, now)
+	})
+	res := runCLI(t, f, "deberopa", "update")
+	wantCode(t, res, exitOK)
+	wantContains(t, "installed", res.stdout, "deberopa: 0.3.1")
+	if got := f.bodies["POST /v1/update"]; len(got) != 1 || !strings.Contains(got[0], `"action":"deberopa_update"`) {
+		t.Fatalf("request bodies = %v", got)
+	}
+}
+
+func TestDeberopaUpdateFailureExitsNonZero(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"deberopa_update","reboot":false}`)
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UTC().Format(time.RFC3339)
+		_, _ = fmt.Fprintf(w, `{"available":true,"running":false,"state":{"phase":"idle"},"deberopa":{"auto":true,"installed":"0.2.0","status":"error","code":"checksum_mismatch","message":"SHA-256 differs","checked":%q}}`, now)
+	})
+	res := runCLI(t, f, "deberopa", "update")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "error", res.stdout, "checksum_mismatch")
+}
+
+func TestDeberopaAutoNeedsOnOrOff(t *testing.T) {
+	f := newFakeDaemon(t)
+	res := runCLI(t, f, "deberopa", "auto")
+	wantCode(t, res, exitUsage)
+	res = runCLI(t, f, "deberopa", "auto", "maybe")
+	wantCode(t, res, exitUsage)
+	res = runCLI(t, f, "deberopa", "bogus")
+	wantCode(t, res, exitUsage)
+}

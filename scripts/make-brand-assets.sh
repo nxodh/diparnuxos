@@ -7,5 +7,5 @@ docker run --rm -v "${ROOT}:/src" python:3.12-slim bash -euc '
 pip install -q pillow >/dev/null 2>&1
 cd /src
 python3 scripts/make-brand-assets.py
-python3 scripts/make-xfwm4-theme.py
+python3 scripts/make-theme.py
 '

@@ -1,0 +1,262 @@
+/* Opereta-Dark GTK3 테마. scripts/make-theme.py 가 만든다. 직접 고치지 않는다(값은 PALETTES 에서 바꾼다).
+ * libgtk-3 에 내장된 Adwaita 스타일을 가져와 색 이름과 모양(곡률, 여백)만 바꾼다. 팔레트는 docs/design.md 에 있다. */
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css");
+
+@define-color theme_bg_color #1e1e1e;
+@define-color theme_fg_color #f2f2f4;
+@define-color theme_base_color #171717;
+@define-color theme_text_color #f2f2f4;
+@define-color theme_selected_bg_color #3b3b3e;
+@define-color theme_selected_fg_color #f2f2f4;
+@define-color theme_tooltip_bg_color #f2f2f4;
+@define-color theme_tooltip_fg_color #1d1d1f;
+@define-color insensitive_bg_color #1e1e1e;
+@define-color insensitive_fg_color #6a6a6f;
+@define-color insensitive_base_color #171717;
+@define-color theme_unfocused_bg_color #1e1e1e;
+@define-color theme_unfocused_fg_color #a1a1a6;
+@define-color theme_unfocused_base_color #171717;
+@define-color theme_unfocused_text_color #a1a1a6;
+@define-color theme_unfocused_selected_bg_color #343436;
+@define-color theme_unfocused_selected_fg_color #f2f2f4;
+@define-color borders #3b3b3d;
+@define-color unfocused_borders #323234;
+@define-color content_view_bg #171717;
+@define-color text_view_bg #171717;
+
+* {
+    outline-style: none;
+}
+
+/* 창 */
+window.background {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+window.csd, window.csd decoration {
+    border-radius: 12px;
+}
+decoration {
+    box-shadow: 0 6px 24px alpha(black, 0.28), 0 0 0 1px #3b3b3d;
+}
+headerbar, .titlebar {
+    background-image: none;
+    background-color: #2b2b2c;
+    border-bottom: 1px solid #323234;
+    box-shadow: none;
+    border-radius: 12px 12px 0 0;
+    min-height: 40px;
+    padding: 0 8px;
+}
+headerbar .title {
+    font-weight: 600;
+}
+
+/* 버튼 */
+button {
+    background-image: none;
+    background-color: #323234;
+    color: @theme_fg_color;
+    border: 1px solid #454548;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 5px 12px;
+    min-height: 24px;
+    text-shadow: none;
+}
+button:hover {
+    background-color: #343436;
+}
+button:active, button:checked {
+    background-color: #3f3f42;
+}
+button:disabled {
+    color: @insensitive_fg_color;
+    background-color: #1e1e1e;
+}
+button.flat, headerbar button, toolbar button {
+    background-color: transparent;
+    border-color: transparent;
+}
+button.flat:hover, headerbar button:hover, toolbar button:hover {
+    background-color: #343436;
+}
+button.suggested-action, headerbar button.suggested-action {
+    background-color: #f2f2f4;
+    color: #1d1d1f;
+    border-color: #f2f2f4;
+}
+button.suggested-action:hover {
+    background-color: alpha(#f2f2f4, 0.88);
+}
+button.circular {
+    border-radius: 999px;
+}
+
+/* 입력 */
+entry, spinbutton, combobox button, textview text {
+    background-color: #171717;
+    border: 1px solid #454548;
+    border-radius: 8px;
+    box-shadow: none;
+    min-height: 24px;
+    padding: 4px 8px;
+}
+entry:focus, spinbutton:focus-within {
+    border-color: #f2f2f4;
+    box-shadow: 0 0 0 2px alpha(#f2f2f4, 0.18);
+}
+switch {
+    border-radius: 999px;
+    background-color: #3b3b3d;
+    border: none;
+    box-shadow: none;
+    min-height: 24px;
+    min-width: 44px;
+}
+switch:checked {
+    background-color: #f2f2f4;
+}
+switch slider {
+    border-radius: 999px;
+    background-color: #171717;
+    border: none;
+    box-shadow: 0 1px 3px alpha(black, 0.3);
+    min-height: 20px;
+    min-width: 20px;
+    margin: 2px;
+}
+scale trough {
+    border-radius: 999px;
+    background-color: #3b3b3d;
+    min-height: 6px;
+}
+scale highlight {
+    border-radius: 999px;
+    background-color: #f2f2f4;
+}
+scale slider {
+    border-radius: 999px;
+    background-color: #171717;
+    border: 1px solid #454548;
+    box-shadow: 0 1px 3px alpha(black, 0.25);
+    min-width: 18px;
+    min-height: 18px;
+}
+progressbar trough {
+    border-radius: 999px;
+    background-color: #3b3b3d;
+    min-height: 6px;
+}
+progressbar progress {
+    border-radius: 999px;
+    background-color: #f2f2f4;
+}
+check, radio {
+    border-radius: 6px;
+    background-image: none;
+    background-color: #171717;
+    border: 1px solid #454548;
+    box-shadow: none;
+}
+radio {
+    border-radius: 999px;
+}
+check:checked, radio:checked {
+    background-color: #f2f2f4;
+    color: #1d1d1f;
+    border-color: #f2f2f4;
+}
+
+/* 메뉴와 팝오버 */
+menu, .menu, .popup, popover.background {
+    background-color: #171717;
+    border: 1px solid #3b3b3d;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 8px 28px alpha(black, 0.25);
+}
+menuitem {
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-height: 22px;
+}
+menuitem:hover {
+    background-color: #3b3b3e;
+}
+popover.background > contents {
+    border-radius: 10px;
+}
+tooltip, tooltip.background {
+    border-radius: 8px;
+    background-color: #f2f2f4;
+    color: #1d1d1f;
+    border: none;
+}
+
+/* 목록과 사이드바 */
+list, treeview.view, iconview {
+    background-color: #171717;
+}
+row, treeview.view:selected, iconview:selected {
+    border-radius: 8px;
+}
+row:selected, treeview.view:selected, iconview:selected {
+    background-color: #3b3b3e;
+    color: @theme_fg_color;
+}
+.sidebar, placessidebar, placessidebar list {
+    background-color: #252526;
+}
+placessidebar row {
+    border-radius: 8px;
+    margin: 1px 6px;
+}
+scrollbar slider {
+    border-radius: 999px;
+    background-color: alpha(#a1a1a6, 0.55);
+    min-width: 6px;
+    min-height: 6px;
+}
+scrollbar trough {
+    background-color: transparent;
+}
+notebook > header {
+    background-color: #1e1e1e;
+    border-color: #323234;
+}
+notebook > header > tabs > tab {
+    border-radius: 8px 8px 0 0;
+    padding: 4px 12px;
+}
+notebook > header > tabs > tab:checked {
+    background-color: #171717;
+}
+selection, *:selected {
+    background-color: #3b3b3e;
+    color: @theme_fg_color;
+}
+
+/* Xfce 패널과 시작 메뉴 */
+.xfce4-panel, #XfcePanelWindow {
+    background-color: #2b2b2c;
+    border-top: 1px solid #3b3b3d;
+    color: @theme_fg_color;
+}
+.xfce4-panel button, #XfcePanelWindow button {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 2px 8px;
+    min-height: 22px;
+}
+.xfce4-panel button:hover, #XfcePanelWindow button:hover {
+    background-color: #343436;
+}
+.xfce4-panel button:checked, #XfcePanelWindow button:checked {
+    background-color: #3b3b3e;
+}
+#whiskermenu-window {
+    border-radius: 12px;
+    border: 1px solid #3b3b3d;
+}

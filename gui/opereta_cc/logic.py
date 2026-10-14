@@ -592,6 +592,43 @@ def describe_cuda_runtime(info):
     return out
 
 
+def describe_deberopa(info):
+    """GET /v1/update 응답의 deberopa 를 표시용 값으로 바꾼다. 돌려주는 사전: text, auto, can_check, can_update.
+
+    Deberopa 는 하루에 한 번 최신 릴리스를 확인해 뒤처졌으면 자동으로 갱신한다(자동 갱신을 끄지 않았다면).
+    """
+    out = {"text": _("Not available"), "auto": True, "can_check": False, "can_update": False}
+    if not isinstance(info, dict):
+        return out
+    d = info.get("deberopa") or {}
+    out["auto"] = bool(d.get("auto", True))
+    status = d.get("status") or ""
+    installed, latest = d.get("installed") or "", d.get("latest") or ""
+    busy = bool(info.get("running")) or (info.get("state") or {}).get("phase") == "running"
+    # 갱신과 같은 헬퍼 유닛을 쓰므로 OS 갱신이 도는 동안과 라이브 세션에서는 막는다.
+    usable = bool(info.get("available")) and not busy and status != "not_installed"
+    out["can_check"] = usable
+    if status == "not_installed" or not installed:
+        out["text"] = _("Deberopa is not installed.")
+        return out
+    if status == "update_available" and latest:
+        out["text"] = _("Version %(installed)s is installed. %(latest)s is available.") % {"installed": installed, "latest": latest}
+        out["can_update"] = usable
+    elif status == "error":
+        out["text"] = _("Version %(installed)s. The last check failed: %(reason)s") % {
+            "installed": installed,
+            "reason": d.get("message") or d.get("code") or "?",
+        }
+        out["can_update"] = usable and bool(latest) and latest != installed
+    elif status == "updated":
+        out["text"] = _("Updated to version %s.") % installed
+    else:
+        out["text"] = _("Version %s. This is the latest release.") % installed if latest and latest == installed else _("Version %s.") % installed
+    if not info.get("available"):
+        out["text"] += " " + _("Updates apply to an installed system.")
+    return out
+
+
 def live_session():
     """라이브 세션(램에 올린 이미지로 부팅)인지 본다. /run/live 는 live-boot 가 만든다."""
     import os

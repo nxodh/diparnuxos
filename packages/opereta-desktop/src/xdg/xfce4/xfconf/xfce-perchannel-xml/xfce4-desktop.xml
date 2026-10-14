@@ -10,11 +10,11 @@
         <property name="workspace0" type="empty">
           <property name="color-style" type="int" value="0"/>
           <property name="image-style" type="int" value="1"/>
-          <property name="last-image" type="string" value="/usr/share/opereta/wallpaper.png"/>
+          <property name="last-image" type="string" value="/usr/share/opereta/wallpaper-light.png"/>
           <property name="rgba1" type="array">
-            <value type="double" value="0.050980"/>
-            <value type="double" value="0.050980"/>
-            <value type="double" value="0.050980"/>
+            <value type="double" value="0.949020"/>
+            <value type="double" value="0.949020"/>
+            <value type="double" value="0.949020"/>
             <value type="double" value="1.000000"/>
           </property>
         </property>

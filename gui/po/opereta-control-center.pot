@@ -1932,3 +1932,45 @@ msgstr ""
 
 msgid "NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way."
 msgstr ""
+
+msgid "Deberopa is not installed."
+msgstr ""
+
+msgid "Version %(installed)s is installed. %(latest)s is available."
+msgstr ""
+
+msgid "Version %(installed)s. The last check failed: %(reason)s"
+msgstr ""
+
+msgid "Updated to version %s."
+msgstr ""
+
+msgid "Version %s. This is the latest release."
+msgstr ""
+
+msgid "Version %s."
+msgstr ""
+
+msgid "Updates apply to an installed system."
+msgstr ""
+
+msgid "Deberopa (coding agent)"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Update Deberopa automatically"
+msgstr ""
+
+msgid "Checks for a new release once a day and installs it. The downloaded file is verified first."
+msgstr ""
+
+msgid "Checking Deberopa…"
+msgstr ""
+
+msgid "Updating Deberopa…"
+msgstr ""
+
+msgid "Working…"
+msgstr ""

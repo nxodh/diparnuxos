@@ -1,0 +1,23 @@
+# Deberopa 코딩 에이전트의 최신 릴리스를 확인하고 뒤처졌으면 설치한다. 설치 경로는
+# /usr/lib/systemd/system/opereta-deberopa-update.service 이고 opereta-deberopa-update.timer 가 하루에 한 번 시작한다.
+# 자동 갱신을 끄면(opereta deberopa auto off) 이 유닛은 아무것도 하지 않는다. 네트워크가 없어도 실패로 끝내지 않는다.
+[Unit]
+Description=Opereta Deberopa update check
+After=network-online.target
+Wants=network-online.target
+# 라이브 세션은 램에서 돌므로 받지 않는다. 설치된 시스템에서만 한다. Deberopa 가 설치되어 있을 때만 한다.
+ConditionPathExists=!/run/live
+ConditionPathExists=/usr/bin/deberopa
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/opereta/opereta-update deberopa apply --auto
+TimeoutStartSec=20min
+Nice=10
+IOSchedulingClass=idle
+# 쓰는 곳은 상태 디렉터리와 /usr/local/bin 의 링크뿐이다. 내려받은 실행 파일은 이 유닛에서 nobody 권한으로만 실행한다.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/opereta/deberopa /usr/local/lib/opereta /usr/local/bin
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true

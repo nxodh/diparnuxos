@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/opereta-$(OPERETA_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name opereta-panel-net -o -name opereta-session-setup -o -name 55opereta-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-release-docker  sources test-sources-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-deberopa-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-release-docker  sources test-sources-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-deberopa-docker test-deberopa-update-docker
 
 # Docker 안에서 ISO 를 빌드한다. opereta-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -87,6 +87,10 @@ test-update-docker:
 # 실제 Deberopa 실행 파일(고정 버전)을 Opereta 게이트웨이와 가짜 모델 서버에 붙여 연결과 키 규칙을 컨테이너에서 확인한다.
 test-deberopa-docker:
 	bash "$(ROOT)/scripts/test-deberopa-in-docker.sh"
+
+# Deberopa 자동 갱신을 실제 GitHub 릴리스로 컨테이너에서 확인한다(네트워크 필요).
+test-deberopa-update-docker:
+	bash "$(ROOT)/scripts/test-deberopa-update-in-docker.sh"
 
 # Control Center 단위 테스트와 GTK 스모크 테스트를 Docker 의 xvfb 에서 실행한다.
 test-gui:

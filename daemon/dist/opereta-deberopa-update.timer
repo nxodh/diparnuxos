@@ -1,0 +1,13 @@
+# 하루에 한 번, 부팅 10분 뒤에 Deberopa 의 새 릴리스를 확인한다. 설치 경로는
+# /usr/lib/systemd/system/opereta-deberopa-update.timer 다. 시작 시각은 서버에 몰리지 않게 흩뜨린다.
+[Unit]
+Description=Daily Deberopa update check
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1d
+RandomizedDelaySec=2h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

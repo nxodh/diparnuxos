@@ -3,7 +3,6 @@
 # Debian 의 /etc/xdg 파일을 덮지 않도록 Opereta 기본값은 /etc/xdg/opereta 에 둔다.
 D = debian/opereta-desktop
 X = $(D)/etc/xdg/opereta/xfce4
-T = $(D)/usr/share/themes/Opereta
 G = assets/generated/xfwm4
 
 %:
@@ -28,11 +27,21 @@ override_dh_auto_install:
 	install -D -m 644 src/xorg/90-opereta-keyboard.conf $(D)/etc/X11/xorg.conf.d/90-opereta-keyboard.conf
 	install -D -m 644 src/autostart/opereta-fcitx5.desktop $(D)/etc/xdg/autostart/opereta-fcitx5.desktop
 	install -D -m 644 src/autostart/opereta-control-center-wizard.desktop $(D)/etc/xdg/autostart/opereta-control-center-wizard.desktop
+	install -D -m 644 src/fontconfig/60-opereta-pretendard.conf $(D)/etc/fonts/conf.d/60-opereta-pretendard.conf
 	install -D -m 644 src/lightdm/50-opereta.conf $(D)/usr/share/lightdm/lightdm.conf.d/50-opereta.conf
 	install -D -m 644 src/lightdm/50-opereta-greeter.conf $(D)/usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-opereta.conf
 	install -D -m 755 src/opereta-panel-net $(D)/usr/bin/opereta-panel-net
 	install -D -m 755 src/opereta-session-setup $(D)/usr/bin/opereta-session-setup
-	install -D -m 644 src/themes/Opereta/index.theme $(T)/index.theme
-	install -D -m 644 src/themes/Opereta/gtk-3.0/gtk.css $(T)/gtk-3.0/gtk.css
-	install -D -m 644 src/themes/Opereta/xfwm4/themerc $(T)/xfwm4/themerc
-	set -e; for f in $(G)/*.png; do install -D -m 644 $$f $(T)/xfwm4/$$(basename $$f); done
+	# 밝은 테마 Opereta 와 어두운 테마 Opereta-Dark. 파일은 scripts/make-theme.py 가 만든다.
+	set -e; for t in Opereta:light Opereta-Dark:dark; do \
+	  name=$${t%%:*}; scheme=$${t##*:}; T=$(D)/usr/share/themes/$$name; \
+	  install -D -m 644 src/themes/$$name/index.theme $$T/index.theme; \
+	  install -D -m 644 src/themes/$$name/gtk-3.0/gtk.css $$T/gtk-3.0/gtk.css; \
+	  install -D -m 644 src/themes/$$name/xfwm4/themerc $$T/xfwm4/themerc; \
+	  for f in $(G)/$$scheme/*.png; do install -D -m 644 $$f $$T/xfwm4/$$(basename $$f); done; \
+	done
+	# 창 컨트롤 기호를 x, -, + 로 바꾸는 아이콘 테마(Adwaita 를 상속한다).
+	install -D -m 644 src/icons/Opereta/index.theme $(D)/usr/share/icons/Opereta/index.theme
+	set -e; for f in src/icons/Opereta/scalable/ui/*; do \
+	  install -D -m 644 $$f $(D)/usr/share/icons/Opereta/scalable/ui/$$(basename $$f); \
+	done

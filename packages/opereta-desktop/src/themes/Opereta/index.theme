@@ -1,12 +1,10 @@
 [Desktop Entry]
 Type=X-GNOME-Metatheme
 Name=Opereta
-Comment=Opereta black and white theme
+Comment=Opereta 밝은 데스크톱 테마
 Encoding=UTF-8
 
 [X-GNOME-Metatheme]
 GtkTheme=Opereta
 MetacityTheme=Opereta
-IconTheme=Adwaita
-CursorTheme=Adwaita
-ButtonLayout=menu:minimize,maximize,close
+IconTheme=Opereta

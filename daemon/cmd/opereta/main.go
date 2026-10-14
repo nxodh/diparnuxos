@@ -141,6 +141,8 @@ func execute(e runEnv, args []string) int {
 		return c.mode(cargs)
 	case "update":
 		return c.update(cargs)
+	case "deberopa":
+		return c.deberopa(cargs)
 	case "report":
 		return c.report(cargs)
 	case "apikey":

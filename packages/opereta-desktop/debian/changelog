@@ -1,6 +1,8 @@
 opereta-desktop (0.6.2) trixie; urgency=medium
 
-  * 버전을 0.6.2 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.2 는 코딩 에이전트 이름을 Deberopa 로 바꾼다).
+  * 디자인 전면 개편: 밝은 테마 Opereta 와 어두운 테마 Opereta-Dark(둥근 사각형, 회색조), 창 단추 x, -, + 를 왼쪽에, 아이콘 테마 Opereta, 합성과 그림자 켬.
+  * Pretendard 글꼴(fonts-pretendard)을 기본 글꼴로 쓴다(fontconfig 별칭, UI 글꼴, 제목 줄, 로그인 화면).
+  * 배경 화면, 터미널 색, 로그인 화면을 밝은 테마에 맞춘다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
 

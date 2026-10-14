@@ -1,6 +1,7 @@
 opereta-daemon (0.6.2) trixie; urgency=medium
 
   * 코딩 에이전트 연결 명령이 opereta connect deberopa 가 되었다(옛 이름 vedecaps 도 별칭으로 받는다). 설정 폴더는 ~/.config/deberopa 다. 옛 폴더만 있으면 그 폴더에 합쳐 Deberopa 가 첫 실행 때 옮기게 한다.
+  * Deberopa 자동 갱신: opereta-deberopa-update.timer 가 하루 한 번 최신 릴리스를 확인해 뒤처졌으면 설치한다(opereta-update deberopa, opereta deberopa check|update|auto on|off, GET /v1/update 의 deberopa). 체크섬과 묶음 내용을 확인하고 이미지의 파일은 바꾸지 않는다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
 

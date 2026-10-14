@@ -1753,3 +1753,45 @@ msgstr "계속하기 전에 라이선스를 읽어 보세요: %s"
 
 msgid "NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way."
 msgstr "NVIDIA의 GeForce 제품 라이선스는 데이터센터 배치를 허용하지 않습니다. 그런 용도로 쓰기 전에 NVIDIA의 약관을 확인하세요."
+
+msgid "Deberopa is not installed."
+msgstr "Deberopa 가 설치되어 있지 않습니다."
+
+msgid "Version %(installed)s is installed. %(latest)s is available."
+msgstr "버전 %(installed)s 이(가) 설치되어 있습니다. %(latest)s 을(를) 받을 수 있습니다."
+
+msgid "Version %(installed)s. The last check failed: %(reason)s"
+msgstr "버전 %(installed)s. 마지막 확인에 실패했습니다: %(reason)s"
+
+msgid "Updated to version %s."
+msgstr "버전 %s 으로 갱신했습니다."
+
+msgid "Version %s. This is the latest release."
+msgstr "버전 %s. 최신 릴리스입니다."
+
+msgid "Version %s."
+msgstr "버전 %s."
+
+msgid "Updates apply to an installed system."
+msgstr "갱신은 설치된 시스템에서 적용됩니다."
+
+msgid "Deberopa (coding agent)"
+msgstr "Deberopa (코딩 에이전트)"
+
+msgid "Update"
+msgstr "갱신"
+
+msgid "Update Deberopa automatically"
+msgstr "Deberopa 를 자동으로 갱신"
+
+msgid "Checks for a new release once a day and installs it. The downloaded file is verified first."
+msgstr "하루에 한 번 새 릴리스를 확인해 설치합니다. 내려받은 파일은 먼저 검증합니다."
+
+msgid "Checking Deberopa…"
+msgstr "Deberopa 를 확인하는 중…"
+
+msgid "Updating Deberopa…"
+msgstr "Deberopa 를 갱신하는 중…"
+
+msgid "Working…"
+msgstr "작업하는 중…"

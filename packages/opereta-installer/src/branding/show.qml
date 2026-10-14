@@ -15,13 +15,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#0D0D0D"
+            color: "#F2F2F2"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#EBEBEB"
+                color: "#1D1D1F"
                 font.pixelSize: 26
                 text: "Opereta\nA small Debian-based system for running local language models."
             }
@@ -31,13 +31,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#0D0D0D"
+            color: "#F2F2F2"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#EBEBEB"
+                color: "#1D1D1F"
                 font.pixelSize: 22
                 text: "Server mode keeps memory use low.\nThe desktop is optional and can be turned off with 'opereta mode server'."
             }
@@ -47,13 +47,13 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#0D0D0D"
+            color: "#F2F2F2"
             Text {
                 anchors.centerIn: parent
                 width: parent.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                color: "#EBEBEB"
+                color: "#1D1D1F"
                 font.pixelSize: 22
                 text: "Updates install the kernel and the NVIDIA driver together.\nThe previous kernel stays available as a fallback."
             }

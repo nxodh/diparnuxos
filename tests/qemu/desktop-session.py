@@ -175,11 +175,8 @@ def write_png(path, width, height, pixels):
     Path(path).write_bytes(png)
 
 
-# 0.5.4 에서 사용자가 확정한 유휴 램 상한(MiB, MemTotal - MemAvailable). 2026-10-14 CI 기준선은 헤드리스 약 374, 데스크톱 약 679 이다.
-HEADLESS_MEMORY_BUDGET_MIB = 500
-DESKTOP_MEMORY_BUDGET_MIB = 800
-
-
+# 0.6.2 에서 사용자가 램 사용량 상한을 풀었다(미적 요소와 사용성이 우선이다). 값은 기록만 하고 통과 여부에는 쓰지 않는다.
+# 참고 기준선(2026-10-14, 0.5.4): 헤드리스 약 374 MiB, 데스크톱 약 679 MiB.
 def memory_used_mib(text):
     """meminfo 출력에서 MemTotal - MemAvailable 을 MiB 로 돌려준다. 읽지 못하면 None."""
     values = {}
@@ -192,13 +189,13 @@ def memory_used_mib(text):
     return (values["MemTotal"] - values["MemAvailable"]) // 1024
 
 
-def require_memory_budget(text, what, budget_mib):
+def report_memory(text, what):
+    """유휴 램 사용량을 로그에 남긴다. 상한은 없다(docs/memory.md)."""
     used = memory_used_mib(text)
     if used is None:
-        print(f"desktop-session: could not read memory use in {what}; budget not checked", flush=True)
+        print(f"desktop-session: could not read memory use in {what}", flush=True)
         return
-    print(f"desktop-session: memory in {what}: {used} MiB (budget {budget_mib} MiB)", flush=True)
-    require(used <= budget_mib, f"Idle memory in {what} is {used} MiB, over the {budget_mib} MiB budget")
+    print(f"desktop-session: memory in {what}: {used} MiB (informational, no limit)", flush=True)
 
 
 def poll_command(console, label, command, timeout, attempts_sleep=2):
@@ -343,9 +340,9 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(out.strip().splitlines()[-1] == TEST_USER, "SSH password login with the created account failed")
     console.command("ssh-login-default-account-refused", askpass + "ssh_try user live", cmd + 40, expected=255)
 
-    # 서버 모드의 유휴 메모리. 0.5.4 에서 확정한 상한(헤드리스 500 MiB)을 넘으면 실패한다(docs/memory.md 1절).
+    # 서버 모드의 유휴 메모리. 0.6.2 부터 상한 없이 기록만 한다(docs/memory.md 1절).
     memory_text = console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
-    require_memory_budget(memory_text, "server mode", HEADLESS_MEMORY_BUDGET_MIB)
+    report_memory(memory_text, "server mode")
 
     # 데스크톱 모드로 전환한다. 라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.
     switched = console.command("mode-desktop", "opereta --json mode desktop", budgets["START_TIMEOUT"])
@@ -463,7 +460,7 @@ def scenario(console, monitor, budgets, logs, workdir):
         cmd + 30,
     )
     memory_text = console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
-    require_memory_budget(memory_text, "desktop mode", DESKTOP_MEMORY_BUDGET_MIB)
+    report_memory(memory_text, "desktop mode")
     console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
     # 패널과 첫 로그인 설정: 진단을 남긴 뒤 판정한다.
     console.command(

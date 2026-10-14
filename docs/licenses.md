@@ -265,3 +265,12 @@ ISO 를 올려도 되는지 원문을 다시 확인했다. 법률 자문이 아�
 | 업데이트 엔진 | 새 커널 뒤의 모듈 확인(`verifyKernelModules`)과 드라이버 정책 패키지가 "드라이버가 설치되어 있다"를 전제로 한다. 설치되지 않은 상태를 정상으로 다루도록 바꿔야 한다 |
 | 이미지 검사와 E2E | 이미지 훅(DKMS 빌드, 서명 키 제거), `tests/nvidia/image.sh`, QEMU 설치 E2E 의 모듈 확인이 모두 바뀐다 |
 | 되돌림 | 사용자 확정 U4("드라이버를 ISO 에 포함")를 뒤집는다 |
+
+---
+
+## 11. Pretendard 글꼴(0.6.2)
+
+- 용도: OS 전체의 기본 글꼴(Xfce, Control Center, 로그인 화면, 설치기). Debian trixie(main) 의 `fonts-pretendard` 1.3.9-2 패키지를 그대로 설치하며 글꼴 파일은 고치지 않는다(`/usr/share/fonts/opentype/pretendard/`).
+- 라이선스: SIL Open Font License 1.1. Debian 이 main 에 올린 것은 DFSG 를 만족한다는 뜻이다. OFL 은 글꼴을 다른 소프트웨어와 함께 배포하거나 번들하는 것을 허용하며(판매 단독 금지), 수정본에만 예약된 글꼴 이름(Reserved Font Name) 제한이 걸린다. Opereta 는 수정하지 않는다.
+- 이 이미지에는 Debian 패키지가 라이선스 파일(`/usr/share/doc/fonts-pretendard/copyright`)을 함께 싣는다. GPL 소스 제공 묶음에도 이 패키지의 소스가 포함된다(`make sources`).
+- 문서 기반 검토이며 법률 자문이 아니다.

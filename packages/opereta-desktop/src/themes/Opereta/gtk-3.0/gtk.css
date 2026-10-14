@@ -1,40 +1,262 @@
-/* Opereta GTK3 테마. libgtk-3 에 내장된 Adwaita 어두운 스타일을 가져와 색 이름을 Opereta 팔레트로 바꾼다.
- * 팔레트와 쓰임은 docs/design.md 를 본다. 설치 경로는 /usr/share/themes/Opereta/gtk-3.0/gtk.css 이다. */
-@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css");
+/* Opereta GTK3 테마. scripts/make-theme.py 가 만든다. 직접 고치지 않는다(값은 PALETTES 에서 바꾼다).
+ * libgtk-3 에 내장된 Adwaita 스타일을 가져와 색 이름과 모양(곡률, 여백)만 바꾼다. 팔레트는 docs/design.md 에 있다. */
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained.css");
 
-@define-color theme_bg_color #1a1a1a;
-@define-color theme_fg_color #ebebeb;
-@define-color theme_base_color #0d0d0d;
-@define-color theme_text_color #ebebeb;
-@define-color theme_selected_bg_color #3a3a3a;
-@define-color theme_selected_fg_color #ffffff;
-@define-color theme_tooltip_bg_color #0d0d0d;
-@define-color theme_tooltip_fg_color #ebebeb;
-@define-color insensitive_bg_color #1a1a1a;
-@define-color insensitive_fg_color #8e8e8e;
-@define-color insensitive_base_color #141414;
-@define-color theme_unfocused_bg_color #1a1a1a;
-@define-color theme_unfocused_fg_color #8e8e8e;
-@define-color theme_unfocused_base_color #0d0d0d;
-@define-color theme_unfocused_text_color #8e8e8e;
-@define-color theme_unfocused_selected_bg_color #2b2b2b;
-@define-color theme_unfocused_selected_fg_color #ebebeb;
-@define-color borders #2b2b2b;
-@define-color unfocused_borders #2b2b2b;
-@define-color content_view_bg #0d0d0d;
-@define-color text_view_bg #0d0d0d;
+@define-color theme_bg_color #f2f2f2;
+@define-color theme_fg_color #1d1d1f;
+@define-color theme_base_color #ffffff;
+@define-color theme_text_color #1d1d1f;
+@define-color theme_selected_bg_color #dfdfe2;
+@define-color theme_selected_fg_color #1d1d1f;
+@define-color theme_tooltip_bg_color #2b2b2d;
+@define-color theme_tooltip_fg_color #f2f2f4;
+@define-color insensitive_bg_color #f2f2f2;
+@define-color insensitive_fg_color #a8a8ad;
+@define-color insensitive_base_color #ffffff;
+@define-color theme_unfocused_bg_color #f2f2f2;
+@define-color theme_unfocused_fg_color #6e6e73;
+@define-color theme_unfocused_base_color #ffffff;
+@define-color theme_unfocused_text_color #6e6e73;
+@define-color theme_unfocused_selected_bg_color #e6e6e9;
+@define-color theme_unfocused_selected_fg_color #1d1d1f;
+@define-color borders #d2d2d5;
+@define-color unfocused_borders #e2e2e5;
+@define-color content_view_bg #ffffff;
+@define-color text_view_bg #ffffff;
 
-/* 둥근 모서리 8px(로고의 둥근 사각형에 맞춘다). 나머지 모양은 Adwaita 를 그대로 쓴다. */
-button, entry, spinbutton, combobox button, .menu, menu, .popup, popover.background {
+* {
+    outline-style: none;
+}
+
+/* 창 */
+window.background {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+window.csd, window.csd decoration {
+    border-radius: 12px;
+}
+decoration {
+    box-shadow: 0 6px 24px alpha(black, 0.28), 0 0 0 1px #d2d2d5;
+}
+headerbar, .titlebar {
+    background-image: none;
+    background-color: #ececec;
+    border-bottom: 1px solid #e2e2e5;
+    box-shadow: none;
+    border-radius: 12px 12px 0 0;
+    min-height: 40px;
+    padding: 0 8px;
+}
+headerbar .title {
+    font-weight: 600;
+}
+
+/* 버튼 */
+button {
+    background-image: none;
+    background-color: #ffffff;
+    color: @theme_fg_color;
+    border: 1px solid #cfcfd3;
     border-radius: 8px;
+    box-shadow: none;
+    padding: 5px 12px;
+    min-height: 24px;
+    text-shadow: none;
+}
+button:hover {
+    background-color: #e6e6e9;
+}
+button:active, button:checked {
+    background-color: #d9d9dd;
+}
+button:disabled {
+    color: @insensitive_fg_color;
+    background-color: #f2f2f2;
+}
+button.flat, headerbar button, toolbar button {
+    background-color: transparent;
+    border-color: transparent;
+}
+button.flat:hover, headerbar button:hover, toolbar button:hover {
+    background-color: #e6e6e9;
 }
 button.suggested-action, headerbar button.suggested-action {
-    background-image: none;
-    background-color: #ebebeb;
-    color: #0d0d0d;
-}
-button.suggested-action:hover { background-color: #ffffff; }
-selection, *:selected {
-    background-color: #3a3a3a;
+    background-color: #1d1d1f;
     color: #ffffff;
+    border-color: #1d1d1f;
+}
+button.suggested-action:hover {
+    background-color: alpha(#1d1d1f, 0.88);
+}
+button.circular {
+    border-radius: 999px;
+}
+
+/* 입력 */
+entry, spinbutton, combobox button, textview text {
+    background-color: #ffffff;
+    border: 1px solid #cfcfd3;
+    border-radius: 8px;
+    box-shadow: none;
+    min-height: 24px;
+    padding: 4px 8px;
+}
+entry:focus, spinbutton:focus-within {
+    border-color: #1d1d1f;
+    box-shadow: 0 0 0 2px alpha(#1d1d1f, 0.18);
+}
+switch {
+    border-radius: 999px;
+    background-color: #d2d2d5;
+    border: none;
+    box-shadow: none;
+    min-height: 24px;
+    min-width: 44px;
+}
+switch:checked {
+    background-color: #1d1d1f;
+}
+switch slider {
+    border-radius: 999px;
+    background-color: #ffffff;
+    border: none;
+    box-shadow: 0 1px 3px alpha(black, 0.3);
+    min-height: 20px;
+    min-width: 20px;
+    margin: 2px;
+}
+scale trough {
+    border-radius: 999px;
+    background-color: #d2d2d5;
+    min-height: 6px;
+}
+scale highlight {
+    border-radius: 999px;
+    background-color: #1d1d1f;
+}
+scale slider {
+    border-radius: 999px;
+    background-color: #ffffff;
+    border: 1px solid #cfcfd3;
+    box-shadow: 0 1px 3px alpha(black, 0.25);
+    min-width: 18px;
+    min-height: 18px;
+}
+progressbar trough {
+    border-radius: 999px;
+    background-color: #d2d2d5;
+    min-height: 6px;
+}
+progressbar progress {
+    border-radius: 999px;
+    background-color: #1d1d1f;
+}
+check, radio {
+    border-radius: 6px;
+    background-image: none;
+    background-color: #ffffff;
+    border: 1px solid #cfcfd3;
+    box-shadow: none;
+}
+radio {
+    border-radius: 999px;
+}
+check:checked, radio:checked {
+    background-color: #1d1d1f;
+    color: #ffffff;
+    border-color: #1d1d1f;
+}
+
+/* 메뉴와 팝오버 */
+menu, .menu, .popup, popover.background {
+    background-color: #ffffff;
+    border: 1px solid #d2d2d5;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 8px 28px alpha(black, 0.25);
+}
+menuitem {
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-height: 22px;
+}
+menuitem:hover {
+    background-color: #dfdfe2;
+}
+popover.background > contents {
+    border-radius: 10px;
+}
+tooltip, tooltip.background {
+    border-radius: 8px;
+    background-color: #2b2b2d;
+    color: #f2f2f4;
+    border: none;
+}
+
+/* 목록과 사이드바 */
+list, treeview.view, iconview {
+    background-color: #ffffff;
+}
+row, treeview.view:selected, iconview:selected {
+    border-radius: 8px;
+}
+row:selected, treeview.view:selected, iconview:selected {
+    background-color: #dfdfe2;
+    color: @theme_fg_color;
+}
+.sidebar, placessidebar, placessidebar list {
+    background-color: #e9e9e9;
+}
+placessidebar row {
+    border-radius: 8px;
+    margin: 1px 6px;
+}
+scrollbar slider {
+    border-radius: 999px;
+    background-color: alpha(#6e6e73, 0.55);
+    min-width: 6px;
+    min-height: 6px;
+}
+scrollbar trough {
+    background-color: transparent;
+}
+notebook > header {
+    background-color: #f2f2f2;
+    border-color: #e2e2e5;
+}
+notebook > header > tabs > tab {
+    border-radius: 8px 8px 0 0;
+    padding: 4px 12px;
+}
+notebook > header > tabs > tab:checked {
+    background-color: #ffffff;
+}
+selection, *:selected {
+    background-color: #dfdfe2;
+    color: @theme_fg_color;
+}
+
+/* Xfce 패널과 시작 메뉴 */
+.xfce4-panel, #XfcePanelWindow {
+    background-color: #ececec;
+    border-top: 1px solid #d2d2d5;
+    color: @theme_fg_color;
+}
+.xfce4-panel button, #XfcePanelWindow button {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 2px 8px;
+    min-height: 22px;
+}
+.xfce4-panel button:hover, #XfcePanelWindow button:hover {
+    background-color: #e6e6e9;
+}
+.xfce4-panel button:checked, #XfcePanelWindow button:checked {
+    background-color: #dfdfe2;
+}
+#whiskermenu-window {
+    border-radius: 12px;
+    border: 1px solid #d2d2d5;
 }

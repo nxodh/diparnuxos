@@ -18,7 +18,7 @@ Depends: ${misc:Depends}, opereta-branding,
  mousepad, ristretto, xarchiver, mate-polkit-bin, light-locker,
  lightdm, lightdm-gtk-greeter, xserver-xorg-core, xserver-xorg-input-libinput, x11-xserver-utils, xdg-utils, xdg-user-dirs,
  pipewire, wireplumber, pipewire-pulse, pavucontrol,
- adwaita-icon-theme, dbus-user-session, dbus-x11, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
+ adwaita-icon-theme, dbus-user-session, dbus-x11, fonts-pretendard, fonts-nanum, fonts-dejavu-core, libgl1-mesa-dri, libegl-mesa0
 Description: Opereta 데스크톱 세션 (Xfce, lightdm)
  서버 모드의 기본 부팅 대상(multi-user.target)을 바꾸지 않고 데스크톱 모드에
  필요한 구성 요소와 설정만 설치한다. 설정은 Debian 의 /etc/xdg 파일을 건드리지

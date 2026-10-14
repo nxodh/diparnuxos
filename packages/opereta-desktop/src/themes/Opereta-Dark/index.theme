@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Opereta-Dark
+Comment=Opereta 어두운 데스크톱 테마
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Opereta-Dark
+MetacityTheme=Opereta-Dark
+IconTheme=Opereta

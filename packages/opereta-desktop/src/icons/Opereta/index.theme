@@ -1,0 +1,12 @@
+[Icon Theme]
+Name=Opereta
+Comment=Opereta 아이콘(Adwaita 를 바탕으로 창 컨트롤만 x, -, + 기호로 바꾼다)
+Inherits=Adwaita,hicolor
+Directories=scalable/ui
+
+[scalable/ui]
+Context=UI
+Size=16
+MinSize=8
+MaxSize=512
+Type=Scalable

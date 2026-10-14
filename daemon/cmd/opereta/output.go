@@ -166,6 +166,8 @@ Commands:
   serve toolcheck             check that the model calls tools (needed by coding agents)
   mode [server|desktop]       show or set the mode
   update [--check|--rollback] update the kernel, driver and system packages
+  deberopa [check|update|auto on|off]
+                              keep the Deberopa coding agent current (checks daily)
   report                      write a diagnostic report
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys

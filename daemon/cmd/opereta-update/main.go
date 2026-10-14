@@ -8,6 +8,8 @@
 //	opereta-update verify
 //	opereta-update rollback [--reboot]
 //	opereta-update cuda-runtime
+//	opereta-update deberopa check|apply [--auto]
+//	opereta-update deberopa auto on|off
 //	opereta-update status
 //
 // 진행 상황은 표준 출력에 한 줄씩 나오고, --json 이면 JSON 줄이다. 마지막 줄은 결과다.
@@ -25,17 +27,19 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nxodh/operetaos/daemon/internal/agentupdate"
 	"github.com/nxodh/operetaos/daemon/internal/runner"
 	"github.com/nxodh/operetaos/daemon/internal/update"
 )
 
 // result 는 --json 의 마지막 줄이다.
 type result struct {
-	OK     bool           `json:"ok"`
-	Plan   *update.Plan   `json:"plan,omitempty"`
-	State  *update.State  `json:"state,omitempty"`
-	Status *update.Status `json:"status,omitempty"`
-	Error  *update.Error  `json:"error,omitempty"`
+	OK     bool              `json:"ok"`
+	Plan   *update.Plan      `json:"plan,omitempty"`
+	State  *update.State     `json:"state,omitempty"`
+	Status *update.Status    `json:"status,omitempty"`
+	Agent  *agentupdate.Info `json:"agent,omitempty"`
+	Error  *update.Error     `json:"error,omitempty"`
 }
 
 func main() {
@@ -44,10 +48,13 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|cuda-runtime|status [--json] [--reboot] [--state-dir DIR]")
+		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|cuda-runtime|deberopa|status [--json] [--reboot] [--state-dir DIR]")
 		return 2
 	}
 	cmd := args[0]
+	if cmd == "deberopa" {
+		return runDeberopa(args[1:], stdout, stderr)
+	}
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	asJSON := fs.Bool("json", false, "print JSON lines")

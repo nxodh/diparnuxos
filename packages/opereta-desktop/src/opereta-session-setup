@@ -88,7 +88,7 @@ setup_fcitx5
 marker="$state/session-setup-done"
 [ -e "$marker" ] && exit 0
 
-wallpaper=/usr/share/opereta/wallpaper.png
+wallpaper=/usr/share/opereta/wallpaper-light.png
 if [ -r "$wallpaper" ] && command -v xfconf-query >/dev/null 2>&1; then
     names=''
     if command -v xrandr >/dev/null 2>&1; then
@@ -99,8 +99,8 @@ if [ -r "$wallpaper" ] && command -v xfconf-query >/dev/null 2>&1; then
         xfconf-query -c xfce4-desktop -p "$base/last-image" -n -t string -s "$wallpaper" 2>/dev/null
         xfconf-query -c xfce4-desktop -p "$base/image-style" -n -t int -s 1 2>/dev/null
         xfconf-query -c xfce4-desktop -p "$base/color-style" -n -t int -s 0 2>/dev/null
-        xfconf-query -c xfce4-desktop -p "$base/rgba1" -n -a -t double -s 0.050980 -t double -s 0.050980 \
-            -t double -s 0.050980 -t double -s 1.000000 2>/dev/null
+        xfconf-query -c xfce4-desktop -p "$base/rgba1" -n -a -t double -s 0.949020 -t double -s 0.949020 \
+            -t double -s 0.949020 -t double -s 1.000000 2>/dev/null
     done
 fi
 

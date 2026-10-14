@@ -138,6 +138,7 @@ out/             빌드 산출물(git 제외)
 | 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Deberopa 의 https 연동(`options.ca`) | 구현 완료(브랜치 `phase-5-4`, PR #13). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). Deberopa 0.1.5 고정과 호환 시험 통과. 실제 다른 컴퓨터에서의 접속, 실기 램 측정은 검증 대기. 램 상한 확정(헤드리스 500, 데스크톱 800 MiB) |
 | 5.0 | 0.6.0: 두 번째 이름 변경(Opereta), 새 로고와 8px 모서리 디자인, 태그·릴리스·ISO 게시, OS 업데이트(릴리스 자산을 평평한 APT 저장소로 사용) | 구현 완료(브랜치 `phase-6`). 설계는 [phase-6-design.md](docs/phase-6-design.md), 릴리스 절차는 [releases.md](docs/releases.md), 검증은 [verification-phase-6.md](docs/verification-phase-6.md) |
 | 5.1 | 0.6.1: ISO 공개 배포 준비 — CUDA 런타임은 이미지에 넣지 않고 사용자의 컴퓨터가 NVIDIA 에서 직접 받음, GPL 대응 소스를 릴리스에 함께 올림, Intel 특수 펌웨어 제외, MIT 라이선스 | 구현 완료(브랜치 `phase-6-1`, 0.6.0 위에 쌓음). 설계는 [phase-6-1-design.md](docs/phase-6-1-design.md), 검증은 [verification-phase-6-1.md](docs/verification-phase-6-1.md) |
+| 5.2 | 0.6.2: 코딩 에이전트 Deberopa 0.2.0 고정과 자동 갱신(하루 한 번 최신 릴리스 확인), macOS Big Sur 풍 디자인 개편(밝은/어두운 테마, 창 단추 x, −, +), Pretendard 글꼴, 램 상한 해제 | 구현 완료(브랜치 `phase-6-2`, 0.6.1 위에 쌓음). 설계는 [phase-6-2-design.md](docs/phase-6-2-design.md), 디자인은 [design.md](docs/design.md), 검증은 [verification-phase-6-2.md](docs/verification-phase-6-2.md). CI 와 실기 화면은 검증 대기 |
 | 5 | 경량화(실측과 목표 재설정), 실 하드웨어 검증, 지원 범위 확정 | 계획 |
 
 ---
@@ -169,7 +170,7 @@ out/             빌드 산출물(git 제외)
 | [docs/deberopa.md](docs/deberopa.md) | Deberopa 와 함께 쓰기: 연결, MCP, 스킬, agent 프로필, 키와 보안 |
 | [docs/phase-5-3-verification.md](docs/phase-5-3-verification.md) | 0.5.3 검증 범위와 확인하지 못한 것 |
 | [docs/vedecaps-research.md](docs/vedecaps-research.md) | 이전 이름(Vedecaps) 시절의 조사 기록 |
-| [docs/phase-6-2-design.md](docs/phase-6-2-design.md) | 0.6.2 설계(Vedecaps → Deberopa 이름 변경과 0.2.0 고정) |
+| [docs/phase-6-2-design.md](docs/phase-6-2-design.md) | 0.6.2 설계(Vedecaps → Deberopa 이름 변경과 0.2.0 고정, Deberopa 자동 갱신, 디자인 개편과 Pretendard, 램 상한 해제) |
 | [docs/deberopa-agent-handoff-0.6.1.md](docs/deberopa-agent-handoff-0.6.1.md) | Deberopa(Deberopa 의 새 이름) 개발 에이전트용 인계 문서: 이름 변경, Opereta 인식, 릴리스 형식 |
 | [docs/security.md](docs/security.md) | 비밀 정보 취급 규칙(공개 저장소에 올리면 안 되는 것, 자동 검사, 실수로 올렸을 때) |
 | [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |

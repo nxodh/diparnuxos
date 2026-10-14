@@ -49,6 +49,24 @@ opereta serve stop && opereta serve start   # 설치한 뒤 모델 서버를 다
 - Control Center 의 시스템 페이지에도 같은 동작이 있다("GPU 가속(CUDA 런타임)").
 - 이 동작의 오류 코드: `cuda_runtime_failed`(저장소에서 받지 못함), `network`, `disk_space`, `dpkg_locked`, `pending_reboot`.
 
+## Deberopa(코딩 에이전트) 자동 갱신
+
+이미지의 Deberopa 는 `opereta-deberopa` 패키지가 `/usr/bin/deberopa` 에 고정 버전으로 싣는다. 새 Deberopa 가 나오면 **하루에 한 번 자동으로 확인해 뒤처졌을 때 갱신한다**(0.6.2). 재부팅이 필요 없다.
+
+```sh
+opereta deberopa            # 설치된 버전, 최신 버전, 자동 갱신 설정
+opereta deberopa check      # 새 릴리스가 있는지만 본다
+opereta deberopa update     # 지금 갱신한다
+opereta deberopa auto off   # 자동 갱신을 끈다(on 으로 다시 켠다)
+```
+
+- `opereta-deberopa-update.timer` 가 부팅 10분 뒤와 하루 한 번(최대 2시간 무작위 지연) `opereta-update deberopa apply --auto` 를 부른다. 네트워크가 없으면 조용히 건너뛰고 다음에 다시 한다.
+- 정식 릴리스(`vX.Y.Z`)만 받는다. 설치된 버전보다 높을 때만 바꾼다. `checksums.txt` 의 SHA-256 이 맞고 묶음에 `deberopa` 하나만 있어야 하며, 새 파일은 nobody 권한으로 실행해 버전을 확인한 뒤에야 쓴다.
+- 이미지의 `/usr/bin/deberopa` 는 바꾸지 않는다. 받은 파일은 `/usr/local/lib/opereta/deberopa/versions/<버전>/` 에 두고 `/usr/local/bin/deberopa` 링크가 앞서게 한다. OS 업데이트로 이미지의 버전이 따라잡으면 링크와 받은 파일을 지운다.
+- 체크섬은 같은 GitHub 릴리스에서 받으므로 릴리스 계정이 탈취되면 막지 못한다(Opereta 가 따로 서명한 것이 아니다).
+- Control Center 의 시스템 페이지에도 확인, 갱신 단추와 자동 갱신 스위치가 있다. 라이브 세션에서는 하지 않는다.
+- 상태: `/var/lib/opereta/deberopa/state.json`. 설계는 [phase-6-2-design.md](phase-6-2-design.md) 6.1절.
+
 ## 무엇을 갱신하나
 
 - 커널(`linux-image-*`, `linux-headers-*`)과 NVIDIA 오픈 드라이버 계열, CUDA 런타임, `dkms`

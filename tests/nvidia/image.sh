@@ -98,7 +98,7 @@ require_path 'squashfs-root/(usr/)?lib/live/config/1190-opereta-groups$' 'live u
 require_path 'squashfs-root/usr/lib/sysusers[.]d/opereta[.]conf$' 'daemon sysusers configuration'
 require_path 'squashfs-root/usr/lib/tmpfiles[.]d/opereta-daemon[.]conf$' 'daemon tmpfiles configuration'
 require_path 'squashfs-root/usr/share/opereta/firewall-default[.]nft$' 'default firewall rules'
-for entry in 'multi-user.target operetad.service' 'sockets.target operetad.socket' 'sysinit.target opereta-firewall-default.service' 'sysinit.target opereta-firewall.service'; do
+for entry in 'multi-user.target operetad.service' 'sockets.target operetad.socket' 'sysinit.target opereta-firewall-default.service' 'sysinit.target opereta-firewall.service' 'timers.target opereta-deberopa-update.timer'; do
     read -r target unit <<< "$entry"
     require_path "squashfs-root/etc/systemd/system/${target//./[.]}.wants/${unit//./[.]} -> /(usr/)?lib/systemd/system/${unit//./[.]}\$" "$unit enable link"
 done
@@ -108,6 +108,7 @@ grep -Eq '^opereta-llm:[^:]*:[0-9]+:' "$WORK/group"
 unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/tmpfiles.d/opereta-daemon.conf > "$WORK/daemon-tmpfiles"
 grep -qx 'd /var/lib/opereta 0750 root opereta-llm -' "$WORK/daemon-tmpfiles"
 grep -qx 'd /var/lib/opereta/models 2750 root opereta-llm -' "$WORK/daemon-tmpfiles"
+grep -qx 'd /usr/local/lib/opereta/deberopa 0755 root root -' "$WORK/daemon-tmpfiles"
 unsquashfs -cat "$WORK/rootfs.squashfs" usr/lib/systemd/system/opereta-llama.service > "$WORK/llama-unit"
 grep -qx 'ExecStartPre=/usr/lib/opereta/check-gpu-permissions' "$WORK/llama-unit"
 grep -qx 'SupplementaryGroups=video render' "$WORK/llama-unit"
@@ -243,7 +244,7 @@ require_path 'squashfs-root/usr/bin/opereta-control-center$' 'Control Center lau
 require_path 'squashfs-root/usr/lib/opereta/control-center/opereta_cc/app[.]py$' 'Control Center application'
 require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/opereta-control-center[.]mo$' 'Control Center Korean catalog'
 for pkg in xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal lightdm lightdm-gtk-greeter xserver-xorg-core \
-    pipewire wireplumber firefox-esr fcitx5-hangul fonts-nanum openssh-server; do
+    pipewire wireplumber firefox-esr fcitx5-hangul fonts-nanum fonts-pretendard openssh-server; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
 # 0.5.0 에서 교체한 Wayland 구성과 무거운 데스크톱 구성 요소는 넣지 않는다.
@@ -255,6 +256,10 @@ require_path 'squashfs-root/etc/xdg/opereta/xfce4/xfconf/xfce-perchannel-xml/xse
 require_path 'squashfs-root/etc/X11/Xsession[.]d/55opereta-xdg$' 'XDG_CONFIG_DIRS fragment'
 require_path 'squashfs-root/usr/share/themes/Opereta/gtk-3[.]0/gtk[.]css$' 'GTK theme Opereta'
 require_path 'squashfs-root/usr/share/themes/Opereta/xfwm4/themerc$' 'xfwm4 theme Opereta'
+require_path 'squashfs-root/usr/share/themes/Opereta-Dark/gtk-3[.]0/gtk[.]css$' 'GTK theme Opereta-Dark'
+require_path 'squashfs-root/usr/share/themes/Opereta-Dark/xfwm4/themerc$' 'xfwm4 theme Opereta-Dark'
+require_path 'squashfs-root/usr/share/icons/Opereta/index[.]theme$' 'icon theme Opereta (window controls)'
+require_path 'squashfs-root/etc/fonts/conf[.]d/60-opereta-pretendard[.]conf$' 'Pretendard fontconfig alias'
 require_path 'squashfs-root/usr/share/lightdm/lightdm[.]conf[.]d/50-opereta[.]conf$' 'lightdm configuration'
 require_path 'squashfs-root/usr/share/lightdm/lightdm-gtk-greeter[.]conf[.]d/50-opereta[.]conf$' 'greeter configuration'
 # 라이브 자동 로그인은 live-config 가 부팅 때 /etc/lightdm/lightdm.conf 에 쓴다. 이미지의 파일에는 자동 로그인이 켜져 있으면 안 된다

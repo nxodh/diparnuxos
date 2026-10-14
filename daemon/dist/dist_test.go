@@ -277,3 +277,46 @@ func TestOperetaSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
 		}
 	}
 }
+
+// TestDeberopaUpdateUnits 는 Deberopa 자동 갱신 유닛이 하루 한 번 타이머로 도는 자동 모드(--auto)를 부르고,
+// 라이브 세션에서는 돌지 않으며, 쓸 수 있는 경로가 상태 디렉터리와 링크 위치로 제한되는지 확인한다.
+func TestDeberopaUpdateUnits(t *testing.T) {
+	svc := readFile(t, "opereta-deberopa-update.service")
+	for _, line := range []string{
+		"Type=oneshot",
+		"ExecStart=/usr/lib/opereta/opereta-update deberopa apply --auto",
+		"ConditionPathExists=!/run/live",
+		"ProtectSystem=strict",
+		"NoNewPrivileges=true",
+	} {
+		if !hasLine(svc, line) {
+			t.Errorf("opereta-deberopa-update.service lacks %q", line)
+		}
+	}
+	for _, l := range activeLines(svc) {
+		if strings.HasPrefix(l, "ReadWritePaths=") {
+			for _, p := range strings.Fields(strings.TrimPrefix(l, "ReadWritePaths=")) {
+				switch p {
+				case "/var/lib/opereta/deberopa", "/usr/local/lib/opereta", "/usr/local/bin":
+				default:
+					t.Errorf("ReadWritePaths has an unexpected path %q", p)
+				}
+			}
+		}
+	}
+	timer := readFile(t, "opereta-deberopa-update.timer")
+	for _, line := range []string{"OnBootSec=10min", "OnUnitActiveSec=1d", "Persistent=true", "WantedBy=timers.target"} {
+		if !hasLine(timer, line) {
+			t.Errorf("opereta-deberopa-update.timer lacks %q", line)
+		}
+	}
+	tmp := readFile(t, "opereta-daemon.tmpfiles.conf")
+	for _, line := range []string{
+		"d /var/lib/opereta/deberopa 0755 root root -",
+		"d /usr/local/lib/opereta/deberopa 0755 root root -",
+	} {
+		if !hasLine(tmp, line) {
+			t.Errorf("tmpfiles lacks %q", line)
+		}
+	}
+}

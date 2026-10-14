@@ -21,5 +21,6 @@ override_dh_auto_install:
 	install -D -m 644 $(G)/opereta-mark-black.png $(DEST)/usr/share/opereta/brand/opereta-mark-black.png
 	install -D -m 644 $(G)/opereta-512.png $(DEST)/usr/share/opereta/brand/opereta-logo-512.png
 	install -D -m 644 $(G)/wallpaper.png $(DEST)/usr/share/opereta/wallpaper.png
+	install -D -m 644 $(G)/wallpaper-light.png $(DEST)/usr/share/opereta/wallpaper-light.png
 	install -D -m 644 src/opereta-live-hint.sh $(DEST)/etc/profile.d/opereta-live-hint.sh
 	install -D -m 644 src/10-opereta-colors.cfg $(DEST)/etc/default/grub.d/10-opereta-colors.cfg

@@ -379,6 +379,38 @@ class CudaRuntimeLogicTests(unittest.TestCase):
         self.assertFalse(logic.describe_cuda_runtime(None)["can_install"])
 
 
+class DeberopaLogicTests(unittest.TestCase):
+    def test_up_to_date(self):
+        d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.3.0", "latest": "0.3.0", "status": "up_to_date", "auto": True}})
+        self.assertIn("0.3.0", d["text"])
+        self.assertTrue(d["can_check"])
+        self.assertFalse(d["can_update"])
+        self.assertTrue(d["auto"])
+
+    def test_update_available_can_be_installed(self):
+        d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.2.0", "latest": "0.3.0", "status": "update_available"}})
+        self.assertTrue(d["can_update"])
+        self.assertIn("0.3.0", d["text"])
+
+    def test_blocked_while_another_update_runs_and_in_a_live_session(self):
+        busy = logic.describe_deberopa({"available": True, "running": True, "deberopa": {"installed": "0.2.0", "latest": "0.3.0", "status": "update_available"}})
+        self.assertFalse(busy["can_check"] or busy["can_update"])
+        live = logic.describe_deberopa({"available": False, "live": True, "deberopa": {"installed": "0.2.0", "status": "up_to_date"}})
+        self.assertFalse(live["can_check"] or live["can_update"])
+
+    def test_failed_check_shows_the_reason_and_not_installed_is_reported(self):
+        d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.2.0", "status": "error", "message": "no network", "code": "network"}})
+        self.assertIn("no network", d["text"])
+        self.assertFalse(d["can_update"])
+        n = logic.describe_deberopa({"available": True, "deberopa": {"status": "not_installed"}})
+        self.assertFalse(n["can_check"])
+
+    def test_auto_is_off_when_the_daemon_says_so(self):
+        d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.2.0", "status": "up_to_date", "auto": False}})
+        self.assertFalse(d["auto"])
+        self.assertFalse(logic.describe_deberopa(None)["can_check"])
+
+
 class NetworkLogicTests(unittest.TestCase):
     def test_online_summary_names_the_connection(self):
         d = logic.describe_network({

@@ -45,6 +45,7 @@ func newController(t *testing.T, r *fakeRunner) *Controller {
 		OSReleaseFile: filepath.Join(dir, "os-release"),
 		SourcesFile:   filepath.Join(dir, "opereta.sources"),
 		NvidiaConf:    filepath.Join(dir, "nvidia.conf"),
+		DeberopaDir:   filepath.Join(dir, "deberopa"),
 		HelperExists:  func(string) bool { return true },
 	}
 }
@@ -265,5 +266,65 @@ func TestInfoReportsCUDARuntimeSettings(t *testing.T) {
 	}
 	if info.CUDARuntime.Installed || info.CUDARuntime.Reason != "no_settings" {
 		t.Fatalf("cuda runtime = %+v", info.CUDARuntime)
+	}
+}
+
+func TestStartDeberopaActionsRunTheHelperCommands(t *testing.T) {
+	want := map[string]string{
+		ActionDeberopaCheck:   " deberopa check --json",
+		ActionDeberopaUpdate:  " deberopa apply --json",
+		ActionDeberopaAutoOn:  " deberopa auto on --json",
+		ActionDeberopaAutoOff: " deberopa auto off --json",
+	}
+	for action, tail := range want {
+		r := &fakeRunner{}
+		c := newController(t, r)
+		if err := c.Start(context.Background(), action, true); err != nil {
+			t.Fatalf("%s: %v", action, err)
+		}
+		last := r.calls[len(r.calls)-1]
+		joined := strings.Join(last.Args, " ")
+		if last.Name != "systemd-run" || !strings.HasSuffix(joined, tail) {
+			t.Fatalf("%s: %s %s", action, last.Name, joined)
+		}
+		// 재부팅은 OS 갱신에만 붙는다.
+		if strings.Contains(joined, "--reboot") {
+			t.Fatalf("%s: --reboot was passed: %s", action, joined)
+		}
+	}
+}
+
+func TestStartDeberopaIsRefusedInALiveSession(t *testing.T) {
+	r := &fakeRunner{}
+	c := newController(t, r)
+	if err := os.MkdirAll(c.LiveDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	err := c.Start(context.Background(), ActionDeberopaUpdate, false)
+	var ue *Error
+	if !errors.As(err, &ue) || ue.Code != update.CodeLiveSession {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestInfoReportsDeberopaState(t *testing.T) {
+	c := newController(t, &fakeRunner{})
+	if err := os.MkdirAll(c.DeberopaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	state := `{"installed":"0.3.1","packaged":"0.2.0","latest":"0.3.1","override":true,"status":"updated","checked":"2026-10-14T12:00:00Z"}`
+	if err := os.WriteFile(filepath.Join(c.DeberopaDir, "state.json"), []byte(state), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(c.DeberopaDir, "settings.json"), []byte(`{"auto":false}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err := c.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := info.Deberopa
+	if d.Installed != "0.3.1" || d.Packaged != "0.2.0" || !d.Override || d.Status != "updated" || d.Auto {
+		t.Fatalf("deberopa = %+v", d)
 	}
 }
