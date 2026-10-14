@@ -24,5 +24,26 @@ if [ "$(id -u)" -ne 0 ]; then
     exec sudo -n env "XDG_RUNTIME_DIR=$runtime" "DISPLAY=$display" "XAUTHORITY=$xauth_file" "$0" "$@"
 fi
 
+# UEFI 로 부팅하지 않았으면 부팅할 수 있는 시스템을 만들 수 없다. 설치를 시작하기 전에 알린다.
+# (시험이나 특수한 경우에는 OPERETA_INSTALLER_ALLOW_BIOS=1 로 건너뛴다. 설치 단계는 여전히 UEFI 를 요구한다.)
+if [ ! -d /sys/firmware/efi ] && [ "${OPERETA_INSTALLER_ALLOW_BIOS:-}" != 1 ]; then
+    msg="Opereta needs UEFI mode. This computer was started in legacy BIOS (CSM) mode, so a bootable system cannot be installed.
+
+Restart, choose the UEFI entry of the installation USB in the firmware boot menu (not the entry without 'UEFI'), or turn off CSM / legacy boot in the firmware settings."
+    echo "opereta-installer: $msg" >&2
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$msg" <<'PY' 2>/dev/null || true
+import sys
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+d = Gtk.MessageDialog(message_type=Gtk.MessageType.ERROR, buttons=Gtk.ButtonsType.CLOSE, text="Opereta needs UEFI mode")
+d.format_secondary_text(sys.argv[1])
+d.run()
+PY
+    fi
+    exit 1
+fi
+
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
 exec calamares "$@"

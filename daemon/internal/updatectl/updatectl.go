@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/nxodh/operetaos/daemon/internal/agentupdate"
+	"github.com/nxodh/operetaos/daemon/internal/boot"
 	"github.com/nxodh/operetaos/daemon/internal/platform"
 	"github.com/nxodh/operetaos/daemon/internal/update"
 )
@@ -40,6 +41,14 @@ const (
 	ActionDeberopaUpdate  = "deberopa_update"
 	ActionDeberopaAutoOn  = "deberopa_auto_on"
 	ActionDeberopaAutoOff = "deberopa_auto_off"
+	// 부팅 항목 동작이다. boot_next 와 boot_order 는 "boot_next:opereta" 처럼 대상을 뒤에 붙인다.
+	ActionBootNext      = "boot_next"
+	ActionBootOrder     = "boot_order"
+	ActionBootClearNext = "boot_clear_next"
+	ActionBootRepair    = "boot_repair"
+	ActionBootCleanup   = "boot_cleanup"
+	ActionBootAutoOn    = "boot_auto_on"
+	ActionBootAutoOff   = "boot_auto_off"
 )
 
 // helperArgs 는 동작에 해당하는 헬퍼 명령 인자다.
@@ -52,6 +61,29 @@ var helperArgs = map[string][]string{
 	ActionDeberopaUpdate:  {"deberopa", "apply"},
 	ActionDeberopaAutoOn:  {"deberopa", "auto", "on"},
 	ActionDeberopaAutoOff: {"deberopa", "auto", "off"},
+	ActionBootClearNext:   {"boot", "clear-next"},
+	ActionBootRepair:      {"boot", "repair"},
+	ActionBootCleanup:     {"boot", "cleanup"},
+	ActionBootAutoOn:      {"boot", "auto", "on"},
+	ActionBootAutoOff:     {"boot", "auto", "off"},
+}
+
+// helperFor 는 동작 문자열에서 헬퍼 인자를 만든다. "boot_next:opereta" 같은 대상이 붙는 동작도 처리한다.
+func helperFor(action string) ([]string, bool) {
+	if a, ok := helperArgs[action]; ok {
+		return a, true
+	}
+	name, target, found := strings.Cut(action, ":")
+	if !found || !boot.ValidTarget(target) {
+		return nil, false
+	}
+	switch name {
+	case ActionBootNext:
+		return []string{"boot", "next", strings.ToLower(target)}, true
+	case ActionBootOrder:
+		return []string{"boot", "order", strings.ToLower(target)}, true
+	}
+	return nil, false
 }
 
 // 오류 코드다.
@@ -89,6 +121,8 @@ type Controller struct {
 	NvidiaConf string
 	// DeberopaDir 은 Deberopa 갱신의 상태 디렉터리다. 비어 있으면 agentupdate.DefaultDir 다.
 	DeberopaDir string
+	// BootEFIDir, BootESPDir, BootStateDir 은 부팅 상태를 읽는 경로다. 비어 있으면 boot 패키지의 기본값이다.
+	BootEFIDir, BootESPDir, BootStateDir string
 	// HelperExists 는 테스트가 바꾼다. nil 이면 파일이 있는지 본다.
 	HelperExists func(path string) bool
 }
@@ -174,7 +208,9 @@ type Info struct {
 	// CUDARuntime 은 GPU 가속에 필요한 CUDA 런타임의 설치 상태다. 이미지에는 들어 있지 않고 NVIDIA 에서 직접 받는다.
 	CUDARuntime update.CUDARuntime `json:"cuda_runtime"`
 	// Deberopa 는 코딩 에이전트의 설치 버전, 최신 버전, 자동 갱신 설정이다.
-	Deberopa  agentupdate.Info    `json:"deberopa"`
+	Deberopa agentupdate.Info `json:"deberopa"`
+	// Boot 는 UEFI 부팅 항목, 부팅 순서, 문제 진단이다.
+	Boot      boot.Info           `json:"boot"`
 	State     update.State        `json:"state"`
 	LastCheck *update.CheckResult `json:"last_check,omitempty"`
 	// RollbackAvailable 은 되돌릴 수 있는 갱신 기록이 있다는 뜻이다.
@@ -198,6 +234,10 @@ func (c *Controller) Info(ctx context.Context) (Info, error) {
 	out.OSVersion = readVersionID(c.osReleaseFile())
 	out.Channel = update.ReadChannel(c.SourcesFile)
 	out.Deberopa = (&agentupdate.Updater{Dir: c.DeberopaDir}).ReadInfo()
+	if c.Runner != nil {
+		bc := &boot.Controller{Runner: c.Runner, EFIDir: c.BootEFIDir, ESPDir: c.BootESPDir, StateDir: c.BootStateDir}
+		out.Boot = bc.Status(ctx)
+	}
 	if c.Runner != nil {
 		eng := &update.Engine{Cfg: update.Config{NvidiaConf: c.NvidiaConf}, Run: c.Runner}
 		out.CUDARuntime = eng.CUDARuntimeStatus(ctx)
@@ -249,9 +289,9 @@ func (c *Controller) active(ctx context.Context) bool {
 
 // Start 는 갱신 동작을 transient 유닛으로 시작하고 바로 돌려준다.
 func (c *Controller) Start(ctx context.Context, action string, reboot bool) error {
-	hargs, known := helperArgs[action]
+	hargs, known := helperFor(action)
 	if !known {
-		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply, rollback, cuda_runtime or deberopa_check|update|auto_on|auto_off, not %q", action)}
+		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply, rollback, cuda_runtime, deberopa_check|update|auto_on|auto_off or boot_next:<target>|boot_order:<target>|boot_clear_next|boot_repair|boot_cleanup|boot_auto_on|boot_auto_off, not %q", action)}
 	}
 	// CUDA 런타임은 라이브 세션에서도 받을 수 있다(재부팅하면 사라진다). 나머지 동작은 설치된 시스템에서만 한다.
 	if _, err := os.Stat(c.liveDir()); err == nil && action != ActionCUDARuntime {

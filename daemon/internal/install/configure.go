@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nxodh/operetaos/daemon/internal/boot"
 	"github.com/nxodh/operetaos/daemon/internal/update"
 )
 
@@ -315,21 +316,115 @@ func (in *Installer) InstallBootloader(ctx context.Context, root, console string
 		return err
 	}
 
+	// UEFI 로 부팅하지 않았으면 NVRAM 항목을 만들 수 없고 ESP 도 없다. 부팅할 수 없는 시스템을 만들지 않는다.
+	if fi, err := os.Stat(in.efiDir()); err != nil || !fi.IsDir() {
+		return errf(CodeNotUEFI, "this computer was not started in UEFI mode, so a bootable system cannot be installed. Restart the installer in UEFI mode (turn off CSM or legacy boot in the firmware settings)")
+	}
+
+	// GRUB 이 Windows 같은 다른 시스템을 메뉴에 올리게 한다(os-prober 는 이미지에 들어 있다).
+	if err := writeFile(rootOr(root), "etc/default/grub.d/40-opereta-os-prober.cfg",
+		"# Written by opereta-install: list other operating systems (for example Windows) in the GRUB menu.\nGRUB_DISABLE_OS_PROBER=false\n", 0o644); err != nil {
+		return err
+	}
+
 	in.event("bootloader", "installing GRUB for UEFI with Secure Boot support")
 	grub := []string{"--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=opereta", "--uefi-secure-boot"}
 	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", grub...); err != nil {
-		// 펌웨어가 NVRAM 쓰기를 거부하면(efibootmgr 실패) 항목 등록 없이 파일만 설치한다. 아래 대체 경로가 부팅을 맡는다.
+		// 펌웨어가 NVRAM 쓰기를 거부하면(efibootmgr 실패) 항목 등록 없이 파일만 설치한다. 아래에서 항목을 직접 만들어 본다.
 		in.event("bootloader", "registering the boot entry failed (%v); installing the files without it", err)
 		if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", append(grub, "--no-nvram")...); err != nil {
 			return err
 		}
 	}
-	// 펌웨어가 부팅 항목을 잃어도 부팅되도록 대체 경로(EFI/BOOT/BOOTX64.EFI)에도 설치한다.
-	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--removable", "--uefi-secure-boot"); err != nil {
+	// 펌웨어가 부팅 항목을 잃어도 부팅되도록 대체 경로(EFI/BOOT/BOOTX64.EFI)에도 설치한다. 다른 시스템(예: Windows)이
+	// 이미 그 경로를 쓰고 있으면 덮어쓰지 않는다.
+	if in.fallbackIsForeign(root) {
+		in.event("bootloader", "EFI/BOOT/BOOTX64.EFI belongs to another system; leaving it as it is")
+	} else if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--removable", "--uefi-secure-boot"); err != nil {
 		return err
 	}
 	if _, err := in.exec(ctx, root, CodeBootloader, 5*time.Minute, "update-grub"); err != nil {
 		return err
 	}
+	in.ensureBootEntry(ctx, root)
+	in.noteLegacyBootFolders(root)
+	if err := in.localRTCForWindows(root); err != nil {
+		return err
+	}
 	return in.BootDefault(ctx, root)
+}
+
+// fallbackIsForeign 은 EFI/BOOT/BOOTX64.EFI 가 이미 있고 이 시스템이 만든 것이 아닌지 본다. 우리가 --removable 로 설치하면
+// 같은 폴더에 grubx64.efi 가 함께 놓이므로, 그것이 없는 BOOTX64.EFI 는 다른 시스템(Windows 의 복사본 등)의 것으로 본다.
+func (in *Installer) fallbackIsForeign(root string) bool {
+	dir := filepath.Join(rootOr(root), "boot/efi/EFI/BOOT")
+	if fi, err := os.Stat(filepath.Join(dir, "BOOTX64.EFI")); err != nil || !fi.Mode().IsRegular() {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, "grubx64.efi"))
+	return err != nil
+}
+
+// ensureBootEntry 는 NVRAM 에 opereta 항목이 있는지 확인하고 없으면 직접 만든다. 만들지 못해도 설치는 계속한다
+// (대체 경로나 일회성 부팅 메뉴로 부팅할 수 있다). 결과는 이벤트로 남기고 첫 부팅 때 제어 센터가 다시 점검한다.
+func (in *Installer) ensureBootEntry(ctx context.Context, root string) {
+	has := func() (bool, bool) {
+		out, err := in.exec(ctx, root, CodeBootloader, time.Minute, "efibootmgr", "-v")
+		if err != nil {
+			return false, false
+		}
+		return boot.Parse(out).OperetaEntry != "", true
+	}
+	if ok, readable := has(); ok {
+		in.event("bootloader", "the opereta boot entry is registered in the firmware")
+		return
+	} else if !readable {
+		in.event("bootloader", "warning: the firmware boot entries could not be read; check them after the first start with 'opereta boot status'")
+		return
+	}
+	src, err := in.exec(ctx, root, CodeBootloader, time.Minute, "findmnt", "-no", "SOURCE", "/boot/efi")
+	if err != nil {
+		in.event("bootloader", "warning: no opereta boot entry exists and the EFI partition could not be located; repair it later with 'opereta boot repair'")
+		return
+	}
+	disk, part, ok := boot.SplitPartition(strings.TrimSpace(src))
+	if !ok {
+		in.event("bootloader", "warning: no opereta boot entry exists; repair it later with 'opereta boot repair'")
+		return
+	}
+	loader := `\EFI\opereta\shimx64.efi`
+	if _, err := in.exec(ctx, root, CodeBootloader, time.Minute, "efibootmgr", "--create", "--disk", disk, "--part", part, "--loader", loader, "--label", "opereta"); err != nil {
+		in.event("bootloader", "warning: the firmware refused the opereta boot entry (%v). Start Opereta from the firmware boot menu once, then run 'opereta boot status'", err)
+		return
+	}
+	if ok, _ := has(); ok {
+		in.event("bootloader", "the opereta boot entry was created")
+	} else {
+		in.event("bootloader", "warning: the opereta boot entry was written but does not show up in the firmware list; use the firmware boot menu (for example F11) to start Opereta")
+	}
+}
+
+// noteLegacyBootFolders 는 ESP 에 이전 이름의 폴더가 남아 있으면 알린다. 지우는 일은 사용자 확인 뒤 opereta boot cleanup 이 한다.
+func (in *Installer) noteLegacyBootFolders(root string) {
+	dir := filepath.Join(rootOr(root), "boot/efi/EFI")
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range ents {
+		n := strings.ToLower(e.Name())
+		if e.IsDir() && (strings.Contains(n, "diparnux") || strings.Contains(n, "lightlix")) {
+			in.event("bootloader", "the EFI partition has the folder %s from an earlier name of this system; remove it with 'opereta boot cleanup' once you have confirmed it is not needed", e.Name())
+		}
+	}
+}
+
+// localRTCForWindows 는 같은 컴퓨터에 Windows 가 있으면 하드웨어 시계를 현지 시간으로 쓰게 한다. Windows 는 RTC 를
+// 현지 시간으로 읽고 Linux 는 기본이 UTC 라서, 그대로 두면 두 시스템을 오갈 때 시각이 시간대 차이(한국은 9시간)만큼 틀어진다.
+func (in *Installer) localRTCForWindows(root string) error {
+	if fi, err := os.Stat(filepath.Join(rootOr(root), "boot/efi/EFI/Microsoft")); err != nil || !fi.IsDir() {
+		return nil
+	}
+	in.event("bootloader", "Windows was found on this computer; the hardware clock is set to local time so both systems agree")
+	return writeFile(rootOr(root), "etc/adjtime", "0.0 0 0.0\n0\nLOCAL\n", 0o644)
 }

@@ -168,6 +168,8 @@ Commands:
   update [--check|--rollback] update the kernel, driver and system packages
   deberopa [check|update|auto on|off]
                               keep the Deberopa coding agent current (checks daily)
+  boot [status|next <target>|order <target>|repair|cleanup|auto on|off]
+                              UEFI boot entries: boot another system once, repair, clean up
   report                      write a diagnostic report
   apikey create [label]       create an API key (shown once)
   apikey list                 list API keys

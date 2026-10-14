@@ -190,6 +190,12 @@ def scenario_installed(console, budgets, secure_boot):
     for name, path in (("shim", "/boot/efi/EFI/opereta/shimx64.efi"), ("grub", "/boot/efi/EFI/opereta/grubx64.efi"),
                        ("fallback", "/boot/efi/EFI/BOOT/BOOTX64.EFI")):
         check("esp-" + name, f"sudo -n test -s {path}")
+    # 0.6.3: 부팅 항목(NVRAM)이 실제로 등록되었고 opereta boot 가 그것을 읽는다. Secure Boot 시험은 새 변수 파일로
+    # 부팅하므로(항목 없이 대체 경로로 뜬다) 일반 부팅에서만 확인한다.
+    if not secure_boot:
+        check("nvram-entry", "sudo -n efibootmgr -v | grep -i 'opereta.*SHIMX64.EFI'")
+        check("boot-status", "opereta boot status --json | grep -q '\"opereta_entry\"'")
+    check("os-prober-enabled", "grep -q '^GRUB_DISABLE_OS_PROBER=false' /etc/default/grub.d/40-opereta-os-prober.cfg")
     ids = check("identity", "id -nG && id -u")
     if ids is not None:
         groups = ids.splitlines()[0].split()

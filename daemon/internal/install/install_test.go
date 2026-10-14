@@ -111,6 +111,7 @@ func fakeSystem(t *testing.T, name string, sizeBytes uint64, ro bool) *Installer
 		ZoneinfoDir: filepath.Join(dir, "zoneinfo"),
 		LookPath:    func(string) bool { return true },
 		NodeExists:  func(string) bool { return true },
+		EFIDir:      dir,
 		Now:         func() time.Time { return time.Date(2026, 10, 12, 8, 0, 0, 0, time.UTC) },
 	}
 }
@@ -554,5 +555,90 @@ func TestGrubInstallFallsBackToNoNVRAM(t *testing.T) {
 	}
 	if calls != 1 || indexOf(rec.lines(), "--bootloader-id=opereta --uefi-secure-boot --no-nvram") < 0 {
 		t.Errorf("no-nvram retry missing (calls=%d): %v", calls, rec.lines())
+	}
+}
+
+func TestBootloaderRefusesWithoutUEFI(t *testing.T) {
+	in := fakeSystem(t, "vda", 32<<30, false)
+	in.EFIDir = filepath.Join(t.TempDir(), "no-efi")
+	in.Run = &recorder{}
+	o := goodOptions()
+	err := in.Install(context.Background(), &o)
+	var ie *Error
+	if !errors.As(err, &ie) || ie.Code != CodeNotUEFI {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestBootloaderEnablesOSProberAndKeepsAForeignFallback(t *testing.T) {
+	in := fakeSystem(t, "vda", 32<<30, false)
+	rec := &recorder{}
+	rec.chrootR = func(args []string) platform.Result {
+		if len(args) >= 2 && args[1] == "update-grub" {
+			dir := filepath.Join(args[0], "boot/grub")
+			_ = os.MkdirAll(dir, 0o755)
+			_ = os.WriteFile(filepath.Join(dir, "grub.cfg"), []byte("menuentry 'x' $menuentry_id_option 'gnulinux-6.12.1-amd64-advanced-u' {\n}\n"), 0o644)
+		}
+		return platform.Result{}
+	}
+	in.Run = rec
+	// Windows 가 이미 EFI/BOOT/BOOTX64.EFI 를 쓰고 있다(grubx64.efi 가 같이 있지 않다).
+	esp := filepath.Join(in.TargetRoot, "boot/efi/EFI/BOOT")
+	if err := os.MkdirAll(esp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(esp, "BOOTX64.EFI"), []byte("windows"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o := goodOptions()
+	if err := in.Install(context.Background(), &o); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	lines := rec.lines()
+	if indexOf(lines, "--removable") >= 0 {
+		t.Errorf("the foreign fallback file was overwritten: %v", lines)
+	}
+	if err := os.MkdirAll(filepath.Join(in.TargetRoot, "boot/efi/EFI/Microsoft/Boot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(in.TargetRoot, "etc/default/grub.d/40-opereta-os-prober.cfg"))
+	if err != nil || !strings.Contains(string(b), "GRUB_DISABLE_OS_PROBER=false") {
+		t.Errorf("os-prober was not enabled: %v %q", err, b)
+	}
+}
+
+func TestBootloaderCreatesAMissingEntry(t *testing.T) {
+	in := fakeSystem(t, "vda", 32<<30, false)
+	rec := &recorder{}
+	listed := 0
+	rec.chrootR = func(args []string) platform.Result {
+		if len(args) < 2 {
+			return platform.Result{}
+		}
+		switch args[1] {
+		case "update-grub":
+			dir := filepath.Join(args[0], "boot/grub")
+			_ = os.MkdirAll(dir, 0o755)
+			_ = os.WriteFile(filepath.Join(dir, "grub.cfg"), []byte("menuentry 'x' $menuentry_id_option 'gnulinux-6.12.1-amd64-advanced-u' {\n}\n"), 0o644)
+		case "efibootmgr":
+			if len(args) >= 3 && args[2] == "-v" {
+				listed++
+				if listed == 1 { // 처음에는 항목이 없다. 만든 뒤에는 있다.
+					return platform.Result{Stdout: []byte("BootCurrent: 0001\nBootOrder: 0001\nBoot0001* Windows Boot Manager\tHD(1,GPT,x)/File(\\EFI\\MICROSOFT\\BOOT\\BOOTMGFW.EFI)\n")}
+				}
+				return platform.Result{Stdout: []byte("BootOrder: 0000,0001\nBoot0000* opereta\tHD(1,GPT,x)/File(\\EFI\\opereta\\shimx64.efi)\n")}
+			}
+		case "findmnt":
+			return platform.Result{Stdout: []byte("/dev/vda1\n")}
+		}
+		return platform.Result{}
+	}
+	in.Run = rec
+	o := goodOptions()
+	if err := in.Install(context.Background(), &o); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if indexOf(rec.lines(), "efibootmgr --create --disk /dev/vda --part 1 --loader") < 0 {
+		t.Errorf("the entry was not created: %v", rec.lines())
 	}
 }

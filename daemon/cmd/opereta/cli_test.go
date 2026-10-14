@@ -1584,3 +1584,44 @@ func TestDeberopaAutoNeedsOnOrOff(t *testing.T) {
 	res = runCLI(t, f, "deberopa", "bogus")
 	wantCode(t, res, exitUsage)
 }
+
+const bootInfoJSON = `{"available":true,"running":false,"state":{"phase":"idle"},"boot":{"available":true,"uefi":true,"secure_boot":"off","current":"0000","order":["0002","0001","0000"],"entries":[{"num":"0000","label":"opereta","active":true,"kind":"opereta"},{"num":"0001","label":"Windows Boot Manager","active":true,"kind":"windows"},{"num":"0002","label":"UEFI: SanDisk","active":true,"kind":"removable"}],"opereta_entry":"0000","windows_entry":"0001","auto":false,"bitlocker":true,"problems":[{"code":"firmware_reorders","message":"x"}]}}`
+
+func TestBootStatusExplainsTheProblem(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/update", 200, bootInfoJSON)
+	res := runCLI(t, f, "boot")
+	wantCode(t, res, exitOK)
+	wantContains(t, "uefi", res.stdout, "boot mode: UEFI, Secure Boot off")
+	wantContains(t, "order", res.stdout, "1. UEFI: SanDisk (0002)")
+	wantContains(t, "windows", res.stdout, "Windows Boot Manager (0001)")
+	wantContains(t, "problem", res.stdout, "opereta boot next opereta")
+	wantContains(t, "bitlocker", res.stdout, "BitLocker")
+}
+
+func TestBootNextStartsTheActionAndWaitsForTheRecord(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"boot_next:opereta","reboot":false}`)
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UTC().Format(time.RFC3339)
+		_, _ = fmt.Fprintf(w, `{"available":true,"running":false,"state":{"phase":"idle"},"boot":{"available":true,"uefi":true,"secure_boot":"off","current":"0001","next":"0000","order":["0001","0000"],"entries":[{"num":"0000","label":"opereta","kind":"opereta"},{"num":"0001","label":"Windows Boot Manager","kind":"windows"}],"last_action":"next opereta","last_time":%q}}`, now)
+	})
+	res := runCLI(t, f, "boot", "next", "opereta")
+	wantCode(t, res, exitOK)
+	wantContains(t, "next", res.stdout, "next boot only: opereta (0000)")
+	if got := f.bodies["POST /v1/update"]; len(got) != 1 || !strings.Contains(got[0], `"action":"boot_next:opereta"`) {
+		t.Fatalf("request bodies = %v", got)
+	}
+}
+
+func TestBootRejectsBadArguments(t *testing.T) {
+	f := newFakeDaemon(t)
+	for _, args := range [][]string{{"boot", "next"}, {"boot", "next", "ubuntu"}, {"boot", "auto", "maybe"}, {"boot", "bogus"}, {"boot", "status", "x"}} {
+		res := runCLI(t, f, args...)
+		wantCode(t, res, exitUsage)
+	}
+	if len(f.bodies["POST /v1/update"]) != 0 {
+		t.Fatal("an action was started for an invalid request")
+	}
+}

@@ -10,6 +10,7 @@
 //	opereta-update cuda-runtime
 //	opereta-update deberopa check|apply [--auto]
 //	opereta-update deberopa auto on|off
+//	opereta-update boot status|next|order|clear-next|repair|cleanup|auto
 //	opereta-update status
 //
 // 진행 상황은 표준 출력에 한 줄씩 나오고, --json 이면 JSON 줄이다. 마지막 줄은 결과다.
@@ -48,12 +49,15 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|cuda-runtime|deberopa|status [--json] [--reboot] [--state-dir DIR]")
+		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|cuda-runtime|deberopa|boot|status [--json] [--reboot] [--state-dir DIR]")
 		return 2
 	}
 	cmd := args[0]
 	if cmd == "deberopa" {
 		return runDeberopa(args[1:], stdout, stderr)
+	}
+	if cmd == "boot" {
+		return runBoot(args[1:], stdout, stderr)
 	}
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	fs.SetOutput(stderr)

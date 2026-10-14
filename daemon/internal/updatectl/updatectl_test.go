@@ -46,6 +46,9 @@ func newController(t *testing.T, r *fakeRunner) *Controller {
 		SourcesFile:   filepath.Join(dir, "opereta.sources"),
 		NvidiaConf:    filepath.Join(dir, "nvidia.conf"),
 		DeberopaDir:   filepath.Join(dir, "deberopa"),
+		BootEFIDir:    filepath.Join(dir, "no-efi"),
+		BootESPDir:    filepath.Join(dir, "no-esp"),
+		BootStateDir:  filepath.Join(dir, "boot"),
 		HelperExists:  func(string) bool { return true },
 	}
 }
@@ -326,5 +329,40 @@ func TestInfoReportsDeberopaState(t *testing.T) {
 	d := info.Deberopa
 	if d.Installed != "0.3.1" || d.Packaged != "0.2.0" || !d.Override || d.Status != "updated" || d.Auto {
 		t.Fatalf("deberopa = %+v", d)
+	}
+}
+
+func TestStartBootActionsRunTheHelper(t *testing.T) {
+	want := map[string]string{
+		"boot_next:opereta": " boot next opereta --json",
+		"boot_next:Windows": " boot next windows --json",
+		"boot_order:0001":   " boot order 0001 --json",
+		ActionBootClearNext: " boot clear-next --json",
+		ActionBootRepair:    " boot repair --json",
+		ActionBootCleanup:   " boot cleanup --json",
+		ActionBootAutoOn:    " boot auto on --json",
+		ActionBootAutoOff:   " boot auto off --json",
+	}
+	for action, tail := range want {
+		r := &fakeRunner{}
+		c := newController(t, r)
+		if err := c.Start(context.Background(), action, true); err != nil {
+			t.Fatalf("%s: %v", action, err)
+		}
+		last := r.calls[len(r.calls)-1]
+		joined := strings.Join(last.Args, " ")
+		if last.Name != "systemd-run" || !strings.HasSuffix(joined, tail) || strings.Contains(joined, "--reboot") {
+			t.Fatalf("%s: %s %s", action, last.Name, joined)
+		}
+	}
+}
+
+func TestStartBootRejectsBadTargets(t *testing.T) {
+	for _, action := range []string{"boot_next", "boot_next:", "boot_next:ubuntu", "boot_next:00zz", "boot_order:../x", "boot_next:opereta;reboot"} {
+		err := newController(t, &fakeRunner{}).Start(context.Background(), action, false)
+		var ue *Error
+		if !errors.As(err, &ue) || ue.Code != CodeInvalidAction {
+			t.Fatalf("%q: err = %v", action, err)
+		}
 	}
 }

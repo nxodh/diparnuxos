@@ -46,6 +46,8 @@ override_dh_installsystemd:
 	dh_installsystemd --no-start operetad.service operetad.socket opereta-firewall-default.service opereta-firewall.service opereta-update-verify.service
 	# 타이머는 설치하면 켜지고(다음 부팅부터 하루 한 번), 서비스는 타이머가 시작한다.
 	dh_installsystemd opereta-deberopa-update.timer
+	# 종료 때 BootNext 를 지정하는 유닛은 사용자가 켠다(opereta boot auto on). 설치만으로는 켜지 않는다.
+	dh_installsystemd --no-enable --no-start opereta-bootnext.service
 
 override_dh_installtmpfiles:
 	# compat 13의 기본 시퀀스에는 sysusers가 없다. 그룹을 디렉터리보다 먼저 만든다.

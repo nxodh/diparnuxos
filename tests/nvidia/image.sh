@@ -244,7 +244,7 @@ require_path 'squashfs-root/usr/bin/opereta-control-center$' 'Control Center lau
 require_path 'squashfs-root/usr/lib/opereta/control-center/opereta_cc/app[.]py$' 'Control Center application'
 require_path 'squashfs-root/usr/share/locale/ko/LC_MESSAGES/opereta-control-center[.]mo$' 'Control Center Korean catalog'
 for pkg in xfce4-session xfwm4 xfce4-panel xfdesktop4 thunar xfce4-terminal lightdm lightdm-gtk-greeter xserver-xorg-core \
-    pipewire wireplumber firefox-esr fcitx5-hangul fonts-nanum fonts-pretendard openssh-server; do
+    pipewire wireplumber firefox-esr fcitx5-hangul fonts-nanum fonts-pretendard openssh-server os-prober efibootmgr; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
 done
 # 0.5.0 에서 교체한 Wayland 구성과 무거운 데스크톱 구성 요소는 넣지 않는다.

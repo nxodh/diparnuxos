@@ -1,0 +1,19 @@
+# 끄거나 다시 시작할 때 다음 부팅 대상(EFI BootNext)을 Opereta 로 지정한다. 설치 경로는
+# /usr/lib/systemd/system/opereta-bootnext.service 이고 기본으로 켜지지 않는다(opereta boot auto on 으로 켠다).
+#
+# 일부 펌웨어(예: MSI 노트북)는 재부팅 때마다 BootOrder 를 자체 순서로 되돌려 Windows 나 USB 를 먼저 띄운다. BootNext 는
+# 그런 펌웨어도 지킨다. 이 유닛은 시스템이 멈출 때 그 값을 한 번 지정해 "Opereta 에서 끄면 다음에도 Opereta 로 켜지게" 한다.
+# 설치 USB 로 부팅하려면 먼저 끈다(opereta boot auto off). Windows 에서 끈 뒤에는 효과가 없다.
+[Unit]
+Description=Boot Opereta next time (EFI BootNext)
+ConditionPathExists=/sys/firmware/efi
+ConditionPathExists=!/run/live
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/lib/opereta/opereta-update boot next opereta --if-present
+
+[Install]
+WantedBy=multi-user.target

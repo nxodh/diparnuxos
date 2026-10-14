@@ -38,6 +38,7 @@ const (
 	CodeAccount        = "account_failed"
 	CodeCleanup        = "cleanup_failed"
 	CodeBootloader     = "bootloader_failed"
+	CodeNotUEFI        = "not_uefi"
 	CodeDamagedSystem  = "damaged_system"
 	CodeNotConfirmed   = "not_confirmed"
 	defaultTargetRoot  = "/mnt/opereta-target"
@@ -155,6 +156,8 @@ type Installer struct {
 	PartitionWait time.Duration
 	// NodeExists 는 장치 노드가 있는지 본다. nil 이면 파일 시스템을 본다. 테스트가 바꾼다.
 	NodeExists func(path string) bool
+	// EFIDir 은 UEFI 로 부팅했을 때 있는 펌웨어 디렉터리다. 비어 있으면 /sys/firmware/efi 다. 테스트가 바꾼다.
+	EFIDir string
 
 	log     []string
 	mounted []string
@@ -170,6 +173,7 @@ func (in *Installer) liveSource() string  { return orDefault(in.LiveSource, defa
 func (in *Installer) liveMedium() string  { return orDefault(in.LiveMedium, defaultLiveMedium) }
 func (in *Installer) logPath() string     { return orDefault(in.LogPath, defaultInstallLog) }
 func (in *Installer) zoneinfoDir() string { return orDefault(in.ZoneinfoDir, "/usr/share/zoneinfo") }
+func (in *Installer) efiDir() string      { return orDefault(in.EFIDir, "/sys/firmware/efi") }
 
 func (in *Installer) minDisk() uint64 {
 	if in.MinDiskBytes > 0 {

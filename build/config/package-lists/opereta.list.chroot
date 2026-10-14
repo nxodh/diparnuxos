@@ -61,6 +61,9 @@ grub-efi-amd64-signed
 grub2-common
 shim-signed
 efibootmgr
+# GRUB 메뉴에 Windows 같은 다른 시스템을 올린다(설치기가 GRUB_DISABLE_OS_PROBER=false 로 켠다). ntfs-3g 는 NTFS 를 읽는다.
+os-prober
+ntfs-3g
 fdisk
 dosfstools
 e2fsprogs
