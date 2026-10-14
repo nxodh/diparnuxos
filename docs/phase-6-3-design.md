@@ -1,7 +1,8 @@
 # 0.6.3 설계: 부팅 항목, 창 렌더링, 창 단추, 제어 센터, 데스크톱 디자인
 
 - 확인 날짜: 2026-10-14
-- 상태: **설계 확정 대기(구현 전).** 사용자 요청 5가지를 코드와 컨테이너 재현으로 조사한 결과와 계획이다. 사용자 결정 6건은 2026-10-14 에 받았고 8절에 적었다. 부팅 문제는 사용자 PC 의 `efibootmgr` 결과(1.2절)로 일부 좁혀졌고, BIOS 화면에 대한 추가 정보(1.3.1절)가 남았다.
+- 상태: **구현함(2026-10-15, 브랜치 `phase-6-3`).** 이 문서는 설계와 조사 기록이며 구현 결과와 확인하지 못한 것은 [verification-phase-6-3.md](verification-phase-6-3.md) 에 있다. 아래 "구현 전" 표현은 설계 시점의 것이다. 구현에서 달라진 것: 독 테마를 `Gtk+` 대신 자체 테마 `Opereta`/`Opereta-Dark` 로 했고, 창 단추는 GTK3 CSS(PNG)로 그리며, Windows 의 부팅 메뉴(O3)는 만들지 않았다.
+- (이전 상태) 사용자 요청 5가지를 코드와 컨테이너 재현으로 조사한 결과와 계획이다. 사용자 결정 6건은 2026-10-14 에 받았고 8절에 적었다. 부팅 문제는 사용자 PC 의 `efibootmgr` 결과(1.2절)로 일부 좁혀졌고, BIOS 화면에 대한 추가 정보(1.3.1절)가 남았다.
 - 배경: 0.6.2 를 실제 PC(한 SSD 에 Windows 10 과 함께 설치)에 설치해 본 사용자의 보고다. 0.6.2 의 디자인과 설치 검증은 가상 환경(Xvfb 컨테이너, QEMU)에서만 했다. 아래 문제 대부분은 그 환경에서 드러나지 않았다. 이것은 검증 범위의 한계였고, 0.6.3 은 **실기 확인을 완료 조건**에 넣는다(7절).
 
 ## 0. 요청과 조사 결과 요약
@@ -45,7 +46,7 @@
 | `Boot0002 UEFI: SanDisk` | USB | 설치 USB |
 | **`BootOrder`** | **`0002, 0001, 0000`** | **Opereta 가 맨 마지막이다.** USB, Windows, Opereta 순 |
 | 디스크 | NVMe 953.9 GB: p1 100M vfat(ESP, `/boot/efi`), p2 16M(Microsoft 예약), p3 463G **BitLocker**, p4 597M ntfs(복구), p5 10G **BitLocker**, p6 480G ext4(Opereta) | ESP 는 **하나**이고 Windows 와 공유한다. Windows 는 **BitLocker 로 암호화**되어 있다 |
-| ESP 내용 | `EFI/Boot/`(bootx64.efi, grubx64.efi, mmx64.efi, grub.cfg, BOOTX64.CSV), `EFI/opereta/`(shimx64, grubx64, fbx64, mmx64, grub.cfg), **`EFI/diparnux/`**, `EFI/Microsoft/` | `EFI/Boot` 는 우리 `--removable` 설치다. **이전 이름 Diparnux 의 폴더가 남아 있다**(이 PC 에 이전 버전을 설치한 적이 있다) |
+| ESP 내용 | `EFI/Boot/`(bootx64.efi, grubx64.efi, mmx64.efi, grub.cfg, BOOTX64.CSV), `EFI/opereta/`(shimx64, grubx64, fbx64, mmx64, grub.cfg), **`EFI/<이전 이름>/`**, `EFI/Microsoft/` | `EFI/Boot` 는 우리 `--removable` 설치다. **이전 이름의 폴더가 남아 있다**(이 PC 에 이전 버전을 설치한 적이 있다) |
 | 화면 아래 시계 | `2000-04-13` | **시스템 날짜가 틀렸다**(RTC 가 초기화되었거나 설치기가 시각을 못 맞췄을 수 있다) |
 
 사진에 없는 것: Secure Boot 상태, 두 번째 사진(T02, 글자를 읽지 못함).
@@ -89,7 +90,7 @@
 | B7 | 복구와 순서 | `opereta boot repair`(grub-install 과 항목 만들기 다시), `opereta boot order`, `opereta boot next <항목>`(다음 한 번만). 제어 센터의 "부팅" 페이지가 같은 동작을 한다. 라이브 USB 에서도 설치된 시스템을 골라 복구할 수 있게 한다 |
 | B9 | 부팅 순서 확인과 안내(**고정은 펌웨어가 되돌리면 소용없다**, 위 실험). 펌웨어별로 아래 선택지를 보여 준다(결정 D9) |  
 | B9a | (구) 부팅 순서 고정 | 설치 마지막에 Opereta 항목을 **맨 앞**으로 두고(`efibootmgr -o`), 설치된 시스템의 부팅 때마다 확인해 Windows 가 순서를 바꿨으면 알린다(제어 센터 "부팅" 페이지, `opereta boot status`). 사용자가 Windows 를 앞에 두기로 했다면 존중한다(설정으로 끌 수 있다). **BitLocker 주의**: 부팅 구성을 바꾸기 전에 BitLocker 복구 키가 있는지 안내한다(부팅 순서 변경이 보통 복구 키를 요구하지는 않지만 보장할 수 없다) |
-| B10 | 이전 이름 폴더 | ESP 에 `EFI/diparnux`(이전 이름) 같은 옛 폴더가 있으면 목록에 보여 주고 **사용자 확인 뒤** 지울 수 있게 한다(자동으로 지우지 않는다). 옛 NVRAM 항목도 같다 |
+| B10 | 이전 이름 폴더 | ESP 에 `EFI/<이전 이름>`(이전 이름) 같은 옛 폴더가 있으면 목록에 보여 주고 **사용자 확인 뒤** 지울 수 있게 한다(자동으로 지우지 않는다). 옛 NVRAM 항목도 같다 |
 | B11 | 시스템 시각 | 설치 직후 `2000-04-13` 처럼 틀린 시각이 나온 원인을 조사한다(`hwclock` 단계, RTC 가 UTC/로컬 중 무엇인지 — Windows 와 공존하면 RTC 를 로컬 시간으로 쓰는 문제가 있다). 시각이 틀리면 TLS 와 업데이트(릴리스 서명 검증)가 실패한다. 설치기에서 시각대와 RTC 모드를 정하고 첫 부팅에 네트워크 시각 동기화를 켠다 |
 | B8 | 시험 | QEMU 에 (a) Windows 와 비슷한 ESP(`EFI/Microsoft/Boot/bootmgfw.efi`, `EFI/BOOT/BOOTX64.EFI`)가 미리 있는 디스크에 설치, (b) `efibootmgr -v` 로 `opereta` 항목 단언, (c) NVRAM 항목을 지운 뒤 대체 경로로 부팅과 `boot repair`, (d) 레거시 부팅 거절, (e) Windows 항목이 GRUB 메뉴에 있음을 추가한다 |
 

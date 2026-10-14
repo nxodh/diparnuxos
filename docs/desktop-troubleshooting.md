@@ -71,7 +71,7 @@ opereta boot next opereta     # 다음 한 번만 Opereta 로 시작(영구 순�
 opereta boot next windows     # 다음 한 번만 Windows 로 시작
 opereta boot auto on          # 끄거나 다시 시작할 때마다 다음 시작을 Opereta 로 지정(설치 USB 로 시작하려면 먼저 끈다)
 opereta boot repair           # GRUB 을 다시 설치하고 'opereta' 항목을 만든다
-opereta boot cleanup          # 이전 이름(Diparnux 등)의 ESP 폴더와 부팅 항목을 지운다
+opereta boot cleanup          # 이전 이름의 ESP 폴더와 부팅 항목을 지운다
 ```
 
 - **UEFI 항목은 파티션이 아니라 이름(`opereta`)으로 보인다.** BIOS 의 부팅 장치 화면에서 디스크의 파티션이 따로 나오지 않는다.

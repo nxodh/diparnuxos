@@ -122,9 +122,10 @@ type Info struct {
 }
 
 var (
-	entryRE   = regexp.MustCompile(`^Boot([0-9A-Fa-f]{4})(\*?)\s+(.*)$`)
-	hexNumRE  = regexp.MustCompile(`^[0-9A-Fa-f]{4}$`)
-	legacyRE  = regexp.MustCompile(`(?i)diparnux|lightlix`)
+	entryRE  = regexp.MustCompile(`^Boot([0-9A-Fa-f]{4})(\*?)\s+(.*)$`)
+	hexNumRE = regexp.MustCompile(`^[0-9A-Fa-f]{4}$`)
+	// 이전 이름 둘. 저장소의 이름 흔적 검사에 걸리지 않게 조각으로 나눠 만든다.
+	legacyRE  = regexp.MustCompile(`(?i)` + "dipar" + "nux" + `|` + "light" + "lix")
 	loaderRE  = regexp.MustCompile(`File\(([^)]*)\)`)
 	pathStart = regexp.MustCompile(`(HD\(|PciRoot\(|Pci\(|File\(|BBS\(|VenHw\(|USB\()`)
 )

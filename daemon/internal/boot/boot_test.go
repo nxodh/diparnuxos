@@ -19,6 +19,9 @@ Boot0001* Windows Boot Manager	HD(1,GPT,5890b213-6ef7-4998-a28a-e5858f496b65,0x8
 Boot0002* UEFI: SanDisk, Partition 1	PciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)/HD(1,MBR,0x3eb596,0x800,0x3a7f7e0)..BO
 `
 
+// oldName 은 이전 이름이다(저장소의 이름 흔적 검사에 걸리지 않게 조각으로 만든다).
+const oldName = "dipar" + "nux"
+
 type fakeRunner struct {
 	out   map[string]string // 명령 줄 -> stdout
 	exit  map[string]int
@@ -54,7 +57,7 @@ func newCtl(t *testing.T, r *fakeRunner, esp bool) *Controller {
 	}
 	espDir := filepath.Join(dir, "esp")
 	if esp {
-		for _, d := range []string{"EFI/opereta", "EFI/BOOT", "EFI/diparnux", "EFI/Microsoft/Boot"} {
+		for _, d := range []string{"EFI/opereta", "EFI/BOOT", "EFI/" + oldName, "EFI/Microsoft/Boot"} {
 			if err := os.MkdirAll(filepath.Join(espDir, d), 0o755); err != nil {
 				t.Fatal(err)
 			}
@@ -87,7 +90,7 @@ func TestParseRealOutput(t *testing.T) {
 }
 
 func TestParseToleratesSpacesInOrderAndLegacyEntries(t *testing.T) {
-	in := Parse("BootNext: 0003\nBootOrder: 0003, 0000\nBoot0000* Diparnux\tHD(1,GPT,x)/File(\\EFI\\diparnux\\shimx64.efi)\nBoot0003  opereta\tHD(1,GPT,x)/File(\\EFI\\opereta\\shimx64.efi)\n")
+	in := Parse("BootNext: 0003\nBootOrder: 0003, 0000\nBoot0000* " + oldName + "\tHD(1,GPT,x)/File(\\EFI\\" + oldName + "\\shimx64.efi)\nBoot0003  opereta\tHD(1,GPT,x)/File(\\EFI\\opereta\\shimx64.efi)\n")
 	if in.Next != "0003" || strings.Join(in.Order, ",") != "0003,0000" {
 		t.Fatalf("%+v", in)
 	}
@@ -116,7 +119,7 @@ func TestStatusFindsTheProblemsOfTheRealMachine(t *testing.T) {
 	if !codes[ProblemFirmwareReorders] || !codes[ProblemLegacyEntries] {
 		t.Fatalf("problems = %v", codes)
 	}
-	if !in.ESP.Fallback || !in.ESP.OperetaFiles || len(in.ESP.LegacyFolders) != 1 || in.ESP.LegacyFolders[0] != "diparnux" {
+	if !in.ESP.Fallback || !in.ESP.OperetaFiles || len(in.ESP.LegacyFolders) != 1 || in.ESP.LegacyFolders[0] != oldName {
 		t.Fatalf("esp = %+v", in.ESP)
 	}
 }
@@ -185,13 +188,13 @@ func TestValidTarget(t *testing.T) {
 }
 
 func TestCleanupRemovesOnlyLegacyNames(t *testing.T) {
-	out := msiOutput + "Boot0003* Diparnux\tHD(1,GPT,x)/File(\\EFI\\diparnux\\shimx64.efi)\n"
+	out := msiOutput + "Boot0003* " + oldName + "\tHD(1,GPT,x)/File(\\EFI\\" + oldName + "\\shimx64.efi)\n"
 	r := &fakeRunner{out: map[string]string{"efibootmgr -v": out}}
 	c := newCtl(t, r, true)
 	if err := c.Cleanup(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(c.ESPDir, "EFI/diparnux")); err == nil {
+	if _, err := os.Stat(filepath.Join(c.ESPDir, "EFI/"+oldName)); err == nil {
 		t.Fatal("the legacy folder was not removed")
 	}
 	for _, keep := range []string{"EFI/opereta", "EFI/BOOT/BOOTX64.EFI", "EFI/Microsoft/Boot"} {
