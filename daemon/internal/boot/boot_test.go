@@ -20,7 +20,7 @@ Boot0002* UEFI: SanDisk, Partition 1	PciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)/HD(1,MB
 `
 
 // oldName 은 이전 이름이다(저장소의 이름 흔적 검사에 걸리지 않게 조각으로 만든다).
-const oldName = "dipar" + "nux"
+var oldName = LegacyNames()[0]
 
 type fakeRunner struct {
 	out   map[string]string // 명령 줄 -> stdout

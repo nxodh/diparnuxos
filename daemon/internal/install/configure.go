@@ -412,8 +412,7 @@ func (in *Installer) noteLegacyBootFolders(root string) {
 		return
 	}
 	for _, e := range ents {
-		n := strings.ToLower(e.Name())
-		if e.IsDir() && (strings.Contains(n, "dipar"+"nux") || strings.Contains(n, "light"+"lix")) {
+		if e.IsDir() && boot.IsLegacyName(e.Name()) {
 			in.event("bootloader", "the EFI partition has the folder %s from an earlier name of this system; remove it with 'opereta boot cleanup' once you have confirmed it is not needed", e.Name())
 		}
 	}

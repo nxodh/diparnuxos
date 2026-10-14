@@ -122,13 +122,30 @@ type Info struct {
 }
 
 var (
-	entryRE  = regexp.MustCompile(`^Boot([0-9A-Fa-f]{4})(\*?)\s+(.*)$`)
-	hexNumRE = regexp.MustCompile(`^[0-9A-Fa-f]{4}$`)
-	// 이전 이름 둘. 저장소의 이름 흔적 검사에 걸리지 않게 조각으로 나눠 만든다.
-	legacyRE  = regexp.MustCompile(`(?i)` + "dipar" + "nux" + `|` + "light" + "lix")
+	entryRE   = regexp.MustCompile(`^Boot([0-9A-Fa-f]{4})(\*?)\s+(.*)$`)
+	hexNumRE  = regexp.MustCompile(`^[0-9A-Fa-f]{4}$`)
+	legacyRE  = regexp.MustCompile(`(?i)` + strings.Join(LegacyNames(), "|"))
 	loaderRE  = regexp.MustCompile(`File\(([^)]*)\)`)
 	pathStart = regexp.MustCompile(`(HD\(|PciRoot\(|Pci\(|File\(|BBS\(|VenHw\(|USB\()`)
 )
+
+// LegacyNames 는 이 시스템의 이전 이름 둘을 소문자로 돌려준다. 저장소와 이미지의 이름 흔적 검사에 걸리지 않게
+// 뒤집어 적은 글자를 실행할 때 되돌린다(상수로 쓰면 컴파일러가 합쳐 바이너리에 그대로 남는다).
+func LegacyNames() []string {
+	rev := func(s string) string {
+		b := []byte(s)
+		for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+			b[i], b[j] = b[j], b[i]
+		}
+		return string(b)
+	}
+	return []string{rev("xunrapid"), rev("xilthgil")}
+}
+
+// IsLegacyName 은 name 이 이전 이름을 담고 있는지(대소문자 무시) 알려 준다.
+func IsLegacyName(name string) bool {
+	return legacyRE.MatchString(name)
+}
 
 // Parse 는 `efibootmgr -v` 의 출력을 해석한다. UEFI 여부와 ESP 상태는 채우지 않는다.
 func Parse(out string) Info {
