@@ -174,6 +174,20 @@ Opereta ISO에는 다음 제3자 소프트웨어가 들어간다. NVIDIA 드라�
 - `intel/ice/ddp-comms/ice_comms-*.pkg`와 `intel/ice/ddp-wireless_edge/ice_wireless_edge-*.pkg`는 `binary-redist-Intel-Ice-enhanced` 조건이다. 원문은 9.1과 같은 조항에 다음 한정이 붙어 있다: "Redistribution and use in binary form, without modification, are permitted **solely operating in conjunction with Intel authorized products**, provided that the following conditions are met". 한국어로는 "Intel 승인 제품과 함께 동작하는 경우에만" 재배포가 허용된다는 뜻이다. 이 한정이 Opereta 이미지에 어떻게 적용되는지는 해석이 필요하며, 이번에 판단하지 않았다.
 - `intel/ice/ddp-lag/ice_lag-1.3.1.0.pkg`는 `firmware-intel-misc`에 들어 있지만, 이 문서를 쓸 때의 copyright 파일에는 이 경로를 다루는 항목이 없었다. **2026-10-14 재확인**: 최신 `firmware-nonfree 20260916-1` 의 `debian/copyright` 는 `intel/ice/ddp/ice-*.pkg intel/ice/ddp-lag/ice_lag-*.pkg` 를 같은 항목으로 묶어 `binary-redist-Intel`(9.1 과 같은 조건)로 적는다. 즉 이 파일의 조건은 9.1 과 같다.
 
+### 9.4 남은 펌웨어 재확인(2026-10-14)
+
+이미지가 명시적으로 설치하는 펌웨어 패키지는 `firmware-iwlwifi`와 `firmware-intel-misc`뿐이다(`build/config/package-lists/opereta.list.chroot`). live-build 의 `--firmware-chroot`, `--firmware-binary` 는 꺼져 있다(`build/auto/config`). Debian `firmware-nonfree 20260916-1` 의 `debian/copyright` 에서 이 패키지들의 파일별 라이선스를 대조했다.
+
+| 파일(패키지 안의 경로) | Debian 의 라이선스 이름 | 재배포 조건 | 이 이미지의 상태 |
+|---|---|---|---|
+| `intel/ibt-*`, `intel/iwlwifi/*`, `i915/*`, `intel/catpt/*`, `intel/vpu/*`, `intel/ice/ddp/ice-*.pkg`, `intel/ice/ddp-lag/ice_lag-*.pkg` | `binary-redist-Intel` | 수정하지 않은 바이너리 재배포 허용. 저작권과 면책 문구를 함께 제공, Intel 이름으로 홍보 금지, 역공학 금지 | 충족(수정 없음, Debian 패키지의 copyright 포함) |
+| `intel/ish/*`, `qat_*` | `binary-redist-Intel-1` | 위와 같다. 특허 라이선스가 "단독으로 쓰는 범위"로 한정된다 | 충족 |
+| `intel/avs/*` | `binary-redist-Intel-3` (일부 `Apache-2.0`) | 위와 같다 | 충족 |
+| `hfi1_*` | `binary-redist-Intel-narrower-patent` | 위와 같다. 특허 라이선스 범위가 더 좁다 | 충족 |
+| `e100/*` | `BSD-3-clause-Intel` | BSD 3조항 | 충족 |
+| `intel/ice/ddp-comms/*`, `intel/ice/ddp-wireless_edge/*` | `binary-redist-Intel-Ice-enhanced` ("Intel 승인 제품과 함께 동작하는 경우에만") | 조건을 확인할 수 없다 | **0.6.1 에서 이미지에서 뺐다** |
+
+결론: 남은 Intel 펌웨어는 모두 "수정 없이, 고지 유지, 이름 사용 금지, 역공학 금지" 조건의 재배포 허용이고 이미지는 이를 충족한다. 이 문서 9.3 의 "읽지 않았다(미확인)" 항목(`hfi1`, `qat`, `ish`, `vpu`)은 위에서 해소했다. 단 Debian 이 파일별로 붙인 라이선스 이름을 근거로 했고 각 Intel 파일의 원본 라이선스 문서를 따로 받아 읽지는 않았다.
 ### 9.3 범위와 미확인 항목
 
 - 이 절은 Opereta가 쓰는 Wi-Fi 펌웨어와 이더넷 펌웨어 중 위 파일만 다룬다. `firmware-intel-misc`에는 `e100/`, `hfi1_*`, `qat_*`, `intel/ish/`, `intel/vpu/` 파일도 들어 있다. `e100/*`는 `BSD-3-clause-Intel`, `hfi1_*`는 `binary-redist-Intel-narrower-patent`, `qat_*.bin`은 `binary-redist-Intel-1`로 적혀 있다. `intel/vpu/*`는 `binary-redist-Intel`, `intel/ish/*`의 조건 이름은 이번에 확인하지 않았다. 이 파일들의 원문은 읽지 않았다(미확인).
@@ -231,3 +245,17 @@ ISO 를 올려도 되는지 원문을 다시 확인했다. 법률 자문이 아�
 **결론(0.6.0 시점)**: 그때의 구성으로는 ISO 를 올리지 않는다.
 
 **0.6.1 이후**: CUDA 런타임은 이미지에서 뺐고(위 표의 "지금 구성은 위험하다"는 0.6.0 구성에 대한 판단이다), Intel `ice_comms`·`ice_wireless_edge` 두 파일도 뺐다(`build/config/hooks/normal/9700-opereta-firmware-trim.hook.chroot`). GPL 소스는 같은 릴리스에 올린다(GPLv2 3a, `scripts/collect-sources.py`). 프로젝트 라이선스는 MIT 이다(`LICENSE`). 남은 것은 NVIDIA 드라이버 사용자 공간·GSP 펌웨어의 재배포(1절의 조건을 지키고 Debian 도 같은 것을 배포함)와 이 문서가 법률 자문이 아니라는 점이다.
+
+### 10.6 NVIDIA 드라이버를 이미지에서 빼고 사용자가 설치하게 하면(검토, 2026-10-14)
+
+법적으로는 필요하지 않다. 드라이버는 1.1 의 조건으로 재배포가 허용되고 Debian 도 같은 코드의 패키지(`firmware-nvidia-gsp` 등)를 공식 저장소(non-free-firmware)로 배포한다. 뺀다면 법적 위험을 더 줄이려는 선택이다. 비용과 변경 범위는 아래와 같다.
+
+| 항목 | 영향 |
+|---|---|
+| GPU 사용 | 드라이버를 설치하기 전에는 GPU 를 쓸 수 없다. 첫 사용 때 인터넷이 필요하다 |
+| 커널 모듈 | NVIDIA 오픈 모듈을 사용자 PC 에서 DKMS 로 빌드해야 한다(수 분). 라이브 세션은 부팅마다 다시 빌드해야 한다 |
+| Secure Boot | 모듈 빌드 뒤에 MOK 등록(`opereta-mok`)이 필요하다. 지금은 이미지 안에서 끝나 있다 |
+| 디스플레이 | 이미지가 `nouveau` 를 막아 두었다. 드라이버가 없는 상태에서는 NVIDIA 전용 노트북의 화면이 기본 프레임버퍼로만 나올 수 있다. `nouveau` 차단을 드라이버 설치 뒤로 미뤄야 한다 |
+| 업데이트 엔진 | 새 커널 뒤의 모듈 확인(`verifyKernelModules`)과 드라이버 정책 패키지가 "드라이버가 설치되어 있다"를 전제로 한다. 설치되지 않은 상태를 정상으로 다루도록 바꿔야 한다 |
+| 이미지 검사와 E2E | 이미지 훅(DKMS 빌드, 서명 키 제거), `tests/nvidia/image.sh`, QEMU 설치 E2E 의 모듈 확인이 모두 바뀐다 |
+| 되돌림 | 사용자 확정 U4("드라이버를 ISO 에 포함")를 뒤집는다 |
