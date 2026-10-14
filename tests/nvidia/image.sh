@@ -182,6 +182,15 @@ if LC_ALL=C grep -q '[^ -~]' "$WORK/issue.net"; then
 fi
 echo "PASS: ASCII login banner: '$expected_banner'"
 
+# Opereta 업데이트 저장소 소스는 이미지를 만드는 동안 apt 가 보지 않도록 /etc 에 두지 않고 템플릿과 tmpfiles 로 첫 부팅 때 만든다.
+grep -Eq 'squashfs-root/usr/share/opereta/apt/opereta[.]sources$' "$WORK/files" || { echo 'FAIL: the Opereta apt source template is missing' >&2; exit 1; }
+grep -Eq 'squashfs-root/usr/lib/tmpfiles[.]d/opereta-apt[.]conf$' "$WORK/files" || { echo 'FAIL: the tmpfiles rule for the apt source is missing' >&2; exit 1; }
+if grep -Eq 'squashfs-root/etc/apt/sources[.]list[.]d/opereta[.]sources$' "$WORK/files"; then
+    echo 'FAIL: the Opereta apt source is installed in /etc during the image build' >&2
+    exit 1
+fi
+echo 'PASS: the Opereta apt source is created at first boot, not during the image build'
+
 # 금지 패키지: CUDA 개발 도구와 -dev 패키지가 최종 이미지에 섞이면 안 된다(minor 12).
 # cuda-toolkit-<숫자> 는 -config-common 으로 끝나는 것만 허용한다.
 bad_cuda="$(grep -E '^(cuda-nvcc-|cuda-minimal-build-|cuda-compiler-|cuda-libraries-dev-|cuda-cudart-dev-|libcublas-dev-|cuda-driver-dev-)' "$WORK/installed" || true)"

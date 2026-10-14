@@ -1,6 +1,10 @@
 #!/usr/bin/make -f
 # 키링은 저장소 루트의 keys/opereta-archive-keyring.pgp(공개 키) 에서 가져온다. build-debs.sh 가 keys/ 를 임시 사본에 넣는다.
 # 키가 없거나 저장소 주소(OPERETA_APT_URL)가 비어 있으면 소스를 Enabled: no 로 둔다.
+#
+# 소스 파일은 /etc/apt/sources.list.d 에 직접 설치하지 않는다. /usr/share/opereta/apt 에 템플릿으로 두고 첫 부팅 때
+# systemd-tmpfiles 가 /etc 로 복사한다(C 형식: 대상이 없을 때만). 이미지를 만드는 동안(chroot)에는 이 소스가 없으므로
+# 첫 릴리스 전이거나 GitHub 에 닿지 못할 때도 이미지 빌드의 apt-get update 가 실패하지 않는다. 사용자가 고친 파일은 그대로 남는다.
 OPERETA_CONF ?= $(CURDIR)/../../opereta.conf
 DEST = debian/opereta-archive-keyring
 
@@ -23,7 +27,7 @@ override_dh_auto_install:
 	  enabled=no; \
 	fi; \
 	[ -n "$$url" ] || url="https://example.invalid/opereta"; \
-	install -d $(DEST)/etc/apt/sources.list.d; \
+	install -d $(DEST)/usr/share/opereta/apt; \
 	if [ "$$layout" = flat ]; then suites='Suites: ./'; comps=''; else suites='Suites: opereta'; comps='Components: main'; fi; \
 	{ \
 	  printf '%s\n' \
@@ -37,6 +41,12 @@ override_dh_auto_install:
 	    'Architectures: amd64' \
 	    'Signed-By: /usr/share/keyrings/opereta-archive-keyring.pgp' \
 	    "Enabled: $$enabled"; \
-	} > $(DEST)/etc/apt/sources.list.d/opereta.sources; \
-	chmod 644 $(DEST)/etc/apt/sources.list.d/opereta.sources
+	} > $(DEST)/usr/share/opereta/apt/opereta.sources; \
+	chmod 644 $(DEST)/usr/share/opereta/apt/opereta.sources; \
+	install -d $(DEST)/usr/lib/tmpfiles.d; \
+	printf '%s\n' \
+	  '# 첫 부팅 때 Opereta 패키지 저장소 소스를 /etc 로 복사한다. 대상이 이미 있으면 건드리지 않는다.' \
+	  'C /etc/apt/sources.list.d/opereta.sources 0644 root root - /usr/share/opereta/apt/opereta.sources' \
+	  > $(DEST)/usr/lib/tmpfiles.d/opereta-apt.conf; \
+	chmod 644 $(DEST)/usr/lib/tmpfiles.d/opereta-apt.conf
 	install -D -m 644 src/10-opereta.pref $(DEST)/etc/apt/preferences.d/10-opereta.pref
