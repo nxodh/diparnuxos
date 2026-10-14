@@ -33,6 +33,10 @@ override_dh_auto_install:
 	install -D -m 644 daemon/dist/firewall-default.nft debian/diparnux-daemon/usr/share/diparnux/firewall-default.nft
 	install -D -m 644 daemon/dist/50-diparnux-always-on.logind.conf debian/diparnux-daemon/usr/lib/systemd/logind.conf.d/50-diparnux-always-on.conf
 	install -D -m 644 daemon/dist/50-diparnux-always-on.sleep.conf debian/diparnux-daemon/usr/lib/systemd/sleep.conf.d/50-diparnux-always-on.conf
+	install -D -m 644 daemon/dist/skills/diparnux/SKILL.md debian/diparnux-daemon/usr/share/diparnux/skills/diparnux/SKILL.md
+	# 새 계정이 Vedecaps 등 에이전트의 스킬 목록에서 바로 찾도록 skel 에 링크를 둔다.
+	install -d debian/diparnux-daemon/etc/skel/.agents/skills
+	ln -s /usr/share/diparnux/skills/diparnux debian/diparnux-daemon/etc/skel/.agents/skills/diparnux
 	install -D -m 644 daemon/vendor/github.com/NVIDIA/go-nvml/LICENSE debian/diparnux-daemon/usr/share/doc/diparnux-daemon/go-nvml.LICENSE
 	install -d debian/diparnux-daemon/usr/lib/systemd/system
 	install -m 644 daemon/dist/*.service daemon/dist/*.socket debian/diparnux-daemon/usr/lib/systemd/system/

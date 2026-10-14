@@ -139,6 +139,7 @@ func (s *Supervisor) buildPlan(ctx context.Context, m models.Model, ov autoconf.
 		in.RAMAvailMiB = unknownRAMMiB
 	} else {
 		in.RAMAvailMiB = mem.AvailableMiB
+		in.RAMTotalMiB = mem.TotalMiB
 		summary.RAMTotalMiB = mem.TotalMiB
 	}
 	summary.RAMAvailMiB = in.RAMAvailMiB
@@ -173,6 +174,7 @@ func mergeOverrides(cfg config.Overrides, req autoconf.Overrides) autoconf.Overr
 		Batch:     copyIntPtr(cfg.Batch),
 		LoadMode:  copyStrPtr(cfg.LoadMode),
 		Parallel:  copyIntPtr(cfg.Parallel),
+		Profile:   copyStrPtr(cfg.Profile),
 	}
 	if req.NGL != nil {
 		out.NGL = copyStrPtr(req.NGL)
@@ -191,6 +193,9 @@ func mergeOverrides(cfg config.Overrides, req autoconf.Overrides) autoconf.Overr
 	}
 	if req.Parallel != nil {
 		out.Parallel = copyIntPtr(req.Parallel)
+	}
+	if req.Profile != nil {
+		out.Profile = copyStrPtr(req.Profile)
 	}
 	return out
 }

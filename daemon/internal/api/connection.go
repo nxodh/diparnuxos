@@ -12,6 +12,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
+	"github.com/nxodh/diparnuxos/daemon/internal/vedecaps"
 )
 
 // ConnectionAddress 는 다른 컴퓨터가 이 컴퓨터에 접속할 때 쓸 수 있는 주소 하나다.
@@ -25,20 +26,26 @@ type ConnectionAddress struct {
 // Connection 은 외부 클라이언트(Orca, Open WebUI, 에디터 플러그인 등)가 이 컴퓨터의 모델 서버에 접속하는 데 필요한 정보다.
 // API 키 평문은 담지 않는다(평문은 만들 때 한 번만 보인다).
 type Connection struct {
-	ServerState string              `json:"server_state"`
-	ModelID     string              `json:"model_id"`
-	Models      []string            `json:"models"`
-	PublicPort  int                 `json:"public_port"`
-	LANExposed  bool                `json:"lan_exposed"`
-	Gateway     bool                `json:"gateway"`
-	KeyRequired bool                `json:"key_required"`
-	KeyCount    int                 `json:"key_count"`
-	Hostname    string              `json:"hostname"`
-	LocalURL    string              `json:"local_url"`
-	Addresses   []ConnectionAddress `json:"addresses"`
-	MDNSURL     string              `json:"mdns_url,omitempty"`
-	Warnings    []string            `json:"warnings"`
-	Examples    map[string]string   `json:"examples"`
+	ServerState string   `json:"server_state"`
+	ModelID     string   `json:"model_id"`
+	Models      []string `json:"models"`
+	PublicPort  int      `json:"public_port"`
+	LANExposed  bool     `json:"lan_exposed"`
+	Gateway     bool     `json:"gateway"`
+	KeyRequired bool     `json:"key_required"`
+	KeyCount    int      `json:"key_count"`
+	// LocalNoKey 는 이 컴퓨터에서 온 요청이 키 없이 통과하는지다. LocalKeyRequired 는 이 컴퓨터에서도 키가 필요한지다.
+	LocalNoKey       bool `json:"local_no_key"`
+	LocalKeyRequired bool `json:"local_key_required"`
+	// SlotCtx 와 Parallel 은 실행 중인 서버의 계획 값이다. 서버가 멈춰 있으면 0 이다.
+	SlotCtx   int                 `json:"slot_ctx"`
+	Parallel  int                 `json:"parallel"`
+	Hostname  string              `json:"hostname"`
+	LocalURL  string              `json:"local_url"`
+	Addresses []ConnectionAddress `json:"addresses"`
+	MDNSURL   string              `json:"mdns_url,omitempty"`
+	Warnings  []string            `json:"warnings"`
+	Examples  map[string]string   `json:"examples"`
 }
 
 // connectionInput 은 Connection 을 만드는 데 필요한 값이다. 순수 함수로 만들어 시험하기 쉽게 한다.
@@ -66,6 +73,12 @@ func buildConnection(in connectionInput) Connection {
 		Examples:    map[string]string{},
 	}
 	c.KeyRequired = in.Cfg.LANExposed || in.KeyCount > 0
+	c.LocalNoKey = in.Cfg.LocalNoKey
+	c.LocalKeyRequired = in.KeyCount > 0 && !in.Cfg.LocalNoKey
+	if in.Server.Plan != nil {
+		c.SlotCtx = in.Server.Plan.SlotCtx
+		c.Parallel = in.Server.Plan.Parallel
+	}
 	port := strconv.Itoa(in.Cfg.Port)
 	c.LocalURL = "http://127.0.0.1:" + port + "/v1"
 
@@ -125,6 +138,12 @@ func buildConnection(in connectionInput) Connection {
 	c.Examples["settings"] = fmt.Sprintf("Base URL: %s\nAPI key: <your API key>\nModel: %s", base, model)
 	c.Examples["curl"] = fmt.Sprintf("curl %s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", base, model)
 	c.Examples["openai_python"] = fmt.Sprintf("from openai import OpenAI\nclient = OpenAI(base_url=\"%s\", api_key=\"<your API key>\")\nreply = client.chat.completions.create(\n    model=\"%s\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n)\nprint(reply.choices[0].message.content)", base, model)
+	if frag, err := vedecaps.Fragment(vedecaps.Input{
+		BaseURL: base, ModelID: model, SlotCtx: c.SlotCtx,
+		NeedsKey: in.Cfg.LANExposed && len(c.Addresses) > 0 || c.LocalKeyRequired,
+	}); err == nil && model != "<model>" {
+		c.Examples["vedecaps"] = vedecaps.Pretty(frag)
+	}
 	c.Examples["environment"] = fmt.Sprintf("export OPENAI_BASE_URL=%s\nexport OPENAI_API_KEY=<your API key>", base)
 	return c
 }

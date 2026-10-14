@@ -24,6 +24,8 @@ type configPatch struct {
 	Overrides  *overridesJSON `json:"overrides"`
 	// Gateway 는 데몬이 공개 포트를 받아 키를 확인하게 할지다. 바꾸면 서버를 다시 시작해야 반영된다.
 	Gateway *bool `json:"gateway"`
+	// LocalNoKey 는 이 컴퓨터에서 온 요청이 키 없이 통과하는지다. 바로 반영된다.
+	LocalNoKey *bool `json:"local_no_key"`
 	// AutoRestart 는 서버가 예상 밖으로 멈췄을 때 데몬이 다시 시작할지다. 바로 반영된다.
 	AutoRestart *bool `json:"auto_restart"`
 }
@@ -79,6 +81,9 @@ func (s *server) putConfig(w http.ResponseWriter, r *http.Request) {
 	if patch.AutoRestart != nil {
 		next.AutoRestart = *patch.AutoRestart
 	}
+	if patch.LocalNoKey != nil {
+		next.LocalNoKey = *patch.LocalNoKey
+	}
 	if patch.Overrides != nil {
 		next.Overrides = config.Overrides{
 			NGL:       patch.Overrides.NGL,
@@ -87,6 +92,7 @@ func (s *server) putConfig(w http.ResponseWriter, r *http.Request) {
 			Batch:     patch.Overrides.Batch,
 			LoadMode:  patch.Overrides.LoadMode,
 			Parallel:  patch.Overrides.Parallel,
+			Profile:   patch.Overrides.Profile,
 		}
 	}
 	if err := next.Validate(); err != nil {
@@ -129,7 +135,7 @@ func restartRequired(old, next config.Config) bool {
 // sameOverrides 는 재정의 두 벌이 같은지 본다.
 func sameOverrides(a, b config.Overrides) bool {
 	return sameStr(a.NGL, b.NGL) && sameInt(a.Ctx, b.Ctx) && sameStr(a.CacheType, b.CacheType) &&
-		sameInt(a.Batch, b.Batch) && sameStr(a.LoadMode, b.LoadMode) && sameInt(a.Parallel, b.Parallel)
+		sameInt(a.Batch, b.Batch) && sameStr(a.LoadMode, b.LoadMode) && sameInt(a.Parallel, b.Parallel) && sameStr(a.Profile, b.Profile)
 }
 
 func sameStr(a, b *string) bool {

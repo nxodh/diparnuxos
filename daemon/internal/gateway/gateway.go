@@ -101,6 +101,18 @@ type Gateway struct {
 	MaxInFlight int
 	// Now 는 시계다. nil 이면 time.Now 다.
 	Now func() time.Time
+	// LocalNoKey 가 참을 돌려주면 이 컴퓨터에서 온 요청(루프백, 이 컴퓨터의 주소)은 키 없이 통과한다. 내부 포트가
+	// 이미 로컬 프로세스에 열려 있으므로 로컬 요청에 키를 요구해도 보안 이득이 없고, 같은 컴퓨터의 클라이언트
+	// (자동 감지를 하는 코딩 에이전트 등)가 키 없이 서버를 찾지 못하게 막을 뿐이다. nil 이면 거짓이다.
+	LocalNoKey func() bool
+	// Version 은 모든 응답의 X-Diparnux 헤더와 /diparnux/info 에 담는다.
+	Version string
+	// Info 는 /diparnux/info 의 본문이다(키 없이 읽힌다. 모델 경로나 설정은 담지 않는다). nil 이면 이 경로를 모델 서버로 넘긴다.
+	Info func() map[string]any
+
+	localMu   sync.Mutex
+	localIPs  map[string]bool
+	localIPAt time.Time
 
 	mu       sync.Mutex
 	usage    map[string]*counters
@@ -247,6 +259,13 @@ func (g *Gateway) Handler(backend *url.URL) http.Handler {
 		g.ensureLoaded()
 		g.mu.Unlock()
 		start := g.now()
+		if g.Version != "" {
+			w.Header().Set("X-Diparnux", g.Version)
+		}
+		if g.Info != nil && r.Method == http.MethodGet && r.URL.Path == "/diparnux/info" {
+			writeJSON(w, http.StatusOK, g.Info())
+			return
+		}
 
 		public := r.URL.Path == "/health" || r.URL.Path == "/v1/health"
 		var key apikeys.Key
@@ -255,6 +274,11 @@ func (g *Gateway) Handler(backend *url.URL) http.Handler {
 			keys := g.keys()
 			lan := g.LANExposed != nil && g.LANExposed()
 			switch {
+			case g.LocalNoKey != nil && g.LocalNoKey() && g.isLocal(r):
+				// 로컬 요청: 키를 내면 그 키로 집계하고, 없거나 틀려도 통과한다.
+				if k, ok := match(keys, presentedKey(r)); ok && presentedKey(r) != "" {
+					key, authed = k, true
+				}
 			case len(keys) == 0 && lan:
 				g.deny(w, r, start, "api_key_required", "LAN exposure needs at least one API key")
 				return
@@ -270,6 +294,7 @@ func (g *Gateway) Handler(backend *url.URL) http.Handler {
 		}
 
 		if g.MaxInFlight > 0 && g.inflight.Load() >= int64(g.MaxInFlight) {
+			w.Header().Set("Retry-After", "2")
 			writeJSONError(w, http.StatusTooManyRequests, "too_many_requests", "the server is busy; retry later")
 			return
 		}
@@ -336,6 +361,37 @@ func (g *Gateway) addRecent(e Recent) {
 		g.recent = append([]Recent(nil), g.recent[len(g.recent)-recentLimit:]...)
 	}
 	g.mu.Unlock()
+}
+
+// isLocal 은 요청이 이 컴퓨터에서 왔는지 본다: 루프백이거나 이 컴퓨터의 인터페이스 주소다.
+func (g *Gateway) isLocal(r *http.Request) bool {
+	ip := net.ParseIP(remoteHost(r))
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	g.localMu.Lock()
+	defer g.localMu.Unlock()
+	if g.localIPs == nil || g.now().Sub(g.localIPAt) > 10*time.Second {
+		set := map[string]bool{}
+		if addrs, err := net.InterfaceAddrs(); err == nil {
+			for _, a := range addrs {
+				if n, ok := a.(*net.IPNet); ok {
+					set[n.IP.String()] = true
+				}
+			}
+		}
+		g.localIPs, g.localIPAt = set, g.now()
+	}
+	return g.localIPs[ip.String()]
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func remoteHost(r *http.Request) string {

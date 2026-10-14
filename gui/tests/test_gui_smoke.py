@@ -50,7 +50,8 @@ ROUTES = {
     ("GET", "/v1/recommendations"): (200, {"basis": "gpu", "hardware": {"vram_mib": 6144, "ram_mib": 16000, "gpu_state": "ready"},
         "recommended": 0, "models": [{"name": "Gemma 3 4B IT", "repo": "r/g", "file": "g.gguf", "params": "4B", "size_mib": 2374,
         "license": "gemma", "fits": True, "placement": "gpu", "need_mib": 3400}]}),
-    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "overrides": {"parallel": 3}}),
+    ("GET", "/v1/config"): (200, {"port": 8080, "lan_exposed": False, "autostart": True, "models_dir": "/m", "hf_token": "", "local_no_key": True,
+        "overrides": {"parallel": 3, "profile": "agent"}}),
     ("PUT", "/v1/config"): (200, {"config": {}, "restart_required": True}),
     ("GET", "/v1/apikeys"): (200, {"keys": []}),
     ("GET", "/v1/network"): (200, {
@@ -71,11 +72,12 @@ ROUTES = {
         "server_state": "running", "model_id": "a.gguf", "models": ["a.gguf"], "public_port": 8080, "lan_exposed": True,
         "gateway": True, "key_required": True, "key_count": 1, "hostname": "diparnux", "local_url": "http://127.0.0.1:8080/v1",
         "addresses": [{"interface": "enp3s0", "address": "192.168.0.23", "family": "ipv4", "url": "http://192.168.0.23:8080/v1"}],
-        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."],
-        "examples": {"settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
+        "mdns_url": "http://diparnux.local:8080/v1", "warnings": ["No API key exists."], "slot_ctx": 8192,
+        "examples": {"vedecaps": "{\n  \"model\": \"diparnux/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
     ("GET", "/v1/gateway"): (200, {"enabled": True, "public_port": 8080, "lan_exposed": True, "state": {"listening": True, "addr": "0.0.0.0:8080", "backend_port": 18080},
         "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
         "keys": [{"id": "k1", "label": "orca", "prefix": "dpx_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
+    ("POST", "/v1/server/toolcheck"): (200, {"ok": False, "code": "no_tool_call", "message": "the model answered in text", "finish_reason": "stop", "latency_ms": 5}),
     ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
     ("GET", "/v1/firewall"): (200, {"policy": "drop", "max_rule": 64,
         "builtin": [{"name": "SSH", "protocol": "tcp", "port": 22, "source": "any", "reason": "the SSH server is on"}],
@@ -170,7 +172,16 @@ class SmokeTests(unittest.TestCase):
         server.parallel_row.set_value(4)
         self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1] == "/v1/config" for c in self.daemon.calls)))
         put = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1]
-        self.assertEqual(put[2], {"overrides": {"parallel": 4}})
+        self.assertEqual(put[2], {"overrides": {"parallel": 4, "profile": "agent"}})
+        # 저장된 용도와 키 면제가 보이고, 바꾸면 그대로 저장한다.
+        self.assertEqual(server.profile_row.get_selected(), 1)
+        self.assertTrue(server.local_row.get_active())
+        server.profile_row.set_selected(0)
+        self.assertTrue(pump(5, until=lambda: [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1][2]
+                             == {"overrides": {"parallel": 4}}), "the chat profile was not saved")
+        server.local_row.set_active(False)
+        self.assertTrue(pump(5, until=lambda: [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1][2]
+                             == {"local_no_key": False}), "local_no_key was not saved")
         self.assertIn("server log line", server.log_view.get_buffer().get_text(
             server.log_view.get_buffer().get_start_iter(), server.log_view.get_buffer().get_end_iter(), False))
         win.destroy()
@@ -191,6 +202,32 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("dpx_ab12", sub)
         page.check()
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
+
+    def test_vedecaps_page_connects_checks_tools_and_offers_the_agent_profile(self):
+        import diparnux_cc.vedecaps as vp
+
+        calls = []
+        orig_run, orig_find = vp.run_connect, vp.find_vedecaps
+        vp.run_connect = lambda: (calls.append("connect"), (True, "config   /home/u/.config/vedecaps/vedecaps.json"))[1]
+        vp.find_vedecaps = lambda: "/usr/local/bin/vedecaps"
+        try:
+            page = vp.VedecapsPage(self.ctx)
+            self.assertTrue(pump(5, until=lambda: "a.gguf" in (page.server_row.get_subtitle() or "")), "the server was not shown")
+            self.assertEqual(page.program_row.get_subtitle(), "/usr/local/bin/vedecaps")
+            # 슬롯당 컨텍스트가 작으면 에이전트 용도를 권한다. 저장된 용도가 agent 이면 단추를 숨긴다.
+            self.assertIn("8192", page.context_row.get_subtitle())
+            self.assertIn("16384", page.context_row.get_subtitle())
+            self.assertTrue(pump(5, until=lambda: len(page._example_rows) == 1), "the settings were not shown")
+            self.assertTrue(pump(5, until=lambda: page.profile_row.get_subtitle() not in (None, "-")))
+            self.assertFalse(page.profile_btn.get_visible(), "the stored profile is agent")
+
+            page.check_tools()
+            self.assertTrue(pump(5, until=lambda: "answered in text" in (page.tools_row.get_subtitle() or "")))
+
+            page.connect()
+            self.assertTrue(pump(5, until=lambda: calls == ["connect"]))
+        finally:
+            vp.run_connect, vp.find_vedecaps = orig_run, orig_find
 
     def test_models_page_imports_a_file(self):
         import tempfile
@@ -229,7 +266,7 @@ class SmokeTests(unittest.TestCase):
         names = [n for n, _t, _i in win._entries]
         self.assertEqual(
             names,
-            ["dashboard", "models", "server", "connection", "network", "firewall", "remote", "services", "resources", "system"],
+            ["dashboard", "models", "server", "connection", "vedecaps", "network", "firewall", "remote", "services", "resources", "system"],
         )
         for name in names:
             self.assertIsNotNone(win.stack.get_child_by_name(name), name)
@@ -423,6 +460,27 @@ class SmokeTests(unittest.TestCase):
         puts = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/firstboot"]
         self.assertEqual(len(puts), 1)
         self.assertEqual(puts[0][2]["done"], True)
+        win.destroy()
+
+    def test_wizard_model_step_lets_the_user_pick_the_use(self):
+        from diparnux_cc import logic
+        from diparnux_cc.window import MainWindow
+        from diparnux_cc.wizard import WizardWindow
+
+        win = MainWindow(self.app, self.ctx)
+        wiz = WizardWindow(self.ctx, parent=win)
+        wiz.present()
+        self.assertTrue(pump(5, until=lambda: wiz._data.get("status") is not None))
+        wiz._index = logic.STEPS.index("model")
+        wiz._render()
+        self.assertTrue(hasattr(wiz, "_use"), "the model step has no use selector")
+        # 시험 설정의 저장된 용도는 agent 다. 선택기도 그것을 보여 준다.
+        self.assertEqual(wiz._use.get_selected(), 1)
+        before = len([c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"])
+        wiz._use.set_selected(0)
+        self.assertTrue(pump(5, until=lambda: len([c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"]) > before))
+        put = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/config"][-1]
+        self.assertEqual(put[2], {"overrides": {"parallel": 3}})
         win.destroy()
 
 

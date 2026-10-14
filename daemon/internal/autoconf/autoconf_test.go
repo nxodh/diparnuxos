@@ -730,3 +730,104 @@ func TestParallelOverrideIsValidated(t *testing.T) {
 		t.Fatalf("parallel = %d, warnings = %v", out.Parallel, out.Warnings)
 	}
 }
+
+func TestAgentProfilePrefersLongContextAndTwoSlots(t *testing.T) {
+	roomy := withGPUs(refModel(), gpu(0, 48000))
+	chat := Plan(roomy)
+	roomy.Overrides.Profile = strp(ProfileAgent)
+	agent := Plan(roomy)
+	if chat.SlotCtx > 8192 {
+		t.Fatalf("the chat profile must stay conservative: %d", chat.SlotCtx)
+	}
+	if agent.Parallel != 2 || agent.SlotCtx != 32768 || agent.Ctx != 65536 {
+		t.Fatalf("agent plan = parallel %d slot ctx %d ctx %d", agent.Parallel, agent.SlotCtx, agent.Ctx)
+	}
+	if !contains(agent.Rationale, "agent profile") || contains(agent.Warnings, "compact its history") {
+		t.Fatalf("rationale = %v warnings = %v", agent.Rationale, agent.Warnings)
+	}
+	// 사용자가 직접 준 슬롯 수와 컨텍스트가 프로필보다 우선한다.
+	roomy.Overrides.Parallel = intp(1)
+	roomy.Overrides.Ctx = intp(20000)
+	manual := Plan(roomy)
+	if manual.Parallel != 1 || manual.SlotCtx != 20000 {
+		t.Fatalf("manual = parallel %d slot ctx %d", manual.Parallel, manual.SlotCtx)
+	}
+}
+
+func TestAgentProfileWarnsWhenMemoryIsTight(t *testing.T) {
+	tight := withGPUs(refModel(), gpu(0, 6500))
+	tight.Overrides.Profile = strp(ProfileAgent)
+	out := Plan(tight)
+	if out.SlotCtx >= 16384 && !out.CPUOnly {
+		t.Skipf("model fits with a roomy context: %d", out.SlotCtx)
+	}
+	if !contains(out.Warnings, "compact its history") {
+		t.Fatalf("warnings = %v (slot ctx %d)", out.Warnings, out.SlotCtx)
+	}
+}
+
+func TestAgentProfileOnCPUKeepsOneSlot(t *testing.T) {
+	in := refModel()
+	in.Overrides.Profile = strp(ProfileAgent)
+	out := Plan(in)
+	if out.Parallel != 1 || !out.CPUOnly {
+		t.Fatalf("cpu agent plan = %+v", out)
+	}
+}
+
+func TestProfileIsValidated(t *testing.T) {
+	if err := ValidateOverrides(Overrides{Profile: strp("turbo")}); err == nil {
+		t.Fatal("an unknown profile was accepted")
+	}
+	for _, ok := range []string{ProfileChat, ProfileAgent} {
+		if err := ValidateOverrides(Overrides{Profile: strp(ok)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestAgentProfileReusesPromptCacheAndCacheRAMIsBounded(t *testing.T) {
+	in := withGPUs(refModel(), gpu(0, 24000))
+	in.RAMTotalMiB = 16000
+	chat := Plan(in)
+	if chat.CacheReuse != 0 {
+		t.Fatalf("chat profile cache reuse = %d", chat.CacheReuse)
+	}
+	if chat.CacheRAMMiB != 2000 {
+		t.Fatalf("cache RAM for 16000 MiB = %d, want 2000", chat.CacheRAMMiB)
+	}
+	in.Overrides.Profile = strp(ProfileAgent)
+	agent := Plan(in)
+	if agent.CacheReuse != 256 || !contains(agent.Rationale, "cache reuse") {
+		t.Fatalf("agent cache reuse = %d rationale = %v", agent.CacheReuse, agent.Rationale)
+	}
+	in.RAMTotalMiB = 2000
+	if got := Plan(in).CacheRAMMiB; got != 512 {
+		t.Fatalf("small machine cache RAM = %d, want the 512 floor", got)
+	}
+	in.RAMTotalMiB = 262144
+	if got := Plan(in).CacheRAMMiB; got != 8192 {
+		t.Fatalf("large machine cache RAM = %d, want the 8192 ceiling", got)
+	}
+	in.RAMTotalMiB = 0
+	if got := Plan(in).CacheRAMMiB; got != 0 {
+		t.Fatalf("unknown RAM must leave the server default, got %d", got)
+	}
+}
+
+func TestParallelIsFixedOnlyWhenTheUserOrTheAgentProfileSetsIt(t *testing.T) {
+	in := withGPUs(refModel(), gpu(0, 24000))
+	if Plan(in).ParallelFixed {
+		t.Fatal("the default plan must leave the slot count to the server")
+	}
+	one := 1
+	in.Overrides.Parallel = &one
+	if p := Plan(in); !p.ParallelFixed || p.Parallel != 1 {
+		t.Fatalf("an explicit single slot = %+v", p)
+	}
+	in.Overrides.Parallel = nil
+	in.Overrides.Profile = strp(ProfileAgent)
+	if p := Plan(in); !p.ParallelFixed || p.Parallel != 2 {
+		t.Fatalf("agent profile = %+v", p)
+	}
+}

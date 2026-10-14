@@ -24,9 +24,11 @@ done
 for path in usr/sbin/diparnuxd usr/bin/diparnux usr/lib/diparnux/check-gpu-permissions usr/lib/diparnux/diparnux-update usr/lib/diparnux/diparnux-admin usr/sbin/diparnux-install; do
     [[ -x "$WORK/root/$path" ]]
 done
-for path in etc/default/grub.d/20-diparnux.cfg usr/lib/systemd/system/diparnux-update-verify.service usr/lib/sysusers.d/diparnux.conf usr/lib/tmpfiles.d/diparnux-daemon.conf usr/share/diparnux/firewall-default.nft usr/share/doc/diparnux-daemon/go-nvml.LICENSE; do
+for path in etc/default/grub.d/20-diparnux.cfg usr/lib/systemd/system/diparnux-update-verify.service usr/lib/sysusers.d/diparnux.conf usr/lib/tmpfiles.d/diparnux-daemon.conf usr/share/diparnux/firewall-default.nft usr/share/diparnux/skills/diparnux/SKILL.md usr/share/doc/diparnux-daemon/go-nvml.LICENSE; do
     [[ -s "$WORK/root/$path" ]]
 done
+# 새 계정의 에이전트 스킬 목록에 보이도록 skel 에 링크가 있어야 한다.
+[[ "$(readlink "$WORK/root/etc/skel/.agents/skills/diparnux")" == /usr/share/diparnux/skills/diparnux ]]
 [[ "$("$WORK/root/usr/sbin/diparnuxd" --version)" == "diparnuxd $DIPARNUX_VERSION" ]]
 [[ "$("$WORK/root/usr/bin/diparnux" version)" == "diparnux $DIPARNUX_VERSION" ]]
 # trimpath와 buildvcs=false가 실제 ELF에 반영됐는지 Go 빌드 메타데이터로 확인한다.

@@ -32,9 +32,12 @@ type Config struct {
 	// Gateway 가 true 이면 데몬이 공개 포트(Port)를 받아 키를 확인하고 llama-server 로 넘긴다. llama-server 는
 	// 127.0.0.1:InternalPort 에서만 연다. 키 변경이 서버 재시작 없이 반영되고 키별 사용량을 알 수 있다. false 이면
 	// 예전처럼 llama-server 가 Port 를 직접 받는다. 바꾸면 서버를 다시 시작해야 반영된다.
-	Gateway      bool      `json:"gateway"`
-	InternalPort int       `json:"internal_port"` // 게이트웨이를 쓸 때 llama-server 가 여는 포트(127.0.0.1), 기본 18080
-	Overrides    Overrides `json:"overrides"`     // 자동 계획을 덮어쓰는 수동 값
+	Gateway      bool `json:"gateway"`
+	InternalPort int  `json:"internal_port"` // 게이트웨이를 쓸 때 llama-server 가 여는 포트(127.0.0.1), 기본 18080
+	// LocalNoKey 가 true 이면 이 컴퓨터에서 온 요청은 키 없이 게이트웨이를 통과한다(기본 true). LAN 의 다른 컴퓨터는
+	// 여전히 키가 필요하다. 내부 포트가 로컬 프로세스에 열려 있으므로 새 위험은 아니다.
+	LocalNoKey bool      `json:"local_no_key"`
+	Overrides  Overrides `json:"overrides"` // 자동 계획을 덮어쓰는 수동 값
 }
 
 // Overrides는 autoconf의 재정의와 같은 항목이다. nil이면 자동 계획을 쓴다.
@@ -45,6 +48,7 @@ type Overrides struct {
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
 	Parallel  *int    `json:"parallel,omitempty"`
+	Profile   *string `json:"profile,omitempty"`
 }
 
 // Default는 설정 파일이 없을 때 쓰는 기본값이다.
@@ -56,6 +60,7 @@ func Default() Config {
 		ModelsDir:    "/var/lib/diparnux/models",
 		Gateway:      true,
 		InternalPort: 18080,
+		LocalNoKey:   true,
 	}
 }
 
@@ -191,6 +196,7 @@ func (o Overrides) toAutoconf() autoconf.Overrides {
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
 		Parallel:  copyInt(o.Parallel),
+		Profile:   copyStr(o.Profile),
 	}
 }
 
@@ -203,6 +209,7 @@ func copyOverrides(o Overrides) Overrides {
 		Batch:     copyInt(o.Batch),
 		LoadMode:  copyStr(o.LoadMode),
 		Parallel:  copyInt(o.Parallel),
+		Profile:   copyStr(o.Profile),
 	}
 }
 

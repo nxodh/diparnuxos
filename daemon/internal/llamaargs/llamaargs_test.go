@@ -329,4 +329,29 @@ func TestEnvParallelSlots(t *testing.T) {
 	if env["LLAMA_ARG_N_PARALLEL"] != "4" {
 		t.Fatalf("env = %v", env)
 	}
+	// 사용자가 슬롯 하나를 명시하면 서버의 자동 슬롯(여러 개)에 맡기지 않는다.
+	p.Parallel, p.ParallelFixed = 1, true
+	env, err = Env(p, lanSettings())
+	if err != nil || env["LLAMA_ARG_N_PARALLEL"] != "1" {
+		t.Fatalf("explicit single slot env = %v, %v", env, err)
+	}
+}
+
+func TestEnvCacheReuseAndCacheRAMOnlyWhenPlanned(t *testing.T) {
+	p := autoconf.Plan(autoconf.Input{ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, RAMAvailMiB: 8000, RAMTotalMiB: 16000})
+	env, err := Env(p, ServerSettings{ModelPath: "/m/a.gguf", Host: "127.0.0.1", Port: 8080})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := env["LLAMA_ARG_CACHE_REUSE"]; ok {
+		t.Fatal("cache reuse must stay off for the chat profile")
+	}
+	if env["LLAMA_ARG_CACHE_RAM"] != "2000" {
+		t.Fatalf("LLAMA_ARG_CACHE_RAM = %q", env["LLAMA_ARG_CACHE_RAM"])
+	}
+	p.CacheReuse = 256
+	env, _ = Env(p, ServerSettings{ModelPath: "/m/a.gguf", Host: "127.0.0.1", Port: 8080})
+	if env["LLAMA_ARG_CACHE_REUSE"] != "256" {
+		t.Fatalf("LLAMA_ARG_CACHE_REUSE = %q", env["LLAMA_ARG_CACHE_REUSE"])
+	}
 }

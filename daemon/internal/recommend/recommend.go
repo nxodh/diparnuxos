@@ -16,18 +16,22 @@ type Model struct {
 	Quant   string `json:"quant"`
 	SizeMiB int64  `json:"size_mib"`
 	License string `json:"license"`
+	// Tools 는 모델 카드 기준으로 채팅 틀이 도구 호출을 지원하는지다. 이 컴퓨터에서의 실제 동작은 `diparnux serve toolcheck` 로 확인한다.
+	Tools bool `json:"tools"`
+	// Agent 는 코딩 에이전트에 권하는지다. 도구 호출을 지원하고 8B 이상이어야 한다. 더 작은 모델은 도구를 불러도 파일을 안정적으로 고치지 못한다.
+	Agent bool `json:"agent"`
 }
 
 // Catalog는 작은 모델부터 큰 모델 순으로 정렬한 목록이다.
 var Catalog = []Model{
-	{Name: "Qwen2.5 0.5B Instruct", Repo: "Qwen/Qwen2.5-0.5B-Instruct-GGUF", File: "qwen2.5-0.5b-instruct-q4_k_m.gguf", Params: "0.5B", Quant: "Q4_K_M", SizeMiB: 469, License: "apache-2.0"},
-	{Name: "Qwen3 1.7B", Repo: "ggml-org/Qwen3-1.7B-GGUF", File: "Qwen3-1.7B-Q4_K_M.gguf", Params: "1.7B", Quant: "Q4_K_M", SizeMiB: 1223, License: "apache-2.0"},
-	{Name: "Gemma 3 4B IT", Repo: "ggml-org/gemma-3-4b-it-GGUF", File: "gemma-3-4b-it-Q4_K_M.gguf", Params: "4B", Quant: "Q4_K_M", SizeMiB: 2374, License: "gemma"},
-	{Name: "Llama 3.1 8B Instruct", Repo: "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF", File: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", Params: "8B", Quant: "Q4_K_M", SizeMiB: 4693, License: "llama3.1"},
-	{Name: "Gemma 3 12B IT", Repo: "ggml-org/gemma-3-12b-it-GGUF", File: "gemma-3-12b-it-Q4_K_M.gguf", Params: "12B", Quant: "Q4_K_M", SizeMiB: 6962, License: "gemma"},
-	{Name: "Qwen3 14B", Repo: "ggml-org/Qwen3-14B-GGUF", File: "Qwen3-14B-Q4_K_M.gguf", Params: "14B", Quant: "Q4_K_M", SizeMiB: 8585, License: "apache-2.0"},
-	{Name: "Gemma 3 27B IT", Repo: "ggml-org/gemma-3-27b-it-GGUF", File: "gemma-3-27b-it-Q4_K_M.gguf", Params: "27B", Quant: "Q4_K_M", SizeMiB: 15780, License: "gemma"},
-	{Name: "Qwen3 32B", Repo: "ggml-org/Qwen3-32B-GGUF", File: "Qwen3-32B-Q4_K_M.gguf", Params: "32B", Quant: "Q4_K_M", SizeMiB: 18847, License: "apache-2.0"},
+	{Name: "Qwen2.5 0.5B Instruct", Repo: "Qwen/Qwen2.5-0.5B-Instruct-GGUF", File: "qwen2.5-0.5b-instruct-q4_k_m.gguf", Params: "0.5B", Quant: "Q4_K_M", SizeMiB: 469, License: "apache-2.0", Tools: true, Agent: false},
+	{Name: "Qwen3 1.7B", Repo: "ggml-org/Qwen3-1.7B-GGUF", File: "Qwen3-1.7B-Q4_K_M.gguf", Params: "1.7B", Quant: "Q4_K_M", SizeMiB: 1223, License: "apache-2.0", Tools: true, Agent: false},
+	{Name: "Gemma 3 4B IT", Repo: "ggml-org/gemma-3-4b-it-GGUF", File: "gemma-3-4b-it-Q4_K_M.gguf", Params: "4B", Quant: "Q4_K_M", SizeMiB: 2374, License: "gemma", Tools: false, Agent: false},
+	{Name: "Llama 3.1 8B Instruct", Repo: "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF", File: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", Params: "8B", Quant: "Q4_K_M", SizeMiB: 4693, License: "llama3.1", Tools: true, Agent: true},
+	{Name: "Gemma 3 12B IT", Repo: "ggml-org/gemma-3-12b-it-GGUF", File: "gemma-3-12b-it-Q4_K_M.gguf", Params: "12B", Quant: "Q4_K_M", SizeMiB: 6962, License: "gemma", Tools: false, Agent: false},
+	{Name: "Qwen3 14B", Repo: "ggml-org/Qwen3-14B-GGUF", File: "Qwen3-14B-Q4_K_M.gguf", Params: "14B", Quant: "Q4_K_M", SizeMiB: 8585, License: "apache-2.0", Tools: true, Agent: true},
+	{Name: "Gemma 3 27B IT", Repo: "ggml-org/gemma-3-27b-it-GGUF", File: "gemma-3-27b-it-Q4_K_M.gguf", Params: "27B", Quant: "Q4_K_M", SizeMiB: 15780, License: "gemma", Tools: false, Agent: false},
+	{Name: "Qwen3 32B", Repo: "ggml-org/Qwen3-32B-GGUF", File: "Qwen3-32B-Q4_K_M.gguf", Params: "32B", Quant: "Q4_K_M", SizeMiB: 18847, License: "apache-2.0", Tools: true, Agent: true},
 }
 
 // 적합 여부를 어림하는 상수다. 가중치 크기에 KV 캐시와 런타임 여유를 더한다.

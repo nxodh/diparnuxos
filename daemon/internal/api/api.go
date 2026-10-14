@@ -204,6 +204,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("POST /v1/server/stop", s.postStop)
 	s.mux.HandleFunc("GET /v1/server/logs", s.getLogs)
 	s.mux.HandleFunc("POST /v1/server/chat", s.postChat)
+	s.mux.HandleFunc("POST /v1/server/toolcheck", s.postToolCheck)
 
 	s.mux.HandleFunc("GET /v1/config", s.getConfig)
 	s.mux.HandleFunc("PUT /v1/config", s.putConfig)

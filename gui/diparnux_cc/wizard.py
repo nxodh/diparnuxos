@@ -183,7 +183,44 @@ class WizardWindow(Adw.Window):
 
         CreateAccountDialog(self.ctx, on_created=created).present(self)
 
+    def _use_extras(self):
+        """모델을 어떻게 쓸지 고른다. 코딩 에이전트(Vedecaps 등)는 요청마다 긴 컨텍스트가 필요하다."""
+        cfg = self._data.get("config") or {}
+        overrides = dict(cfg.get("overrides") or {})
+        group = Adw.PreferencesGroup(title=_("How will you use the model?"))
+        self._use = Adw.ComboRow(title=_("Use"))
+        self._use.set_subtitle(_("Coding agents such as Vedecaps need a long context for each request. You can change this later in the Server page."))
+        self._use.set_model(Gtk.StringList.new([_("Chat"), _("Coding agent")]))
+        self._use.set_selected(1 if overrides.get("profile") == "agent" else 0)
+        self._use_busy = False
+        self._use.connect("notify::selected", self._on_use)
+        group.add(self._use)
+        self._add_group(group)
+
+    def _on_use(self, row, _pspec):
+        if self._use_busy:
+            return
+        cfg = self._data.get("config") or {}
+        overrides = dict(cfg.get("overrides") or {})
+        if row.get_selected() == 1:
+            overrides["profile"] = "agent"
+        else:
+            overrides.pop("profile", None)
+
+        def done(result):
+            if isinstance(result.get("config"), dict):
+                self._data["config"] = result["config"]
+
+        def revert(exc):
+            self.ctx.toast_error(exc)
+            self._use_busy = True
+            row.set_selected(0 if row.get_selected() == 1 else 1)
+            self._use_busy = False
+
+        run_async(lambda: self.ctx.client.set_config(overrides=overrides), done, revert)
+
     def _model_extras(self):
+        self._use_extras()
         rec = self._data.get("recommendations") or {}
         idx = rec.get("recommended", -1)
         models = rec.get("models") or []

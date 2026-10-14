@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -332,5 +333,176 @@ func TestManagerRefusesSharedPort(t *testing.T) {
 	m.reconcile()
 	if st := m.State(); st.Listening || !strings.Contains(st.Error, "restart") {
 		t.Fatalf("state: %+v", st)
+	}
+}
+
+// doFrom 은 출발지 주소를 지정해 요청한다.
+func doFrom(h http.Handler, remote, method, path, auth string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(`{}`))
+	r.RemoteAddr = remote
+	if auth != "" {
+		r.Header.Set("Authorization", auth)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
+}
+
+func TestLocalRequestsNeedNoKeyWhenAllowed(t *testing.T) {
+	keys := &fakeKeys{}
+	plain := "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	keys.set(keyFor("k1", "laptop", plain))
+	g, h, _ := newGateway(t, keys, true)
+	g.LocalNoKey = func() bool { return true }
+
+	// 루프백은 키 없이 통과한다. 다른 컴퓨터는 여전히 키가 필요하다.
+	if w := doFrom(h, "127.0.0.1:5000", "GET", "/props", ""); w.Code != 200 {
+		t.Fatalf("loopback without a key = %d", w.Code)
+	}
+	if w := doFrom(h, "[::1]:5000", "GET", "/v1/models", ""); w.Code != 200 {
+		t.Fatalf("ipv6 loopback without a key = %d", w.Code)
+	}
+	if w := doFrom(h, "192.0.2.77:5000", "GET", "/v1/models", ""); w.Code != 401 {
+		t.Fatalf("a remote computer without a key = %d", w.Code)
+	}
+	// 로컬이어도 키를 내면 그 키로 집계한다.
+	if w := doFrom(h, "127.0.0.1:5000", "POST", "/v1/chat/completions", "Bearer "+plain); w.Code != 200 {
+		t.Fatalf("loopback with a key = %d", w.Code)
+	}
+	usage := g.Snapshot().Keys
+	if len(usage) != 1 || usage[0].Requests != 1 {
+		t.Fatalf("usage = %+v", usage)
+	}
+	// 끄면 로컬에서도 키가 필요하다.
+	g.LocalNoKey = func() bool { return false }
+	if w := doFrom(h, "127.0.0.1:5000", "GET", "/v1/models", ""); w.Code != 401 {
+		t.Fatalf("loopback with local_no_key off = %d", w.Code)
+	}
+}
+
+func TestInfoEndpointAndVersionHeader(t *testing.T) {
+	keys := &fakeKeys{}
+	keys.set(keyFor("k1", "laptop", "dpx_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	g, h, _ := newGateway(t, keys, true)
+	g.Version = "0.5.3"
+	g.Info = func() map[string]any {
+		return map[string]any{"diparnux": "0.5.3", "model": "m.gguf", "ctx_per_slot": 16384}
+	}
+
+	// /diparnux/info 는 키 없이 읽힌다. 헤더는 모든 응답에 붙는다.
+	w := doFrom(h, "192.0.2.77:5000", "GET", "/diparnux/info", "")
+	if w.Code != 200 || w.Header().Get("X-Diparnux") != "0.5.3" || !strings.Contains(w.Body.String(), `"ctx_per_slot":16384`) {
+		t.Fatalf("info = %d %q %v", w.Code, w.Body.String(), w.Header())
+	}
+	if strings.Contains(w.Body.String(), "path") {
+		t.Fatal("the info endpoint must not expose paths")
+	}
+	if w := doFrom(h, "192.0.2.77:5000", "GET", "/v1/models", ""); w.Code != 401 || w.Header().Get("X-Diparnux") != "0.5.3" {
+		t.Fatalf("models = %d %v", w.Code, w.Header())
+	}
+	// POST 는 정보 경로가 아니다(모델 서버로 넘어가므로 키가 필요하다).
+	if w := doFrom(h, "192.0.2.77:5000", "POST", "/diparnux/info", ""); w.Code != 401 {
+		t.Fatalf("post = %d", w.Code)
+	}
+}
+
+func TestBusyAnswerAsksToRetry(t *testing.T) {
+	be := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+	}))
+	defer be.Close()
+	u, _ := url.Parse(be.URL)
+	g := &Gateway{Keys: &fakeKeys{}, MaxInFlight: 1}
+	h := g.Handler(u)
+	go do(h, "GET", "/slow", "")
+	time.Sleep(50 * time.Millisecond)
+	w := do(h, "GET", "/slow", "")
+	if w.Code != 429 || w.Header().Get("Retry-After") != "2" {
+		t.Fatalf("busy = %d %v", w.Code, w.Header())
+	}
+}
+
+// 코딩 에이전트는 SSE 로 토큰을 받아 화면에 바로 쓴다. 게이트웨이가 청크를 모아 두었다 내보내면 안 된다.
+// 두 번째 청크는 클라이언트가 첫 청크를 읽은 뒤에야 모델 서버가 내보낸다. 줄 단위로 읽어 도착 순서를 확인한다.
+func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
+	release := make(chan struct{})
+	be := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fl := w.(http.Flusher)
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n")
+		fl.Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}],\"usage\":{\"completion_tokens\":2}}\n\n")
+		fl.Flush()
+		io.WriteString(w, "data: [DONE]\n\n")
+		fl.Flush()
+	}))
+	defer be.Close()
+	u, _ := url.Parse(be.URL)
+	g := &Gateway{Keys: &fakeKeys{}, LANExposed: func() bool { return false }, Version: "0.5.3"}
+	front := httptest.NewServer(g.Handler(u))
+	defer front.Close()
+
+	client := &http.Client{Transport: &http.Transport{}}
+	defer client.CloseIdleConnections()
+	req, _ := http.NewRequest("POST", front.URL+"/v1/chat/completions", strings.NewReader(`{"stream":true}`))
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") || resp.Header.Get("X-Diparnux") != "0.5.3" {
+		t.Fatalf("headers = %v", resp.Header)
+	}
+
+	// 줄을 읽는 일은 별도 고루틴에서 하고, 읽은 줄을 채널로 받는다.
+	lines := make(chan string, 16)
+	readErr := make(chan error, 1)
+	go func() {
+		sc := bufio.NewScanner(resp.Body)
+		for sc.Scan() {
+			lines <- sc.Text()
+		}
+		readErr <- sc.Err()
+		close(lines)
+	}()
+	next := func(what string) string {
+		t.Helper()
+		select {
+		case l, ok := <-lines:
+			if !ok {
+				t.Fatalf("the stream ended before %s", what)
+			}
+			return l
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out waiting for %s: the gateway may buffer the stream", what)
+		}
+		return ""
+	}
+	first := next("the first event")
+	if !strings.Contains(first, `"content":"a"`) {
+		t.Fatalf("first event = %q", first)
+	}
+	// 첫 이벤트가 도착했으니 이제 두 번째를 내보내게 한다.
+	close(release)
+	var rest []string
+	for len(rest) < 8 {
+		l := next("the end of the stream")
+		if l == "" {
+			continue
+		}
+		rest = append(rest, l)
+		if l == "data: [DONE]" {
+			break
+		}
+	}
+	joined := strings.Join(rest, "\n")
+	if !strings.Contains(joined, "completion_tokens") || !strings.HasSuffix(joined, "[DONE]") {
+		t.Fatalf("rest = %q", joined)
 	}
 }

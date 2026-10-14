@@ -46,3 +46,37 @@ func TestRuntimePlanRestoresParallelSlots(t *testing.T) {
 		t.Fatalf("single slot plan = %+v, %v", one, err)
 	}
 }
+
+// 계획이 만드는 환경 변수는 모두 다시 맡을 때 되살아야 한다. 새 옵션을 환경에 넣고 여기를 빠뜨리면
+// 데몬을 다시 시작한 뒤 실행 중인 서버를 채택하지 못한다(0.5.3 의 캐시 옵션이 그랬다).
+func TestRuntimePlanRoundTripsEveryPlannedEnvironment(t *testing.T) {
+	settings := llamaargs.ServerSettings{ModelPath: "/var/lib/diparnux/models/m.gguf", Host: "127.0.0.1", Port: 18080, Alias: "m.gguf", Metrics: true}
+	agent, chat := "agent", "chat"
+	four, one := 4, 1
+	plans := map[string]autoconf.Input{
+		"chat gpu":       {ModelBytes: 4 << 30, Layers: 32, Embedding: 4096, CtxTrain: 8192, GPUs: []autoconf.GPU{{Index: 0, TotalMiB: 12000, FreeMiB: 11000}}, RAMAvailMiB: 20000, RAMTotalMiB: 32000},
+		"agent gpu":      {ModelBytes: 4 << 30, Layers: 32, Embedding: 4096, CtxTrain: 32768, GPUs: []autoconf.GPU{{Index: 0, TotalMiB: 24000, FreeMiB: 23000}}, RAMAvailMiB: 20000, RAMTotalMiB: 32000, Overrides: autoconf.Overrides{Profile: &agent}},
+		"agent cpu":      {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 32768, RAMAvailMiB: 6000, RAMTotalMiB: 8000, Overrides: autoconf.Overrides{Profile: &agent}},
+		"chat four":      {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000, RAMTotalMiB: 16000, Overrides: autoconf.Overrides{Profile: &chat, Parallel: &four}},
+		"explicit one":   {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000, RAMTotalMiB: 16000, Overrides: autoconf.Overrides{Parallel: &one}},
+		"unknown memory": {ModelBytes: 1 << 30, Layers: 24, Embedding: 2048, CtxTrain: 8192, RAMAvailMiB: 6000},
+	}
+	for name, in := range plans {
+		plan := autoconf.Plan(in)
+		env, err := llamaargs.Env(plan, settings)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got, gotSettings, err := runtimePlan(env)
+		if err != nil {
+			t.Fatalf("%s: runtime plan: %v\nenv: %v", name, err, env)
+		}
+		again, err := llamaargs.Env(got, gotSettings)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !sameEnvironment(again, env) {
+			t.Fatalf("%s: environment changed after a round trip\n got: %v\nwant: %v", name, again, env)
+		}
+	}
+}

@@ -1401,3 +1401,16 @@ func TestExposureExitCodeFollowsTheFindings(t *testing.T) {
 	res = runCLI(t, f, "exposure")
 	wantCode(t, res, exitOK)
 }
+
+func TestServeToolCheckReportsResult(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/server/toolcheck", 200, `{"ok":true,"code":"ok","message":"the model calls tools correctly","finish_reason":"tool_calls","latency_ms":820}`)
+	res := runCLI(t, f, "serve", "toolcheck")
+	wantCode(t, res, exitOK)
+	wantContains(t, "toolcheck", res.stdout, "working", "tool_calls", "820 ms")
+
+	f.on("POST /v1/server/toolcheck", 200, `{"ok":false,"code":"no_tool_call","message":"the model answered in text","finish_reason":"stop","latency_ms":300}`)
+	res = runCLI(t, f, "serve", "toolcheck")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "toolcheck broken", res.stdout, "not working", "answered in text")
+}

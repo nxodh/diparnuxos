@@ -196,6 +196,25 @@ func run(args []string) error {
 		Keys:       keys,
 		LANExposed: func() bool { return src.get().LANExposed },
 		UsagePath:  *stateDir + "/api-usage.json",
+		LocalNoKey: func() bool { return src.get().LocalNoKey },
+		Version:    version,
+		Info: func() map[string]any {
+			st := sup.Status()
+			info := map[string]any{"diparnux": version, "server": string(st.State)}
+			if st.ModelID != "" {
+				info["model"] = st.ModelID
+			}
+			if st.Plan != nil {
+				info["ctx_per_slot"] = st.Plan.SlotCtx
+				if st.Plan.ParallelFixed {
+					info["slots"] = max(st.Plan.Parallel, 1)
+				} else {
+					// 슬롯 수를 명시하지 않았다. llama-server 가 자동으로 정하므로 값을 지어내지 않는다.
+					info["slots_auto"] = true
+				}
+			}
+			return info
+		},
 	}
 	gwMgr := &gateway.Manager{
 		G: gw,

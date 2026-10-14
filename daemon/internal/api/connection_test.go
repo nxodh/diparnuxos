@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
 	"github.com/nxodh/diparnuxos/daemon/internal/network"
 	"github.com/nxodh/diparnuxos/daemon/internal/supervisor"
@@ -70,5 +71,35 @@ func TestConnectionWarnings(t *testing.T) {
 	in.KeyCount = 0
 	if w := strings.Join(buildConnection(in).Warnings, "\n"); !strings.Contains(w, "No API key") {
 		t.Fatalf("warnings = %q", w)
+	}
+}
+
+func TestConnectionVedecapsExampleAndLocalKeyState(t *testing.T) {
+	in := baseConnectionInput()
+	in.Server.Plan = &autoconf.Output{SlotCtx: 32768, Parallel: 2}
+	c := buildConnection(in)
+	ex := c.Examples["vedecaps"]
+	for _, want := range []string{`"api": "http://192.168.0.23:8080/v1"`, `"model": "diparnux/gemma.gguf"`, `"context": 32768`, `{env:DIPARNUX_API_KEY}`} {
+		if !strings.Contains(ex, want) {
+			t.Fatalf("example lacks %s:\n%s", want, ex)
+		}
+	}
+	if c.SlotCtx != 32768 || c.Parallel != 2 {
+		t.Fatalf("slot ctx = %d parallel = %d", c.SlotCtx, c.Parallel)
+	}
+	// 기본값(local_no_key)에서는 이 컴퓨터에서 키가 필요 없다. 끄면 키가 있을 때 필요해진다.
+	if !c.LocalNoKey || c.LocalKeyRequired {
+		t.Fatalf("local no key = %v required = %v", c.LocalNoKey, c.LocalKeyRequired)
+	}
+	in.Cfg.LocalNoKey = false
+	if c := buildConnection(in); c.LocalNoKey || !c.LocalKeyRequired {
+		t.Fatalf("with local_no_key off: %v %v", c.LocalNoKey, c.LocalKeyRequired)
+	}
+	// LAN 공개가 꺼져 있고 키 면제가 켜져 있으면 예시에 키가 없다.
+	in = baseConnectionInput()
+	in.Cfg.LANExposed = false
+	c = buildConnection(in)
+	if strings.Contains(c.Examples["vedecaps"], "apiKey") || !strings.Contains(c.Examples["vedecaps"], "127.0.0.1:8080/v1") {
+		t.Fatalf("local example:\n%s", c.Examples["vedecaps"])
 	}
 }

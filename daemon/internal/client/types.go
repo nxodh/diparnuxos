@@ -121,6 +121,8 @@ type Plan struct {
 	Batch          int      `json:"batch"`
 	Parallel       int      `json:"parallel"`
 	SlotCtx        int      `json:"slot_ctx"`
+	CacheReuse     int      `json:"cache_reuse"`
+	CacheRAMMiB    int      `json:"cache_ram_mib"`
 	TensorSplit    string   `json:"tensor_split,omitempty"`
 	VisibleDevices []int    `json:"visible_devices"`
 	LoadMode       string   `json:"load_mode"`
@@ -179,6 +181,7 @@ type Overrides struct {
 	Batch     *int    `json:"batch,omitempty"`
 	LoadMode  *string `json:"load_mode,omitempty"`
 	Parallel  *int    `json:"parallel,omitempty"`
+	Profile   *string `json:"profile,omitempty"`
 }
 
 // StartRequest 는 POST /v1/server/start 의 본문이다.
@@ -326,6 +329,7 @@ type Config struct {
 	HFToken     string    `json:"hf_token"`
 	Gateway     bool      `json:"gateway"`
 	AutoRestart bool      `json:"auto_restart"`
+	LocalNoKey  bool      `json:"local_no_key"`
 	Overrides   Overrides `json:"overrides"`
 }
 
@@ -338,6 +342,7 @@ type ConfigPatch struct {
 	HFToken     *string    `json:"hf_token,omitempty"`
 	Gateway     *bool      `json:"gateway,omitempty"`
 	AutoRestart *bool      `json:"auto_restart,omitempty"`
+	LocalNoKey  *bool      `json:"local_no_key,omitempty"`
 	Overrides   *Overrides `json:"overrides,omitempty"`
 }
 
@@ -436,20 +441,35 @@ type ConnectionAddress struct {
 
 // Connection 은 GET /v1/connection 의 응답이다. 평문 API 키는 없다.
 type Connection struct {
-	ServerState string              `json:"server_state"`
-	ModelID     string              `json:"model_id"`
-	Models      []string            `json:"models"`
-	PublicPort  int                 `json:"public_port"`
-	LANExposed  bool                `json:"lan_exposed"`
-	Gateway     bool                `json:"gateway"`
-	KeyRequired bool                `json:"key_required"`
-	KeyCount    int                 `json:"key_count"`
-	Hostname    string              `json:"hostname"`
-	LocalURL    string              `json:"local_url"`
-	Addresses   []ConnectionAddress `json:"addresses"`
-	MDNSURL     string              `json:"mdns_url"`
-	Warnings    []string            `json:"warnings"`
-	Examples    map[string]string   `json:"examples"`
+	ServerState string   `json:"server_state"`
+	ModelID     string   `json:"model_id"`
+	Models      []string `json:"models"`
+	PublicPort  int      `json:"public_port"`
+	LANExposed  bool     `json:"lan_exposed"`
+	Gateway     bool     `json:"gateway"`
+	KeyRequired bool     `json:"key_required"`
+	KeyCount    int      `json:"key_count"`
+	// LocalNoKey 는 이 컴퓨터의 요청이 키 없이 통과하는지, LocalKeyRequired 는 이 컴퓨터에서도 키가 필요한지다.
+	LocalNoKey       bool `json:"local_no_key"`
+	LocalKeyRequired bool `json:"local_key_required"`
+	// SlotCtx 와 Parallel 은 실행 중인 서버의 계획 값이다. 멈춰 있으면 0 이다.
+	SlotCtx   int                 `json:"slot_ctx"`
+	Parallel  int                 `json:"parallel"`
+	Hostname  string              `json:"hostname"`
+	LocalURL  string              `json:"local_url"`
+	Addresses []ConnectionAddress `json:"addresses"`
+	MDNSURL   string              `json:"mdns_url"`
+	Warnings  []string            `json:"warnings"`
+	Examples  map[string]string   `json:"examples"`
+}
+
+// ToolCheck 는 POST /v1/server/toolcheck 의 응답이다.
+type ToolCheck struct {
+	OK           bool   `json:"ok"`
+	Code         string `json:"code"`
+	Message      string `json:"message"`
+	FinishReason string `json:"finish_reason"`
+	LatencyMS    int64  `json:"latency_ms"`
 }
 
 // ServerStats 는 GET /v1/server/stats 의 응답이다.

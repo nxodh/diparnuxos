@@ -1118,3 +1118,67 @@ type fakeGateway struct{}
 
 func (fakeGateway) State() gateway.ManagerState { return gateway.ManagerState{} }
 func (fakeGateway) Snapshot() gateway.Snapshot  { return gateway.Snapshot{} }
+
+func TestToolCheckReportsWorkingAndBrokenToolCalls(t *testing.T) {
+	var bodies []string
+	reply := `{"choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"get_time","arguments":"{\"city\":\"Seoul\"}"}}]}}]}`
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+		_, _ = io.WriteString(w, reply)
+	}))
+	defer upstream.Close()
+	port := upstream.Listener.Addr().(*net.TCPAddr).Port
+	e := newEnv(t, &fakeSup{status: supervisor.Status{State: supervisor.StateRunning, Port: port}})
+
+	w := e.do("POST", "/v1/server/toolcheck", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"ok":true`) || !strings.Contains(w.Body.String(), `"code":"ok"`) {
+		t.Fatalf("body = %s", w.Body.String())
+	}
+	if len(bodies) != 1 || !strings.Contains(bodies[0], `"tools"`) || !strings.Contains(bodies[0], `"get_time"`) {
+		t.Fatalf("the probe did not offer the tool: %v", bodies)
+	}
+
+	// 글로만 답하면 도구 호출이 안 되는 모델이다.
+	reply = `{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"It is noon."}}]}`
+	w = e.do("POST", "/v1/server/toolcheck", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"ok":false`) || !strings.Contains(w.Body.String(), `"code":"no_tool_call"`) {
+		t.Fatalf("text answer body = %s", w.Body.String())
+	}
+
+	// 인수가 JSON 이 아니면 쓸 수 없다.
+	reply = `{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[{"function":{"name":"get_time","arguments":"not json"}}]}}]}`
+	w = e.do("POST", "/v1/server/toolcheck", "")
+	if !strings.Contains(w.Body.String(), `"code":"bad_arguments"`) {
+		t.Fatalf("bad arguments body = %s", w.Body.String())
+	}
+
+	// 객체로 온 인수도 받아 준다(일부 서버).
+	reply = `{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[{"function":{"name":"get_time","arguments":{"city":"Seoul"}}}]}}]}`
+	w = e.do("POST", "/v1/server/toolcheck", "")
+	if !strings.Contains(w.Body.String(), `"ok":true`) {
+		t.Fatalf("object arguments body = %s", w.Body.String())
+	}
+}
+
+func TestToolCheckTemplateErrorIsAResultNotAFailure(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":{"message":"tools unsupported"}}`, http.StatusInternalServerError)
+	}))
+	defer upstream.Close()
+	port := upstream.Listener.Addr().(*net.TCPAddr).Port
+	e := newEnv(t, &fakeSup{status: supervisor.Status{State: supervisor.StateRunning, Port: port}})
+	w := e.do("POST", "/v1/server/toolcheck", "")
+	wantStatus(t, w, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"ok":false`) || !strings.Contains(w.Body.String(), "HTTP 500") {
+		t.Fatalf("body = %s", w.Body.String())
+	}
+}
+
+func TestToolCheckNeedsRunningServer(t *testing.T) {
+	e := newEnv(t, &fakeSup{status: supervisor.Status{State: supervisor.StateStopped}})
+	w := e.do("POST", "/v1/server/toolcheck", "")
+	wantStatus(t, w, http.StatusConflict)
+}

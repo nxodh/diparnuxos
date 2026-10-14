@@ -174,7 +174,8 @@ class Console:
         self.commands.write(json.dumps({"event": "finish", "label": label, "exit_code": rc}) + "\n")
         if rc == 124 or (rc == 137 and "timeout: sending signal" in output):
             raise Failure("command_timeout", f"Guest command {label} timed out (exit {rc})")
-        if rc != expected:
+        allowed = expected if isinstance(expected, (tuple, list)) else (expected,)
+        if rc not in allowed:
             raise Failure("command_exit", f"Guest command {label} exited {rc}; expected {expected}: {output[:800]}")
         return output
 
@@ -363,6 +364,7 @@ def scenario(console, budgets):
                 f"Chat after autostart {setting} daemon restart returned no generation speed")
 
     check_gateway(console, budgets)
+    check_vedecaps(console, budgets)
     check_features(console, budgets)
 
     console.cli("serve-logs", "serve logs -n 80", cmd)
@@ -389,6 +391,31 @@ HTTP_STATUS = (
     "c=h.HTTPConnection(p.netloc,timeout=30); "
     "c.request(\"GET\",p.path or \"/\",headers=dict(x.split(\":\",1) for x in sys.argv[2:])); "
     "print(c.getresponse().status)'"
+)
+
+
+# Vedecaps(코딩 에이전트)가 서버에 하는 요청을 그대로 해 본다. 한 줄이어야 하므로 람다로 쓴다.
+# /props 의 n_ctx 와 total_slots, /v1/models 의 id, /diparnux/info, X-Diparnux 헤더, include_usage 가 붙은 SSE 스트림, 도구가 붙은 요청.
+VEDECAPS_PROBE = (
+    "python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=120); o={}; "
+    "g=lambda p: (c.request(\"GET\",p), c.getresponse())[1]; "
+    "q=lambda p,b: (c.request(\"POST\",p,json.dumps(b),{\"Content-Type\":\"application/json\"}), c.getresponse())[1]; "
+    "r=g(\"/props\"); j=json.loads(r.read()); "
+    "o[\"props\"]=[r.status,j.get(\"default_generation_settings\",{}).get(\"n_ctx\"),j.get(\"total_slots\")]; "
+    "r=g(\"/v1/models\"); j=json.loads(r.read()); o[\"models\"]=[r.status,[m[\"id\"] for m in j[\"data\"]],r.getheader(\"X-Diparnux\")]; "
+    "r=g(\"/diparnux/info\"); o[\"info\"]=[r.status,json.loads(r.read())]; "
+    "m=[{\"role\":\"user\",\"content\":\"hi\"}]; "
+    "r=q(\"/v1/chat/completions\",{\"messages\":m,\"max_tokens\":4,\"stream\":True,\"stream_options\":{\"include_usage\":True}}); "
+    "b=r.read().decode(); o[\"sse\"]=[r.status,r.getheader(\"Content-Type\"),b.count(\"data:\"),b.strip().endswith(\"[DONE]\"),\"usage\" in b]; "
+    "t=[{\"type\":\"function\",\"function\":{\"name\":\"get_time\",\"description\":\"time\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}}]; "
+    "r=q(\"/v1/chat/completions\",{\"messages\":m,\"max_tokens\":8,\"tools\":t}); r.read(); o[\"tools\"]=r.status; "
+    "print(json.dumps(o))'"
+)
+# 키가 있을 때 키 없는 요청의 거절 본문. Vedecaps 는 오류 본문의 error.message 를 읽는다.
+VEDECAPS_REFUSAL_PROBE = (
+    "python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30); "
+    "c.request(\"GET\",\"/v1/models\"); r=c.getresponse(); j=json.loads(r.read()); "
+    "print(json.dumps([r.status,r.getheader(\"Content-Type\"),j.get(\"error\",{}).get(\"message\")]))'"
 )
 
 
@@ -427,8 +454,17 @@ def check_gateway(console, budgets):
     require(key.startswith("dpx_") and created.get("restart_required") is False,
             "A new key must take effect without a restart when the gateway checks keys")
     time.sleep(3)  # 게이트웨이의 키 캐시는 2초다.
+    # 0.5.3: 이 컴퓨터의 요청은 키가 있어도 키 없이 통과한다(local_no_key, 기본 켬). 코딩 에이전트의 자동 감지가 이 경로를 쓴다.
+    require(http_status(console, "gateway-local-no-key", base + "/v1/models", cmd) == 200,
+            "With local_no_key on, a request from this computer must pass without a key")
+    off = console.cli("local-no-key-off", "config set local-no-key off", cmd)
+    require(off.get("config", {}).get("local_no_key") is False, "local-no-key off was not saved")
+    time.sleep(1)
     require(http_status(console, "gateway-models-missing-key", base + "/v1/models", cmd) == 401,
             "Once a key exists, a request without a key must be refused")
+    refusal = json.loads(console.command("vedecaps-refusal", VEDECAPS_REFUSAL_PROBE, cmd))
+    require(refusal[0] == 401 and "json" in (refusal[1] or "") and isinstance(refusal[2], str) and refusal[2],
+            "A refused request must carry a JSON body with error.message, which coding agents show to the user")
     require(http_status(console, "gateway-models-wrong-key", base + "/v1/models", cmd,
                         "Authorization: Bearer dpx_not-a-real-key") == 401, "A wrong key must be refused")
     require(http_status(console, "gateway-models-bearer", base + "/v1/models", cmd,
@@ -437,6 +473,8 @@ def check_gateway(console, budgets):
             "A valid X-Api-Key must be accepted")
     require(http_status(console, "gateway-health-no-key", base + "/health", cmd) == 200,
             "/health must stay open when keys exist")
+    on = console.cli("local-no-key-on", "config set local-no-key on", cmd)
+    require(on.get("config", {}).get("local_no_key") is True, "local-no-key on was not saved")
     # 데몬 자신의 채팅 경로는 소켓 권한으로 보호되므로 키가 있어도 그대로 동작해야 한다.
     still = console.cli("chat-with-key", "chat --max-tokens 4 'gateway check'", budgets["CHAT_TIMEOUT"])
     require(isinstance(still.get("content"), str) and bool(still["content"].strip()), "Chat broke after a key was created")
@@ -447,6 +485,57 @@ def check_gateway(console, budgets):
     require(key not in json.dumps(usage) and key not in json.dumps(conn), "A plaintext key appeared in an API answer")
     removed = console.cli("gateway-key-rm", "apikey rm " + created["id"], cmd)
     require(removed.get("deleted") is True, "The test key was not removed")
+
+
+def check_vedecaps(console, budgets):
+    """0.5.3: Vedecaps 가 쓰는 요청이 이 서버에서 통하는지 확인한다. 키가 없는 이 컴퓨터의 요청, 연결 설정, 도구 호출 확인."""
+    cmd = budgets["COMMAND_TIMEOUT"]
+    probe = json.loads(console.command("vedecaps-probe", VEDECAPS_PROBE, budgets["CHAT_TIMEOUT"]))
+    status, n_ctx, slots = probe["props"]
+    require(status == 200 and isinstance(n_ctx, int) and n_ctx > 0, "/props must report default_generation_settings.n_ctx")
+    require(isinstance(slots, int) and slots >= 1, "/props must report total_slots")
+    status, ids, version = probe["models"]
+    require(status == 200 and len(ids) == 1 and ids[0], "/v1/models must list the loaded model")
+    require(isinstance(version, str) and version, "Every response must carry the X-Diparnux version header")
+    status, info = probe["info"]
+    require(status == 200 and info.get("diparnux") == version, "/diparnux/info must name the same Diparnux version")
+    require(isinstance(info.get("ctx_per_slot"), int) and info["ctx_per_slot"] > 0, "/diparnux/info lacks ctx_per_slot")
+    # 슬롯 수를 명시하지 않으면 llama-server 가 자동으로 정한다(관찰: 4). 그때 info 는 값을 지어내지 않고 slots_auto 를 낸다.
+    if info.get("slots_auto"):
+        require("slots" not in info, "/diparnux/info must not report a slot count that the server chose by itself")
+    else:
+        require(info.get("slots") == slots, "/diparnux/info and /props disagree on the slot count")
+    require("/" not in json.dumps(info), "/diparnux/info must not reveal file paths")
+    status, content_type, chunks, done, usage = probe["sse"]
+    require(status == 200 and "text/event-stream" in (content_type or ""), "Streaming must answer as text/event-stream")
+    require(chunks >= 2 and done, "The stream must carry data chunks and end with [DONE]")
+    require(usage, "stream_options.include_usage must produce a usage chunk")
+    # 작은 시험 모델의 채팅 틀이 도구를 받을 수 있는지는 모델에 달렸다. 게이트웨이가 막지 않고 모델 서버가 답했는지만 본다.
+    require(probe["tools"] in (200, 400, 500), f"A request that offers tools must reach the model server (got {probe['tools']})")
+
+    connect = console.command("vedecaps-connect", "diparnux connect vedecaps --mcp 2>/dev/null", cmd)
+    config = json.loads(connect)
+    provider = config["provider"]["diparnux"]
+    require(provider["api"] == "http://127.0.0.1:8080/v1" and "options" not in provider,
+            "Local settings must point at the loopback address and need no key")
+    require(config["model"] == "diparnux/" + ids[0], "The default model must be the loaded model")
+    require(provider["models"][ids[0]]["limit"]["context"] == info["ctx_per_slot"],
+            "limit.context must be the context of one request")
+    require(config["mcp"]["diparnux"]["command"] == ["diparnux", "mcp"], "The MCP entry must run 'diparnux mcp'")
+    mcp = console.command(
+        "vedecaps-mcp",
+        "printf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}' "
+        "'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | diparnux mcp", cmd)
+    lines = [json.loads(x) for x in mcp.splitlines() if x.strip().startswith("{")]
+    names = [t["name"] for t in lines[-1]["result"]["tools"]]
+    require("diparnux_status" in names and not any("start" in n or "stop" in n for n in names),
+            "The MCP server must offer read-only tools by default")
+
+    # 도구 호출 확인은 모델에 따라 통과하거나 실패한다. 어느 쪽이든 결과가 설명과 함께 나와야 한다.
+    raw = console.command("vedecaps-toolcheck", "diparnux --json serve toolcheck", budgets["CHAT_TIMEOUT"], expected=(0, 1))
+    check = json.loads(raw)
+    require(check.get("code") in ("ok", "no_tool_call", "bad_arguments", "wrong_tool") and bool(check.get("message")),
+            "The tool-call check must report a known result with a message")
 
 
 WEBADMIN_PASSWORD = "e2e-correct-horse-battery"

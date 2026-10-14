@@ -1,6 +1,6 @@
 # 0.5.3 설계 초안: Vedecaps 와의 연결성, 호환성, 시너지
 
-- 작성: 2026-10-14. 상태: **초안(조사 결과를 바탕으로 한 제안, 구현 전, 결정 필요 항목 있음)**
+- 작성: 2026-10-14. 상태: **구현됨**(0.5.3, 브랜치 `phase-5-3`). 이 문서는 설계 시점의 제안을 그대로 두고, 결정과 구현 결과는 6절과 [vedecaps.md](vedecaps.md), [phase-5-3-verification.md](phase-5-3-verification.md) 에 있다.
 - 근거: [vedecaps-research.md](vedecaps-research.md)(Vedecaps 0.1.3 조사)
 - 사용자 지시(2026-10-14): "0.5.3 버전은 Vedecaps 와의 연결성, 호환성, Diparnux 와 Vedecaps 를 함께 사용했을 때의 시너지 등이 주요 목표".
 - 0.5.2(PR #11)가 끝난 뒤에 착수한다. 0.5.2 의 게이트웨이, 연결 정보, 병렬 슬롯, 서버 현황, 원격 접속 기능이 이 작업의 바탕이다.
@@ -104,6 +104,7 @@ Vedecaps 가 Diparnux 서버를 **모델 제공자**로 쓰는 것이 기본 연
 ## 4. Vedecaps 저장소에 필요한 변경(제안만, 이 저장소에서 하지 않는다)
 
 Vedecaps 는 사용자의 별도 저장소(`nxodh/vedecaps`)다. 아래는 0.5.3 의 이점을 극대화하기 위한 제안이며, 어느 것도 Diparnux 쪽 변경의 선행 조건이 아니다.
+자세한 설계(현재 동작 근거, 코드 변경 지점, 시험, 수용 기준, PR 분할)는 [vedecaps-repo-changes-design.md](vedecaps-repo-changes-design.md) 에 있다.
 
 | 번호 | 변경 | 이유 |
 |---|---|---|
@@ -126,6 +127,9 @@ Vedecaps 는 사용자의 별도 저장소(`nxodh/vedecaps`)다. 아래는 0.5.3
 | W6 | V5 E2E, 문서(`docs/vedecaps.md`), 검증 기록, 버전 0.5.3 |
 
 ## 6. 결정이 필요한 것
+
+> **결정(2026-10-14)**: 사용자가 "바로 착수"를 지시해 아래 기본값대로 구현했다. 사용자가 바꾸라고 하면 바꾼다. Q6(Vedecaps 저장소 변경)은 결정 전이라 하지 않았다.
+> VE5 는 필요 없어졌다: Vedecaps 의 설정 `autoupdate: false` 가 이미 있어 `connect vedecaps` 가 패키지 설치본에만 그 값을 넣는다.
 
 | 번호 | 질문 | 기본값(제안) |
 |---|---|---|

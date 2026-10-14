@@ -96,6 +96,9 @@ func (c *Client) Plan(ctx context.Context, model string, ov Overrides) (PlanResu
 	if ov.Parallel != nil {
 		q.Set("parallel", strconv.Itoa(*ov.Parallel))
 	}
+	if ov.Profile != nil {
+		q.Set("profile", *ov.Profile)
+	}
 	return call[PlanResult](ctx, c, http.MethodGet, withQuery("/v1/server/plan", q), nil, defaultLimit)
 }
 
@@ -267,6 +270,11 @@ func (c *Client) SetPower(ctx context.Context, alwaysOn bool) (power.Status, []b
 // Connection 은 GET /v1/connection 으로 외부에서 접속하는 데 필요한 정보를 읽는다.
 func (c *Client) Connection(ctx context.Context) (Connection, []byte, error) {
 	return call[Connection](ctx, c, http.MethodGet, "/v1/connection", nil, defaultLimit)
+}
+
+// ToolCheck 는 POST /v1/server/toolcheck 로 모델이 도구 호출을 하는지 확인한다.
+func (c *Client) ToolCheck(ctx context.Context) (ToolCheck, []byte, error) {
+	return call[ToolCheck](ctx, c, http.MethodPost, "/v1/server/toolcheck", nil, defaultLimit)
 }
 
 // ServerStats 는 GET /v1/server/stats 로 서버 현황(슬롯, 처리 속도)을 읽는다.

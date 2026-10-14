@@ -1,3 +1,9 @@
+diparnux-control-center (0.5.3) trixie; urgency=medium
+
+  * Vedecaps 페이지(연결 설정, 도구 호출 확인, 코딩 에이전트 용도), 서버 페이지의 용도 선택과 이 컴퓨터 키 면제 스위치, 첫 부팅 마법사의 용도 선택, 추천 모델의 에이전트용 표시.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 20:00:00 +0900
+
 diparnux-control-center (0.5.2) trixie; urgency=medium
 
   * 채팅 페이지를 없애고 사이드바 창으로 바꾼다. 연결, 방화벽, 원격 접속, 서비스, 자원 페이지와 유선 설정, 동시 요청 수, 모델 가져오기, 서버 현황을 더한다.

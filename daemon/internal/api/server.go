@@ -38,16 +38,17 @@ type overridesJSON struct {
 	Batch     *int    `json:"batch"`
 	LoadMode  *string `json:"load_mode"`
 	Parallel  *int    `json:"parallel"`
+	Profile   *string `json:"profile"`
 }
 
 // toAutoconf 는 요청 재정의를 autoconf 타입으로 바꾼다.
 func (o overridesJSON) toAutoconf() autoconf.Overrides {
-	return autoconf.Overrides{NGL: o.NGL, Ctx: o.Ctx, CacheType: o.CacheType, Batch: o.Batch, LoadMode: o.LoadMode, Parallel: o.Parallel}
+	return autoconf.Overrides{NGL: o.NGL, Ctx: o.Ctx, CacheType: o.CacheType, Batch: o.Batch, LoadMode: o.LoadMode, Parallel: o.Parallel, Profile: o.Profile}
 }
 
 // getPlan 은 계획을 계산해 돌려준다. 재정의는 쿼리로 받는다: ngl, ctx, cache_type, batch, load_mode, parallel.
 func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
-	if !rejectUnknownQuery(w, r, "model", "ngl", "ctx", "cache_type", "batch", "load_mode", "parallel") {
+	if !rejectUnknownQuery(w, r, "model", "ngl", "ctx", "cache_type", "batch", "load_mode", "parallel", "profile") {
 		return
 	}
 	q := r.URL.Query()
@@ -77,6 +78,10 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ov.Batch = &v
+	}
+	if q.Has("profile") {
+		v := q.Get("profile")
+		ov.Profile = &v
 	}
 	if q.Has("parallel") {
 		v, ok := intQuery(w, r, "parallel", 0, -1<<31, 1<<31-1)

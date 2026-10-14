@@ -1,3 +1,10 @@
+diparnux-daemon (0.5.3) trixie; urgency=medium
+
+  * Vedecaps 연결: 에이전트 프로필(profile), 도구 호출 확인(serve toolcheck), 프롬프트 캐시 재사용과 캐시 메모리 상한, 이 컴퓨터의 요청은 키 없이 통과(local_no_key), X-Diparnux 헤더와 /diparnux/info.
+  * diparnux connect vedecaps(설정 조각 출력과 병합), diparnux mcp(읽기 전용 도구, --allow-control 은 시작과 중지), 에이전트용 스킬(/usr/share/diparnux/skills/diparnux).
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 20:00:00 +0900
+
 diparnux-daemon (0.5.2) trixie; urgency=medium
 
   * 설치기 비밀번호 오류 수정 포함(0.5.2 전체 변경의 일부: 설치기 사용자 탭 사전 검사와 sudo 그룹은 diparnux-installer).

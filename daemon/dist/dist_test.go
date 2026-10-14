@@ -241,3 +241,39 @@ func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
 		}
 	}
 }
+
+// 스킬은 Vedecaps 가 frontmatter 의 설명이 있어야 목록에 올린다. 이름과 설명이 있고, 안내하는 명령이 실제 명령인지 본다.
+func TestDiparnuxSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
+	text := readFile(t, "skills/diparnux/SKILL.md")
+	if !strings.HasPrefix(text, "---\n") {
+		t.Fatal("SKILL.md must start with a frontmatter block")
+	}
+	end := strings.Index(text[4:], "\n---\n")
+	if end < 0 {
+		t.Fatal("the frontmatter block is not closed")
+	}
+	front := text[4 : 4+end]
+	var name, desc string
+	for _, line := range strings.Split(front, "\n") {
+		switch {
+		case strings.HasPrefix(line, "name:"):
+			name = strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+		case strings.HasPrefix(line, "description:"):
+			desc = strings.TrimSpace(strings.TrimPrefix(line, "description:"))
+		}
+	}
+	if name != "diparnux" || len(desc) < 40 {
+		t.Fatalf("name = %q description = %q", name, desc)
+	}
+	// 키나 개인 정보가 들어 있지 않아야 한다.
+	for _, bad := range []string{"dpx_", "sk-", "BEGIN PRIVATE KEY"} {
+		if strings.Contains(text, bad) {
+			t.Fatalf("SKILL.md contains %q", bad)
+		}
+	}
+	for _, cmd := range []string{"diparnux status", "diparnux serve stats", "diparnux connection", "diparnux resources", "diparnux exposure", "diparnux serve toolcheck", "diparnux serve logs"} {
+		if !strings.Contains(text, "`"+cmd) {
+			t.Fatalf("SKILL.md does not mention %q", cmd)
+		}
+	}
+}

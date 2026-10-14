@@ -1,3 +1,9 @@
+diparnux-desktop (0.5.3) trixie; urgency=medium
+
+  * 버전을 0.5.3 에 맞춘다(Vedecaps 연결 개발 묶음). 이 패키지의 내용은 바뀌지 않았다.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 20:00:00 +0900
+
 diparnux-desktop (0.5.2) trixie; urgency=medium
 
   * fcitx5 자동 시작과 한/영 전환 키(Hangul, 오른쪽 Alt, Shift+Space, Ctrl+Space), 서버 모드에서 소리 서비스를 시작하지 않는다, 전원 관리자 기본값을 상시 가동에 맞춘다.

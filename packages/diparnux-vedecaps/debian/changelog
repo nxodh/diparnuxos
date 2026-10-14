@@ -1,0 +1,5 @@
+diparnux-vedecaps (0.5.3) trixie; urgency=medium
+
+  * 새 패키지: Vedecaps 0.1.3 릴리스 실행 파일(linux-x64, glibc)을 SHA-256 확인 뒤 /usr/bin/vedecaps 에 설치한다.
+
+ -- Diparnux Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 18:00:00 +0900
