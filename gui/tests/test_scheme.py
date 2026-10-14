@@ -6,7 +6,11 @@ import unittest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-from opereta_cc import system, theme  # noqa: E402
+try:
+    import gi  # noqa: F401
+    from opereta_cc import system, theme  # noqa: E402
+except ImportError as exc:  # GTK 가 없는 빌드 환경(패키지 빌드)에서는 건너뛴다
+    raise unittest.SkipTest("GTK bindings are not available: %s" % exc)
 
 
 class TerminalColorTests(unittest.TestCase):
