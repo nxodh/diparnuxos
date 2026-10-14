@@ -15,7 +15,7 @@
 | 데스크톱 구성 | Xvfb: 상단 막대, picom(glx 시작 확인, 스크린샷은 xrender), plank 독, Papirus 기반 아이콘(회색 폴더), 터미널, Thunar | 구성 요소가 뜨고 모양이 의도대로 나옴(스크린샷). 소프트웨어 GLX 의 화면은 `scrot` 에 잡히지 않아 xrender 로 찍었다 |
 | Firefox | 컨테이너에서 Firefox ESR 의 제목 줄 | 이 환경의 기본은 이미 시스템 제목 줄이었다. CSD 모드 재현은 하지 못했고 기본 설정 파일만 넣었다 |
 | 화면 하네스 | `scripts/preview-desktop-in-docker.sh` | 저장소에 넣었다. 이미지를 처음 만들 때 오래 걸린다 |
-| CI(ISO 빌드, 이미지 검사, QEMU 부팅·데스크톱·설치 E2E) | PR #17 | (결과를 이 줄에 적는다) |
+| CI(ISO 빌드, 이미지 검사, QEMU 부팅·데스크톱·설치 E2E) | PR #17, 커밋 e662c05 | 통과: lint 전체, ISO 빌드, 이미지 검사(이전 이름 흔적 없음 포함), 부팅·USB·CPU 추론·데스크톱·설치 E2E(NVRAM 항목, `opereta boot status`, os-prober 설정 확인). 앞선 실행에서 Go 컴파일러가 조각으로 나눈 이전 이름 문자열을 바이너리에 합쳐 넣는 문제와 시험 인자 순서 문제를 찾아 고쳤다 |
 
 ## 확인하지 못한 것
 
