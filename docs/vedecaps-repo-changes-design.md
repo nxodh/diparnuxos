@@ -458,7 +458,7 @@ AGENTS.md 의 "새 설정 키 중 실행이나 요청 경로에 영향을 주는
 | B | VE3 `limiter` + `streamModel` 래퍼 + 자동값(A 의 슬롯 정보 사용) | 2 | A 가 있어야 자동값이 의미가 있다. 독립적으로도 `max_concurrency` 수동 값은 동작한다 |
 | C | VE2 `ca` + 신뢰 규칙 + 시험용 인증서 | Diparnux TLS 와 같은 시기 | Diparnux 쪽 TLS 가 없으면 쓸 곳이 없다 |
 
-A + B 를 **0.1.4**, C 를 이어지는 버전으로 권한다. 각 PR 은 `npx tsc --noEmit`, `npx bun test`, `scan-secrets` 를 통과해야 한다.
+A + B(VE1, VE3, VE4)를 **0.1.4**, C(VE2)가 포함된 릴리스를 **0.1.5** 로 한다(사용자 결정 2026-10-14). 각 PR 은 `npx tsc --noEmit`, `npx bun test`, `scan-secrets` 를 통과해야 한다.
 
 ### 7.4 Diparnux 쪽 후속 작업(Vedecaps 릴리스 뒤)
 
@@ -494,7 +494,7 @@ A + B 를 **0.1.4**, C 를 이어지는 버전으로 권한다. 각 PR 은 `npx 
 3. 감지된 llama.cpp 에서 슬롯 자동값을 **기본으로** 쓸지(제안), 사용자가 켜야 쓸지.
 4. `debug local --check-tools` 를 기본 끄고 옵션으로 둘지(제안), 항상 실행할지.
 5. VE2 의 시험용 인증서 처리(6.3 의 (b) 제안).
-6. 버전: A+B 를 0.1.4 로 낼지.
+6. 버전: **결정함** — VE1·VE3·VE4 는 0.1.4, VE2 포함 릴리스는 0.1.5.
 
 ## 10. 작업 목록(구현자용 체크리스트)
 

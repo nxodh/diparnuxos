@@ -4,7 +4,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -89,6 +89,21 @@ class ServerPage(Adw.PreferencesPage):
         self.net_group.add(self.local_row)
         self.add(self.net_group)
 
+        self.tls_group = Adw.PreferencesGroup(title=_("Encryption (TLS)"))
+        self.tls_row = Adw.SwitchRow(title=_("Encrypt connections from other computers"))
+        self.tls_row.set_subtitle(
+            _("Other computers connect with https and need this computer's CA certificate. The plain address on the local network closes; this computer keeps using the plain address.")
+        )
+        self.tls_row.connect("notify::active", self._on_tls)
+        self.tls_group.add(self.tls_row)
+        self.tls_ca_row = action_row(_("CA fingerprint"), _("Not created yet"))
+        self.tls_group.add(self.tls_ca_row)
+        tls_buttons = Gtk.Box(spacing=8, halign=Gtk.Align.END, margin_top=6)
+        tls_buttons.append(text_button(_("Copy CA certificate"), self.copy_ca))
+        tls_buttons.append(text_button(_("Renew certificate"), self.renew_tls))
+        self.tls_group.add(tls_buttons)
+        self.add(self.tls_group)
+
         self.keys_group = Adw.PreferencesGroup(title=_("API keys"))
         self.key_entry = Adw.EntryRow(title=_("New key label"))
         self.key_entry.set_show_apply_button(True)
@@ -113,6 +128,7 @@ class ServerPage(Adw.PreferencesPage):
     def reload(self):
         run_async(self.ctx.client.models, self._on_models, self.ctx.toast_error)
         run_async(self.ctx.client.config, self._on_config, lambda e: None)
+        self.load_tls()
         self.load_keys()
         self.load_logs()
 
@@ -312,6 +328,64 @@ class ServerPage(Adw.PreferencesPage):
             self._updating = False
 
         run_async(lambda: self.ctx.client.set_config(lan_exposed=wanted), done, failed)
+
+    # --- TLS ---
+    def load_tls(self):
+        run_async(self.ctx.client.tls, self._render_tls, lambda e: None)
+
+    def _render_tls(self, tls):
+        self._updating = True
+        self.tls_row.set_active(bool(tls.get("enabled")))
+        self._updating = False
+        self.tls_ca_row.set_subtitle(logic.tls_ca_subtitle(tls) or _("Not created yet"))
+
+    def _on_tls(self, row, _pspec):
+        if self._updating:
+            return
+        wanted = row.get_active()
+
+        def revert():
+            self._updating = True
+            row.set_active(not wanted)
+            self._updating = False
+
+        def done(result):
+            self.ctx.toast(_("Saved"))
+            self._render_tls(result)
+
+        def failed(exc):
+            self.ctx.toast_error(exc)
+            revert()
+
+        def go():
+            run_async(lambda: self.ctx.client.set_tls(enabled=wanted), done, failed)
+
+        if wanted:
+            go()
+            return
+        confirm(
+            self.ctx.window,
+            _("Turn encryption off?"),
+            _("Plain HTTP opens on the local network again, so keys and prompts are no longer encrypted."),
+            _("Turn off"),
+            go,
+            destructive=True,
+            on_cancel=revert,
+        )
+
+    def copy_ca(self):
+        def done(pem):
+            Gdk.Display.get_default().get_clipboard().set(pem)
+            self.ctx.toast(_("CA certificate copied. Give it to the other computer and compare the fingerprint."))
+
+        run_async(self.ctx.client.tls_ca, done, self.ctx.toast_error)
+
+    def renew_tls(self):
+        def done(result):
+            self.ctx.toast(_("Saved"))
+            self._render_tls(result)
+
+        run_async(lambda: self.ctx.client.renew_tls(ca=False), done, self.ctx.toast_error)
 
     # --- API 키 ---
     def load_keys(self):

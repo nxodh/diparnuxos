@@ -214,6 +214,24 @@ class Client:
     def set_config(self, **patch):
         return self._request("PUT", "/v1/config", patch)
 
+    # --- TLS(암호화된 LAN 접속) ---
+    def tls(self):
+        return self._request("GET", "/v1/tls")
+
+    def set_tls(self, enabled=None, lan_plain=None):
+        body = {}
+        if enabled is not None:
+            body["enabled"] = bool(enabled)
+        if lan_plain is not None:
+            body["lan_plain"] = bool(lan_plain)
+        return self._request("PUT", "/v1/tls", body, timeout=60.0)
+
+    def renew_tls(self, ca=False):
+        return self._request("POST", "/v1/tls/renew", {"ca": bool(ca)}, timeout=60.0)
+
+    def tls_ca(self):
+        return self._request("GET", "/v1/tls/ca", raw=True)
+
     def api_keys(self):
         return self._request("GET", "/v1/apikeys")
 

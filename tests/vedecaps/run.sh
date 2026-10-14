@@ -91,6 +91,64 @@ fi
 scenario "E: key required, wrong key in the environment" "$WRONG" HARNESS_LOCAL_NO_KEY=0 HARNESS_KEY="$KEY"
 expect "a valid API key is required" "a wrong key is refused"
 
+# ---- 0.5.4: HTTPS(TLS)와 options.ca. Diparnux 게이트웨이가 쓰는 certstore 의 실제 CA 와 서버 인증서를 쓴다. ----
+# 서버 인증서 SAN 에는 box.local 과 127.0.0.1(IP)이 들어 있고 CA 에는 DNS 이름 제약만 있다. IP SAN 인증서가 CA 의 DNS 제약과 함께
+# Vedecaps(Bun)에서 통과하는지가 핵심이다(IP 제약이 있으면 UNSUPPORTED_CONSTRAINT_TYPE).
+grep -q "box.local" /etc/hosts || echo "127.0.0.1 box.local" >> /etc/hosts
+rm -rf /tmp/tls-main /tmp/tls-other
+env HARNESS_TLS_DIR=/tmp/tls-other HARNESS_CA_OUT=/tmp/other-ca.pem HARNESS_ONLY_CA=1 /bin/gwharness
+
+set_https() {
+    # set_https <api 주소> [CA 파일; 빈 값이면 ca 를 적지 않는다]
+    python3 - "$1" "${2:-}" <<'PY'
+import json, sys
+p = "/h/.config/vedecaps/vedecaps.json"
+d = json.load(open(p))
+prov = d["provider"]["diparnux"]
+prov["api"] = sys.argv[1]
+opts = {}
+if sys.argv[2]:
+    opts["ca"] = sys.argv[2]
+prov["options"] = opts
+json.dump(d, open(p, "w"), indent=2)
+PY
+}
+
+tls_scenario() {
+    name="$1"
+    shift
+    scenario "$name" "" HARNESS_LOCAL_NO_KEY=1 HARNESS_TLS_DIR=/tmp/tls-main HARNESS_CA_OUT=/tmp/dpx-ca.pem
+}
+
+# 이 시험은 CA 를 시나리오 시작 때 한 번 만들고 이후 같은 디렉터리를 재사용한다(같은 CA).
+set_https "https://box.local:8444/v1" /tmp/dpx-ca.pem
+tls_scenario "F: https by name with the CA"
+expect "Hello from the fake model." "https by DNS name with options.ca works"
+
+set_https "https://127.0.0.1:8444/v1" /tmp/dpx-ca.pem
+tls_scenario "F2: https by IP address with the CA (IP SAN, DNS-only name constraint)"
+expect "Hello from the fake model." "https by IP address works against a CA that has only DNS name constraints"
+
+set_https "https://box.local:8444/v1" ""
+tls_scenario "G: https without options.ca"
+expect "diparnux tls ca" "the error tells where the CA comes from"
+
+set_https "https://box.local:8444/v1" /tmp/other-ca.pem
+tls_scenario "H: https with another CA"
+expect "diparnux tls ca" "a different CA is refused with the same hint"
+
+# 0.1.4 의 VE1/VE4: 키가 없는 이 컴퓨터의 요청으로 /diparnux/info 를 읽어 Diparnux 서버와 슬롯 수를 보여 준다.
+echo "== J: vedecaps debug local reads /diparnux/info"
+env HARNESS_LOCAL_NO_KEY=1 /bin/gwharness &
+gw=$!
+sleep 1
+(cd /tmp/work && timeout 60 /v/vedecaps debug local >/tmp/out 2>&1)
+kill "$gw" 2>/dev/null
+wait "$gw" 2>/dev/null
+sed 's/^/   /' /tmp/out | tail -12
+expect "Diparnux 0.5.4" "the server is recognised as Diparnux with its version"
+expect "2 slots" "the slot count comes from /diparnux/info"
+
 if [ "$fail" -ne 0 ]; then
     echo "test-vedecaps: FAILED"
     exit 1

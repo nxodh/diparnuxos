@@ -95,3 +95,25 @@ func itoa(n int) string {
 	}
 	return string(b)
 }
+
+// TLS: 켜져 있고 평문이 닫혀 있으면 정상, 평문이 열려 있으면 경고다.
+func TestEvaluateTLS(t *testing.T) {
+	closed := Evaluate(Input{LANExposed: true, APIPort: 8080, KeyCount: 1, GatewayOn: true, TLSOn: true, TLSPort: 8444})
+	if closed[0].Level != OK || !strings.Contains(closed[0].Title, "over TLS") || !strings.Contains(closed[0].Detail, "8444") {
+		t.Fatalf("closed = %+v", closed)
+	}
+	both := Evaluate(Input{LANExposed: true, APIPort: 8080, KeyCount: 1, GatewayOn: true, TLSOn: true, TLSPort: 8444, PlainOpen: true})
+	if both[0].Level != Warn || !strings.Contains(both[0].Title, "Plain HTTP is still open") {
+		t.Fatalf("both = %+v", both)
+	}
+	plain := Evaluate(Input{LANExposed: true, APIPort: 8080, KeyCount: 1, GatewayOn: true})
+	if plain[0].Level != OK || !strings.Contains(plain[0].Detail, "not encrypted") {
+		t.Fatalf("plain = %+v", plain)
+	}
+	// 프로그램이 여는 TLS 포트는 "any 출발지" 경고 대상이 아닌 알려진 이름이다.
+	known := Evaluate(Input{LANExposed: true, APIPort: 8080, KeyCount: 1, GatewayOn: true, TLSOn: true, TLSPort: 8444,
+		Firewall: []Open{{Name: "Model API (HTTPS)", Protocol: "tcp", Port: 8444, Source: "any"}}})
+	if find(known, "opens tcp/8444 to any") != nil {
+		t.Fatalf("the TLS port was reported as an unknown rule: %+v", known)
+	}
+}

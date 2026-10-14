@@ -365,6 +365,7 @@ def scenario(console, budgets):
 
     check_gateway(console, budgets)
     check_vedecaps(console, budgets)
+    check_tls(console, budgets)
     check_features(console, budgets)
 
     console.cli("serve-logs", "serve logs -n 80", cmd)
@@ -536,6 +537,142 @@ def check_vedecaps(console, budgets):
     check = json.loads(raw)
     require(check.get("code") in ("ok", "no_tool_call", "bad_arguments", "wrong_tool") and bool(check.get("message")),
             "The tool-call check must report a known result with a message")
+
+
+# 0.5.4 TLS 확인용 클라이언트 스크립트다. 줄 단위로 게스트에 써서(printf) 실행한다. 직렬 콘솔로 보내므로 한 줄 명령이 아니라 파일로 둔다.
+TLS_CLIENT_SCRIPT = [
+    "import sys, ssl, json, socket, http.client as h",
+    "host, ca = sys.argv[1], sys.argv[2]",
+    "out = {}",
+    "def get(c, path):",
+    "    c.request('GET', path)",
+    "    r = c.getresponse()",
+    "    body = r.read().decode()",
+    "    return r.status, body, r.getheader('X-Diparnux'), r.getheader('Location')",
+    "try:",
+    "    c = h.HTTPSConnection(host, 8444, timeout=30, context=ssl.create_default_context(cafile=ca))",
+    "    s, b, v, loc = get(c, '/diparnux/info')",
+    "    out['with_ca'] = [s, bool(v) and json.loads(b).get('diparnux') == v, loc]",
+    "except Exception as e:",
+    "    out['with_ca'] = ['error', type(e).__name__ + ': ' + str(e)[:160]]",
+    "try:",
+    "    c = h.HTTPSConnection(host, 8444, timeout=30, context=ssl.create_default_context())",
+    "    get(c, '/diparnux/info')",
+    "    out['no_ca'] = 'connected'",
+    "except ssl.SSLCertVerificationError:",
+    "    out['no_ca'] = 'verify-failed'",
+    "except Exception as e:",
+    "    out['no_ca'] = 'error ' + type(e).__name__",
+    "try:",
+    "    ctx = ssl.create_default_context(cafile=ca)",
+    "    ctx.wrap_socket(socket.create_connection((host, 8444), timeout=30), server_hostname='evil.example.org')",
+    "    out['wrong_name'] = 'connected'",
+    "except ssl.SSLCertVerificationError:",
+    "    out['wrong_name'] = 'verify-failed'",
+    "except Exception as e:",
+    "    out['wrong_name'] = 'error ' + type(e).__name__",
+    "try:",
+    "    c = h.HTTPConnection(host, 8080, timeout=10)",
+    "    out['plain_lan'] = get(c, '/diparnux/info')[0]",
+    "except ConnectionRefusedError:",
+    "    out['plain_lan'] = 'refused'",
+    "except Exception as e:",
+    "    out['plain_lan'] = 'error ' + type(e).__name__",
+    "c = h.HTTPConnection('127.0.0.1', 8080, timeout=30)",
+    "s, b, v, loc = get(c, '/diparnux/info')",
+    "out['plain_local'] = [s, loc]",
+    "print(json.dumps(out))",
+]
+TLS_CLIENT_WRITE = "printf '%s\\n' " + " ".join(shlex.quote(line) for line in TLS_CLIENT_SCRIPT) + " > /tmp/e2e_tls.py"
+
+
+def check_tls(console, budgets):
+    """0.5.4: 게이트웨이 TLS. LAN 공개와 키가 있을 때 켜고, CA 로 https 접속이 되고 CA 없이는 안 되며, LAN 의 평문은 닫히고
+    이 컴퓨터의 평문은 남는지 본다. 끝나면 이전 상태로 되돌린다."""
+    cmd = budgets["COMMAND_TIMEOUT"]
+    created = console.cli("tls-key-create", "apikey create e2e-tls", cmd)
+    require(created.get("key", "").startswith("dpx_"), "The TLS check needs an API key")
+    try:
+        lan_on = console.cli("tls-lan-on", "config set lan on", cmd)
+        require(lan_on.get("config", {}).get("lan_exposed") is True, "LAN exposure was not turned on")
+        tls = console.cli("tls-on", "tls on", cmd)
+        require(tls.get("enabled") is True and tls.get("active") is True and tls.get("port") == 8444,
+                "tls on did not activate TLS on port 8444")
+        require(tls.get("plain_lan_open") is False, "Turning TLS on must close plain HTTP on the local network")
+        require(bool(tls.get("ca_fingerprint")) and bool(tls.get("server_fingerprint")), "No certificate fingerprints")
+        require("PRIVATE" not in json.dumps(tls), "The TLS status shows key material")
+        # 리스너는 데몬이 1초마다 맞춘다.
+        deadline = time.monotonic() + 60
+        while True:
+            status = console.cli("tls-status", "tls", cmd)
+            if status.get("listening") is True:
+                break
+            require(time.monotonic() < deadline, f"The TLS listener did not start: {status.get('listener_error')!r}")
+            time.sleep(2)
+
+        ports = console.command("tls-ports", "ss -H -ltn 'sport = :8444 or sport = :8080'", cmd)
+        require("8444" in ports, "Nothing listens on the TLS port")
+        require("127.0.0.1:8080" in ports and "0.0.0.0:8080" not in ports and "*:8080" not in ports,
+                "With TLS on, the plain port must listen on 127.0.0.1 only")
+
+        lan_ip = console.command(
+            "tls-lan-ip", "ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | head -1", cmd).strip()
+        host = lan_ip if lan_ip else "127.0.0.1"
+        console.command("tls-ca-out", "diparnux tls ca --out /tmp/e2e-ca.pem", cmd)
+        console.command("tls-script", TLS_CLIENT_WRITE, cmd)
+        probe = json.loads(console.command("tls-probe", "python3 -I /tmp/e2e_tls.py " + shlex.quote(host) + " /tmp/e2e-ca.pem",
+                                           budgets["CHAT_TIMEOUT"]))
+        status_code, same_version, location = probe["with_ca"]
+        require(status_code == 200 and same_version is True,
+                f"HTTPS with the CA must reach /diparnux/info (got {probe['with_ca']})")
+        require(location is None, "The TLS port must not redirect")
+        require(probe["no_ca"] == "verify-failed", f"A client without the CA must refuse the certificate ({probe['no_ca']})")
+        require(probe["wrong_name"] == "verify-failed", f"A wrong server name must be refused ({probe['wrong_name']})")
+        require(probe["plain_local"][0] == 200 and probe["plain_local"][1] is None,
+                f"The plain address on this computer must keep working without a redirect ({probe['plain_local']})")
+        if lan_ip:
+            require(probe["plain_lan"] == "refused",
+                    f"Plain HTTP on the LAN address must be closed while TLS is on ({probe['plain_lan']})")
+
+        exposure = json.loads(console.command("tls-exposure", "diparnux --json exposure; true", cmd))
+        titles = [f.get("title", "") for f in exposure.get("findings", [])]
+        require(any("over TLS" in t for t in titles), f"The exposure check does not report TLS: {titles}")
+        conn = console.cli("tls-connection", "connection", cmd)
+        require(conn.get("tls_active") is True and conn.get("local_url") == "http://127.0.0.1:8080/v1",
+                "Connection info must advertise TLS and keep the plain local URL")
+        require(all(a.get("url", "").startswith("https://") for a in conn.get("addresses", [])),
+                "With TLS on every LAN address must be an https URL")
+        remote = json.loads(console.command("tls-connect", "diparnux connect vedecaps --remote --ca-out /tmp/e2e-ca2.pem 2>/dev/null", cmd))
+        provider = remote["provider"]["diparnux"]
+        require(provider["api"].startswith("https://") and provider["options"].get("ca"),
+                "connect vedecaps --remote must write an https address and options.ca")
+        require("dpx_" not in json.dumps(remote), "The Vedecaps settings contain a key")
+
+        # 서버 인증서만 갱신하면 CA 는 그대로이고 같은 CA 로 계속 접속된다.
+        before = console.cli("tls-before-renew", "tls", cmd)
+        renewed = console.cli("tls-renew", "tls renew", cmd)
+        require(renewed.get("ca_fingerprint") == before.get("ca_fingerprint"), "Renewing the server certificate changed the CA")
+        require(renewed.get("server_fingerprint") != before.get("server_fingerprint"), "The server certificate was not renewed")
+        again = json.loads(console.command("tls-probe-renewed", "python3 -I /tmp/e2e_tls.py " + shlex.quote(host) + " /tmp/e2e-ca.pem",
+                                           budgets["CHAT_TIMEOUT"]))
+        require(again["with_ca"][0] == 200, "HTTPS must keep working with the same CA after renewal")
+
+        # lan_plain: 켜면 평문이 LAN 에 다시 열리고, 끄면 닫힌다.
+        if lan_ip:
+            plain_on = console.cli("tls-plain-on", "tls plain on --yes", cmd)
+            require(plain_on.get("plain_lan_open") is True, "tls plain on did not reopen the plain port")
+            time.sleep(3)
+            opened = json.loads(console.command("tls-probe-plain", "python3 -I /tmp/e2e_tls.py " + shlex.quote(host) + " /tmp/e2e-ca.pem",
+                                                budgets["CHAT_TIMEOUT"]))
+            require(opened["plain_lan"] == 200, f"Plain HTTP did not answer on the LAN address ({opened['plain_lan']})")
+            console.cli("tls-plain-off", "tls plain off", cmd)
+    finally:
+        # 이전 상태로 되돌린다. 실패해도 다음 단계가 이 상태에 기대지 않도록 한다.
+        console.command("tls-off", "diparnux --json tls off --yes; true", cmd)
+        console.command("tls-lan-off", "diparnux --json config set lan off; true", cmd)
+        console.command("tls-key-rm", "diparnux --json apikey rm " + shlex.quote(created.get("id", "")) + "; true", cmd)
+        console.command("tls-cleanup", "rm -f /tmp/e2e-ca.pem /tmp/e2e-ca2.pem /tmp/e2e_tls.py", cmd)
+    time.sleep(2)  # 게이트웨이가 평문 리스너를 루프백으로 되돌리는 데 최대 1초 걸린다.
 
 
 WEBADMIN_PASSWORD = "e2e-correct-horse-battery"

@@ -10,7 +10,7 @@ Vedecaps 가 서버 상태를 읽고 문제를 짚을 수 있게 한다. 조사 
 
 ## 1. 설치
 
-이미지(0.5.3 이상)에 `diparnux-vedecaps` 패키지가 들어 있다. `/usr/bin/vedecaps` 에 Vedecaps 0.1.3 의 릴리스 실행 파일이 있다.
+이미지(0.5.3 이상)에 `diparnux-vedecaps` 패키지가 들어 있다. `/usr/bin/vedecaps` 에 Vedecaps 0.1.5 의 릴리스 실행 파일이 있다(0.5.3 은 0.1.3 이었다).
 버전과 SHA-256 은 `diparnux.conf` 의 `VEDECAPS_VERSION`, `VEDECAPS_SHA256` 에 고정되어 있고, 이미지를 만들 때 받은 파일의 해시가 다르면 빌드가 멈춘다.
 Vedecaps 의 자체 업데이트는 쓰지 않는다. 이 실행 파일은 일반 사용자가 바꿀 수 없으므로, 업데이트는 Diparnux 업데이트로 온다.
 
@@ -46,7 +46,8 @@ diparnux connect vedecaps --remote          # 다른 컴퓨터의 Vedecaps 에 �
 1. 이 컴퓨터: `diparnux config set lan on`, `diparnux apikey create vedecaps`
 2. 다른 컴퓨터: `diparnux connect vedecaps --remote` 의 출력을 그 컴퓨터의 Vedecaps 설정에 넣고 `DIPARNUX_API_KEY` 를 정한다
    (Diparnux 가 아닌 컴퓨터라면 이 컴퓨터에서 출력을 복사해 간다)
-3. 평문 HTTP 이므로 같은 LAN 이나 VPN(`diparnux vpn`) 안에서만 쓴다. [remote-access.md](remote-access.md) 참고
+3. LAN 의 다른 컴퓨터는 **TLS**(`diparnux tls on`)를 켜서 https 로 접속하는 것을 권한다. [tls.md](tls.md) 참고. TLS 가 꺼져 있으면 평문 HTTP 이므로 같은 LAN 이나 VPN(`diparnux vpn`) 안에서만 쓴다. [remote-access.md](remote-access.md) 참고
+   - TLS 가 켜져 있으면 `connect vedecaps --remote` 는 https 주소와 `options.ca` 를 쓴다. CA 파일을 `--ca-out` 으로 받아 그 컴퓨터에 둔다. `options.ca` 는 **Vedecaps 0.1.5 이상**이 믿는다.
 
 ## 3. 에이전트가 서버를 들여다보는 길
 
@@ -138,6 +139,6 @@ CI 에서도 돈다. Vedecaps 버전을 올릴 때(`diparnux.conf`)는 이 시�
 ## 9. 한계
 
 - Vedecaps 는 0.1.x 로 빠르게 바뀐다. 이미지는 고정 버전을 쓰며, 새 버전으로 올릴 때는 `diparnux.conf` 의 값과 E2E 호환 시험을 함께 갱신한다.
-- 게이트웨이는 평문 HTTP 다. TLS 는 0.5.4 이후에 다룬다(Vedecaps 쪽 CA 옵션과 짝). 그때까지는 VPN 안에서 쓴다.
+- TLS 는 0.5.4 에서 들어왔다([tls.md](tls.md)). 켜지 않으면 게이트웨이는 평문 HTTP 다. 이 저장소가 이미지에 고정한 Vedecaps 가 0.1.5 보다 낮으면 `options.ca` 를 무시하므로 https 접속에는 0.1.5 이상이 필요하다.
 - 이미지에 들어 있는 실행 파일은 glibc 의 x86-64 용이다. 다른 구조는 지원하지 않는다.
 - `--cache-reuse` 와 요청당 컨텍스트 값은 실측 전의 계획값이다.

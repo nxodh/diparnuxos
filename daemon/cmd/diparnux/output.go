@@ -180,6 +180,7 @@ Commands:
   firewall [add|rm|enable|disable]   show and change the firewall rules
   exposure                    what this computer offers to the network, with warnings
   webadmin [on|off|password]   remote admin web page (HTTPS, off by default)
+  tls [on|off|ca|fingerprint|renew]   encrypt connections from other computers (HTTPS, off by default)
   remote-desktop [on|off]     remote desktop (RDP, off by default)
   vpn [on|off|peer add|peer rm]   WireGuard VPN (off by default)
   services [start|stop|restart|enable|disable|logs] <unit>   managed services and their logs

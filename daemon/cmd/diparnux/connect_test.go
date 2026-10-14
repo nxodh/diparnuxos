@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -259,4 +260,34 @@ func TestConnectVedecapsUsesTheDefaultModelWhenTheServerIsStopped(t *testing.T) 
 	if decodeOut(t, res.stdout)["model"] != "diparnux/b.gguf" {
 		t.Fatalf("output = %s", res.stdout)
 	}
+}
+
+func TestConnectVedecapsRemoteWithTLSWritesHTTPSAndCA(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"m.gguf","models":["m.gguf"],"local_url":"http://127.0.0.1:8080/v1",`+
+		`"slot_ctx":16384,"key_required":true,"local_key_required":false,"tls_active":true,"tls_port":8444,"ca_fingerprint":"AA:BB:CC",`+
+		`"addresses":[{"interface":"enp3s0","address":"192.168.0.23","family":"ipv4","url":"https://192.168.0.23:8444/v1"}]}`)
+	f.onFunc("GET /v1/tls/ca", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"))
+	})
+	out := filepath.Join(t.TempDir(), "diparnux-ca.pem")
+	res := runCLI(t, f, "connect", "vedecaps", "--remote", "--ca-out", out)
+	wantCode(t, res, exitOK)
+	wantContains(t, "fragment", res.stdout, `"api": "https://192.168.0.23:8444/v1"`, `"ca": "~/.config/vedecaps/diparnux-ca.pem"`, `{env:DIPARNUX_API_KEY}`)
+	wantContains(t, "hints", res.stderr, "own CA", "AA:BB:CC", "0.1.5 or newer", "wrote the CA certificate")
+	if data, err := os.ReadFile(out); err != nil || !strings.Contains(string(data), "BEGIN CERTIFICATE") {
+		t.Fatalf("CA file = %q, %v", data, err)
+	}
+	if strings.Contains(res.stdout, "PRIVATE") {
+		t.Fatal("key material in the output")
+	}
+
+	res = runCLI(t, f, "connect", "vedecaps", "--remote", "--ca", "/home/u/ca.pem")
+	wantCode(t, res, exitOK)
+	wantContains(t, "custom path", res.stdout, `"ca": "/home/u/ca.pem"`)
+
+	// 평문 주소에 --ca 는 쓸 수 없다.
+	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"m.gguf","models":["m.gguf"],"local_url":"http://127.0.0.1:8080/v1","slot_ctx":16384,"addresses":[]}`)
+	res = runCLI(t, f, "connect", "vedecaps", "--ca", "ca.pem")
+	wantCode(t, res, exitUsage)
 }

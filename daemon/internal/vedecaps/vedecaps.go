@@ -22,6 +22,10 @@ const ProviderID = "diparnux"
 // DefaultKeyEnv 는 원격 접속에서 API 키를 읽을 환경 변수 이름이다. 키 값은 설정 파일에 쓰지 않는다.
 const DefaultKeyEnv = "DIPARNUX_API_KEY"
 
+// DefaultCAFile 은 다른 컴퓨터의 Vedecaps 설정이 가리킬 CA 인증서 경로의 기본값이다. 파일은 사용자가 그 컴퓨터에 둔다
+// (`diparnux tls ca --out`). 설정 파일에는 경로만 쓴다.
+const DefaultCAFile = "~/.config/vedecaps/diparnux-ca.pem"
+
 // defaultOutput 은 응답 최대 길이로 알려 줄 값이다. 슬롯 컨텍스트보다 작게 잡는다.
 const defaultOutput = 4096
 
@@ -37,6 +41,9 @@ type Input struct {
 	NeedsKey bool
 	// KeyEnv 는 키를 읽을 환경 변수 이름이다. 비어 있으면 DefaultKeyEnv 다.
 	KeyEnv string
+	// CAFile 은 https 주소의 서버 인증서를 믿게 할 CA 인증서(PEM) 경로다. 비어 있으면 쓰지 않는다. Vedecaps 가
+	// options.ca 를 지원하는 버전(0.1.5 이상)에서 쓰이고, 모르는 버전은 이 키를 무시한다.
+	CAFile string
 	// Packaged 가 true 이면 Diparnux 패키지가 /usr/bin 에 둔 Vedecaps 다. 사용자가 이 파일을 바꿀 수 없으므로
 	// 자체 업데이트 확인을 끈다(업데이트는 Diparnux 업데이트로 온다).
 	Packaged bool
@@ -70,6 +77,20 @@ func Fragment(in Input) (map[string]any, error) {
 		}
 		// 키 값은 쓰지 않는다. Vedecaps 가 시작할 때 환경 변수에서 읽는다.
 		provider["options"] = map[string]any{"apiKey": "{env:" + env + "}"}
+	}
+	if in.CAFile != "" {
+		if !strings.HasPrefix(in.BaseURL, "https://") {
+			return nil, errors.New("vedecaps: a CA file only makes sense for an https:// address")
+		}
+		if strings.ContainsAny(in.CAFile, "\r\n{}") {
+			return nil, errors.New("vedecaps: the CA file path has characters that are not allowed")
+		}
+		opts, _ := provider["options"].(map[string]any)
+		if opts == nil {
+			opts = map[string]any{}
+			provider["options"] = opts
+		}
+		opts["ca"] = in.CAFile
 	}
 	frag := map[string]any{"provider": map[string]any{ProviderID: provider}}
 	if in.Packaged {

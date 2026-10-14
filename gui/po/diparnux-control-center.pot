@@ -1850,3 +1850,36 @@ msgstr ""
 
 msgid "Needs an API key. Leave this off if you only use this machine."
 msgstr ""
+
+msgid "Encryption (TLS)"
+msgstr ""
+
+msgid "Encrypt connections from other computers"
+msgstr ""
+
+msgid "Other computers connect with https and need this computer's CA certificate. The plain address on the local network closes; this computer keeps using the plain address."
+msgstr ""
+
+msgid "CA fingerprint"
+msgstr ""
+
+msgid "Not created yet"
+msgstr ""
+
+msgid "Copy CA certificate"
+msgstr ""
+
+msgid "Renew certificate"
+msgstr ""
+
+msgid "CA certificate copied. Give it to the other computer and compare the fingerprint."
+msgstr ""
+
+msgid "Turn encryption off?"
+msgstr ""
+
+msgid "Plain HTTP opens on the local network again, so keys and prompts are no longer encrypted."
+msgstr ""
+
+msgid "Turn off"
+msgstr ""

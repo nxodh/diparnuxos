@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -503,9 +504,21 @@ type Manager struct {
 	Interval time.Duration
 	Logf     func(format string, args ...any)
 
-	mu    sync.Mutex
-	srv   *http.Server
-	state ManagerState
+	// WantedTLS 는 TLS 리스너가 떠야 하는지와 주소(host:port)를 돌려준다. nil 이면 TLS 를 쓰지 않는다.
+	// TLS 리스너는 평문 리스너와 같은 핸들러를 쓴다(키 규칙, 429, /diparnux/info 가 같다). 리다이렉트는 하지 않는다.
+	WantedTLS func() (enabled bool, listenAddr string)
+	// Cert 는 핸드셰이크에 쓸 서버 인증서를 돌려준다(tls.Config.GetCertificate). 갱신된 인증서는 새 연결부터 쓴다.
+	Cert func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	// PrepareTLS 는 리스너를 열기 전과 PrepareEvery 마다 인증서를 만들거나 갱신한다(주소가 바뀐 경우 포함).
+	PrepareTLS   func() error
+	PrepareEvery time.Duration
+
+	mu            sync.Mutex
+	srv           *http.Server
+	state         ManagerState
+	tlsSrv        *http.Server
+	tlsState      ManagerState
+	tlsPreparedAt time.Time
 }
 
 // Snapshot 은 게이트웨이의 통계를 돌려준다.
@@ -516,6 +529,13 @@ func (m *Manager) State() ManagerState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.state
+}
+
+// TLSState 는 TLS 리스너 상태를 돌려준다.
+func (m *Manager) TLSState() ManagerState {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.tlsState
 }
 
 // Run 은 ctx 가 끝날 때까지 상태를 맞춘다. 끝나면 리스너를 닫고 사용량을 저장한다.
@@ -533,6 +553,7 @@ func (m *Manager) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			m.stop()
+			m.stopTLS()
 			_ = m.G.Flush()
 			return
 		case <-t.C:
@@ -564,6 +585,28 @@ func (m *Manager) stop() {
 	}
 }
 
+func (m *Manager) stopTLS() {
+	m.mu.Lock()
+	srv := m.tlsSrv
+	m.tlsSrv = nil
+	m.tlsState = ManagerState{Error: m.tlsState.Error}
+	m.tlsPreparedAt = time.Time{}
+	m.mu.Unlock()
+	if srv != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			_ = srv.Close()
+		}
+	}
+}
+
+func (m *Manager) setTLSError(msg string) {
+	m.mu.Lock()
+	m.tlsState.Error = msg
+	m.mu.Unlock()
+}
+
 func (m *Manager) setError(msg string) {
 	m.mu.Lock()
 	m.state.Error = msg
@@ -571,6 +614,74 @@ func (m *Manager) setError(msg string) {
 }
 
 func (m *Manager) reconcile() {
+	m.reconcilePlain()
+	m.reconcileTLS()
+}
+
+// reconcileTLS 는 TLS 리스너를 원하는 상태로 맞춘다. 게이트웨이가 꺼져 있거나 모델 서버가 돌지 않으면 닫는다.
+func (m *Manager) reconcileTLS() {
+	if m.WantedTLS == nil || m.Cert == nil {
+		return
+	}
+	gwOn, _, public := m.Wanted()
+	port, running := m.Backend()
+	wanted, addr := m.WantedTLS()
+	if !gwOn || !wanted || !running || port == public {
+		m.stopTLS()
+		m.setTLSError("")
+		return
+	}
+	every := m.PrepareEvery
+	if every <= 0 {
+		every = 30 * time.Second
+	}
+	m.mu.Lock()
+	due := m.tlsPreparedAt.IsZero() || time.Since(m.tlsPreparedAt) >= every
+	m.mu.Unlock()
+	if due && m.PrepareTLS != nil {
+		if err := m.PrepareTLS(); err != nil {
+			m.stopTLS()
+			m.setTLSError("certificate: " + err.Error())
+			return
+		}
+		m.mu.Lock()
+		m.tlsPreparedAt = time.Now()
+		m.mu.Unlock()
+	}
+	m.mu.Lock()
+	same := m.tlsSrv != nil && m.tlsState.Addr == addr && m.tlsState.BackendPort == port
+	m.mu.Unlock()
+	if same {
+		return
+	}
+	m.stopTLS()
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		m.setTLSError(fmt.Sprintf("cannot listen on %s: %v", addr, err))
+		return
+	}
+	backend, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(port))
+	if err != nil {
+		_ = ln.Close()
+		m.setTLSError(err.Error())
+		return
+	}
+	srv := &http.Server{Handler: m.G.Handler(backend), ReadHeaderTimeout: 15 * time.Second}
+	tlsLn := tls.NewListener(ln, &tls.Config{GetCertificate: m.Cert, MinVersion: tls.VersionTLS12})
+	m.mu.Lock()
+	m.tlsSrv = srv
+	m.tlsState = ManagerState{Listening: true, Addr: addr, BackendPort: port}
+	m.tlsPreparedAt = time.Now()
+	m.mu.Unlock()
+	m.logf("gateway TLS listening on %s, backend 127.0.0.1:%d", addr, port)
+	go func() {
+		if err := srv.Serve(tlsLn); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			m.logf("gateway TLS: serve: %v", err)
+		}
+	}()
+}
+
+func (m *Manager) reconcilePlain() {
 	enabled, addr, public := m.Wanted()
 	port, running := m.Backend()
 	if !enabled || !running {

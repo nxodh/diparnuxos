@@ -175,6 +175,32 @@ def write_png(path, width, height, pixels):
     Path(path).write_bytes(png)
 
 
+# 0.5.4 에서 사용자가 확정한 유휴 램 상한(MiB, MemTotal - MemAvailable). 2026-10-14 CI 기준선은 헤드리스 약 374, 데스크톱 약 679 이다.
+HEADLESS_MEMORY_BUDGET_MIB = 500
+DESKTOP_MEMORY_BUDGET_MIB = 800
+
+
+def memory_used_mib(text):
+    """meminfo 출력에서 MemTotal - MemAvailable 을 MiB 로 돌려준다. 읽지 못하면 None."""
+    values = {}
+    for line in text.splitlines():
+        m = re.match(r"\s*(MemTotal|MemAvailable):\s+(\d+)\s*kB", line)
+        if m:
+            values[m.group(1)] = int(m.group(2))
+    if "MemTotal" not in values or "MemAvailable" not in values:
+        return None
+    return (values["MemTotal"] - values["MemAvailable"]) // 1024
+
+
+def require_memory_budget(text, what, budget_mib):
+    used = memory_used_mib(text)
+    if used is None:
+        print(f"desktop-session: could not read memory use in {what}; budget not checked", flush=True)
+        return
+    print(f"desktop-session: memory in {what}: {used} MiB (budget {budget_mib} MiB)", flush=True)
+    require(used <= budget_mib, f"Idle memory in {what} is {used} MiB, over the {budget_mib} MiB budget")
+
+
 def poll_command(console, label, command, timeout, attempts_sleep=2):
     """command 가 종료 코드 0 이 될 때까지 timeout 안에서 다시 시도한다. 마지막 출력은 로그에 남는다."""
     script = (
@@ -316,8 +342,9 @@ def scenario(console, monitor, budgets, logs, workdir):
     require(out.strip().splitlines()[-1] == TEST_USER, "SSH password login with the created account failed")
     console.command("ssh-login-default-account-refused", askpass + "ssh_try user live", cmd + 40, expected=255)
 
-    # 서버 모드의 유휴 메모리(참고용 측정). 판정에는 쓰지 않는다.
-    console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    # 서버 모드의 유휴 메모리. 0.5.4 에서 확정한 상한(헤드리스 500 MiB)을 넘으면 실패한다(docs/memory.md 1절).
+    memory_text = console.command("memory-server-mode", "sleep 5; awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    require_memory_budget(memory_text, "server mode", HEADLESS_MEMORY_BUDGET_MIB)
 
     # 데스크톱 모드로 전환한다. 라이브 세션은 로그인 화면 없이 라이브 사용자로 자동 로그인한다.
     switched = console.command("mode-desktop", "diparnux --json mode desktop", budgets["START_TIMEOUT"])
@@ -434,7 +461,8 @@ def scenario(console, monitor, budgets, logs, workdir):
         f"sudo -n -u {TEST_USER} env DISPLAY=:0 XAUTHORITY=/home/{TEST_USER}/.Xauthority timeout 25 diparnux-control-center --wizard 2>&1 | head -n 60; true",
         cmd + 30,
     )
-    console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    memory_text = console.command("memory-desktop-mode", "awk '/MemTotal|MemAvailable/' /proc/meminfo", cmd)
+    require_memory_budget(memory_text, "desktop mode", DESKTOP_MEMORY_BUDGET_MIB)
     console.command("ps-desktop", "ps -eo pid,rss,comm --sort=-rss | head -n 15", cmd)
     # 패널과 첫 로그인 설정: 진단을 남긴 뒤 판정한다.
     console.command(

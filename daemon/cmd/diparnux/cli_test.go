@@ -1414,3 +1414,85 @@ func TestServeToolCheckReportsResult(t *testing.T) {
 	wantCode(t, res, exitFailure)
 	wantContains(t, "toolcheck broken", res.stdout, "not working", "answered in text")
 }
+
+const tlsBody = `{"enabled":true,"active":true,"port":8444,"lan_plain":false,"names":[],"plain_port":8080,"plain_lan_open":false,` +
+	`"listening":true,"listen_addr":"0.0.0.0:8444","ca_fingerprint":"AA:BB:CC","ca_not_after":"2036-10-14T00:00:00Z",` +
+	`"server_fingerprint":"11:22:33","server_not_after":"2027-11-15T00:00:00Z","dns":["box.local"],"ips":["192.168.0.23"],` +
+	`"notes":["plain HTTP is also open on the local network (lan_plain); keys and prompts sent there are not encrypted"]}`
+
+func TestTLSStatusOnOffAndConfirmations(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/tls", 200, tlsBody)
+	res := runCLI(t, f, "tls")
+	wantCode(t, res, exitOK)
+	wantContains(t, "status", res.stdout, "tls:", "yes", "8444/tcp (HTTPS)", "AA:BB:CC", "box.local", "192.168.0.23", "not encrypted")
+
+	f.on("PUT /v1/tls", 200, tlsBody)
+	res = runCLI(t, f, "tls", "on", "--port", "9443")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/tls"); len(b) != 1 || !strings.Contains(b[0], `"enabled":true`) || !strings.Contains(b[0], `"port":9443`) {
+		t.Fatalf("body = %v", b)
+	}
+
+	// 끄기, 평문 열기, CA 갱신은 --yes 가 없으면 보내지 않는다.
+	for _, args := range [][]string{{"tls", "off"}, {"tls", "plain", "on"}, {"tls", "renew", "--ca"}} {
+		before := len(f.bodiesOf("PUT /v1/tls")) + len(f.bodiesOf("POST /v1/tls/renew"))
+		res = runCLI(t, f, args...)
+		wantCode(t, res, exitUsage)
+		if after := len(f.bodiesOf("PUT /v1/tls")) + len(f.bodiesOf("POST /v1/tls/renew")); after != before {
+			t.Fatalf("%v sent a request without --yes", args)
+		}
+	}
+	res = runCLI(t, f, "tls", "off", "--yes")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/tls"); !strings.Contains(b[len(b)-1], `"enabled":false`) {
+		t.Fatalf("off body = %v", b)
+	}
+	res = runCLI(t, f, "tls", "plain", "off")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("PUT /v1/tls"); !strings.Contains(b[len(b)-1], `"lan_plain":false`) {
+		t.Fatalf("plain off body = %v", b)
+	}
+
+	f.on("PUT /v1/tls", 409, `{"error":{"code":"lan_required","message":"LAN exposure must be on first: diparnux config set lan on"}}`)
+	res = runCLI(t, f, "tls", "on")
+	wantCode(t, res, exitFailure)
+	wantContains(t, "lan", res.stderr, "LAN exposure must be on first")
+}
+
+func TestTLSCAFingerprintAndRenew(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/tls", 200, tlsBody)
+	f.onFunc("GET /v1/tls/ca", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/x-pem-file")
+		_, _ = w.Write([]byte("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"))
+	})
+	res := runCLI(t, f, "tls", "ca")
+	wantCode(t, res, exitOK)
+	wantContains(t, "ca", res.stdout, "BEGIN CERTIFICATE")
+
+	out := filepath.Join(t.TempDir(), "ca.pem")
+	res = runCLI(t, f, "tls", "ca", "--out", out)
+	wantCode(t, res, exitOK)
+	wantContains(t, "ca out", res.stdout, "AA:BB:CC", "compare its fingerprint")
+	if data, err := os.ReadFile(out); err != nil || !strings.Contains(string(data), "BEGIN CERTIFICATE") {
+		t.Fatalf("file = %q, %v", data, err)
+	}
+
+	res = runCLI(t, f, "tls", "fingerprint")
+	wantCode(t, res, exitOK)
+	if strings.TrimSpace(res.stdout) != "AA:BB:CC" {
+		t.Fatalf("fingerprint = %q", res.stdout)
+	}
+
+	f.on("POST /v1/tls/renew", 200, tlsBody)
+	res = runCLI(t, f, "tls", "renew")
+	wantCode(t, res, exitOK)
+	res = runCLI(t, f, "tls", "renew", "--ca", "--yes")
+	wantCode(t, res, exitOK)
+	if b := f.bodiesOf("POST /v1/tls/renew"); len(b) != 2 || !strings.Contains(b[1], `"ca":true`) || !strings.Contains(b[0], `"ca":false`) {
+		t.Fatalf("renew bodies = %v", b)
+	}
+	res = runCLI(t, f, "tls", "bogus")
+	wantCode(t, res, exitUsage)
+}

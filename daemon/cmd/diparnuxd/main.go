@@ -26,6 +26,7 @@ import (
 	"github.com/nxodh/diparnuxos/daemon/internal/admin"
 	"github.com/nxodh/diparnuxos/daemon/internal/api"
 	"github.com/nxodh/diparnuxos/daemon/internal/apikeys"
+	"github.com/nxodh/diparnuxos/daemon/internal/certstore"
 	"github.com/nxodh/diparnuxos/daemon/internal/config"
 	"github.com/nxodh/diparnuxos/daemon/internal/firewall"
 	"github.com/nxodh/diparnuxos/daemon/internal/gateway"
@@ -128,6 +129,7 @@ func run(args []string) error {
 	})
 	defer jobMgr.Close()
 
+	tlsStore := &certstore.Store{Dir: *stateDir + "/tls"}
 	fwRules := &firewall.Store{Path: *stateDir + "/firewall-rules.json"}
 	waMgr := &webadmin.Manager{StateDir: *stateDir, Logf: log.Printf, Addresses: localAddresses}
 	rdpMgr := &rdpctl.Manager{Runner: cmds, StatePath: *stateDir + "/remote-desktop.json"}
@@ -151,6 +153,9 @@ func run(args []string) error {
 			if port, iface, ok := wgMgr.Opens(); ok {
 				x.Open = append(x.Open, firewall.Open{Name: "WireGuard VPN", Protocol: "udp", Port: port, Source: firewall.SourceAny, Reason: "the VPN is on"})
 				x.Trusted = append(x.Trusted, iface)
+			}
+			if cfg := src.get(); cfg.TLSActive() {
+				x.Open = append(x.Open, firewall.Open{Name: "Model API (HTTPS)", Protocol: "tcp", Port: cfg.TLSListenPort(), Source: firewall.SourceLAN, Reason: "TLS is on"})
 			}
 			if port, src, ok := waMgr.Opens(); ok {
 				x.Open = append(x.Open, firewall.Open{Name: "Web admin (HTTPS)", Protocol: "tcp", Port: port, Source: src, Reason: "the web admin page is on"})
@@ -221,11 +226,19 @@ func run(args []string) error {
 		Wanted: func() (bool, string, int) {
 			c := src.get()
 			host := "127.0.0.1"
-			if c.LANExposed {
+			// TLS 가 떠 있으면 평문 포트는 이 컴퓨터에서만 듣는다(LANPlain 이 아니면). LAN 에는 TLS 포트만 열린다.
+			if c.PlainLANOpen() {
 				host = "0.0.0.0"
 			}
 			return c.Gateway, net.JoinHostPort(host, strconv.Itoa(c.Port)), c.Port
 		},
+		WantedTLS: func() (bool, string) {
+			c := src.get()
+			return c.TLSActive(), net.JoinHostPort("0.0.0.0", strconv.Itoa(c.TLSListenPort()))
+		},
+		Cert:         tlsStore.GetCertificate,
+		PrepareTLS:   func() error { return ensureTLS(tlsStore, src.get) },
+		PrepareEvery: 30 * time.Second,
 		Backend: func() (int, bool) {
 			st := sup.Status()
 			if st.State != supervisor.StateRunning && st.State != supervisor.StateRunningCPU {
@@ -266,6 +279,7 @@ func run(args []string) error {
 		FirewallRules: fwRules,
 		Power:         &power.Manager{Runner: cmds},
 		Gateway:       gwMgr,
+		TLS:           &tlsService{store: tlsStore, listener: gwMgr.TLSState},
 		GPU:           gpu,
 		Runner:        cmds,
 		ConfigPath:    *configPath,
@@ -482,6 +496,44 @@ func loginUsers(_ *accounts.Manager) []string {
 }
 
 // localAddresses 는 이 컴퓨터의 호스트 이름과 전역 IPv4 주소다. 웹 관리 인증서와 주소 안내에 쓴다.
+// tlsService 는 API 가 쓰는 TLS 관리자다. 인증서 이름은 호출 때마다 이 컴퓨터의 지금 이름과 주소로 모은다.
+type tlsService struct {
+	store    *certstore.Store
+	listener func() gateway.ManagerState
+}
+
+func (t *tlsService) Info() (certstore.Info, error) { return t.store.Info() }
+func (t *tlsService) Ensure(extra []string) (certstore.Info, error) {
+	return t.store.Ensure(tlsNames(), extra)
+}
+func (t *tlsService) RenewServer(extra []string) (certstore.Info, error) {
+	return t.store.RenewServer(tlsNames(), extra)
+}
+func (t *tlsService) RenewCA(extra []string) (certstore.Info, error) {
+	return t.store.RenewCA(tlsNames(), extra)
+}
+func (t *tlsService) CAPEM() ([]byte, error)         { return t.store.CAPEM() }
+func (t *tlsService) Listener() gateway.ManagerState { return t.listener() }
+
+// tlsNames 는 서버 인증서에 넣을 이 컴퓨터의 이름과 주소다.
+func tlsNames() certstore.Names {
+	var n certstore.Names
+	for _, a := range localAddresses() {
+		if ip := net.ParseIP(a); ip != nil {
+			n.IPs = append(n.IPs, ip)
+		} else {
+			n.DNS = append(n.DNS, a)
+		}
+	}
+	return n
+}
+
+// ensureTLS 는 인증서가 이 컴퓨터의 지금 이름과 주소를 덮도록 만들거나 갱신한다.
+func ensureTLS(store *certstore.Store, cfg func() config.Config) error {
+	_, err := store.Ensure(tlsNames(), cfg().TLSNames)
+	return err
+}
+
 func localAddresses() []string {
 	var out []string
 	if h, err := os.Hostname(); err == nil && h != "" {

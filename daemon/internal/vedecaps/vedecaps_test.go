@@ -216,3 +216,34 @@ func TestPackagedInstallTurnsOffSelfUpdateOnlyWhenUnset(t *testing.T) {
 		t.Fatal("autoupdate was written for an install that is not ours")
 	}
 }
+
+// https 주소에는 CA 경로를 options.ca 로 쓴다. 평문 주소에는 쓰지 않는다. 키 값은 여전히 쓰지 않는다.
+func TestFragmentCAFile(t *testing.T) {
+	frag, err := Fragment(Input{BaseURL: "https://diparnux.local:8444/v1", ModelID: "m.gguf", SlotCtx: 16384, NeedsKey: true, CAFile: DefaultCAFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := frag["provider"].(map[string]any)[ProviderID].(map[string]any)["options"].(map[string]any)
+	if opts["ca"] != DefaultCAFile || opts["apiKey"] != "{env:DIPARNUX_API_KEY}" {
+		t.Fatalf("options = %v", opts)
+	}
+	// 키가 필요 없어도 CA 는 쓴다.
+	frag, err = Fragment(Input{BaseURL: "https://box.local:8444/v1", CAFile: "ca.pem"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := frag["provider"].(map[string]any)[ProviderID].(map[string]any)["options"].(map[string]any)["ca"]; got != "ca.pem" {
+		t.Fatalf("ca = %v", got)
+	}
+	if _, err := Fragment(Input{BaseURL: "http://box.local:8080/v1", CAFile: "ca.pem"}); err == nil {
+		t.Fatal("a CA file with a plain http address was accepted")
+	}
+	if _, err := Fragment(Input{BaseURL: "https://box.local:8444/v1", CAFile: "bad\npath"}); err == nil {
+		t.Fatal("a CA path with a newline was accepted")
+	}
+	// CA 가 없으면 options 에 ca 가 없다.
+	frag, _ = Fragment(Input{BaseURL: "https://box.local:8444/v1", NeedsKey: true})
+	if _, has := frag["provider"].(map[string]any)[ProviderID].(map[string]any)["options"].(map[string]any)["ca"]; has {
+		t.Fatal("options.ca was written without a CA file")
+	}
+}
