@@ -169,6 +169,7 @@ out/             빌드 산출물(git 제외)
 | [docs/vedecaps.md](docs/vedecaps.md) | Vedecaps 와 함께 쓰기: 연결, MCP, 스킬, agent 프로필, 키와 보안 |
 | [docs/phase-5-3-verification.md](docs/phase-5-3-verification.md) | 0.5.3 검증 범위와 확인하지 못한 것 |
 | [docs/vedecaps-research.md](docs/vedecaps-research.md) | Vedecaps 조사 기록 |
+| [docs/deberopa-agent-handoff-0.6.1.md](docs/deberopa-agent-handoff-0.6.1.md) | Deberopa(Vedecaps 의 새 이름) 개발 에이전트용 인계 문서: 이름 변경, Opereta 인식, 릴리스 형식 |
 | [docs/security.md](docs/security.md) | 비밀 정보 취급 규칙(공개 저장소에 올리면 안 되는 것, 자동 검사, 실수로 올렸을 때) |
 | [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |
 | [docs/desktop-troubleshooting.md](docs/desktop-troubleshooting.md) | 데스크톱 모드 문제 해결(로그인 화면, 세션, 입력기, 브라우저) |
