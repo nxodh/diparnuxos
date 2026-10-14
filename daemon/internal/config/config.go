@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/nxodh/diparnuxos/daemon/internal/autoconf"
 )
@@ -38,6 +39,40 @@ type Config struct {
 	// 여전히 키가 필요하다. 내부 포트가 로컬 프로세스에 열려 있으므로 새 위험은 아니다.
 	LocalNoKey bool      `json:"local_no_key"`
 	Overrides  Overrides `json:"overrides"` // 자동 계획을 덮어쓰는 수동 값
+
+	// 아래 TLS 설정은 켜지 않으면 파일에 쓰이지 않는다(omitempty). 켜지 않은 설정 파일은 0.5.3 과 같아서 되돌려도 읽힌다.
+
+	// TLS 가 true 이고 LAN 공개와 게이트웨이가 켜져 있으면 데몬이 TLS 포트(TLSPort)에서 듣는다. 그동안 LAN 에는 평문
+	// 포트(Port)를 열지 않는다(LANPlain 이 아니면). 같은 컴퓨터의 평문 주소(127.0.0.1:Port)는 그대로 쓴다.
+	TLS bool `json:"tls,omitempty"`
+	// TLSPort 는 TLS 포트다. 0 이면 DefaultTLSPort 다.
+	TLSPort int `json:"tls_port,omitempty"`
+	// LANPlain 이 true 이면 TLS 를 켠 뒤에도 평문 포트를 LAN 에 열어 둔다(옛 클라이언트용. 암호화되지 않는다).
+	LANPlain bool `json:"lan_plain,omitempty"`
+	// TLSNames 는 서버 인증서에 더 넣을 DNS 이름이다. CA 를 만들 때 포함된 이름만 인증서에 들어간다.
+	TLSNames []string `json:"tls_names,omitempty"`
+}
+
+// DefaultTLSPort 는 TLS 포트의 기본값이다. 원격 관리 웹의 기본 포트(8443)와 구별한다.
+const DefaultTLSPort = 8444
+
+// TLSListenPort 는 TLS 포트의 실제 값이다.
+func (c Config) TLSListenPort() int {
+	if c.TLSPort == 0 {
+		return DefaultTLSPort
+	}
+	return c.TLSPort
+}
+
+// TLSActive 는 TLS 리스너가 떠야 하는지다: TLS 가 켜져 있고 LAN 에 공개하며 게이트웨이가 있다.
+func (c Config) TLSActive() bool { return c.TLS && c.LANExposed && c.Gateway }
+
+// PlainLANOpen 은 평문 포트를 LAN 에 열어야 하는지다. TLS 가 떠 있으면 LANPlain 일 때만 연다.
+func (c Config) PlainLANOpen() bool {
+	if !c.LANExposed {
+		return false
+	}
+	return !c.TLSActive() || c.LANPlain
 }
 
 // Overrides는 autoconf의 재정의와 같은 항목이다. nil이면 자동 계획을 쓴다.
@@ -168,6 +203,7 @@ func (c Config) Validate() error {
 	if c.SSHPort < 0 || c.SSHPort > 65535 {
 		errs = append(errs, fmt.Errorf("ssh_port %d is out of range 0-65535", c.SSHPort))
 	}
+	errs = append(errs, c.validateTLS()...)
 	if !path.IsAbs(c.ModelsDir) {
 		errs = append(errs, fmt.Errorf("models_dir %q must be an absolute path", c.ModelsDir))
 	}
@@ -175,6 +211,66 @@ func (c Config) Validate() error {
 		errs = append(errs, fmt.Errorf("overrides: %w", err))
 	}
 	return errors.Join(errs...)
+}
+
+// validateTLS 는 TLS 설정을 검사한다. TLS 를 끄면 포트와 이름은 값만 범위를 본다.
+func (c Config) validateTLS() []error {
+	var errs []error
+	if c.TLSPort < 0 || c.TLSPort > 65535 {
+		errs = append(errs, fmt.Errorf("tls_port %d is out of range 0-65535", c.TLSPort))
+	}
+	if len(c.TLSNames) > 32 {
+		errs = append(errs, fmt.Errorf("tls_names has %d entries; at most 32", len(c.TLSNames)))
+	}
+	for _, n := range c.TLSNames {
+		if !validDNSName(n) {
+			errs = append(errs, fmt.Errorf("tls_names: %q is not a valid DNS name", n))
+		}
+	}
+	if !c.TLS {
+		return errs
+	}
+	if !c.Gateway {
+		errs = append(errs, errors.New("tls needs the gateway: the daemon terminates TLS (turn gateway on)"))
+	}
+	p := c.TLSListenPort()
+	if p >= 1 && p <= 65535 {
+		switch {
+		case p == c.Port:
+			errs = append(errs, fmt.Errorf("tls_port must differ from port %d", c.Port))
+		case c.Gateway && p == c.InternalPort:
+			errs = append(errs, fmt.Errorf("tls_port must differ from internal_port %d", c.InternalPort))
+		case p == sshPort(c):
+			errs = append(errs, fmt.Errorf("tls_port must differ from the SSH port %d", p))
+		}
+	}
+	return errs
+}
+
+func sshPort(c Config) int {
+	if c.SSHPort == 0 {
+		return 22
+	}
+	return c.SSHPort
+}
+
+// validDNSName 은 호스트 이름이나 도메인 이름 형식(라벨 1-63자, 영숫자와 '-', 전체 253자 이하)인지 본다.
+func validDNSName(n string) bool {
+	if n == "" || len(n) > 253 {
+		return false
+	}
+	for _, label := range strings.Split(n, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for i := 0; i < len(label); i++ {
+			c := label[i]
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Redacted는 토큰을 가린 사본을 돌려준다. 진단 리포트에는 이 값만 쓴다.

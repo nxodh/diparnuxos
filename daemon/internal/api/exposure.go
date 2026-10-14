@@ -16,7 +16,8 @@ func (s *server) getExposure(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "config_unreadable", "%v", err)
 		return
 	}
-	in := exposure.Input{LANExposed: cfg.LANExposed, APIPort: cfg.Port, GatewayOn: cfg.Gateway, SSHEnabled: cfg.SSHEnabled}
+	in := exposure.Input{LANExposed: cfg.LANExposed, APIPort: cfg.Port, GatewayOn: cfg.Gateway, SSHEnabled: cfg.SSHEnabled,
+		TLSOn: cfg.TLSActive(), TLSPort: cfg.TLSListenPort(), PlainOpen: cfg.PlainLANOpen()}
 	if s.d.Keys != nil {
 		if n, err := s.d.Keys.Count(); err == nil {
 			in.KeyCount = n

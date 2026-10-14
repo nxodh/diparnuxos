@@ -210,3 +210,89 @@ func TestRedactedWithoutToken(t *testing.T) {
 		t.Fatalf("empty token became %q", got)
 	}
 }
+
+// TLS 를 켜지 않은 설정은 0.5.3 과 같은 파일로 저장된다(되돌려도 읽힌다).
+func TestSaveWithoutTLSWritesNoTLSKeys(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "diparnuxd.json")
+	if err := Save(file, Default()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"tls"`, `"tls_port"`, `"lan_plain"`, `"tls_names"`} {
+		if strings.Contains(string(data), key) {
+			t.Fatalf("a config without TLS wrote %s:\n%s", key, data)
+		}
+	}
+	cfg := Default()
+	cfg.TLS, cfg.LANExposed = true, true
+	if err := Save(file, cfg); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(file)
+	if err != nil || !loaded.TLS || loaded.TLSListenPort() != DefaultTLSPort {
+		t.Fatalf("loaded = %+v, %v", loaded, err)
+	}
+}
+
+func TestTLSActiveAndPlainLANOpen(t *testing.T) {
+	cases := []struct {
+		name                      string
+		lan, tls, plain, gateway  bool
+		wantActive, wantPlainOpen bool
+	}{
+		{"lan off, tls off", false, false, false, true, false, false},
+		{"lan on, tls off (as in 0.5.3)", true, false, false, true, false, true},
+		{"lan off, tls on: nothing to encrypt", false, true, false, true, false, false},
+		{"lan on, tls on: plain closed", true, true, false, true, true, false},
+		{"lan on, tls on, lan_plain: both open", true, true, true, true, true, true},
+		{"lan on, tls on, no gateway", true, true, false, false, false, true},
+	}
+	for _, c := range cases {
+		cfg := Default()
+		cfg.LANExposed, cfg.TLS, cfg.LANPlain, cfg.Gateway = c.lan, c.tls, c.plain, c.gateway
+		if got := cfg.TLSActive(); got != c.wantActive {
+			t.Errorf("%s: TLSActive = %v", c.name, got)
+		}
+		if got := cfg.PlainLANOpen(); got != c.wantPlainOpen {
+			t.Errorf("%s: PlainLANOpen = %v", c.name, got)
+		}
+	}
+}
+
+func TestValidateTLS(t *testing.T) {
+	ok := Default()
+	ok.TLS = true
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("default TLS config: %v", err)
+	}
+	bad := map[string]func(*Config){
+		"tls needs gateway":     func(c *Config) { c.Gateway = false },
+		"tls_port = port":       func(c *Config) { c.TLSPort = c.Port },
+		"tls_port = internal":   func(c *Config) { c.TLSPort = c.InternalPort },
+		"tls_port = ssh":        func(c *Config) { c.TLSPort = 22 },
+		"tls_port out of range": func(c *Config) { c.TLSPort = 70000 },
+		"bad name":              func(c *Config) { c.TLSNames = []string{"-bad.local"} },
+		"name with space":       func(c *Config) { c.TLSNames = []string{"a b.local"} },
+		"too many names": func(c *Config) {
+			for i := 0; i < 33; i++ {
+				c.TLSNames = append(c.TLSNames, "h.local")
+			}
+		},
+	}
+	for name, mutate := range bad {
+		c := ok
+		mutate(&c)
+		if err := c.Validate(); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	good := ok
+	good.TLSNames = []string{"ai.lan", "box.local"}
+	good.TLSPort = 9443
+	if err := good.Validate(); err != nil {
+		t.Errorf("valid TLS settings rejected: %v", err)
+	}
+}

@@ -42,10 +42,14 @@ type Listener struct {
 
 // Input 은 점검에 필요한 값이다.
 type Input struct {
-	LANExposed     bool
-	APIPort        int
-	KeyCount       int
-	GatewayOn      bool
+	LANExposed bool
+	APIPort    int
+	KeyCount   int
+	GatewayOn  bool
+	// TLSOn 은 TLS 포트가 LAN 에 떠 있다는 뜻이고, PlainOpen 은 그와 별개로 평문 포트가 LAN 에 열려 있다는 뜻이다.
+	TLSOn          bool
+	TLSPort        int
+	PlainOpen      bool
 	SSHEnabled     bool
 	SSHPasswordOn  bool // 비밀번호 로그인이 켜져 있음
 	WebAdminOn     bool
@@ -69,8 +73,14 @@ func Evaluate(in Input) []Finding {
 	case in.LANExposed && !in.GatewayOn:
 		add(Warn, "The gateway is off",
 			"API key changes need a server restart and per-key usage is not counted. Turn it on: diparnux config set gateway on.")
+	case in.LANExposed && in.TLSOn && in.PlainOpen:
+		add(Warn, "Plain HTTP is still open on the local network",
+			fmt.Sprintf("Port %d accepts unencrypted connections, so API keys and prompts can be read on the network. TLS is also on (port %d). Close the plain port: diparnux tls plain off.", in.APIPort, in.TLSPort))
+	case in.LANExposed && in.TLSOn:
+		add(OK, "The model server is open to the local network over TLS", fmt.Sprintf("Port %d is encrypted and needs an API key (%d key(s)). This computer still uses plain HTTP on 127.0.0.1:%d.", in.TLSPort, in.KeyCount, in.APIPort))
 	case in.LANExposed:
-		add(OK, "The model server is open to the local network", fmt.Sprintf("Port %d needs an API key (%d key(s)).", in.APIPort, in.KeyCount))
+		add(OK, "The model server is open to the local network",
+			fmt.Sprintf("Port %d needs an API key (%d key(s)). Connections from other computers are not encrypted (plain HTTP); encrypt them with: diparnux tls on, or use the VPN: diparnux vpn on.", in.APIPort, in.KeyCount))
 	default:
 		add(OK, "The model server is reachable only from this computer", "Turn on LAN exposure to let other computers connect.")
 	}
@@ -138,7 +148,7 @@ func Evaluate(in Input) []Finding {
 // known 은 기능이 여는 이름이다(이미 따로 설명한다).
 func known(name string) bool {
 	switch name {
-	case "Model server API", "SSH", "mDNS", "WireGuard VPN", "Remote desktop (RDP)", "Web admin (HTTPS)":
+	case "Model server API", "SSH", "mDNS", "WireGuard VPN", "Remote desktop (RDP)", "Web admin (HTTPS)", "Model API (HTTPS)":
 		return true
 	}
 	return false
