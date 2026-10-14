@@ -247,11 +247,24 @@ window.background {{
     background-color: @theme_bg_color;
     color: @theme_fg_color;
 }}
-window.csd, window.csd decoration {{
+/* 창 장식. 그림자와 둥근 모서리는 앱이 직접 장식하는 창(CSD)에만 준다. 창 관리자가 장식하는 창(.ssd), 합성이 없을 때
+   쓰는 단색 장식(.solid-csd), 최대화, 전체 화면, 타일 상태에서는 모두 끈다. 그렇지 않으면 합성이 없는 화면과 서버측
+   장식 창에서 가장자리에 검은 선과 검은 상자가 생긴다. */
+window.csd:not(.solid-csd):not(.maximized):not(.fullscreen):not(.tiled):not(.popup) decoration {{
     border-radius: 12px;
-}}
-decoration {{
+    margin: 24px;
     box-shadow: 0 6px 24px alpha(black, 0.28), 0 0 0 1px {border};
+}}
+window.csd.maximized decoration, window.csd.fullscreen decoration, window.csd.tiled decoration,
+window.csd.solid-csd decoration, window.ssd decoration, window.solid-csd decoration {{
+    border-radius: 0;
+    margin: 0;
+    box-shadow: none;
+}}
+window.csd.popup decoration {{
+    border-radius: 10px;
+    margin: 0;
+    box-shadow: none;
 }}
 headerbar, .titlebar {{
     background-image: none;
@@ -264,6 +277,42 @@ headerbar, .titlebar {{
 }}
 headerbar .title {{
     font-weight: 600;
+}}
+
+/* 창 단추: x(닫기), +(최대화), -(최소화). GTK3 는 window-*-symbolic 을 아이콘 테마보다 라이브러리 내장 그림에서 먼저
+   찾으므로 아이콘 테마로는 바꿀 수 없다. 그래서 단추 배경에 같은 모양의 그림을 그리고 내장 기호는 숨긴다. */
+button.titlebutton, headerbar button.titlebutton {{
+    min-width: 14px;
+    min-height: 14px;
+    padding: 5px;
+    margin: 0 3px;
+    border: none;
+    border-radius: 999px;
+    box-shadow: none;
+    text-shadow: none;
+    background-color: {circle};
+    background-image: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px 12px;
+}}
+button.titlebutton:hover {{
+    background-color: {circle_hover};
+}}
+button.titlebutton:backdrop {{
+    background-color: {circle_inactive};
+}}
+button.titlebutton image {{
+    opacity: 0;
+}}
+button.titlebutton.close {{
+    background-image: url("assets/ctl-close.png");
+}}
+button.titlebutton.minimize {{
+    background-image: url("assets/ctl-minimize.png");
+}}
+button.titlebutton.maximize, button.titlebutton.restore {{
+    background-image: url("assets/ctl-maximize.png");
 }}
 
 /* 버튼 */
@@ -383,7 +432,7 @@ check:checked, radio:checked {{
 }}
 
 /* 메뉴와 팝오버 */
-menu, .menu, .popup, popover.background {{
+menu, .menu, popover.background {{
     background-color: {surface};
     border: 1px solid {border};
     border-radius: 10px;
@@ -483,6 +532,11 @@ def write_gtk(p):
     os.makedirs(os.path.join(d, "xfwm4"), exist_ok=True)
     with open(os.path.join(d, "gtk-3.0", "gtk.css"), "w", encoding="utf-8") as f:
         f.write(GTK_CSS.format(**p))
+    # 창 단추 그림(GTK3 CSS 의 url("assets/...") 이 읽는다). 이 테마의 글리프 색을 쓴다.
+    assets = os.path.join(d, "gtk-3.0", "assets")
+    os.makedirs(assets, exist_ok=True)
+    for key in ("close", "minimize", "maximize"):
+        glyph_png(key, rgb(p["glyph"])).save(os.path.join(assets, f"ctl-{key}.png"), optimize=True)
     with open(os.path.join(d, "xfwm4", "themerc"), "w", encoding="utf-8") as f:
         f.write(themerc(p))
     with open(os.path.join(d, "index.theme"), "w", encoding="utf-8") as f:
@@ -495,6 +549,25 @@ def svg(body):
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
             f'<g fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round">{body}</g></svg>\n')
+
+
+def glyph_png(key, color, size=24):
+    """창 단추의 기호(x, -, +)를 투명 배경 PNG 로 그린다. size 의 2배 이미지를 12px 로 줄여 쓴다."""
+    s_ = 8
+    im = Image.new("RGBA", (size * s_, size * s_), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    c = size * s_ // 2
+    r = int(size * s_ * 0.27)
+    lw = int(size * s_ * 0.11)
+    if key == "close":
+        d.line((c - r, c - r, c + r, c + r), fill=color, width=lw)
+        d.line((c - r, c + r, c + r, c - r), fill=color, width=lw)
+    elif key == "minimize":
+        d.line((c - r, c, c + r, c), fill=color, width=lw)
+    else:
+        d.line((c - r, c, c + r, c), fill=color, width=lw)
+        d.line((c, c - r, c, c + r), fill=color, width=lw)
+    return im.resize((size, size), Image.LANCZOS)
 
 
 def write_icons():
@@ -514,21 +587,7 @@ def write_icons():
     for scheme in ("light", "dark"):
         color = rgb(PALETTES[scheme]["glyph"])
         for key in ("close", "minimize", "maximize"):
-            s_, size = 8, 24
-            im = Image.new("RGBA", (size * s_, size * s_), (0, 0, 0, 0))
-            d = ImageDraw.Draw(im)
-            c = size * s_ // 2
-            r = int(size * s_ * 0.27)
-            lw = int(size * s_ * 0.11)
-            if key == "close":
-                d.line((c - r, c - r, c + r, c + r), fill=color, width=lw)
-                d.line((c - r, c + r, c + r, c - r), fill=color, width=lw)
-            elif key == "minimize":
-                d.line((c - r, c, c + r, c), fill=color, width=lw)
-            else:
-                d.line((c - r, c, c + r, c), fill=color, width=lw)
-                d.line((c, c - r, c, c + r), fill=color, width=lw)
-            im.resize((size, size), Image.LANCZOS).save(os.path.join(base, f"ctl-{key}-{scheme}.png"), optimize=True)
+            glyph_png(key, color).save(os.path.join(base, f"ctl-{key}-{scheme}.png"), optimize=True)
     with open(os.path.join(ICONS, "index.theme"), "w", encoding="utf-8") as f:
         f.write("""[Icon Theme]
 Name=Opereta

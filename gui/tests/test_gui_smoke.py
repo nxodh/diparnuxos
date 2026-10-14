@@ -79,6 +79,16 @@ ROUTES = {
         "keys": [{"id": "k1", "label": "orca", "prefix": "opr_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
     ("POST", "/v1/server/toolcheck"): (200, {"ok": False, "code": "no_tool_call", "message": "the model answered in text", "finish_reason": "stop", "latency_ms": 5}),
     ("POST", "/v1/server/chat"): (200, {"choices": [{"message": {"content": "pong"}}]}),
+    ("GET", "/v1/update"): (200, {
+        "available": True, "running": False, "state": {"phase": "idle"}, "os_version": "0.6.3",
+        "cuda_runtime": {"installed": False, "reason": "not_installed", "packages": [{"name": "cuda-cudart-13-2", "version": "13.2.86-1"}]},
+        "deberopa": {"auto": True, "installed": "0.2.0", "status": "up_to_date"},
+        "boot": {"available": True, "uefi": True, "secure_boot": "off", "current": "0000", "order": ["0002", "0001", "0000"], "auto": False,
+                 "bitlocker": True, "entries": [{"num": "0000", "label": "opereta", "kind": "opereta"},
+                                                {"num": "0001", "label": "Windows Boot Manager", "kind": "windows"},
+                                                {"num": "0002", "label": "UEFI: SanDisk", "kind": "removable"}],
+                 "problems": [{"code": "firmware_reorders", "message": "x"}]}}),
+    ("POST", "/v1/update"): (202, {"started": True, "action": "boot_next:0001", "reboot": False}),
     ("GET", "/v1/firewall"): (200, {"policy": "drop", "max_rule": 64,
         "builtin": [{"name": "SSH", "protocol": "tcp", "port": 22, "source": "any", "reason": "the SSH server is on"}],
         "rules": [{"id": "r1", "name": "WebUI", "protocol": "tcp", "port": 3000, "source": "lan", "enabled": True}]}),
@@ -264,10 +274,11 @@ class SmokeTests(unittest.TestCase):
 
         win = MainWindow(self.app, self.ctx)
         win.present()
-        names = [n for n, _t, _i in win._entries]
+        names = [n for n, _t, _i in win._entries if n]
         self.assertEqual(
             names,
-            ["dashboard", "models", "server", "connection", "deberopa", "network", "firewall", "remote", "services", "resources", "system"],
+            ["home", "about", "dashboard", "models", "server", "connection", "deberopa", "resources", "appearance", "display", "sound",
+             "bluetooth", "keyboard", "gpu", "network", "firewall", "remote", "storage", "boot", "services", "system"],
         )
         for name in names:
             self.assertIsNotNone(win.stack.get_child_by_name(name), name)
@@ -374,6 +385,54 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(pump(5, until=lambda: any(c[0] == "PUT" and c[1] == "/v1/system/power" for c in self.daemon.calls)))
         puts = [c for c in self.daemon.calls if c[0] == "PUT" and c[1] == "/v1/system/power"]
         self.assertEqual(puts[0][2], {"always_on": False})
+        win.destroy()
+
+    def test_graphics_page_offers_the_cuda_runtime_download(self):
+        from opereta_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        gpu = win.stack.get_child_by_name("gpu")
+        gpu.refresh()
+        self.assertTrue(pump(5, until=lambda: "CUDA runtime" in gpu.rt_row.get_subtitle() or "Not installed" in gpu.rt_row.get_subtitle()))
+        self.assertTrue(pump(5, until=lambda: gpu.btn_install.get_sensitive()), "the download button stayed disabled")
+        self.assertTrue(gpu.btn_install.get_visible())
+        # 배너는 GPU 가 있고 런타임이 없을 때 뜬다.
+        self.ctx.refresh()
+        self.assertTrue(pump(8, until=lambda: win.gpu_banner.get_revealed()), "the CUDA runtime banner was not shown")
+        win.destroy()
+
+    def test_startup_page_shows_entries_and_sets_the_next_start(self):
+        from opereta_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        boot = win.stack.get_child_by_name("boot")
+        boot.refresh()
+        self.assertTrue(pump(5, until=lambda: len(boot._entry_keys) == 3), "the boot entries were not listed")
+        self.assertIn("opereta", boot.summary_row.get_subtitle())
+        self.assertTrue(boot.problem_group.get_visible())
+        # 목록은 BootOrder 순서이고 기본 선택은 지금 부팅하지 않은 반대편 시스템이다.
+        self.assertEqual(boot._entry_keys, ["0002", "0001", "0000"])
+        self.assertEqual(boot._selected_entry(), "0001")
+        boot._act("boot_next:0001", "ok")
+        self.assertTrue(pump(5, until=lambda: any(c[0] == "POST" and c[1] == "/v1/update" for c in self.daemon.calls)))
+        post = [c for c in self.daemon.calls if c[0] == "POST" and c[1] == "/v1/update"][-1]
+        self.assertEqual(post[2]["action"], "boot_next:0001")
+        win.destroy()
+
+    def test_home_and_about_pages_render(self):
+        from opereta_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        home = win.stack.get_child_by_name("home")
+        home.refresh()
+        self.ctx.refresh()
+        self.assertTrue(pump(5, until=lambda: len(home._rows) >= 3), "the home cards were not shown")
+        about = win.stack.get_child_by_name("about")
+        about.refresh()
+        self.assertNotEqual(about.rows["kernel"].get_subtitle(), "-")
         win.destroy()
 
     def test_create_account_dialog_validates_and_posts(self):

@@ -7,7 +7,12 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GObject, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
+from .about import AboutPage  # noqa: E402
+from .boot import BootPage  # noqa: E402
 from .connection import ConnectionPage  # noqa: E402
+from .desktop import AppearancePage, BluetoothPage, DisplayPage, KeyboardPage, SoundPage, StoragePage  # noqa: E402
+from .gpu import GpuPage  # noqa: E402
+from .home import HomePage  # noqa: E402
 from .deberopa import DeberopaPage  # noqa: E402
 from .dashboard import DashboardPage  # noqa: E402
 from .firewall import FirewallPage  # noqa: E402
@@ -34,30 +39,69 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.banner = Adw.Banner(title="")
         self.banner.set_revealed(False)
+        # GPU 가 있는데 CUDA 런타임이 없을 때 알리는 배너. 모델이 CPU 로 도는 이유를 모르고 지나치기 쉽다.
+        self.gpu_banner = Adw.Banner(title="", button_label=_("Open Graphics"))
+        self.gpu_banner.set_revealed(False)
+        self.gpu_banner.connect("button-clicked", lambda *_a: self.show_page("gpu"))
+        self._update_info = None
 
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, vexpand=True, hexpand=True)
-        self._entries = []  # (이름, 제목, 아이콘)
-        for name, title, icon, page in (
-            ("dashboard", _("Dashboard"), "utilities-system-monitor-symbolic", DashboardPage(ctx)),
-            ("models", _("Models"), "folder-download-symbolic", ModelsPage(ctx)),
-            ("server", _("Server"), "network-server-symbolic", ServerPage(ctx)),
-            ("connection", _("Connection"), "network-transmit-receive-symbolic", ConnectionPage(ctx)),
-            ("deberopa", _("Deberopa"), "utilities-terminal-symbolic", DeberopaPage(ctx)),
-            ("network", _("Network"), "network-wireless-symbolic", NetworkPage(ctx)),
-            ("firewall", _("Firewall"), "security-high-symbolic", FirewallPage(ctx)),
-            ("remote", _("Remote access"), "network-workgroup-symbolic", RemotePage(ctx)),
-            ("services", _("Services"), "system-run-symbolic", ServicesPage(ctx)),
-            ("resources", _("Resources"), "utilities-system-monitor-symbolic", ResourcesPage(ctx)),
-            ("system", _("System"), "preferences-system-symbolic", SystemPage(ctx, self.open_wizard)),
-        ):
-            self.stack.add_titled(page, name, title)
-            self._entries.append((name, title, icon))
+        self._entries = []  # (이름, 제목, 아이콘). 묶음 제목 줄은 ("", 제목, "") 로 넣는다.
+        # 묶음: 개요, AI, 모양, 하드웨어, 네트워크, 시스템. AI 묶음은 기능을 줄이지 않고 그대로 둔다.
+        groups = (
+            (_("Overview"), (
+                ("home", _("Home"), "go-home-symbolic", lambda: HomePage(ctx, self.show_page)),
+                ("about", _("This computer"), "computer-symbolic", lambda: AboutPage(ctx)),
+            )),
+            (_("AI"), (
+                ("dashboard", _("Dashboard"), "utilities-system-monitor-symbolic", lambda: DashboardPage(ctx)),
+                ("models", _("Models"), "folder-download-symbolic", lambda: ModelsPage(ctx)),
+                ("server", _("Server"), "network-server-symbolic", lambda: ServerPage(ctx)),
+                ("connection", _("Connection"), "network-transmit-receive-symbolic", lambda: ConnectionPage(ctx)),
+                ("deberopa", _("Deberopa"), "utilities-terminal-symbolic", lambda: DeberopaPage(ctx)),
+                ("resources", _("Resources"), "utilities-system-monitor-symbolic", lambda: ResourcesPage(ctx)),
+            )),
+            (_("Look"), (
+                ("appearance", _("Appearance"), "preferences-desktop-theme-symbolic", lambda: AppearancePage(ctx)),
+            )),
+            (_("Hardware"), (
+                ("display", _("Displays"), "video-display-symbolic", lambda: DisplayPage(ctx)),
+                ("sound", _("Sound"), "audio-volume-high-symbolic", lambda: SoundPage(ctx)),
+                ("bluetooth", _("Bluetooth"), "bluetooth-symbolic", lambda: BluetoothPage(ctx)),
+                ("keyboard", _("Keyboard"), "input-keyboard-symbolic", lambda: KeyboardPage(ctx)),
+                ("gpu", _("Graphics"), "video-card-symbolic", lambda: GpuPage(ctx)),
+            )),
+            (_("Network"), (
+                ("network", _("Network"), "network-wireless-symbolic", lambda: NetworkPage(ctx)),
+                ("firewall", _("Firewall"), "security-high-symbolic", lambda: FirewallPage(ctx)),
+                ("remote", _("Remote access"), "network-workgroup-symbolic", lambda: RemotePage(ctx)),
+            )),
+            (_("System"), (
+                ("storage", _("Storage"), "drive-harddisk-symbolic", lambda: StoragePage(ctx)),
+                ("boot", _("Startup"), "system-reboot-symbolic", lambda: BootPage(ctx)),
+                ("services", _("Services"), "system-run-symbolic", lambda: ServicesPage(ctx)),
+                ("system", _("System"), "preferences-system-symbolic", lambda: SystemPage(ctx, self.open_wizard)),
+            )),
+        )
+        for group_title, items in groups:
+            self._entries.append(("", group_title, ""))
+            for name, title, icon, make in items:
+                self.stack.add_titled(make(), name, title)
+                self._entries.append((name, title, icon))
 
         # 사이드바: 아이콘과 제목이 있는 목록. 좁은 창에서는 접히고 헤더의 단추로 연다.
         self.sidebar_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
         self.sidebar_list.add_css_class("navigation-sidebar")
         self._rows = {}
         for name, title, icon in self._entries:
+            if not name:  # 묶음 제목 줄은 고를 수 없다
+                head = Gtk.Label(label=title, xalign=0, margin_top=14, margin_bottom=4, margin_start=12)
+                head.add_css_class("caption-heading")
+                head.add_css_class("dim-label")
+                hrow = Gtk.ListBoxRow(selectable=False, activatable=False)
+                hrow.set_child(head)
+                self.sidebar_list.append(hrow)
+                continue
             box = Gtk.Box(spacing=12, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
             box.append(Gtk.Image.new_from_icon_name(icon))
             box.append(Gtk.Label(label=title, xalign=0, hexpand=True))
@@ -89,6 +133,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content.append(self.banner)
+        content.append(self.gpu_banner)
         content.append(self.stack)
         content_view = Adw.ToolbarView()
         content_view.add_top_bar(header)
@@ -127,7 +172,7 @@ class MainWindow(Adw.ApplicationWindow):
         if row is not None and self.sidebar_list.get_selected_row() is not row:
             self.sidebar_list.select_row(row)
         for n, title, _icon in self._entries:
-            if n == name:
+            if n and n == name:
                 self.page_title.set_label(title)
 
     def show_page(self, name):
@@ -143,10 +188,35 @@ class MainWindow(Adw.ApplicationWindow):
         banner = logic.gpu_banner(status)
         if banner is None:
             self.banner.set_revealed(False)
+        else:
+            _level, title, text = banner
+            self.banner.set_title("%s — %s" % (title, text))
+            self.banner.set_revealed(True)
+        self._refresh_runtime_banner(status)
+
+    def _refresh_runtime_banner(self, status):
+        """GPU 가 있고 CUDA 런타임이 없으면 배너를 띄운다. 업데이트 정보는 30초에 한 번만 다시 읽는다."""
+        import time
+
+        from .widgets import run_async
+
+        now = time.monotonic()
+        if now - getattr(self, "_runtime_checked", 0) >= 30 or self._update_info is None:
+            self._runtime_checked = now
+
+            def got(info):
+                self._update_info = info
+                self._apply_runtime_banner(status)
+
+            run_async(self.ctx.client.update_info, got, lambda _e: None)
             return
-        _level, title, text = banner
-        self.banner.set_title("%s — %s" % (title, text))
-        self.banner.set_revealed(True)
+        self._apply_runtime_banner(status)
+
+    def _apply_runtime_banner(self, status):
+        text = logic.gpu_runtime_banner(status, self._update_info)
+        if text:
+            self.gpu_banner.set_title(text)
+        self.gpu_banner.set_revealed(bool(text))
 
     def open_wizard(self, on_finished=None):
         WizardWindow(self.ctx, parent=self, on_finished=on_finished).present()

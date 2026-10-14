@@ -209,7 +209,7 @@ func (s *server) deleteFirstBoot(w http.ResponseWriter, r *http.Request) {
 // knownWizardStep 은 마법사 단계 이름인지 본다. firstboot 패키지의 검사와 같은 집합이다.
 func knownWizardStep(name string) bool {
 	switch name {
-	case "gpu", "driver", "secure_boot", "account", "model", "api":
+	case "gpu", "driver", "runtime", "secure_boot", "account", "model", "api":
 		return true
 	}
 	return false

@@ -14,6 +14,7 @@ from .widgets import action_row, error_text, info_dialog, level_icon, run_async,
 _STEP_TITLES = {
     "gpu": lambda: _("Graphics card"),
     "driver": lambda: _("NVIDIA driver"),
+    "runtime": lambda: _("GPU acceleration"),
     "secure_boot": lambda: _("Secure Boot"),
     "account": lambda: _("Account"),
     "model": lambda: _("Model"),
@@ -70,6 +71,7 @@ class WizardWindow(Adw.Window):
                 ("config", c.config),
                 ("keys", c.api_keys),
                 ("users", c.users),
+                ("update", c.update_info),
             ):
                 try:
                     out[key] = fn()
@@ -109,6 +111,8 @@ class WizardWindow(Adw.Window):
             return logic.evaluate_gpu(status)
         if step == "driver":
             return logic.evaluate_driver(status)
+        if step == "runtime":
+            return logic.evaluate_runtime(status, self._data.get("update"))
         if step == "secure_boot":
             return logic.evaluate_secure_boot(status)
         if step == "account":
@@ -148,6 +152,8 @@ class WizardWindow(Adw.Window):
             g2 = Adw.PreferencesGroup()
             g2.add(action_row(_("Check again"), _("Run the GPU diagnostic once more."), text_button(_("Run"), self._recheck)))
             self._add_group(g2)
+        if step == "runtime" and result.level == logic.WARN:
+            self._runtime_extras()
         if step == "account":
             self._account_extras()
         if step == "model":
@@ -160,6 +166,24 @@ class WizardWindow(Adw.Window):
         self.next_btn.set_sensitive(True)
         last = self._index == len(logic.STEPS) - 1
         self.next_btn.set_label(_("Finish") if last else _("Next"))
+
+    def _runtime_extras(self):
+        group = Adw.PreferencesGroup()
+        group.add(
+            action_row(
+                _("Download the CUDA runtime"),
+                _("NVIDIA's license applies: https://docs.nvidia.com/cuda/eula/index.html . The download runs in the background."),
+                text_button(_("Download from NVIDIA"), self._download_runtime, "suggested-action"),
+            )
+        )
+        self._add_group(group)
+
+    def _download_runtime(self):
+        run_async(
+            lambda: self.ctx.client.update_start("cuda_runtime"),
+            lambda _r: self.ctx.toast(_("Download started. You can follow it in Graphics.")),
+            self.ctx.toast_error,
+        )
 
     def _account_extras(self):
         group = Adw.PreferencesGroup()

@@ -27,6 +27,7 @@ override_dh_auto_install:
 	install -D -m 644 src/xorg/90-opereta-keyboard.conf $(D)/etc/X11/xorg.conf.d/90-opereta-keyboard.conf
 	install -D -m 644 src/autostart/opereta-fcitx5.desktop $(D)/etc/xdg/autostart/opereta-fcitx5.desktop
 	install -D -m 644 src/autostart/opereta-control-center-wizard.desktop $(D)/etc/xdg/autostart/opereta-control-center-wizard.desktop
+	install -D -m 644 src/firefox/opereta.js $(D)/usr/share/firefox-esr/browser/defaults/preferences/opereta.js
 	install -D -m 644 src/fontconfig/60-opereta-pretendard.conf $(D)/etc/fonts/conf.d/60-opereta-pretendard.conf
 	install -D -m 644 src/lightdm/50-opereta.conf $(D)/usr/share/lightdm/lightdm.conf.d/50-opereta.conf
 	install -D -m 644 src/lightdm/50-opereta-greeter.conf $(D)/usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-opereta.conf
@@ -38,6 +39,7 @@ override_dh_auto_install:
 	  install -D -m 644 src/themes/$$name/index.theme $$T/index.theme; \
 	  install -D -m 644 src/themes/$$name/gtk-3.0/gtk.css $$T/gtk-3.0/gtk.css; \
 	  install -D -m 644 src/themes/$$name/xfwm4/themerc $$T/xfwm4/themerc; \
+	  for f in src/themes/$$name/gtk-3.0/assets/*.png; do install -D -m 644 $$f $$T/gtk-3.0/assets/$$(basename $$f); done; \
 	  for f in $(G)/$$scheme/*.png; do install -D -m 644 $$f $$T/xfwm4/$$(basename $$f); done; \
 	done
 	# 창 컨트롤 기호를 x, -, + 로 바꾸는 아이콘 테마(Adwaita 를 상속한다).

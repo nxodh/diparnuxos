@@ -68,7 +68,7 @@ for f in /usr/share/themes/Opereta/xfwm4/themerc /usr/share/themes/Opereta/xfwm4
          /usr/share/themes/Opereta/gtk-3.0/gtk.css /usr/share/themes/Opereta-Dark/gtk-3.0/gtk.css \
          /usr/share/icons/Opereta/index.theme /usr/share/icons/Opereta/scalable/ui/window-close-symbolic.svg \
          /usr/share/icons/Opereta/scalable/ui/ctl-close-light.png /usr/share/icons/Opereta/scalable/ui/ctl-maximize-dark.png \
-         /etc/fonts/conf.d/60-opereta-pretendard.conf /usr/share/opereta/wallpaper-light.png; do
+         /usr/share/firefox-esr/browser/defaults/preferences/opereta.js /usr/share/themes/Opereta/gtk-3.0/assets/ctl-maximize.png /etc/fonts/conf.d/60-opereta-pretendard.conf /usr/share/opereta/wallpaper-light.png; do
   test -e "$f" || { echo "FAIL: missing $f" >&2; exit 1; }
 done
 echo "ok: installed files"
@@ -114,7 +114,7 @@ icons="$(q -c xsettings -p /Net/IconThemeName)"
 font="$(q -c xsettings -p /Gtk/FontName)"
 [ "$font" = "Pretendard 10" ] || { echo "FAIL: UI font=$font"; exit 1; }
 layout="$(q -c xfwm4 -p /general/button_layout)"
-[ "$layout" = "CHM|" ] || { echo "FAIL: window button layout=$layout"; exit 1; }
+[ "$layout" = "CMH|" ] || { echo "FAIL: window button layout=$layout"; exit 1; }
 wm="$(q -c xfwm4 -p /general/theme)"
 [ "$wm" = Opereta ] || { echo "FAIL: xfwm4 theme=$wm"; exit 1; }
 echo "ok: Opereta defaults applied (GTK theme, icons, window manager theme)"

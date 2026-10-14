@@ -19,6 +19,7 @@ import (
 var knownSteps = map[string]bool{
 	"gpu":         true,
 	"driver":      true,
+	"runtime":     true,
 	"secure_boot": true,
 	"account":     true,
 	"model":       true,

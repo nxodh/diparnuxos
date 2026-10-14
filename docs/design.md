@@ -8,7 +8,7 @@
 
 - **로고와 어울리는 모던한 모양.** 둥근 사각형이 로고의 모티프이므로, 가능한 모든 곳에서 각진 네모 대신 곡률이 있는 사각형을 쓴다.
 - **색을 많이 쓰지 않는다.** 흰색·회색·검정만 쓰고 강조색을 따로 두지 않는다. 오류, 경고, 성공 표시처럼 의미가 있는 색은 libadwaita 의 기본 의미 색을 그대로 쓴다.
-- **창 단추는 x, −, + 기호.** 닫기는 x, 최소화는 −, 최대화(전체 화면)는 +. macOS 처럼 왼쪽에 이 순서로 두고, 마우스를 올리지 않아도 기호가 항상 보인다(회색 원 안에 그린다).
+- **창 단추는 x, +, − 기호.** 닫기는 x, 최대화(전체 화면)는 +, 최소화는 −. 왼쪽에 이 순서(x, +, −)로 두고, 마우스를 올리지 않아도 기호가 항상 보인다(회색 원 안에 그린다).
 - **글꼴은 Pretendard**(한글과 영문 모두). 제목 줄은 SemiBold.
 - **램 사용량보다 미적 요소와 사용성이 앞선다**([decisions.md](decisions.md) U19). 창 합성, 그림자, 둥근 모서리를 켠다.
 
@@ -36,7 +36,7 @@
 | 앱 아이콘 | hicolor 16~512 원형 `opereta.png`, 데스크톱 파일 `Icon=opereta`, 시작 메뉴 단추(원 안의 O) | `packages/opereta-branding`, `whiskermenu/defaults.rc` |
 | 배경 화면 | 밝은 테마는 `#F2F2F2` 단색 가운데에 희미한 O 마크(`wallpaper-light.png`), 어두운 테마는 `#0D0D0D` 단색에 `wallpaper.png`. 색 구성표를 바꾸면 Control Center 가 함께 바꾼다(사용자가 고른 그림은 그대로 둔다) | `opereta-branding`, `xfce4-desktop.xml`, `opereta-session-setup`, `system.py` |
 | GTK3 테마 `Opereta`, `Opereta-Dark` | 둥근 모서리, 회색조 팔레트, Pretendard. Xfce 패널, Thunar 같은 GTK3 앱이 쓴다 | `opereta-desktop` (`themes/*/gtk-3.0/gtk.css`, `make-theme.py` 가 생성) |
-| 창 관리자 테마 | xfwm4 제목 줄, 테두리, 창 단추(원 안의 x, −, +). 활성/비활성/눌림 이미지는 `scripts/make-theme.py` 가 생성한다. 단추 배치는 `CHM\|`(왼쪽에 닫기, 최소화, 최대화), 합성과 그림자를 켠다 | `themes/*/xfwm4`, `assets/brand/generated/xfwm4/{light,dark}`, `xfwm4.xml` |
+| 창 관리자 테마 | xfwm4 제목 줄, 테두리, 창 단추(원 안의 x, −, +). 활성/비활성/눌림 이미지는 `scripts/make-theme.py` 가 생성한다. 단추 배치는 `CMH\|`(왼쪽에 닫기, 최대화, 최소화), 합성과 그림자를 켠다 | `themes/*/xfwm4`, `assets/brand/generated/xfwm4/{light,dark}`, `xfwm4.xml` |
 | 아이콘 테마 `Opereta` | Adwaita 를 상속하고 `window-*-symbolic` 을 x, −, + 로 바꾼다 | `packages/opereta-desktop/src/icons/Opereta` |
 | 글꼴 | Pretendard(`fonts-pretendard`, SIL OFL 1.1, [licenses.md](licenses.md) 11절). UI 글꼴 `Pretendard 10`, 제목 줄 `Pretendard SemiBold 10`, fontconfig 에서 `sans-serif`, `system-ui`, `Sans` 가 Pretendard 로 풀린다. 고정폭은 `Monospace` 그대로다 | `xsettings.xml`, `xfwm4.xml`, `fontconfig/60-opereta-pretendard.conf` |
 | 패널 | 하단 한 줄(36px): 시작 메뉴, 작업 목록, 알림 영역, 네트워크, 소리, 전원, 시계, 세션 | `xdg/xfce4/panel/default.xml`, `genmon-5.rc`, `opereta-panel-net` |

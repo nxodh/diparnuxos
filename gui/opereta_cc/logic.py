@@ -261,7 +261,7 @@ def job_is_final(job):
 def _failure_hints():
     return {
         "gpu_offload_failed": _("The model did not load on the GPU as planned. Lower the context or the number of simultaneous requests, or free GPU memory."),
-        "cuda_backend": _("The CUDA backend did not load. Check the GPU in the Dashboard and run the GPU check."),
+        "cuda_backend": _("The CUDA backend did not load. Open Graphics: download the CUDA runtime if it is missing, then run the GPU check."),
         "health_timeout": _("The server did not become ready in time. A large model can take a while to load; check the server log below."),
         "server_exited": _("The server stopped by itself. The log below shows the last lines it wrote."),
         "unit_start_failed": _("The system could not start the server unit. Check the server log below."),
@@ -305,7 +305,7 @@ def server_advice(status):
 
 # ---------------------------------------------------------------- 첫 부팅 마법사
 
-STEPS = ("gpu", "driver", "secure_boot", "account", "model", "api")
+STEPS = ("gpu", "driver", "runtime", "secure_boot", "account", "model", "api")
 
 
 class StepResult:
@@ -357,6 +357,21 @@ def evaluate_driver(status):
         return StepResult("driver", INFO, _("No driver check needed"), _("There is no NVIDIA GPU."))
     level, title, detail = gpu_banner(status)
     return StepResult("driver", level, title, detail)
+
+
+def evaluate_runtime(status, update_info):
+    """GPU 가속에 필요한 CUDA 런타임 단계. GPU 가 없으면 필요 없다. 없으면 CPU 로 돈다고 알리고 받게 한다."""
+    if not device_rows(status):
+        return StepResult("runtime", INFO, _("No GPU acceleration needed"), _("There is no NVIDIA GPU, so models run on the CPU."))
+    rt = (update_info or {}).get("cuda_runtime") or {}
+    if rt.get("installed"):
+        return StepResult("runtime", OK, _("GPU acceleration is ready"), _("The CUDA runtime is installed."))
+    if rt.get("reason") == "no_settings":
+        return StepResult("runtime", INFO, _("GPU acceleration is not available"), _("This image has no CUDA runtime settings."))
+    return StepResult(
+        "runtime", WARN, _("GPU acceleration needs the CUDA runtime"),
+        _("NVIDIA's CUDA runtime is not part of Opereta; this computer downloads it from NVIDIA (about 360 MiB). Without it models run on the CPU. You can skip this and do it later in Graphics."),
+    )
 
 
 def evaluate_secure_boot(status):
@@ -627,6 +642,92 @@ def describe_deberopa(info):
     if not info.get("available"):
         out["text"] += " " + _("Updates apply to an installed system.")
     return out
+
+
+def gpu_runtime_banner(status, update_info):
+    """GPU 가 있는데 CUDA 런타임이 없으면 배너를 띄울 문장을 돌려준다. 필요 없으면 None.
+
+    런타임이 없으면 모델이 CPU 로 돈다. 사용자가 받아야 한다는 것을 모르고 지나치기 쉬워서 눈에 띄게 알린다.
+    """
+    if not device_rows(status):
+        return None
+    rt = (update_info or {}).get("cuda_runtime") or {}
+    if not rt or rt.get("installed") or rt.get("reason") == "no_settings":
+        return None
+    return _("GPU acceleration needs the CUDA runtime from NVIDIA. Until it is installed, models run on the CPU.")
+
+
+def describe_boot(info):
+    """GET /v1/update 응답의 boot 를 표시용 값으로 바꾼다.
+
+    돌려주는 사전: usable, summary, entries(번호, 이름, 지금 부팅한 항목인지), problems(코드, 문장), bitlocker, auto, next.
+    """
+    out = {"usable": False, "summary": _("Boot information is not available."), "entries": [], "problems": [],
+           "bitlocker": False, "auto": False, "next": ""}
+    b = (info or {}).get("boot") or {}
+    if not b:
+        return out
+    if not b.get("uefi"):
+        out["summary"] = _("This computer was not started in UEFI mode. Boot entries are not available.")
+        out["problems"] = [("not_uefi", boot_problem_text("not_uefi"))]
+        return out
+    if not b.get("available"):
+        out["summary"] = _("UEFI mode, but the boot entries could not be read.")
+        return out
+    out["usable"] = True
+    current = b.get("current") or ""
+    names = {}
+    for e in b.get("entries") or []:
+        names[e.get("num")] = e.get("label") or e.get("num")
+    order = b.get("order") or []
+    out["entries"] = [{"num": n, "label": names.get(n, n), "current": n == current, "kind": next(
+        (e.get("kind") for e in b.get("entries") or [] if e.get("num") == n), "other")} for n in order]
+    out["summary"] = _("Started from: %s") % names.get(current, current or "-")
+    out["problems"] = [(p.get("code", ""), boot_problem_text(p.get("code", ""), p.get("message", ""))) for p in b.get("problems") or []]
+    out["bitlocker"] = bool(b.get("bitlocker"))
+    out["auto"] = bool(b.get("auto"))
+    out["next"] = names.get(b.get("next") or "", "")
+    return out
+
+
+def boot_problem_text(code, fallback=""):
+    texts = {
+        "not_uefi": _("This computer was not started in UEFI mode. Restart it in UEFI mode (turn off CSM or legacy boot in the firmware settings)."),
+        "no_entry": _("The firmware has no 'opereta' boot entry. Use Repair to create it."),
+        "opereta_not_first": _("The firmware starts another system before Opereta. Choose Opereta for the next start below."),
+        "firmware_reorders": _("This firmware rewrites the boot order after it is set. Use the next-start choice below, or turn on 'Start Opereta again after shutting down'."),
+        "legacy_entries": _("Folders or boot entries from an earlier name of this system remain. You can remove them below."),
+        "esp_not_mounted": _("The EFI system partition is not mounted."),
+        "no_fallback": _("The fallback boot file is missing. Use Repair to restore it."),
+    }
+    return texts.get(code) or fallback or code
+
+
+def home_cards(status, update_info):
+    """홈 화면의 카드 목록을 만든다. 각 카드: key, title, text, level, page(눌렀을 때 열 페이지, 없으면 빈 문자열)."""
+    cards = []
+    server = (status or {}).get("server") or {}
+    cards.append({"key": "server", "title": _("Model server"),
+                  "text": server_state_label(server.get("state")) + ((" · " + server["model_id"]) if server.get("model_id") else ""),
+                  "level": OK if server.get("state") == "running" else INFO, "page": "server"})
+    rows = device_rows(status)
+    banner = gpu_runtime_banner(status, update_info)
+    if rows:
+        gpu_text = rows[0]["name"]
+        if banner:
+            gpu_text += " · " + _("CUDA runtime missing")
+        cards.append({"key": "gpu", "title": _("Graphics"), "text": gpu_text, "level": WARN if banner else OK, "page": "gpu"})
+    else:
+        cards.append({"key": "gpu", "title": _("Graphics"), "text": _("No NVIDIA GPU was detected."), "level": INFO, "page": "gpu"})
+    upd = describe_update(update_info or {})
+    cards.append({"key": "updates", "title": _("Updates"), "text": upd["title"], "level": upd["level"], "page": "system"})
+    boot = describe_boot(update_info or {})
+    if boot["usable"] or boot["problems"]:
+        n = len([p for p in boot["problems"] if p[0] not in ("legacy_entries",)])
+        cards.append({"key": "boot", "title": _("Startup"),
+                      "text": (_("%d things need attention") % n) if n else _("Boot entries look fine"),
+                      "level": WARN if n else OK, "page": "boot"})
+    return cards
 
 
 def live_session():

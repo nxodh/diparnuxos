@@ -187,17 +187,6 @@ class SystemPage(Adw.PreferencesPage):
         ssh_group.add(self.ssh_note)
         self.add(ssh_group)
 
-        look_group = Adw.PreferencesGroup(title=_("Appearance"))
-        self.scheme_combo = Adw.ComboRow(title=_("Color scheme"))
-        self.scheme_combo.set_model(Gtk.StringList.new([_("Follow the system"), _("Light"), _("Dark")]))
-        # 처음 값은 시스템을 따른다. 데스크톱의 기본은 밝은 테마다. 사용자가 바꾸면 그 값을 따른다.
-        saved = load_settings().get("color_scheme", "default")
-        self.scheme_combo.set_selected(_SCHEMES.index(saved) if saved in _SCHEMES else 0)
-        apply_color_scheme(saved)
-        self.scheme_combo.connect("notify::selected", self._on_scheme)
-        look_group.add(self.scheme_combo)
-        self.add(look_group)
-
         upd_group = Adw.PreferencesGroup(title=_("Updates"))
         self._update_poll = None
         self._update_row = action_row(_("System updates"), _("Install the kernel, NVIDIA driver and system updates together."))
@@ -210,13 +199,6 @@ class SystemPage(Adw.PreferencesPage):
             buttons.append(b)
         self._update_row.add_suffix(buttons)
         upd_group.add(self._update_row)
-        # GPU 가속에 필요한 CUDA 런타임은 이미지에 없다. NVIDIA 에서 직접 받는다(라이선스 확인 뒤).
-        self._cuda_row = action_row(_("GPU acceleration (CUDA runtime)"), "-")
-        self._btn_cuda = text_button(_("Download from NVIDIA"), self.install_cuda_runtime, "suggested-action")
-        self._btn_cuda.set_valign(Gtk.Align.CENTER)
-        self._btn_cuda.set_sensitive(False)
-        self._cuda_row.add_suffix(self._btn_cuda)
-        upd_group.add(self._cuda_row)
         # 코딩 에이전트 Deberopa 는 하루에 한 번 최신 릴리스를 확인해 뒤처졌으면 자동으로 갱신한다.
         self._agent_row = action_row(_("Deberopa (coding agent)"), "-")
         agent_buttons = Gtk.Box(spacing=6, valign=Gtk.Align.CENTER)
@@ -428,14 +410,6 @@ class SystemPage(Adw.PreferencesPage):
         run_async(lambda: self.ctx.client.set_ssh(wanted), self._on_ssh_state, failed)
 
     # --- 테마 ---
-    def _on_scheme(self, combo, _pspec):
-        name = _SCHEMES[combo.get_selected()]
-        apply_color_scheme(name)
-        apply_os_scheme(name)
-        data = load_settings()
-        data["color_scheme"] = name
-        save_settings(data)
-
     # --- 업데이트 ---
     def refresh_update(self):
         run_async(self.ctx.client.update_info, self._on_update_info, lambda e: None)
@@ -447,10 +421,6 @@ class SystemPage(Adw.PreferencesPage):
         self._btn_check.set_sensitive(d["can_check"])
         self._btn_install.set_sensitive(d["can_install"])
         self._btn_rollback.set_sensitive(d["can_rollback"])
-        c = logic.describe_cuda_runtime(info)
-        self._cuda_row.set_subtitle(GLib.markup_escape_text(c["text"]))
-        self._btn_cuda.set_sensitive(c["can_install"] and not d["busy"])
-        self._btn_cuda.set_visible(not c["installed"])
         a = logic.describe_deberopa(info)
         self._agent_row.set_subtitle(GLib.markup_escape_text(a["text"]))
         self._btn_agent_check.set_sensitive(a["can_check"])
@@ -526,26 +496,6 @@ class SystemPage(Adw.PreferencesPage):
             _("The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."),
             _("Install"),
             lambda: self.start_update("apply"),
-        )
-
-    def install_cuda_runtime(self):
-        # 본문은 마크업이다(약관 링크). 번역된 문장은 이스케이프해서 넣는다.
-        esc = GLib.markup_escape_text
-        link = '<a href="https://docs.nvidia.com/cuda/eula/index.html">%s</a>' % esc(_("NVIDIA CUDA license agreement"))
-        body = "\n\n".join(
-            [
-                esc(_("The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license. The download is about 360 MiB.")),
-                _("Read the license before you continue: %s") % link,
-                esc(_("NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way.")),
-            ]
-        )
-        confirm(
-            self.ctx.window,
-            _("Download the CUDA runtime from NVIDIA?"),
-            body,
-            _("Download"),
-            lambda: self.start_update("cuda_runtime"),
-            body_markup=True,
         )
 
     def rollback_update(self):

@@ -466,11 +466,6 @@ msgid ""
 msgstr ""
 
 msgid ""
-"The CUDA backend did not load. Check the GPU in the Dashboard and run the "
-"GPU check."
-msgstr ""
-
-msgid ""
 "The server did not become ready in time. A large model can take a while to "
 "load; check the server log below."
 msgstr ""
@@ -1973,4 +1968,415 @@ msgid "Updating Deberopa…"
 msgstr ""
 
 msgid "Working…"
+msgstr ""
+
+msgid "Hardware"
+msgstr ""
+
+msgid "Operating system"
+msgstr ""
+
+msgid "Kernel"
+msgstr ""
+
+msgid "Control Center"
+msgstr ""
+
+msgid "Graphics"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "Startup"
+msgstr ""
+
+msgid "This start"
+msgstr ""
+
+msgid "Things to know"
+msgstr ""
+
+msgid "Next start"
+msgstr ""
+
+msgid "Choose which system starts the next time. This does not change the permanent order."
+msgstr ""
+
+msgid "Start next time"
+msgstr ""
+
+msgid "Restart now"
+msgstr ""
+
+msgid "Restarts the computer and starts the system chosen above."
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Always start Opereta"
+msgstr ""
+
+msgid "Start Opereta again after shutting down"
+msgstr ""
+
+msgid "Sets the next start to Opereta every time you shut down or restart from Opereta. Turn this off before you start from an installation USB drive."
+msgstr ""
+
+msgid "Repair"
+msgstr ""
+
+msgid "Repair the boot entry"
+msgstr ""
+
+msgid "Reinstall the boot loader and create the 'opereta' entry."
+msgstr ""
+
+msgid "Remove old entries"
+msgstr ""
+
+msgid "Remove folders and boot entries left by an earlier name of this system."
+msgstr ""
+
+msgid "This disk has BitLocker volumes. Keep the Windows recovery key at hand when you change startup settings."
+msgstr ""
+
+msgid "The next start is set"
+msgstr ""
+
+msgid "Restart now?"
+msgstr ""
+
+msgid "Unsaved work in open programs will be lost."
+msgstr ""
+
+msgid "Repair the boot entry?"
+msgstr ""
+
+msgid "The boot loader is installed again. If Windows uses BitLocker, keep its recovery key at hand."
+msgstr ""
+
+msgid "Repair started"
+msgstr ""
+
+msgid "Remove old entries?"
+msgstr ""
+
+msgid "Folders and boot entries named after an earlier name of this system are deleted from the EFI partition."
+msgstr ""
+
+msgid "Cleanup started"
+msgstr ""
+
+msgid "Look"
+msgstr ""
+
+msgid "Text size"
+msgstr ""
+
+msgid "Small"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "Large"
+msgstr ""
+
+msgid "Larger"
+msgstr ""
+
+msgid "Window effects"
+msgstr ""
+
+msgid "Soft shadows, rounded corners and transparency. Turn them off on a slow computer."
+msgstr ""
+
+msgid "Desktop picture"
+msgstr ""
+
+msgid "Picture"
+msgstr ""
+
+msgid "Choose an image for the desktop."
+msgstr ""
+
+msgid "Choose…"
+msgstr ""
+
+msgid "Choose a picture"
+msgstr ""
+
+msgid "Images"
+msgstr ""
+
+msgid "The desktop picture was changed"
+msgstr ""
+
+msgid "The picture could not be applied"
+msgstr ""
+
+msgid "Displays"
+msgstr ""
+
+msgid "Screens"
+msgstr ""
+
+msgid "Size of the interface"
+msgstr ""
+
+msgid "A larger size makes text and controls bigger. Open programs may need to be restarted."
+msgstr ""
+
+msgid "Interface scale"
+msgstr ""
+
+msgid "This needs the desktop session and the xrandr tool."
+msgstr ""
+
+msgid "Resolution"
+msgstr ""
+
+msgid "The resolution could not be changed"
+msgstr ""
+
+msgid "Keep this resolution?"
+msgstr ""
+
+msgid "The previous resolution comes back in 15 seconds if you do nothing."
+msgstr ""
+
+msgid "Sound"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid "Volume"
+msgstr ""
+
+msgid "Mute"
+msgstr ""
+
+msgid "No device"
+msgstr ""
+
+msgid "Bluetooth"
+msgstr ""
+
+msgid "Search for devices"
+msgstr ""
+
+msgid "Put the device in pairing mode, then search."
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Devices"
+msgstr ""
+
+msgid "No Bluetooth adapter"
+msgstr ""
+
+msgid "This computer has no Bluetooth adapter, or the Bluetooth service is not running."
+msgstr ""
+
+msgid "Paired"
+msgstr ""
+
+msgid "Not paired"
+msgstr ""
+
+msgid "Pair"
+msgstr ""
+
+msgid "Searching for devices…"
+msgstr ""
+
+msgid "The command failed"
+msgstr ""
+
+msgid "Pairing failed. Check that the device is in pairing mode."
+msgstr ""
+
+msgid "Keyboard"
+msgstr ""
+
+msgid "Typing languages"
+msgstr ""
+
+msgid "Keyboard layout"
+msgstr ""
+
+msgid "Switch between English and Korean"
+msgstr ""
+
+msgid "Press the Hangul key, the right Alt key, Shift+Space or Ctrl+Space."
+msgstr ""
+
+msgid "Input method settings"
+msgstr ""
+
+msgid "Add languages or change the switching keys."
+msgstr ""
+
+msgid "Key repeat"
+msgstr ""
+
+msgid "Delay before repeating (ms)"
+msgstr ""
+
+msgid "Repeats per second"
+msgstr ""
+
+msgid "The input method settings could not be opened"
+msgstr ""
+
+msgid "Storage"
+msgstr ""
+
+msgid "Model files"
+msgstr ""
+
+msgid "Downloaded models"
+msgstr ""
+
+msgid "%(n)d models, %(size)s"
+msgstr ""
+
+msgid "The disk list could not be read."
+msgstr ""
+
+msgid "Disk"
+msgstr ""
+
+msgid "Partition"
+msgstr ""
+
+msgid "CUDA runtime"
+msgstr ""
+
+msgid "GPU acceleration needs NVIDIA's CUDA runtime. It is not part of Opereta: this computer downloads it directly from NVIDIA."
+msgstr ""
+
+msgid "Restart the model server"
+msgstr ""
+
+msgid "Restart it so the model uses the GPU after the runtime is installed."
+msgstr ""
+
+msgid "CUDA supported by the driver"
+msgstr ""
+
+msgid "Downloading and installing…"
+msgstr ""
+
+msgid "Start a model from the Server page."
+msgstr ""
+
+msgid "The model server is restarting"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
+msgid "The state of this computer at a glance. Select a row to open its page."
+msgstr ""
+
+msgid "Download the CUDA runtime"
+msgstr ""
+
+msgid "The CUDA backend did not load. Open Graphics: download the CUDA runtime if it is missing, then run the GPU check."
+msgstr ""
+
+msgid "No GPU acceleration needed"
+msgstr ""
+
+msgid "There is no NVIDIA GPU, so models run on the CPU."
+msgstr ""
+
+msgid "GPU acceleration is ready"
+msgstr ""
+
+msgid "The CUDA runtime is installed."
+msgstr ""
+
+msgid "GPU acceleration is not available"
+msgstr ""
+
+msgid "GPU acceleration needs the CUDA runtime"
+msgstr ""
+
+msgid "NVIDIA's CUDA runtime is not part of Opereta; this computer downloads it from NVIDIA (about 360 MiB). Without it models run on the CPU. You can skip this and do it later in Graphics."
+msgstr ""
+
+msgid "GPU acceleration needs the CUDA runtime from NVIDIA. Until it is installed, models run on the CPU."
+msgstr ""
+
+msgid "Boot information is not available."
+msgstr ""
+
+msgid "This computer was not started in UEFI mode. Boot entries are not available."
+msgstr ""
+
+msgid "UEFI mode, but the boot entries could not be read."
+msgstr ""
+
+msgid "Started from: %s"
+msgstr ""
+
+msgid "This computer was not started in UEFI mode. Restart it in UEFI mode (turn off CSM or legacy boot in the firmware settings)."
+msgstr ""
+
+msgid "The firmware has no 'opereta' boot entry. Use Repair to create it."
+msgstr ""
+
+msgid "The firmware starts another system before Opereta. Choose Opereta for the next start below."
+msgstr ""
+
+msgid "This firmware rewrites the boot order after it is set. Use the next-start choice below, or turn on 'Start Opereta again after shutting down'."
+msgstr ""
+
+msgid "Folders or boot entries from an earlier name of this system remain. You can remove them below."
+msgstr ""
+
+msgid "The EFI system partition is not mounted."
+msgstr ""
+
+msgid "The fallback boot file is missing. Use Repair to restore it."
+msgstr ""
+
+msgid "CUDA runtime missing"
+msgstr ""
+
+msgid "%d things need attention"
+msgstr ""
+
+msgid "Boot entries look fine"
+msgstr ""
+
+msgid "Open Graphics"
+msgstr ""
+
+msgid "AI"
+msgstr ""
+
+msgid "GPU acceleration"
+msgstr ""
+
+msgid "NVIDIA's license applies: https://docs.nvidia.com/cuda/eula/index.html . The download runs in the background."
+msgstr ""
+
+msgid "Download started. You can follow it in Graphics."
 msgstr ""

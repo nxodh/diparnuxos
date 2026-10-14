@@ -4,7 +4,7 @@
   <property name="general" type="empty">
     <property name="theme" type="string" value="Opereta"/>
     <property name="title_font" type="string" value="Pretendard SemiBold 10"/>
-    <property name="button_layout" type="string" value="CHM|"/>
+    <property name="button_layout" type="string" value="CMH|"/>
     <property name="title_alignment" type="string" value="center"/>
     <property name="use_compositing" type="bool" value="true"/>
     <property name="show_frame_shadow" type="bool" value="true"/>

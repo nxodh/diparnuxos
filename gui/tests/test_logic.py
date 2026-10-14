@@ -411,6 +411,59 @@ class DeberopaLogicTests(unittest.TestCase):
         self.assertFalse(logic.describe_deberopa(None)["can_check"])
 
 
+class DesktopLogicTests(unittest.TestCase):
+    GPU_STATUS = {"gpu": {"nvml": {"devices": [{"index": 0, "name": "RTX 3060 Laptop", "arch": "ampere", "compute_cap": "8.6",
+                                                 "memory_total_mib": 6144, "memory_used_mib": 512}]}, "status": {"present": True, "usable_count": 1, "gpus": [{"name": "RTX 3060 Laptop"}], "state": "ready"}},
+                  "server": {"state": "stopped"}}
+
+    def test_runtime_banner_only_when_a_gpu_lacks_the_runtime(self):
+        missing = {"cuda_runtime": {"installed": False, "reason": "not_installed"}}
+        self.assertTrue(logic.gpu_runtime_banner(self.GPU_STATUS, missing))
+        self.assertIsNone(logic.gpu_runtime_banner(self.GPU_STATUS, {"cuda_runtime": {"installed": True}}))
+        self.assertIsNone(logic.gpu_runtime_banner(self.GPU_STATUS, {"cuda_runtime": {"installed": False, "reason": "no_settings"}}))
+        self.assertIsNone(logic.gpu_runtime_banner({"gpu": {}}, missing))  # GPU 가 없으면 필요 없다
+        self.assertIsNone(logic.gpu_runtime_banner(self.GPU_STATUS, None))
+
+    def test_wizard_runtime_step(self):
+        warn = logic.evaluate_runtime(self.GPU_STATUS, {"cuda_runtime": {"installed": False, "reason": "not_installed"}})
+        self.assertEqual(warn.level, logic.WARN)
+        self.assertEqual(logic.evaluate_runtime(self.GPU_STATUS, {"cuda_runtime": {"installed": True}}).level, logic.OK)
+        self.assertEqual(logic.evaluate_runtime({"gpu": {}}, None).level, logic.INFO)
+        self.assertIn("runtime", logic.STEPS)
+
+    BOOT = {"boot": {"available": True, "uefi": True, "secure_boot": "off", "current": "0000", "next": "",
+                      "order": ["0002", "0001", "0000"], "auto": True, "bitlocker": True,
+                      "entries": [{"num": "0000", "label": "opereta", "kind": "opereta"},
+                                  {"num": "0001", "label": "Windows Boot Manager", "kind": "windows"},
+                                  {"num": "0002", "label": "UEFI: SanDisk", "kind": "removable"}],
+                      "problems": [{"code": "firmware_reorders", "message": "x"}, {"code": "legacy_entries", "message": "y"}]}}
+
+    def test_describe_boot_lists_entries_in_boot_order(self):
+        d = logic.describe_boot(self.BOOT)
+        self.assertTrue(d["usable"])
+        self.assertEqual([e["label"] for e in d["entries"]], ["UEFI: SanDisk", "Windows Boot Manager", "opereta"])
+        self.assertEqual([e["current"] for e in d["entries"]], [False, False, True])
+        self.assertIn("opereta", d["summary"])
+        self.assertTrue(d["auto"] and d["bitlocker"])
+        self.assertEqual({p[0] for p in d["problems"]}, {"firmware_reorders", "legacy_entries"})
+
+    def test_describe_boot_without_uefi_or_data(self):
+        self.assertFalse(logic.describe_boot({})["usable"])
+        d = logic.describe_boot({"boot": {"uefi": False}})
+        self.assertFalse(d["usable"])
+        self.assertEqual(d["problems"][0][0], "not_uefi")
+        self.assertFalse(logic.describe_boot({"boot": {"uefi": True, "available": False}})["usable"])
+
+    def test_home_cards(self):
+        cards = {c["key"]: c for c in logic.home_cards(self.GPU_STATUS, dict(self.BOOT, cuda_runtime={"installed": False, "reason": "not_installed"}))}
+        self.assertEqual(cards["gpu"]["level"], logic.WARN)
+        self.assertEqual(cards["gpu"]["page"], "gpu")
+        self.assertEqual(cards["boot"]["page"], "boot")
+        self.assertEqual(cards["server"]["page"], "server")
+        # 시작 항목의 "이전 이름 남음"은 주의 사항 수에 넣지 않는다
+        self.assertIn("1", cards["boot"]["text"])
+
+
 class NetworkLogicTests(unittest.TestCase):
     def test_online_summary_names_the_connection(self):
         d = logic.describe_network({
