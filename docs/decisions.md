@@ -48,6 +48,7 @@
 
 | U18 | 0.6.2: 코딩 에이전트 Vedecaps 를 **Deberopa** 로 바꾸고 Deberopa 0.2.0 을 이미지에 고정한다(패키지 `opereta-deberopa`, `/usr/bin/deberopa`, 설정 `~/.config/deberopa/deberopa.json`). `opereta connect deberopa` 가 새 명령이고 이전 이름 `vedecaps` 는 별칭으로 남긴다. 새 폴더가 없고 옛 폴더만 있으면 옛 폴더에 합쳐 Deberopa 가 첫 실행 때 옮기게 한다. 이로써 0.6.0 의 "알려진 한계"(Opereta 인식, 슬롯 수, TLS 안내의 명령 이름)가 해소되었고 이미지의 이전 OS 이름 검사 예외도 없어졌다. | 사용자 알림(2026-10-14, "Deberopa 0.2.0 개발됐어"). [phase-6-2-design.md](phase-6-2-design.md). 이름과 로고의 상표·저작권 확인은 소유자 몫이다. |
 | U19 | 0.6.2: (1) 유휴 램 상한(헤드리스 500, 데스크톱 800 MiB, U13 이후 0.5.4 에서 확정)을 **해제한다**. 디자인과 사용성을 램보다 우선하며, E2E 는 기록만 한다. (2) 전체 GUI(데스크톱, Control Center)를 macOS Big Sur 풍의 현대적 디자인으로 바꾼다: 곡률 있는 사각형, 회색조 팔레트(밝은 `Opereta`, 어두운 `Opereta-Dark`), 창 버튼은 왼쪽에 x(닫기), −(최소화), +(최대화) 기호. (3) 글꼴은 Pretendard(SIL OFL 1.1, Debian `fonts-pretendard`)를 OS 전체 기본으로 쓴다. (4) Deberopa 는 최신 릴리스를 자동으로 확인해 뒤처지면 갱신한다. | 사용자 요청(2026-10-14). 글꼴 라이선스 검토는 [licenses.md](licenses.md), 디자인은 [design.md](design.md), 갱신은 [phase-6-2-design.md](phase-6-2-design.md). |
+| U20 | 0.6.3 계획(설계 [phase-6-3-design.md](phase-6-3-design.md)): 독은 plank, 합성 관리자는 picom 으로 교체, 아이콘은 Papirus, 제어 센터에 블루투스를 포함하고 AI 페이지는 빼지 않으며 CUDA 런타임 받기를 눈에 띄게 한다. 창 단추 순서는 x, +, − 로 바꾼다. 릴리스는 전부 끝낸 뒤 0.6.3 한 번에 한다. 자체 단추를 그리는 앱의 한계는 받아들인다. | 사용자 결정(2026-10-14). 부팅 문제의 원인은 기기 정보 대기. |
 
 ---
 
