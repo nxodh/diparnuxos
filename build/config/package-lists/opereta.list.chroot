@@ -49,8 +49,8 @@ xorgxrdp
 openssh-server
 # Control Center(GTK4, libadwaita). 데스크톱 모드에서 쓰며 서버 모드에서는 실행되지 않는다.
 opereta-control-center
-# 코딩 에이전트 Vedecaps(고정 버전). 서버 모드에서도 터미널에서 쓴다. 연결은 'opereta connect vedecaps' 가 한다.
-opereta-vedecaps
+# 코딩 에이전트 Deberopa(고정 버전). 서버 모드에서도 터미널에서 쓴다. 연결은 'opereta connect deberopa' 가 한다.
+opereta-deberopa
 # Secure Boot 기기 키 등록 도구(opereta-mok)가 쓴다. 설치된 시스템에서만 쓰며 서비스는 없다.
 mokutil
 

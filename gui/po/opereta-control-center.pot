@@ -1212,7 +1212,7 @@ msgstr ""
 
 msgid ""
 "Chat suits short conversations. Coding agent keeps a long context for each "
-"request so tools like Vedecaps can work on large projects. Restart the "
+"request so tools like Deberopa can work on large projects. Restart the "
 "server to apply."
 msgstr ""
 
@@ -1246,7 +1246,7 @@ msgid "No key needed on this computer"
 msgstr ""
 
 msgid ""
-"Programs on this computer, such as Vedecaps, can connect without an API key. "
+"Programs on this computer, such as Deberopa, can connect without an API key. "
 "Other computers still need one."
 msgstr ""
 
@@ -1559,11 +1559,11 @@ msgstr ""
 msgid "The opereta command was not found."
 msgstr ""
 
-msgid "Vedecaps"
+msgid "Deberopa"
 msgstr ""
 
 msgid ""
-"Vedecaps is a coding agent for the terminal. This computer runs the model it "
+"Deberopa is a coding agent for the terminal. This computer runs the model it "
 "uses."
 msgstr ""
 
@@ -1577,11 +1577,11 @@ msgid "Use for coding agents"
 msgstr ""
 
 msgid ""
-"Writes the model, the context size and the Opereta tools into your Vedecaps "
+"Writes the model, the context size and the Opereta tools into your Deberopa "
 "settings. Nothing else in them changes."
 msgstr ""
 
-msgid "Set up Vedecaps"
+msgid "Set up Deberopa"
 msgstr ""
 
 msgid "Adds Opereta as a provider and as a source of tools."
@@ -1599,7 +1599,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-msgid "What Vedecaps needs to know, in case you want to add it by hand."
+msgid "What Deberopa needs to know, in case you want to add it by hand."
 msgstr ""
 
 msgid "Not installed on this computer"
@@ -1610,7 +1610,7 @@ msgstr ""
 
 #, python-format
 msgid ""
-"%(ctx)d tokens. Vedecaps works better with at least %(good)d: choose “Use "
+"%(ctx)d tokens. Deberopa works better with at least %(good)d: choose “Use "
 "for coding agents”."
 msgstr ""
 
@@ -1618,13 +1618,13 @@ msgstr ""
 msgid "%d tokens"
 msgstr ""
 
-msgid "vedecaps.json"
+msgid "deberopa.json"
 msgstr ""
 
-msgid "Vedecaps is set up"
+msgid "Deberopa is set up"
 msgstr ""
 
-msgid "Setting up Vedecaps failed"
+msgid "Setting up Deberopa failed"
 msgstr ""
 
 msgid "The model calls tools correctly."
@@ -1829,7 +1829,7 @@ msgid "How will you use the model?"
 msgstr ""
 
 msgid ""
-"Coding agents such as Vedecaps need a long context for each request. You can "
+"Coding agents such as Deberopa need a long context for each request. You can "
 "change this later in the Server page."
 msgstr ""
 

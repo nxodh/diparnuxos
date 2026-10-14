@@ -108,8 +108,8 @@ llama_in_chroot="${tree}/build/chroot${LLAMA_INSTALL_DIR}"
 [ -x "${llama_in_chroot}/llama-server" ] || die "llama-server is missing from the chroot: ${llama_in_chroot}/llama-server"
 [ -f "${llama_in_chroot}/libggml-cuda.so" ] || die "libggml-cuda.so is missing from the chroot: ${llama_in_chroot}/libggml-cuda.so"
 
-# 검증 5: 고정 버전의 Vedecaps 실행 파일이 chroot 에 있다(opereta-vedecaps 가 설치한다).
-[ -x "${tree}/build/chroot/usr/bin/vedecaps" ] || die "vedecaps is missing from the chroot: /usr/bin/vedecaps"
+# 검증 5: 고정 버전의 Deberopa 실행 파일이 chroot 에 있다(opereta-deberopa 가 설치한다).
+[ -x "${tree}/build/chroot/usr/bin/deberopa" ] || die "deberopa is missing from the chroot: /usr/bin/deberopa"
 
 # lb 가 만든 ISO 에 EFI System Partition 을 GPT 파티션으로 덧붙인다 (BIOS 부트로더는 쓰지 않는다).
 # 결과 파일은 add-esp-partition.sh 가 자체 검증을 마친 뒤에만 남는다.

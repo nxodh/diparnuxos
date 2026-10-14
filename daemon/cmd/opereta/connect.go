@@ -10,37 +10,41 @@ import (
 	"strings"
 
 	"github.com/nxodh/operetaos/daemon/internal/client"
-	"github.com/nxodh/operetaos/daemon/internal/vedecaps"
+	"github.com/nxodh/operetaos/daemon/internal/deberopa"
 )
 
-// connect 는 다른 프로그램을 이 서버에 연결하는 설정을 만든다. 지금은 Vedecaps 만 있다.
+// connect 는 다른 프로그램을 이 서버에 연결하는 설정을 만든다. 지금은 Deberopa 만 있다.
 func (c *cli) connect(args []string) int {
-	if len(args) == 0 || args[0] != "vedecaps" {
-		return c.usage("usage: opereta connect vedecaps [--remote] [--url URL] [--model ID] [--write] [--mcp]", "connect")
+	if len(args) == 0 || (args[0] != "deberopa" && args[0] != "vedecaps") {
+		return c.usage("usage: opereta connect deberopa [--remote] [--url URL] [--model ID] [--write] [--mcp]", "connect")
 	}
-	return c.connectVedecaps(args[1:])
+	if args[0] == "vedecaps" {
+		// 이전 이름. 같은 동작을 하되 새 이름을 알린다. 표준 오류로 써서 JSON 출력을 해치지 않는다.
+		fmt.Fprintln(c.env.stderr, "note: 'vedecaps' is the old name of this agent; use 'opereta connect deberopa'")
+	}
+	return c.connectDeberopa(args[1:])
 }
 
-func (c *cli) connectVedecaps(args []string) int {
-	fs := newFlags("connect vedecaps")
-	remote := fs.Bool("remote", false, "use this computer's LAN address (for Vedecaps on another computer)")
+func (c *cli) connectDeberopa(args []string) int {
+	fs := newFlags("connect deberopa")
+	remote := fs.Bool("remote", false, "use this computer's LAN address (for Deberopa on another computer)")
 	baseURL := fs.String("url", "", "base URL to use instead")
 	modelID := fs.String("model", "", "model name (default: the running or default model)")
-	keyEnv := fs.String("key-env", vedecaps.DefaultKeyEnv, "environment variable that holds the API key")
-	write := fs.Bool("write", false, "merge the settings into the Vedecaps config of the current user")
+	keyEnv := fs.String("key-env", deberopa.DefaultKeyEnv, "environment variable that holds the API key")
+	write := fs.Bool("write", false, "merge the settings into the Deberopa config of the current user")
 	makeDefault := fs.Bool("make-default", false, "make Opereta the default model even when another default is set")
 	withMCP := fs.Bool("mcp", false, "also register the read-only Opereta MCP server (opereta mcp)")
-	caPath := fs.String("ca", "", "path of the CA certificate on the computer where Vedecaps runs (https addresses; default "+vedecaps.DefaultCAFile+")")
+	caPath := fs.String("ca", "", "path of the CA certificate on the computer where Deberopa runs (https addresses; default "+deberopa.DefaultCAFile+")")
 	caOut := fs.String("ca-out", "", "write this computer's CA certificate to this file (copy it to the other computer)")
-	pos, code, ok := c.parse(fs, "connect vedecaps", args)
+	pos, code, ok := c.parse(fs, "connect deberopa", args)
 	if !ok {
 		return code
 	}
 	if len(pos) != 0 {
-		return c.usage("connect vedecaps takes no arguments", "connect vedecaps")
+		return c.usage("connect deberopa takes no arguments", "connect deberopa")
 	}
 	if *remote && *baseURL != "" {
-		return c.usage("use either --remote or --url", "connect vedecaps")
+		return c.usage("use either --remote or --url", "connect deberopa")
 	}
 
 	ctx, cancel := c.timeout(metaTimeout)
@@ -89,14 +93,14 @@ func (c *cli) connectVedecaps(args []string) int {
 	if strings.HasPrefix(base, "https://") {
 		caFile = *caPath
 		if caFile == "" {
-			caFile = vedecaps.DefaultCAFile
+			caFile = deberopa.DefaultCAFile
 		}
 	} else if *caPath != "" {
-		return c.usage("--ca only applies to an https:// address (use --remote while TLS is on, or --url https://...)", "connect vedecaps")
+		return c.usage("--ca only applies to an https:// address (use --remote while TLS is on, or --url https://...)", "connect deberopa")
 	}
-	frag, err := vedecaps.Fragment(vedecaps.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP, Packaged: packagedVedecaps(), CAFile: caFile})
+	frag, err := deberopa.Fragment(deberopa.Input{BaseURL: base, ModelID: model, SlotCtx: slotCtx, NeedsKey: needsKey, KeyEnv: *keyEnv, MCP: *withMCP, Packaged: packagedDeberopa(), CAFile: caFile})
 	if err != nil {
-		c.errorLine(strings.TrimPrefix(err.Error(), "vedecaps: "))
+		c.errorLine(strings.TrimPrefix(err.Error(), "deberopa: "))
 		return exitUsage
 	}
 
@@ -117,33 +121,33 @@ func (c *cli) connectVedecaps(args []string) int {
 		fmt.Fprintln(c.env.stderr)
 	}
 	if !*write {
-		fmt.Fprint(w, vedecaps.Pretty(frag))
-		c.vedecapsHints(base, needsKey, *keyEnv, model, conn.ServerState)
+		fmt.Fprint(w, deberopa.Pretty(frag))
+		c.deberopaHints(base, needsKey, *keyEnv, model, conn.ServerState)
 		if caFile != "" {
-			c.vedecapsCAHints(caFile, conn.CAFingerprint)
+			c.deberopaCAHints(caFile, conn.CAFingerprint)
 		}
 		return exitOK
 	}
 
 	home := c.env.getenv("HOME")
 	if home == "" {
-		c.errorLine("HOME is not set, so the Vedecaps config cannot be located; print the settings without --write")
+		c.errorLine("HOME is not set, so the Deberopa config cannot be located; print the settings without --write")
 		return exitFailure
 	}
-	path := vedecaps.ConfigFile(home, c.env.getenv("XDG_CONFIG_HOME"))
+	path, legacyFolder := deberopa.ResolveConfigFile(home, c.env.getenv("XDG_CONFIG_HOME"), isDirectory)
 	existing, rerr := os.ReadFile(path)
 	if rerr != nil && !errors.Is(rerr, os.ErrNotExist) {
 		c.errorLine("cannot read " + path + ": " + rerr.Error())
 		return exitFailure
 	}
-	res, merr := vedecaps.Merge(existing, frag, vedecaps.MergeOptions{MakeDefault: *makeDefault})
+	res, merr := deberopa.Merge(existing, frag, deberopa.MergeOptions{MakeDefault: *makeDefault})
 	if merr != nil {
-		if errors.Is(merr, vedecaps.ErrNeedsManualMerge) {
+		if errors.Is(merr, deberopa.ErrNeedsManualMerge) {
 			c.errorLine(path + " is not plain JSON (comments or a trailing comma). Nothing was changed; merge this by hand:")
-			fmt.Fprint(w, vedecaps.Pretty(frag))
+			fmt.Fprint(w, deberopa.Pretty(frag))
 			return exitFailure
 		}
-		c.errorLine(strings.TrimPrefix(merr.Error(), "vedecaps: "))
+		c.errorLine(strings.TrimPrefix(merr.Error(), "deberopa: "))
 		return exitFailure
 	}
 	if err := writeConfig(path, existing, res.Data); err != nil {
@@ -151,6 +155,9 @@ func (c *cli) connectVedecaps(args []string) int {
 		return exitFailure
 	}
 	kv(w, "config", path)
+	if legacyFolder {
+		kv(w, "note", "the settings were added to the old (Vedecaps) folder; Deberopa copies that folder to ~/.config/deberopa on its first run")
+	}
 	for _, n := range res.Notes {
 		kv(w, "change", n)
 	}
@@ -160,19 +167,19 @@ func (c *cli) connectVedecaps(args []string) int {
 	if len(existing) > 0 {
 		kv(w, "backup", path+".bak")
 	}
-	c.vedecapsHints(base, needsKey, *keyEnv, model, conn.ServerState)
+	c.deberopaHints(base, needsKey, *keyEnv, model, conn.ServerState)
 	return exitOK
 }
 
-// vedecapsHints 는 설정 뒤에 해야 할 일을 알려 준다. 표준 오류로 써서 JSON 출력을 해치지 않는다.
-func (c *cli) vedecapsHints(base string, needsKey bool, keyEnv, model, serverState string) {
+// deberopaHints 는 설정 뒤에 해야 할 일을 알려 준다. 표준 오류로 써서 JSON 출력을 해치지 않는다.
+func (c *cli) deberopaHints(base string, needsKey bool, keyEnv, model, serverState string) {
 	e := c.env.stderr
 	if needsKey {
-		fmt.Fprintf(e, "note: this address needs an API key. Set %s in the environment where Vedecaps runs.\n", keyEnv)
-		fmt.Fprintln(e, "      Create one with: opereta apikey create vedecaps   (the key is shown once)")
+		fmt.Fprintf(e, "note: this address needs an API key. Set %s in the environment where Deberopa runs.\n", keyEnv)
+		fmt.Fprintln(e, "      Create one with: opereta apikey create deberopa   (the key is shown once)")
 	}
 	if model == "" {
-		fmt.Fprintln(e, "note: no model is installed yet, so no model was written. Vedecaps lists the server's models by itself.")
+		fmt.Fprintln(e, "note: no model is installed yet, so no model was written. Deberopa lists the server's models by itself.")
 	}
 	if serverState != "running" && serverState != "running_cpu_fallback" {
 		fmt.Fprintln(e, "note: the model server is not running. Start it first: opereta serve start")
@@ -180,15 +187,15 @@ func (c *cli) vedecapsHints(base string, needsKey bool, keyEnv, model, serverSta
 	fmt.Fprintln(e, "next: check that the model can call tools with: opereta serve toolcheck")
 }
 
-// vedecapsCAHints 는 https 주소를 쓸 때 CA 를 어떻게 배포하는지 알린다.
-func (c *cli) vedecapsCAHints(caFile, fingerprint string) {
+// deberopaCAHints 는 https 주소를 쓸 때 CA 를 어떻게 배포하는지 알린다.
+func (c *cli) deberopaCAHints(caFile, fingerprint string) {
 	e := c.env.stderr
-	fmt.Fprintf(e, "note: this address uses HTTPS with this computer's own CA. Vedecaps needs the CA file at %s\n", caFile)
+	fmt.Fprintf(e, "note: this address uses HTTPS with this computer's own CA. Deberopa needs the CA file at %s\n", caFile)
 	fmt.Fprintln(e, "      Make it here:  opereta tls ca --out opereta-ca.pem   (or add --ca-out FILE to this command)")
 	if fingerprint != "" {
 		fmt.Fprintf(e, "      After copying it, check that its SHA-256 fingerprint is %s\n", fingerprint)
 	}
-	fmt.Fprintln(e, "      Trusting the CA needs Vedecaps 0.1.5 or newer (options.ca). Do not turn certificate checking off.")
+	fmt.Fprintln(e, "      Trusting the CA needs Deberopa (or Vedecaps 0.1.5 or newer) (options.ca). Do not turn certificate checking off.")
 }
 
 // isLocalURL 은 주소가 이 컴퓨터(루프백)를 가리키는지다.
@@ -217,7 +224,7 @@ func writeConfig(path string, old, data []byte) error {
 			return fmt.Errorf("cannot write the backup %s.bak: %v", path, err)
 		}
 	}
-	tmp, err := os.CreateTemp(dir, ".vedecaps-*.tmp")
+	tmp, err := os.CreateTemp(dir, ".deberopa-*.tmp")
 	if err != nil {
 		return fmt.Errorf("cannot write in %s: %v", dir, err)
 	}
@@ -263,11 +270,17 @@ func linkSkill(home string) string {
 	return "linked " + link
 }
 
-// vedecapsPath 는 Opereta 패키지가 설치하는 Vedecaps 실행 파일 경로다. 시험이 바꾼다.
-var vedecapsPath = "/usr/bin/vedecaps"
+// deberopaPath 는 Opereta 패키지가 설치하는 Deberopa 실행 파일 경로다. 시험이 바꾼다.
+var deberopaPath = "/usr/bin/deberopa"
 
-// packagedVedecaps 는 이 컴퓨터의 Vedecaps 가 Opereta 패키지로 설치된 것인지다.
-func packagedVedecaps() bool {
-	st, err := os.Stat(vedecapsPath)
+// packagedDeberopa 는 이 컴퓨터의 Deberopa 가 Opereta 패키지로 설치된 것인지다.
+func packagedDeberopa() bool {
+	st, err := os.Stat(deberopaPath)
 	return err == nil && st.Mode().IsRegular()
+}
+
+// isDirectory 는 경로가 디렉터리인지 본다.
+func isDirectory(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
 }

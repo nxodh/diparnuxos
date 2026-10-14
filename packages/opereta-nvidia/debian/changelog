@@ -1,3 +1,9 @@
+opereta-nvidia (0.6.2) trixie; urgency=medium
+
+  * 버전을 0.6.2 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.2 는 코딩 에이전트 이름을 Deberopa 로 바꾼다).
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
+
 opereta-nvidia (0.6.1) trixie; urgency=medium
 
   * CUDA 런타임(cuda-cudart-*, libcublas-*)을 이미지에 넣지 않는다. 설치 의존성에서 빼고, 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받을 때 쓸 고정 버전(핀과 nvidia.conf)만 둔다.

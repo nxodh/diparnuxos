@@ -242,7 +242,7 @@ func TestAlwaysOnDropinsNeverBlockUserShutdown(t *testing.T) {
 	}
 }
 
-// 스킬은 Vedecaps 가 frontmatter 의 설명이 있어야 목록에 올린다. 이름과 설명이 있고, 안내하는 명령이 실제 명령인지 본다.
+// 스킬은 Deberopa 가 frontmatter 의 설명이 있어야 목록에 올린다. 이름과 설명이 있고, 안내하는 명령이 실제 명령인지 본다.
 func TestOperetaSkillIsListedByAgentsAndNamesRealCommands(t *testing.T) {
 	text := readFile(t, "skills/opereta/SKILL.md")
 	if !strings.HasPrefix(text, "---\n") {

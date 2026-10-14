@@ -230,9 +230,9 @@ echo 'PASS: GPT and EFI System partition found'
 # Phase 3: 데스크톱 구성 요소는 설치하되 기본 부팅 대상은 서버 모드(multi-user.target)로 둔다.
 check_package opereta-desktop "$OPERETA_VERSION"
 check_package opereta-control-center "$OPERETA_VERSION"
-# 0.5.3: 고정 버전의 Vedecaps 실행 파일과 에이전트용 스킬이 들어 있다.
-check_package opereta-vedecaps "$OPERETA_VERSION"
-require_path 'squashfs-root/usr/bin/vedecaps$' 'Vedecaps executable'
+# 0.5.3: 고정 버전의 Deberopa 실행 파일과 에이전트용 스킬이 들어 있다.
+check_package opereta-deberopa "$OPERETA_VERSION"
+require_path 'squashfs-root/usr/bin/deberopa$' 'Deberopa executable'
 require_path 'squashfs-root/usr/share/opereta/skills/opereta/SKILL[.]md$' 'Opereta skill for coding agents'
 for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"
@@ -288,16 +288,10 @@ if grep -i -q -- "$legacy" "$WORK/status"; then
 fi
 rm -rf "$WORK/legacy-check"
 unsquashfs -d "$WORK/legacy-check" -f "$WORK/rootfs.squashfs" etc usr/lib/systemd usr/lib/os-release usr/share/applications usr/share/opereta usr/lib/opereta usr/bin usr/sbin >/dev/null 2>&1 || true
-# 예외: /usr/bin/vedecaps 는 이 프로젝트의 파일이 아니라 고정한 Vedecaps 릴리스(제3자 바이너리)이고, 그 안의 문자열이 이전
-# OS 이름으로 OS 를 알아본다(docs/phase-6-design.md 7절). Deberopa 릴리스로 바뀌면 이 예외를 지운다. 다른 파일은 예외가 없다.
-legacy_hits="$(grep -r -a -i -l -- "$legacy" "$WORK/legacy-check" 2>/dev/null | grep -v '/usr/bin/vedecaps$' || true)"
-if [[ -n "$legacy_hits" ]]; then
+if grep -r -a -i -l -- "$legacy" "$WORK/legacy-check" 2>/dev/null | head -n 5 | grep -q .; then
     echo "FAIL: image files contain the old name:" >&2
-    echo "$legacy_hits" | head -n 10 >&2
+    grep -r -a -i -l -- "$legacy" "$WORK/legacy-check" | head -n 10 >&2
     exit 1
-fi
-if grep -a -i -q -- "$legacy" "$WORK/legacy-check/usr/bin/vedecaps" 2>/dev/null; then
-    echo "NOTE: /usr/bin/vedecaps (the pinned Vedecaps release) still contains the old OS name; it goes away with the Deberopa release"
 fi
 echo 'PASS: no trace of the old name in the image paths, package database and configuration'
 # 기본 부팅 대상이 graphical.target 이면 부팅하자마자 데스크톱이 떠서 서버 모드의 램 목표를 깨뜨린다.

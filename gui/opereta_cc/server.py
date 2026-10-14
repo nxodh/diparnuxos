@@ -58,7 +58,7 @@ class ServerPage(Adw.PreferencesPage):
         self.run_group.add(self.parallel_row)
         self.profile_row = Adw.ComboRow(title=_("Use"))
         self.profile_row.set_subtitle(
-            _("Chat suits short conversations. Coding agent keeps a long context for each request so tools like Vedecaps can work on large projects. Restart the server to apply.")
+            _("Chat suits short conversations. Coding agent keeps a long context for each request so tools like Deberopa can work on large projects. Restart the server to apply.")
         )
         self.profile_row.set_model(Gtk.StringList.new([_("Chat"), _("Coding agent")]))
         self.profile_row.connect("notify::selected", self._on_profile)
@@ -83,7 +83,7 @@ class ServerPage(Adw.PreferencesPage):
         self.net_group.add(self.lan_row)
         self.local_row = Adw.SwitchRow(title=_("No key needed on this computer"))
         self.local_row.set_subtitle(
-            _("Programs on this computer, such as Vedecaps, can connect without an API key. Other computers still need one.")
+            _("Programs on this computer, such as Deberopa, can connect without an API key. Other computers still need one.")
         )
         self.local_row.connect("notify::active", self._on_local_no_key)
         self.net_group.add(self.local_row)

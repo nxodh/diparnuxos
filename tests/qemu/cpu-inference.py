@@ -364,7 +364,7 @@ def scenario(console, budgets):
                 f"Chat after autostart {setting} daemon restart returned no generation speed")
 
     check_gateway(console, budgets)
-    check_vedecaps(console, budgets)
+    check_deberopa(console, budgets)
     check_tls(console, budgets)
     check_features(console, budgets)
 
@@ -395,9 +395,9 @@ HTTP_STATUS = (
 )
 
 
-# Vedecaps(코딩 에이전트)가 서버에 하는 요청을 그대로 해 본다. 한 줄이어야 하므로 람다로 쓴다.
+# Deberopa(코딩 에이전트)가 서버에 하는 요청을 그대로 해 본다. 한 줄이어야 하므로 람다로 쓴다.
 # /props 의 n_ctx 와 total_slots, /v1/models 의 id, /opereta/info, X-Opereta 헤더, include_usage 가 붙은 SSE 스트림, 도구가 붙은 요청.
-VEDECAPS_PROBE = (
+DEBEROPA_PROBE = (
     "python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=120); o={}; "
     "g=lambda p: (c.request(\"GET\",p), c.getresponse())[1]; "
     "q=lambda p,b: (c.request(\"POST\",p,json.dumps(b),{\"Content-Type\":\"application/json\"}), c.getresponse())[1]; "
@@ -412,8 +412,8 @@ VEDECAPS_PROBE = (
     "r=q(\"/v1/chat/completions\",{\"messages\":m,\"max_tokens\":8,\"tools\":t}); r.read(); o[\"tools\"]=r.status; "
     "print(json.dumps(o))'"
 )
-# 키가 있을 때 키 없는 요청의 거절 본문. Vedecaps 는 오류 본문의 error.message 를 읽는다.
-VEDECAPS_REFUSAL_PROBE = (
+# 키가 있을 때 키 없는 요청의 거절 본문. Deberopa 는 오류 본문의 error.message 를 읽는다.
+DEBEROPA_REFUSAL_PROBE = (
     "python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30); "
     "c.request(\"GET\",\"/v1/models\"); r=c.getresponse(); j=json.loads(r.read()); "
     "print(json.dumps([r.status,r.getheader(\"Content-Type\"),j.get(\"error\",{}).get(\"message\")]))'"
@@ -463,7 +463,7 @@ def check_gateway(console, budgets):
     time.sleep(1)
     require(http_status(console, "gateway-models-missing-key", base + "/v1/models", cmd) == 401,
             "Once a key exists, a request without a key must be refused")
-    refusal = json.loads(console.command("vedecaps-refusal", VEDECAPS_REFUSAL_PROBE, cmd))
+    refusal = json.loads(console.command("deberopa-refusal", DEBEROPA_REFUSAL_PROBE, cmd))
     require(refusal[0] == 401 and "json" in (refusal[1] or "") and isinstance(refusal[2], str) and refusal[2],
             "A refused request must carry a JSON body with error.message, which coding agents show to the user")
     require(http_status(console, "gateway-models-wrong-key", base + "/v1/models", cmd,
@@ -488,10 +488,10 @@ def check_gateway(console, budgets):
     require(removed.get("deleted") is True, "The test key was not removed")
 
 
-def check_vedecaps(console, budgets):
-    """0.5.3: Vedecaps 가 쓰는 요청이 이 서버에서 통하는지 확인한다. 키가 없는 이 컴퓨터의 요청, 연결 설정, 도구 호출 확인."""
+def check_deberopa(console, budgets):
+    """0.5.3: Deberopa 가 쓰는 요청이 이 서버에서 통하는지 확인한다. 키가 없는 이 컴퓨터의 요청, 연결 설정, 도구 호출 확인."""
     cmd = budgets["COMMAND_TIMEOUT"]
-    probe = json.loads(console.command("vedecaps-probe", VEDECAPS_PROBE, budgets["CHAT_TIMEOUT"]))
+    probe = json.loads(console.command("deberopa-probe", DEBEROPA_PROBE, budgets["CHAT_TIMEOUT"]))
     status, n_ctx, slots = probe["props"]
     require(status == 200 and isinstance(n_ctx, int) and n_ctx > 0, "/props must report default_generation_settings.n_ctx")
     require(isinstance(slots, int) and slots >= 1, "/props must report total_slots")
@@ -514,7 +514,7 @@ def check_vedecaps(console, budgets):
     # 작은 시험 모델의 채팅 틀이 도구를 받을 수 있는지는 모델에 달렸다. 게이트웨이가 막지 않고 모델 서버가 답했는지만 본다.
     require(probe["tools"] in (200, 400, 500), f"A request that offers tools must reach the model server (got {probe['tools']})")
 
-    connect = console.command("vedecaps-connect", "opereta connect vedecaps --mcp 2>/dev/null", cmd)
+    connect = console.command("deberopa-connect", "opereta connect deberopa --mcp 2>/dev/null", cmd)
     config = json.loads(connect)
     provider = config["provider"]["opereta"]
     require(provider["api"] == "http://127.0.0.1:8080/v1" and "options" not in provider,
@@ -524,7 +524,7 @@ def check_vedecaps(console, budgets):
             "limit.context must be the context of one request")
     require(config["mcp"]["opereta"]["command"] == ["opereta", "mcp"], "The MCP entry must run 'opereta mcp'")
     mcp = console.command(
-        "vedecaps-mcp",
+        "deberopa-mcp",
         "printf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}' "
         "'{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | opereta mcp", cmd)
     lines = [json.loads(x) for x in mcp.splitlines() if x.strip().startswith("{")]
@@ -533,7 +533,7 @@ def check_vedecaps(console, budgets):
             "The MCP server must offer read-only tools by default")
 
     # 도구 호출 확인은 모델에 따라 통과하거나 실패한다. 어느 쪽이든 결과가 설명과 함께 나와야 한다.
-    raw = console.command("vedecaps-toolcheck", "opereta --json serve toolcheck", budgets["CHAT_TIMEOUT"], expected=(0, 1))
+    raw = console.command("deberopa-toolcheck", "opereta --json serve toolcheck", budgets["CHAT_TIMEOUT"], expected=(0, 1))
     check = json.loads(raw)
     require(check.get("code") in ("ok", "no_tool_call", "bad_arguments", "wrong_tool") and bool(check.get("message")),
             "The tool-call check must report a known result with a message")
@@ -642,11 +642,11 @@ def check_tls(console, budgets):
                 "Connection info must advertise TLS and keep the plain local URL")
         require(all(a.get("url", "").startswith("https://") for a in conn.get("addresses", [])),
                 "With TLS on every LAN address must be an https URL")
-        remote = json.loads(console.command("tls-connect", "opereta connect vedecaps --remote --ca-out /tmp/e2e-ca2.pem 2>/dev/null", cmd))
+        remote = json.loads(console.command("tls-connect", "opereta connect deberopa --remote --ca-out /tmp/e2e-ca2.pem 2>/dev/null", cmd))
         provider = remote["provider"]["opereta"]
         require(provider["api"].startswith("https://") and provider["options"].get("ca"),
-                "connect vedecaps --remote must write an https address and options.ca")
-        require("opr_" not in json.dumps(remote), "The Vedecaps settings contain a key")
+                "connect deberopa --remote must write an https address and options.ca")
+        require("opr_" not in json.dumps(remote), "The Deberopa settings contain a key")
 
         # 서버 인증서만 갱신하면 CA 는 그대로이고 같은 CA 로 계속 접속된다.
         before = console.cli("tls-before-renew", "tls", cmd)

@@ -1,4 +1,4 @@
-"""Vedecaps 페이지: 코딩 에이전트 Vedecaps 를 이 컴퓨터의 모델 서버에 연결하고 상태를 확인한다."""
+"""Deberopa 페이지: 코딩 에이전트 Deberopa 를 이 컴퓨터의 모델 서버에 연결하고 상태를 확인한다."""
 
 import shutil
 import subprocess
@@ -29,13 +29,13 @@ def page_icon():
     return "utilities-terminal-symbolic"
 
 
-def find_vedecaps():
-    """Vedecaps 실행 파일 경로. 없으면 빈 문자열."""
-    return shutil.which("vedecaps") or ""
+def find_deberopa():
+    """Deberopa 실행 파일 경로. 없으면 빈 문자열."""
+    return shutil.which("deberopa") or ""
 
 
 def run_connect():
-    """`opereta connect vedecaps --write --mcp` 를 현재 사용자로 실행해 (성공 여부, 출력) 을 돌려준다.
+    """`opereta connect deberopa --write --mcp` 를 현재 사용자로 실행해 (성공 여부, 출력) 을 돌려준다.
 
     시험이 이 함수를 바꾼다. 키 값은 이 명령이 다루지 않는다(환경 변수 이름만 쓴다).
     """
@@ -44,7 +44,7 @@ def run_connect():
         return False, _("The opereta command was not found.")
     try:
         done = subprocess.run(
-            [exe, "connect", "vedecaps", "--write", "--mcp"], capture_output=True, text=True, timeout=60, check=False
+            [exe, "connect", "deberopa", "--write", "--mcp"], capture_output=True, text=True, timeout=60, check=False
         )
     except (OSError, subprocess.SubprocessError) as exc:
         return False, str(exc)
@@ -54,9 +54,9 @@ def run_connect():
     return done.returncode == 0, text
 
 
-class VedecapsPage(Adw.PreferencesPage):
+class DeberopaPage(Adw.PreferencesPage):
     def __init__(self, ctx):
-        super().__init__(title=_("Vedecaps"), icon_name=page_icon())
+        super().__init__(title=_("Deberopa"), icon_name=page_icon())
         self.ctx = ctx
         self._info = {}
         self._overrides = {}
@@ -64,9 +64,9 @@ class VedecapsPage(Adw.PreferencesPage):
 
         self.intro = Adw.PreferencesGroup(
             title=_("Coding agent"),
-            description=_("Vedecaps is a coding agent for the terminal. This computer runs the model it uses."),
+            description=_("Deberopa is a coding agent for the terminal. This computer runs the model it uses."),
         )
-        self.program_row = action_row(_("Vedecaps"), "-")
+        self.program_row = action_row(_("Deberopa"), "-")
         self.server_row = action_row(_("Model server"), "-")
         self.context_row = action_row(_("Context per request"), "-")
         self.profile_row = action_row(_("Use"), "-")
@@ -79,9 +79,9 @@ class VedecapsPage(Adw.PreferencesPage):
 
         self.connect_group = Adw.PreferencesGroup(
             title=_("Connect"),
-            description=_("Writes the model, the context size and the Opereta tools into your Vedecaps settings. Nothing else in them changes."),
+            description=_("Writes the model, the context size and the Opereta tools into your Deberopa settings. Nothing else in them changes."),
         )
-        self.connect_row = action_row(_("Set up Vedecaps"), _("Adds Opereta as a provider and as a source of tools."))
+        self.connect_row = action_row(_("Set up Deberopa"), _("Adds Opereta as a provider and as a source of tools."))
         self.connect_btn = text_button(_("Set up"), self.connect, "suggested-action")
         self.connect_row.add_suffix(self.connect_btn)
         self.connect_group.add(self.connect_row)
@@ -93,7 +93,7 @@ class VedecapsPage(Adw.PreferencesPage):
 
         self.example_group = Adw.PreferencesGroup(
             title=_("Settings"),
-            description=_("What Vedecaps needs to know, in case you want to add it by hand."),
+            description=_("What Deberopa needs to know, in case you want to add it by hand."),
         )
         self.add(self.example_group)
 
@@ -102,7 +102,7 @@ class VedecapsPage(Adw.PreferencesPage):
 
     # --- 갱신 ---
     def reload(self):
-        path = find_vedecaps()
+        path = find_deberopa()
         self.program_row.set_subtitle(path or _("Not installed on this computer"))
         run_async(self.ctx.client.connection, self._render_connection, lambda e: None)
         run_async(self.ctx.client.config, self._render_config, lambda e: None)
@@ -126,7 +126,7 @@ class VedecapsPage(Adw.PreferencesPage):
             self.context_row.set_subtitle(_("Known when the server runs"))
         elif slot_ctx < GOOD_CONTEXT:
             self.context_row.set_subtitle(
-                _("%(ctx)d tokens. Vedecaps works better with at least %(good)d: choose “Use for coding agents”.")
+                _("%(ctx)d tokens. Deberopa works better with at least %(good)d: choose “Use for coding agents”.")
                 % {"ctx": slot_ctx, "good": GOOD_CONTEXT}
             )
         else:
@@ -135,9 +135,9 @@ class VedecapsPage(Adw.PreferencesPage):
         for row in self._example_rows:
             self.example_group.remove(row)
         self._example_rows = []
-        text = (info.get("examples") or {}).get("vedecaps")
+        text = (info.get("examples") or {}).get("deberopa")
         if text:
-            row = Adw.ExpanderRow(title=_("vedecaps.json"))
+            row = Adw.ExpanderRow(title=_("deberopa.json"))
             body = Gtk.Label(label=text, xalign=0, selectable=True, wrap=True, margin_top=8, margin_bottom=8, margin_start=12, margin_end=12)
             body.add_css_class("monospace")
             inner = Adw.ActionRow()
@@ -178,7 +178,7 @@ class VedecapsPage(Adw.PreferencesPage):
         def done(result):
             self.connect_btn.set_sensitive(True)
             ok, text = result
-            info_dialog(self.ctx.window, _("Vedecaps is set up") if ok else _("Setting up Vedecaps failed"), text)
+            info_dialog(self.ctx.window, _("Deberopa is set up") if ok else _("Setting up Deberopa failed"), text)
 
         run_async(run_connect, done, lambda e: (self.connect_btn.set_sensitive(True), self.ctx.toast_error(e)))
 

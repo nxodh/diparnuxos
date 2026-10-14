@@ -1,6 +1,6 @@
 # 0.5.3 검증 기록
 
-0.5.3 은 Vedecaps 와의 연결성, 호환성, 함께 쓸 때의 시너지를 다룬다. 사용 방법은 [vedecaps.md](vedecaps.md), 설계는 [phase-5-3-design.md](phase-5-3-design.md).
+0.5.3 은 Vedecaps 와의 연결성, 호환성, 함께 쓸 때의 시너지를 다룬다. 사용 방법은 [vedecaps.md](deberopa.md), 설계는 [phase-5-3-design.md](phase-5-3-design.md).
 이 문서는 **무엇을 어떻게 확인했고 무엇을 확인하지 못했는지**만 적는다. 실기 검증 전에는 "정식 지원"이라 쓰지 않는다.
 
 ## 1. 구현 항목과 확인 방법

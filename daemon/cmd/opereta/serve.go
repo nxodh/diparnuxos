@@ -393,7 +393,7 @@ func (c *cli) serveStats(args []string) int {
 }
 
 // serveToolCheck 는 서버가 도구 호출을 제대로 돌려주는지 작은 요청으로 확인한다.
-// 코딩 에이전트(Vedecaps 같은 도구)는 이 기능이 있어야 파일을 읽고 고칠 수 있다.
+// 코딩 에이전트(Deberopa 같은 도구)는 이 기능이 있어야 파일을 읽고 고칠 수 있다.
 func (c *cli) serveToolCheck(args []string) int {
 	if len(args) != 0 {
 		return c.usage("serve toolcheck takes no arguments", "serve toolcheck")

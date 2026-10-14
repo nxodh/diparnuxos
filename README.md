@@ -134,8 +134,8 @@ out/             빌드 산출물(git 제외)
 | 4.5 | 0.5.0: Xfce(Xorg) 데스크톱, lightdm, 어두운 흑백 디자인. 램 목표는 철회했다(먼저 동작, 경량화는 그다음) | 구현 및 CI 검증 완료([PR #9](https://github.com/nxodh/operetaos/pull/9), QEMU 가상 화면에서 자동 로그인, 로그인 화면, Xfce 세션, Control Center, 설치기 창). 설계는 [phase-5-design.md](docs/phase-5-design.md). 실기, NVIDIA 하이브리드 화면, VMware 검증 대기 |
 | 4.6 | 0.5.1: 첫 번째 이름 변경, 새 로고와 디자인. 이전 이름의 흔적을 두지 않는다 | 구현 및 CI 검증 완료, `main` 에 병합됨. 설계는 [phase-5-1-design.md](docs/phase-5-1-design.md) |
 | 4.7 | 0.5.2: 경량화 일부, 설치기 비밀번호 오류 수정, 상시 가동, 한/영 전환, AI 서버 운영(게이트웨이, 동시 요청), 네트워크·방화벽·원격 접속 | 구현 완료([PR #11](https://github.com/nxodh/operetaos/pull/11)). 설계는 [phase-5-2-design.md](docs/phase-5-2-design.md), 검증 범위는 [phase-5-2-verification.md](docs/phase-5-2-verification.md) |
-| 4.8 | 0.5.3: Vedecaps 와의 연결성, 호환성, 시너지(`connect vedecaps`, MCP, 스킬, agent 프로필, 이미지에 포함) | 구현 완료(브랜치 `phase-5-3`). 설계는 [phase-5-3-design.md](docs/phase-5-3-design.md), 사용은 [vedecaps.md](docs/vedecaps.md), 검증 범위는 [phase-5-3-verification.md](docs/phase-5-3-verification.md). 실제 GPU 에서의 Vedecaps 작업은 검증 대기 |
-| 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Vedecaps 의 https 연동(`options.ca`) | 구현 완료(브랜치 `phase-5-4`, PR #13). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). Vedecaps 0.1.5 고정과 호환 시험 통과. 실제 다른 컴퓨터에서의 접속, 실기 램 측정은 검증 대기. 램 상한 확정(헤드리스 500, 데스크톱 800 MiB) |
+| 4.8 | 0.5.3: Deberopa 와의 연결성, 호환성, 시너지(`connect deberopa`, MCP, 스킬, agent 프로필, 이미지에 포함) | 구현 완료(브랜치 `phase-5-3`). 설계는 [phase-5-3-design.md](docs/phase-5-3-design.md), 사용은 [deberopa.md](docs/deberopa.md), 검증 범위는 [phase-5-3-verification.md](docs/phase-5-3-verification.md). 실제 GPU 에서의 Deberopa 작업은 검증 대기 |
+| 4.9 | 0.5.4: 게이트웨이 TLS(HTTPS), 로컬 CA, Deberopa 의 https 연동(`options.ca`) | 구현 완료(브랜치 `phase-5-4`, PR #13). 설계는 [phase-5-4-design.md](docs/phase-5-4-design.md), 사용은 [tls.md](docs/tls.md), 검증 범위는 [phase-5-4-verification.md](docs/phase-5-4-verification.md). Deberopa 0.1.5 고정과 호환 시험 통과. 실제 다른 컴퓨터에서의 접속, 실기 램 측정은 검증 대기. 램 상한 확정(헤드리스 500, 데스크톱 800 MiB) |
 | 5.0 | 0.6.0: 두 번째 이름 변경(Opereta), 새 로고와 8px 모서리 디자인, 태그·릴리스·ISO 게시, OS 업데이트(릴리스 자산을 평평한 APT 저장소로 사용) | 구현 완료(브랜치 `phase-6`). 설계는 [phase-6-design.md](docs/phase-6-design.md), 릴리스 절차는 [releases.md](docs/releases.md), 검증은 [verification-phase-6.md](docs/verification-phase-6.md) |
 | 5.1 | 0.6.1: ISO 공개 배포 준비 — CUDA 런타임은 이미지에 넣지 않고 사용자의 컴퓨터가 NVIDIA 에서 직접 받음, GPL 대응 소스를 릴리스에 함께 올림, Intel 특수 펌웨어 제외, MIT 라이선스 | 구현 완료(브랜치 `phase-6-1`, 0.6.0 위에 쌓음). 설계는 [phase-6-1-design.md](docs/phase-6-1-design.md), 검증은 [verification-phase-6-1.md](docs/verification-phase-6-1.md) |
 | 5 | 경량화(실측과 목표 재설정), 실 하드웨어 검증, 지원 범위 확정 | 계획 |
@@ -159,17 +159,18 @@ out/             빌드 산출물(git 제외)
 | [docs/phase-5-design.md](docs/phase-5-design.md) | 0.5.0 설계(Xfce 데스크톱, 어두운 흑백 디자인, 램 목표 철회) |
 | [docs/phase-5-1-design.md](docs/phase-5-1-design.md) | 0.5.1 설계(첫 번째 이름 변경, 새 로고, 흔적 검사) |
 | [docs/phase-5-2-design.md](docs/phase-5-2-design.md) | 0.5.2 설계(경량화, 설치기 수정, AI 서버 운영과 원격 접속) |
-| [docs/phase-5-3-design.md](docs/phase-5-3-design.md) | 0.5.3 설계(Vedecaps 와의 연결성, 호환성, 시너지) |
-| [docs/phase-5-4-design.md](docs/phase-5-4-design.md) | 0.5.4 설계(게이트웨이 TLS, Vedecaps 2차 연동) |
+| [docs/phase-5-3-design.md](docs/phase-5-3-design.md) | 0.5.3 설계(Deberopa 와의 연결성, 호환성, 시너지) |
+| [docs/phase-5-4-design.md](docs/phase-5-4-design.md) | 0.5.4 설계(게이트웨이 TLS, Deberopa 2차 연동) |
 | [docs/phase-6-design.md](docs/phase-6-design.md) | 0.6.0 설계(두 번째 이름 변경, 새 로고와 디자인, 릴리스 게시, OS 업데이트) |
 | [docs/phase-6-1-design.md](docs/phase-6-1-design.md) | 0.6.1 설계(CUDA 런타임 직접 받기, GPL 소스 제공, 펌웨어, 라이선스) |
 | [docs/releases.md](docs/releases.md) | 릴리스 게시: 태그, 워크플로, 서명 키 준비, 업데이트 채널 |
 | [docs/verification-phase-6.md](docs/verification-phase-6.md) | 0.6.0 검증 범위와 확인하지 못한 것 |
 | [docs/tls.md](docs/tls.md) | 게이트웨이 TLS: 켜기, CA 배포, 인증서, 끄기와 되돌리기 |
-| [docs/vedecaps.md](docs/vedecaps.md) | Vedecaps 와 함께 쓰기: 연결, MCP, 스킬, agent 프로필, 키와 보안 |
+| [docs/deberopa.md](docs/deberopa.md) | Deberopa 와 함께 쓰기: 연결, MCP, 스킬, agent 프로필, 키와 보안 |
 | [docs/phase-5-3-verification.md](docs/phase-5-3-verification.md) | 0.5.3 검증 범위와 확인하지 못한 것 |
-| [docs/vedecaps-research.md](docs/vedecaps-research.md) | Vedecaps 조사 기록 |
-| [docs/deberopa-agent-handoff-0.6.1.md](docs/deberopa-agent-handoff-0.6.1.md) | Deberopa(Vedecaps 의 새 이름) 개발 에이전트용 인계 문서: 이름 변경, Opereta 인식, 릴리스 형식 |
+| [docs/vedecaps-research.md](docs/vedecaps-research.md) | 이전 이름(Vedecaps) 시절의 조사 기록 |
+| [docs/phase-6-2-design.md](docs/phase-6-2-design.md) | 0.6.2 설계(Vedecaps → Deberopa 이름 변경과 0.2.0 고정) |
+| [docs/deberopa-agent-handoff-0.6.1.md](docs/deberopa-agent-handoff-0.6.1.md) | Deberopa(Deberopa 의 새 이름) 개발 에이전트용 인계 문서: 이름 변경, Opereta 인식, 릴리스 형식 |
 | [docs/security.md](docs/security.md) | 비밀 정보 취급 규칙(공개 저장소에 올리면 안 되는 것, 자동 검사, 실수로 올렸을 때) |
 | [docs/power.md](docs/power.md) | 상시 가동(덮개를 닫거나 오래 두어도 절전·종료로 서버가 멈추지 않게 하는 설정) |
 | [docs/desktop-troubleshooting.md](docs/desktop-troubleshooting.md) | 데스크톱 모드 문제 해결(로그인 화면, 세션, 입력기, 브라우저) |

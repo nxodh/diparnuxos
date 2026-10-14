@@ -74,11 +74,11 @@ func TestConnectionWarnings(t *testing.T) {
 	}
 }
 
-func TestConnectionVedecapsExampleAndLocalKeyState(t *testing.T) {
+func TestConnectionDeberopaExampleAndLocalKeyState(t *testing.T) {
 	in := baseConnectionInput()
 	in.Server.Plan = &autoconf.Output{SlotCtx: 32768, Parallel: 2}
 	c := buildConnection(in)
-	ex := c.Examples["vedecaps"]
+	ex := c.Examples["deberopa"]
 	for _, want := range []string{`"api": "http://192.168.0.23:8080/v1"`, `"model": "opereta/gemma.gguf"`, `"context": 32768`, `{env:OPERETA_API_KEY}`} {
 		if !strings.Contains(ex, want) {
 			t.Fatalf("example lacks %s:\n%s", want, ex)
@@ -99,8 +99,8 @@ func TestConnectionVedecapsExampleAndLocalKeyState(t *testing.T) {
 	in = baseConnectionInput()
 	in.Cfg.LANExposed = false
 	c = buildConnection(in)
-	if strings.Contains(c.Examples["vedecaps"], "apiKey") || !strings.Contains(c.Examples["vedecaps"], "127.0.0.1:8080/v1") {
-		t.Fatalf("local example:\n%s", c.Examples["vedecaps"])
+	if strings.Contains(c.Examples["deberopa"], "apiKey") || !strings.Contains(c.Examples["deberopa"], "127.0.0.1:8080/v1") {
+		t.Fatalf("local example:\n%s", c.Examples["deberopa"])
 	}
 }
 
@@ -128,8 +128,8 @@ func TestConnectionWithTLSUsesHTTPSAddresses(t *testing.T) {
 	if !strings.Contains(c.Examples["openai_python"], "verify=\"opereta-ca.pem\"") {
 		t.Fatalf("python = %s", c.Examples["openai_python"])
 	}
-	if !strings.Contains(c.Examples["vedecaps"], `"ca": "~/.config/vedecaps/opereta-ca.pem"`) {
-		t.Fatalf("vedecaps = %s", c.Examples["vedecaps"])
+	if !strings.Contains(c.Examples["deberopa"], `"ca": "~/.config/deberopa/opereta-ca.pem"`) {
+		t.Fatalf("deberopa = %s", c.Examples["deberopa"])
 	}
 	found := false
 	for _, w := range c.Warnings {

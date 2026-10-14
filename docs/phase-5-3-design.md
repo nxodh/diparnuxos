@@ -1,6 +1,6 @@
 # 0.5.3 설계 초안: Vedecaps 와의 연결성, 호환성, 시너지
 
-- 작성: 2026-10-14. 상태: **구현됨**(0.5.3, 브랜치 `phase-5-3`). 이 문서는 설계 시점의 제안을 그대로 두고, 결정과 구현 결과는 6절과 [vedecaps.md](vedecaps.md), [phase-5-3-verification.md](phase-5-3-verification.md) 에 있다.
+- 작성: 2026-10-14. 상태: **구현됨**(0.5.3, 브랜치 `phase-5-3`). 이 문서는 설계 시점의 제안을 그대로 두고, 결정과 구현 결과는 6절과 [vedecaps.md](deberopa.md), [phase-5-3-verification.md](phase-5-3-verification.md) 에 있다.
 - 근거: [vedecaps-research.md](vedecaps-research.md)(Vedecaps 0.1.3 조사)
 - 사용자 지시(2026-10-14): "0.5.3 버전은 Vedecaps 와의 연결성, 호환성, Opereta 와 Vedecaps 를 함께 사용했을 때의 시너지 등이 주요 목표".
 - 0.5.2(PR #11)가 끝난 뒤에 착수한다. 0.5.2 의 게이트웨이, 연결 정보, 병렬 슬롯, 서버 현황, 원격 접속 기능이 이 작업의 바탕이다.

@@ -1,4 +1,4 @@
-package vedecaps
+package deberopa
 
 import (
 	"encoding/json"
@@ -72,7 +72,7 @@ func TestFragmentRejectsBadInput(t *testing.T) {
 	}
 }
 
-func TestFragmentWithoutModelLetsVedecapsListModels(t *testing.T) {
+func TestFragmentWithoutModelLetsDeberopaListModels(t *testing.T) {
 	frag, err := Fragment(Input{BaseURL: "http://127.0.0.1:8080/v1"})
 	if err != nil {
 		t.Fatal(err)
@@ -153,13 +153,13 @@ func TestMergeRefusesFilesItCannotRewriteSafely(t *testing.T) {
 }
 
 func TestConfigFileFollowsXDG(t *testing.T) {
-	if got := ConfigFile("/home/u", ""); got != "/home/u/.config/vedecaps/vedecaps.json" {
+	if got := ConfigFile("/home/u", ""); got != "/home/u/.config/deberopa/deberopa.json" {
 		t.Fatal(got)
 	}
-	if got := ConfigFile("/home/u", "/x/cfg"); got != "/x/cfg/vedecaps/vedecaps.json" {
+	if got := ConfigFile("/home/u", "/x/cfg"); got != "/x/cfg/deberopa/deberopa.json" {
 		t.Fatal(got)
 	}
-	if got := ConfigFile("/home/u", "relative"); got != "/home/u/.config/vedecaps/vedecaps.json" {
+	if got := ConfigFile("/home/u", "relative"); got != "/home/u/.config/deberopa/deberopa.json" {
 		t.Fatalf("relative XDG_CONFIG_HOME must be ignored, got %s", got)
 	}
 }
@@ -210,7 +210,7 @@ func TestPackagedInstallTurnsOffSelfUpdateOnlyWhenUnset(t *testing.T) {
 	if decode(t, res.Data)["autoupdate"] != "notify" {
 		t.Fatalf("the user's choice was overwritten: %v", decode(t, res.Data)["autoupdate"])
 	}
-	// 패키지로 설치하지 않은 Vedecaps 는 스스로 업데이트하므로 건드리지 않는다.
+	// 패키지로 설치하지 않은 Deberopa 는 스스로 업데이트하므로 건드리지 않는다.
 	frag, _ = Fragment(Input{BaseURL: "http://127.0.0.1:8080/v1"})
 	if _, ok := frag["autoupdate"]; ok {
 		t.Fatal("autoupdate was written for an install that is not ours")
@@ -245,5 +245,29 @@ func TestFragmentCAFile(t *testing.T) {
 	frag, _ = Fragment(Input{BaseURL: "https://box.local:8444/v1", NeedsKey: true})
 	if _, has := frag["provider"].(map[string]any)[ProviderID].(map[string]any)["options"].(map[string]any)["ca"]; has {
 		t.Fatal("options.ca was written without a CA file")
+	}
+}
+
+func TestResolveConfigFile(t *testing.T) {
+	dirs := map[string]bool{}
+	isDir := func(p string) bool { return dirs[p] }
+	home := "/home/u"
+	// 둘 다 없으면 새 파일이다.
+	if p, legacy := ResolveConfigFile(home, "", isDir); p != "/home/u/.config/deberopa/deberopa.json" || legacy {
+		t.Fatalf("neither: %q %v", p, legacy)
+	}
+	// 옛 폴더만 있으면 옛 파일이다(Deberopa 가 첫 실행 때 옮긴다).
+	dirs["/home/u/.config/vedecaps"] = true
+	if p, legacy := ResolveConfigFile(home, "", isDir); p != "/home/u/.config/vedecaps/vedecaps.json" || !legacy {
+		t.Fatalf("legacy only: %q %v", p, legacy)
+	}
+	// 새 폴더가 있으면 새 파일이다.
+	dirs["/home/u/.config/deberopa"] = true
+	if p, legacy := ResolveConfigFile(home, "", isDir); p != "/home/u/.config/deberopa/deberopa.json" || legacy {
+		t.Fatalf("both: %q %v", p, legacy)
+	}
+	// XDG_CONFIG_HOME
+	if p, _ := ResolveConfigFile(home, "/x/cfg", isDir); p != "/x/cfg/deberopa/deberopa.json" {
+		t.Fatalf("xdg: %q", p)
 	}
 }

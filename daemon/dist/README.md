@@ -17,7 +17,7 @@
 | `opereta-firewall.service` | `/usr/lib/systemd/system/opereta-firewall.service` | 기본 규칙이 성공한 뒤 저장 파일이 있으면 `nft -f`로 덮어쓴다. 잘못된 파일의 트랜잭션은 기본 차단을 유지한다. |
 | `opereta-firewall-default.service` | `/usr/lib/systemd/system/opereta-firewall-default.service` | `nftables.service` 뒤, `network-pre.target` 전에 항상 기본 차단을 적용한다. 데몬과 저장 규칙 유닛이 이 유닛을 요구한다. |
 | `opereta-gpu-permissions.sh` | `/usr/lib/opereta/check-gpu-permissions` | llama 서비스 시작 전 전용 사용자로 GPU, 제어, UVM 노드의 읽기·쓰기 권한을 검사한다. GPU 노드가 없으면 CPU 경로를 허용한다. |
-| `skills/opereta/SKILL.md` | `/usr/share/opereta/skills/opereta/SKILL.md` | 코딩 에이전트(Vedecaps)용 스킬. 이 컴퓨터의 모델 서버 상태를 읽고 문제를 짚는 방법을 알려 준다. `/etc/skel/.agents/skills/opereta` 링크로 새 계정에 보인다. |
+| `skills/opereta/SKILL.md` | `/usr/share/opereta/skills/opereta/SKILL.md` | 코딩 에이전트(Deberopa)용 스킬. 이 컴퓨터의 모델 서버 상태를 읽고 문제를 짚는 방법을 알려 준다. `/etc/skel/.agents/skills/opereta` 링크로 새 계정에 보인다. |
 | `firewall-default.nft` | `/usr/share/opereta/firewall-default.nft` | 모든 입력을 닫는 기본 규칙. `daemon/internal/firewall` 의 `Ruleset(Options{APIPort: 8080})` 출력과 바이트 단위로 같다. |
 
 ## 런타임에 생기는 파일(패키지가 만들지 않는다)

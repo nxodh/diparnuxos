@@ -32,7 +32,7 @@
 
 | 순서 | 문서(Opereta 저장소 `docs/`) | 무엇을 얻는가 |
 |---|---|---|
-| 1 | `vedecaps.md` | 지금 Opereta 와 Vedecaps 가 어떻게 연결되는지(사용자 관점) |
+| 1 | `vedecaps.md`(Opereta 0.6.2 부터 `deberopa.md`) | 지금 Opereta 와 Vedecaps 가 어떻게 연결되는지(사용자 관점) |
 | 2 | `vedecaps-agent-handoff-0.5.4.md` | 이전 인계 문서. TLS 계약(C1~C10)과 VE2(`options.ca`)의 형식. 이미 0.1.5 에 반영됐다 |
 | 3 | `vedecaps-repo-changes-design.md` | VE1~VE4 상세(현재 코드 근거, 변경 지점, 시험) |
 | 4 | `phase-6-design.md` 7절 | 이 작업이 Opereta 쪽에서 어떻게 소비되는지 |

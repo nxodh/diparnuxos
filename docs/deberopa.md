@@ -1,39 +1,39 @@
-# Vedecaps 와 함께 쓰기
+# Deberopa 와 함께 쓰기
 
-> **0.6.0 안내**: OS 이름이 바뀌면서 고정한 Vedecaps 0.1.5 는 서버를 "Opereta" 로 알아보는 기능(`vedecaps debug local` 의 서버 정보와 슬롯 수, TLS 안내의 명령 이름)을 쓰지 못한다. 연결, 요청, 키, https 는 그대로 동작한다. 자세한 내용과 해결 조건은 [phase-6-design.md](phase-6-design.md) 7절에 있다.
+> **0.6.2 안내**: 이 에이전트의 이름은 이전에 Vedecaps 였고 0.6.2 부터 **Deberopa** 다. 이미지에는 Deberopa 0.2.0 이 고정되어 있고, 이 버전은 Opereta 를 알아본다(`deberopa debug local` 이 "Opereta <버전>" 과 슬롯 수를 보여 주고 TLS 안내가 `opereta tls ...` 명령을 가리킨다). 이전 이름의 설정 폴더(`~/.config/vedecaps`)는 Deberopa 가 첫 실행 때 새 폴더(`~/.config/deberopa`)로 옮긴다.
 
-Vedecaps 는 터미널에서 쓰는 코딩 에이전트다([nxodh/vedecaps](https://github.com/nxodh/vedecaps)).
-Opereta 는 모델 서버를 운영하는 운영체제다. 0.5.3 부터 둘이 함께 동작하도록 이 컴퓨터의 서버를 Vedecaps 의 모델 제공자로 쓰게 하고,
-Vedecaps 가 서버 상태를 읽고 문제를 짚을 수 있게 한다. 조사 내용은 [vedecaps-research.md](vedecaps-research.md),
+Deberopa 는 터미널에서 쓰는 코딩 에이전트다([nxodh/deberopa](https://github.com/nxodh/deberopa)).
+Opereta 는 모델 서버를 운영하는 운영체제다. 0.5.3 부터 둘이 함께 동작하도록 이 컴퓨터의 서버를 Deberopa 의 모델 제공자로 쓰게 하고,
+Deberopa 가 서버 상태를 읽고 문제를 짚을 수 있게 한다. 조사 내용은 [vedecaps-research.md](vedecaps-research.md),
 설계와 결정은 [phase-5-3-design.md](phase-5-3-design.md), 검증 범위는 [phase-5-3-verification.md](phase-5-3-verification.md) 에 있다.
 
-> **검증 범위**: 단위·통합 시험과 QEMU 의 CPU E2E 로 확인했다. 실제 GPU 에서 코딩 모델로 Vedecaps 작업을 끝까지 돌려 본 것은 아직 없다.
+> **검증 범위**: 단위·통합 시험과 QEMU 의 CPU E2E 로 확인했다. 실제 GPU 에서 코딩 모델로 Deberopa 작업을 끝까지 돌려 본 것은 아직 없다.
 > 컨텍스트와 병렬 값은 계획값이며 VRAM 별 실측 전의 기본이다.
 
 ## 1. 설치
 
-이미지(0.5.3 이상)에 `opereta-vedecaps` 패키지가 들어 있다. `/usr/bin/vedecaps` 에 Vedecaps 0.1.5 의 릴리스 실행 파일이 있다(0.5.3 은 0.1.3 이었다).
-버전과 SHA-256 은 `opereta.conf` 의 `VEDECAPS_VERSION`, `VEDECAPS_SHA256` 에 고정되어 있고, 이미지를 만들 때 받은 파일의 해시가 다르면 빌드가 멈춘다.
-Vedecaps 의 자체 업데이트는 쓰지 않는다. 이 실행 파일은 일반 사용자가 바꿀 수 없으므로, 업데이트는 Opereta 업데이트로 온다.
+이미지(0.5.3 이상)에 `opereta-deberopa` 패키지가 들어 있다. `/usr/bin/deberopa` 에 Deberopa 0.2.0 의 릴리스 실행 파일이 있다(0.6.1 까지는 이전 이름의 Vedecaps 0.1.5 였다).
+버전과 SHA-256 은 `opereta.conf` 의 `DEBEROPA_VERSION`, `DEBEROPA_SHA256` 에 고정되어 있고, 이미지를 만들 때 받은 파일의 해시가 다르면 빌드가 멈춘다.
+Deberopa 의 자체 업데이트는 쓰지 않는다. 이 실행 파일은 일반 사용자가 바꿀 수 없으므로, 업데이트는 Opereta 업데이트로 온다.
 
 ## 2. 연결
 
-같은 컴퓨터에서는 설정 없이도 동작한다. Vedecaps 는 `127.0.0.1:8080` 의 llama.cpp 서버를 스스로 찾고,
+같은 컴퓨터에서는 설정 없이도 동작한다. Deberopa 는 `127.0.0.1:8080` 의 llama.cpp 서버를 스스로 찾고,
 Opereta 는 이 컴퓨터에서 온 요청에 API 키를 요구하지 않는다(`local_no_key`, 기본 켬. 아래 5절).
 
-설정을 만들어 두면 모델 이름과 요청당 컨텍스트 크기를 Vedecaps 가 정확히 알고, 도구와 스킬이 함께 연결된다.
+설정을 만들어 두면 모델 이름과 요청당 컨텍스트 크기를 Deberopa 가 정확히 알고, 도구와 스킬이 함께 연결된다.
 
 ```
-opereta connect vedecaps                   # 설정 조각만 출력한다(파일을 건드리지 않는다)
-opereta connect vedecaps --write --mcp     # Vedecaps 전역 설정에 합친다
-opereta connect vedecaps --remote          # 다른 컴퓨터의 Vedecaps 에 쓸 설정(이 컴퓨터의 LAN 주소)
+opereta connect deberopa                   # 설정 조각만 출력한다(파일을 건드리지 않는다)
+opereta connect deberopa --write --mcp     # Deberopa 전역 설정에 합친다
+opereta connect deberopa --remote          # 다른 컴퓨터의 Deberopa 에 쓸 설정(이 컴퓨터의 LAN 주소)
 ```
 
-`--write` 는 `~/.config/vedecaps/vedecaps.json`(`XDG_CONFIG_HOME` 이 있으면 그 아래)에 다음만 합친다.
+`--write` 는 `~/.config/deberopa/deberopa.json`(`XDG_CONFIG_HOME` 이 있으면 그 아래)에 다음만 합친다.
 
 - `provider.opereta`: 주소, 모델, `limit.context`(요청 하나의 컨텍스트), 키가 필요하면 `{env:OPERETA_API_KEY}`
 - `model`: 설정에 기본 모델이 **없을 때만** `opereta/<모델>` 로 넣는다. 다른 기본 모델이 있으면 그대로 두고 알린다(`--make-default` 로 바꾼다)
-- `autoupdate: false`: 패키지로 설치된 Vedecaps 이고 사용자가 정한 값이 없을 때만
+- `autoupdate: false`: 패키지로 설치된 Deberopa 이고 사용자가 정한 값이 없을 때만
 - `--mcp` 를 주면 `mcp.opereta`(읽기 전용 도구, 3절)
 
 그 밖의 설정과 다른 제공자는 건드리지 않는다. 기존 파일은 `.bak` 로 한 부 남기고, 새 파일은 사용자만 읽는 권한(0600)이다.
@@ -41,19 +41,19 @@ opereta connect vedecaps --remote          # 다른 컴퓨터의 Vedecaps 에 �
 `--write` 는 스킬 링크(`~/.agents/skills/opereta`)도 만든다. 이미 있으면 그대로 둔다.
 
 **키는 파일에 쓰지 않는다.** 키가 필요한 주소(다른 컴퓨터, `--remote`)에서는 설정이 환경 변수 이름만 가리킨다.
-키는 만들 때 한 번만 보인다(`opereta apikey create vedecaps`). Vedecaps 를 실행하는 쪽에서 `export OPERETA_API_KEY=...` 로 넣는다.
+키는 만들 때 한 번만 보인다(`opereta apikey create deberopa`). Deberopa 를 실행하는 쪽에서 `export OPERETA_API_KEY=...` 로 넣는다.
 
 ### 다른 컴퓨터에서 쓰기
 
-1. 이 컴퓨터: `opereta config set lan on`, `opereta apikey create vedecaps`
-2. 다른 컴퓨터: `opereta connect vedecaps --remote` 의 출력을 그 컴퓨터의 Vedecaps 설정에 넣고 `OPERETA_API_KEY` 를 정한다
+1. 이 컴퓨터: `opereta config set lan on`, `opereta apikey create deberopa`
+2. 다른 컴퓨터: `opereta connect deberopa --remote` 의 출력을 그 컴퓨터의 Deberopa 설정에 넣고 `OPERETA_API_KEY` 를 정한다
    (Opereta 가 아닌 컴퓨터라면 이 컴퓨터에서 출력을 복사해 간다)
 3. LAN 의 다른 컴퓨터는 **TLS**(`opereta tls on`)를 켜서 https 로 접속하는 것을 권한다. [tls.md](tls.md) 참고. TLS 가 꺼져 있으면 평문 HTTP 이므로 같은 LAN 이나 VPN(`opereta vpn`) 안에서만 쓴다. [remote-access.md](remote-access.md) 참고
-   - TLS 가 켜져 있으면 `connect vedecaps --remote` 는 https 주소와 `options.ca` 를 쓴다. CA 파일을 `--ca-out` 으로 받아 그 컴퓨터에 둔다. `options.ca` 는 **Vedecaps 0.1.5 이상**이 믿는다.
+   - TLS 가 켜져 있으면 `connect deberopa --remote` 는 https 주소와 `options.ca` 를 쓴다. CA 파일을 `--ca-out` 으로 받아 그 컴퓨터에 둔다. `options.ca` 는 Deberopa 가 믿는다(이전 이름 시절에는 0.1.5 이상).
 
 ## 3. 에이전트가 서버를 들여다보는 길
 
-**MCP 서버**: `opereta mcp` 는 표준 입출력으로 말하는 MCP 서버다. Vedecaps 설정의
+**MCP 서버**: `opereta mcp` 는 표준 입출력으로 말하는 MCP 서버다. Deberopa 설정의
 `"mcp": {"opereta": {"type": "local", "command": ["opereta", "mcp"]}}` 가 이것이다(`connect --mcp` 가 넣는다).
 
 | 도구 | 내용 |
@@ -73,7 +73,7 @@ opereta connect vedecaps --remote          # 다른 컴퓨터의 Vedecaps 에 �
 방화벽, 계정, 네트워크 설정, 업데이트를 바꾸는 도구는 없다. 데몬 응답에는 API 키나 토큰이 들어 있지 않다.
 
 **스킬**: `/usr/share/opereta/skills/opereta/SKILL.md`. 새 계정은 `/etc/skel/.agents/skills/opereta` 링크로 바로 보고,
-기존 계정은 `opereta connect vedecaps --write` 가 링크를 만든다. 스킬은 서버 상태를 읽는 명령과 흔한 문제의 원인(요청당 컨텍스트, 슬롯, 401, 429,
+기존 계정은 `opereta connect deberopa --write` 가 링크를 만든다. 스킬은 서버 상태를 읽는 명령과 흔한 문제의 원인(요청당 컨텍스트, 슬롯, 401, 429,
 도구 호출 실패)을 알려 주고, 사용자가 요청하지 않은 변경 명령을 실행하지 않도록 한다. 스킬은 목록의 설명만 매 요청에 실리고 본문은 필요할 때만 읽힌다.
 
 ## 4. 코딩 에이전트에 맞는 서버 설정
@@ -94,7 +94,7 @@ opereta serve start --profile agent
 opereta config set profile agent        # 저장(다음 시작부터). chat 으로 되돌린다
 ```
 
-제어 센터의 서버 페이지와 Vedecaps 페이지, 첫 부팅 마법사에서도 고른다. 직접 준 `--ctx`, `--parallel` 이 프로필보다 우선한다.
+제어 센터의 서버 페이지와 Deberopa 페이지, 첫 부팅 마법사에서도 고른다. 직접 준 `--ctx`, `--parallel` 이 프로필보다 우선한다.
 
 공통으로 바뀐 것: 프롬프트 캐시의 메모리 상한을 전체 메모리의 1/8(512 MiB ~ 8 GiB)로 묶는다. llama-server 기본값은 8 GiB 라서
 작은 컴퓨터에서 상시 가동 중 캐시가 메모리를 다 쓸 수 있다.
@@ -113,20 +113,20 @@ llama-server 는 고정 커밋에서 jinja 틀을 기본으로 쓰므로 별도 
 - LAN 의 다른 컴퓨터는 항상 키가 필요하다. 키가 없으면 LAN 공개 자체가 거부된다.
 - 응답마다 `X-Opereta: <버전>` 헤더가 붙고, 키 없이 읽는 `GET /opereta/info` 가 버전, 서버 상태, 모델 이름, 요청당 컨텍스트, 슬롯 수를 낸다.
   모델 파일 경로나 설정은 담지 않는다.
-- 서버가 바쁠 때 429 에 `Retry-After: 2` 가 붙는다. Vedecaps 는 이 값을 존중해 다시 시도한다.
+- 서버가 바쁠 때 429 에 `Retry-After: 2` 가 붙는다. Deberopa 는 이 값을 존중해 다시 시도한다.
 - 이 저장소의 어떤 파일에도 키를 쓰지 않는다. 시험은 가짜 값만 쓴다.
 
 ## 6. 제어 센터
 
-사이드바의 **Vedecaps** 페이지: 실행 파일 위치, 서버 상태, 요청당 컨텍스트(작으면 agent 용도를 권한다), 용도(chat/agent),
-"Vedecaps 설정"(= `connect vedecaps --write --mcp`), 도구 호출 확인, 설정 조각 보기와 복사.
+사이드바의 **Deberopa** 페이지: 실행 파일 위치, 서버 상태, 요청당 컨텍스트(작으면 agent 용도를 권한다), 용도(chat/agent),
+"Deberopa 설정"(= `connect deberopa --write --mcp`), 도구 호출 확인, 설정 조각 보기와 복사.
 서버 페이지에는 용도 선택과 "이 컴퓨터에서는 키 없이 사용" 스위치가 있다.
 
 ## 7. 문제 해결
 
 | 증상 | 원인과 조치 |
 |---|---|
-| Vedecaps 가 서버를 못 찾는다 | `opereta status` 로 서버가 도는지 본다. 키만 있고 `local_no_key` 가 꺼져 있으면 감지가 실패한다. `connect vedecaps --write` 로 설정을 만든다 |
+| Deberopa 가 서버를 못 찾는다 | `opereta status` 로 서버가 도는지 본다. 키만 있고 `local_no_key` 가 꺼져 있으면 감지가 실패한다. `connect deberopa --write` 로 설정을 만든다 |
 | 401 | 이 주소는 키가 필요하다. `OPERETA_API_KEY` 를 확인한다 |
 | 429 | 모든 슬롯과 대기열이 찼다. 잠시 뒤 다시 시도되며, 병렬 작업이 많으면 `--parallel` 을 늘린다(메모리 필요) |
 | "컨텍스트가 가득 찼다", 기록을 자주 줄인다 | 요청당 컨텍스트가 작다. agent 프로필, 더 작은 모델, 더 적은 슬롯을 쓴다 |
@@ -135,12 +135,12 @@ llama-server 는 고정 커밋에서 jinja 틀을 기본으로 쓰므로 별도 
 
 ## 8. 호환 시험
 
-`make test-vedecaps-docker`: 고정 버전의 실제 Vedecaps 를 컨테이너에서 Opereta 게이트웨이와 가짜 모델 서버에 붙여 감지, 스트리밍, 키 규칙을 확인한다.
-CI 에서도 돈다. Vedecaps 버전을 올릴 때(`opereta.conf`)는 이 시험을 먼저 돌린다.
+`make test-deberopa-docker`: 고정 버전의 실제 Deberopa 를 컨테이너에서 Opereta 게이트웨이와 가짜 모델 서버에 붙여 감지, 스트리밍, 키 규칙을 확인한다.
+CI 에서도 돈다. Deberopa 버전을 올릴 때(`opereta.conf`)는 이 시험을 먼저 돌린다.
 
 ## 9. 한계
 
-- Vedecaps 는 0.1.x 로 빠르게 바뀐다. 이미지는 고정 버전을 쓰며, 새 버전으로 올릴 때는 `opereta.conf` 의 값과 E2E 호환 시험을 함께 갱신한다.
-- TLS 는 0.5.4 에서 들어왔다([tls.md](tls.md)). 켜지 않으면 게이트웨이는 평문 HTTP 다. 이 저장소가 이미지에 고정한 Vedecaps 가 0.1.5 보다 낮으면 `options.ca` 를 무시하므로 https 접속에는 0.1.5 이상이 필요하다.
+- Deberopa 는 빠르게 바뀐다. 이미지는 고정 버전을 쓰며, 새 버전으로 올릴 때는 `opereta.conf` 의 값(`DEBEROPA_VERSION`, `DEBEROPA_SHA256`)과 호환 시험(`make test-deberopa-docker`)을 함께 갱신한다.
+- TLS 는 0.5.4 에서 들어왔다([tls.md](tls.md)). 켜지 않으면 게이트웨이는 평문 HTTP 다. `options.ca` 를 모르는 오래된 이전 이름 시절의 버전(0.1.4 이하)에서는 https 접속이 되지 않는다.
 - 이미지에 들어 있는 실행 파일은 glibc 의 x86-64 용이다. 다른 구조는 지원하지 않는다.
 - `--cache-reuse` 와 요청당 컨텍스트 값은 실측 전의 계획값이다.

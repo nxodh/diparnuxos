@@ -8,7 +8,7 @@ from gi.repository import Adw, GObject, Gtk  # noqa: E402
 
 from . import logic  # noqa: E402
 from .connection import ConnectionPage  # noqa: E402
-from .vedecaps import VedecapsPage  # noqa: E402
+from .deberopa import DeberopaPage  # noqa: E402
 from .dashboard import DashboardPage  # noqa: E402
 from .firewall import FirewallPage  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -42,7 +42,7 @@ class MainWindow(Adw.ApplicationWindow):
             ("models", _("Models"), "folder-download-symbolic", ModelsPage(ctx)),
             ("server", _("Server"), "network-server-symbolic", ServerPage(ctx)),
             ("connection", _("Connection"), "network-transmit-receive-symbolic", ConnectionPage(ctx)),
-            ("vedecaps", _("Vedecaps"), "utilities-terminal-symbolic", VedecapsPage(ctx)),
+            ("deberopa", _("Deberopa"), "utilities-terminal-symbolic", DeberopaPage(ctx)),
             ("network", _("Network"), "network-wireless-symbolic", NetworkPage(ctx)),
             ("firewall", _("Firewall"), "security-high-symbolic", FirewallPage(ctx)),
             ("remote", _("Remote access"), "network-workgroup-symbolic", RemotePage(ctx)),

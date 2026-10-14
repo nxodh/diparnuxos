@@ -22,7 +22,7 @@ func (s *Supervisor) run(ctx context.Context, job startJob) *Error {
 	}
 	settings := llamaargs.ServerSettings{
 		ModelPath: job.model.Path,
-		// /v1/models 의 id 가 Opereta 의 모델 이름과 같아지게 한다. 클라이언트(Vedecaps 등)가 같은 이름으로 모델을 가리킨다.
+		// /v1/models 의 id 가 Opereta 의 모델 이름과 같아지게 한다. 클라이언트(Deberopa 등)가 같은 이름으로 모델을 가리킨다.
 		Alias:      job.model.ID,
 		Host:       host,
 		Port:       job.cfg.BackendPort(),

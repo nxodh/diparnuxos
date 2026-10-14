@@ -114,9 +114,9 @@ jobs:
           fi
           ls -l /dev/kvm 2>/dev/null || true
 
-      # 실제 Vedecaps(고정 버전)가 Opereta 게이트웨이를 통해 응답을 받고 키 규칙이 설명대로인지 확인한다. 몇 분이면 끝나므로 CUDA 빌드 전에 둔다.
-      - name: Test Vedecaps against the gateway (container)
-        run: make test-vedecaps-docker
+      # 실제 Deberopa(고정 버전)가 Opereta 게이트웨이를 통해 응답을 받고 키 규칙이 설명대로인지 확인한다. 몇 분이면 끝나므로 CUDA 빌드 전에 둔다.
+      - name: Test Deberopa against the gateway (container)
+        run: make test-deberopa-docker
 
       # llama.cpp 빌드 산출물(out/llama)을 캐시한다. 키는 llama/ 와 opereta.conf 의 해시다(README.md 는 제외).
       # hashFiles 의 '!' 제외 패턴은 docs.github.com 의 expressions 문서 예시(hashFiles('/lib/**/*.rb', '!/lib/foo/*.rb'))로 확인했다.

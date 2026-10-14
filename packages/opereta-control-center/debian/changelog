@@ -1,3 +1,9 @@
+opereta-control-center (0.6.2) trixie; urgency=medium
+
+  * 에이전트 페이지가 Deberopa 로 바뀌었다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
+
 opereta-control-center (0.6.1) trixie; urgency=medium
 
   * 시스템 페이지에 'GPU 가속(CUDA 런타임)' 항목을 추가했다. NVIDIA 약관을 확인한 뒤 받는다.

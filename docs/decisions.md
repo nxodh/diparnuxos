@@ -46,6 +46,8 @@
 | U16 | 0.6.0 에서 OS 이름을 **Opereta** 로 한 번 더 바꾸고 새 로고와 8px 모서리 디자인을 쓴다(U15 와 같은 규칙: 이전 이름의 흔적 없음, 이력은 다시 쓰지 않음). 저장소 이름은 `nxodh/operetaos`(기본안). Vedecaps 의 Deberopa 로의 이름 변경은 Deberopa 릴리스가 생길 때까지 하지 않는다. 0.6.0 부터 태그를 게시하고 GitHub 릴리스를 만들며, 릴리스 자산을 OS 업데이트 저장소(평평한 APT 형식)로 쓴다. **ISO 는 올리지 않는다**: 사용자가 "법적 문제나 개인 정보 노출 위험이 있으면 하지 말라"고 했고, 조사 결과 재배포 조건 해석, GPL 소스 제공, 프로젝트 라이선스가 정리되지 않았다(licenses.md 10절). | 사용자 지시(2026-10-14). [phase-6-design.md](phase-6-design.md), [releases.md](releases.md). 저장소 이름은 사용자가 기본안(`operetaos`)으로 확정했다(2026-10-14). Deberopa 보류는 기본안이다. ISO 공개 배포(M6)와 프로젝트 라이선스(U7)는 여전히 정해지지 않았고 ISO 는 올리지 않는다. |
 | U17 | 0.6.1: **CUDA 런타임(cudart, cublas)을 이미지에 넣지 않는다.** NVIDIA CUDA EULA 가 이 파일들을 응용 프로그램 전용으로만 재배포하게 해서 OS 이미지로는 조건을 지키기 어렵다. 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받아 설치한다(`opereta gpu runtime install`, 설치 전 NVIDIA 약관 확인). U3(런타임을 ISO 에 포함)을 대체한다. 함께: Intel `ice_comms`·`ice_wireless_edge` 제외, GPL 대응 소스를 릴리스에 함께 올림(GPLv2 3a), 프로젝트 라이선스 MIT, `OPERETA_PUBLISH_ISO="yes"`. NVIDIA 드라이버(사용자 공간, GSP 펌웨어)는 재배포 조건(licenses.md 1절)을 지키고 있고 Debian 도 같은 것을 배포하므로 이미지에 둔다. | 사용자 지시(2026-10-14: "EULA 에 위반 안 되게끔", GPL 소스 제공은 (a), CUDA 런타임은 직접 받게). [phase-6-1-design.md](phase-6-1-design.md), [licenses.md](licenses.md) 10절. 법률 자문이 아니다. |
 
+| U18 | 0.6.2: 코딩 에이전트 Vedecaps 를 **Deberopa** 로 바꾸고 Deberopa 0.2.0 을 이미지에 고정한다(패키지 `opereta-deberopa`, `/usr/bin/deberopa`, 설정 `~/.config/deberopa/deberopa.json`). `opereta connect deberopa` 가 새 명령이고 이전 이름 `vedecaps` 는 별칭으로 남긴다. 새 폴더가 없고 옛 폴더만 있으면 옛 폴더에 합쳐 Deberopa 가 첫 실행 때 옮기게 한다. 이로써 0.6.0 의 "알려진 한계"(Opereta 인식, 슬롯 수, TLS 안내의 명령 이름)가 해소되었고 이미지의 이전 OS 이름 검사 예외도 없어졌다. | 사용자 알림(2026-10-14, "Deberopa 0.2.0 개발됐어"). [phase-6-2-design.md](phase-6-2-design.md). 이름과 로고의 상표·저작권 확인은 소유자 몫이다. |
+
 ---
 
 ## D1. 베이스 배포판과 커널

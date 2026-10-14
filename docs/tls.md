@@ -14,8 +14,8 @@ LAN 공개를 켜면 다른 컴퓨터가 `http://서버:8080` 으로 접속한�
 | TLS 켜짐 | **이 컴퓨터만**(127.0.0.1) | LAN |
 | TLS 켜짐 + `lan_plain` | 이 컴퓨터와 LAN(암호화 안 됨) | LAN |
 
-- 이 컴퓨터의 `http://127.0.0.1:8080` 은 항상 그대로 쓴다. 같은 컴퓨터의 Vedecaps 자동 감지와 기존 도구가 바뀌지 않는다.
-- 두 포트는 같은 게이트웨이를 쓴다. API 키 규칙, 429, `/opereta/info` 가 같다. **리다이렉트는 하지 않는다**(Vedecaps 는 리다이렉트를 오류로 본다).
+- 이 컴퓨터의 `http://127.0.0.1:8080` 은 항상 그대로 쓴다. 같은 컴퓨터의 Deberopa 자동 감지와 기존 도구가 바뀌지 않는다.
+- 두 포트는 같은 게이트웨이를 쓴다. API 키 규칙, 429, `/opereta/info` 가 같다. **리다이렉트는 하지 않는다**(Deberopa 는 리다이렉트를 오류로 본다).
 - 이 컴퓨터에서 온 요청은 `local_no_key` 로 키 없이 통과한다(TLS 포트도 같다).
 
 ## 켜기
@@ -50,15 +50,15 @@ client = OpenAI(base_url="https://opereta.local:8444/v1", api_key="<키>", http_
 
 **클라이언트에서 인증서 검사를 끄지 않는다.** 검사를 끄면 암호화의 이점이 없다(중간자가 같은 연결을 가로챌 수 있다).
 
-### Vedecaps
+### Deberopa
 
 ```
-opereta connect vedecaps --remote --ca-out opereta-ca.pem
+opereta connect deberopa --remote --ca-out opereta-ca.pem
 ```
 
-주소는 `https://…:8444/v1`, 설정에는 `options.ca`(CA 파일 경로)와 `{env:OPERETA_API_KEY}` 가 들어간다. CA 파일을 Vedecaps 를 실행하는 컴퓨터의
-`~/.config/vedecaps/opereta-ca.pem`(또는 `--ca PATH` 로 정한 경로)에 둔다. **`options.ca` 를 믿는 것은 Vedecaps 0.1.5 이상이다.**
-이전 버전은 이 키를 무시하므로 인증서 오류가 난다. 자세한 사용은 [vedecaps.md](vedecaps.md).
+주소는 `https://…:8444/v1`, 설정에는 `options.ca`(CA 파일 경로)와 `{env:OPERETA_API_KEY}` 가 들어간다. CA 파일을 Deberopa 를 실행하는 컴퓨터의
+`~/.config/deberopa/opereta-ca.pem`(또는 `--ca PATH` 로 정한 경로)에 둔다. **`options.ca` 를 믿는 것은 Deberopa 0.1.5 이상이다.**
+이전 버전은 이 키를 무시하므로 인증서 오류가 난다. 자세한 사용은 [deberopa.md](deberopa.md).
 
 ## 인증서
 

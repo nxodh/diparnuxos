@@ -1,19 +1,21 @@
-Source: opereta-vedecaps
+Source: opereta-deberopa
 Section: devel
 Priority: optional
 Maintainer: Opereta Developers <noreply@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13), curl, ca-certificates
 Standards-Version: 4.7.2
-Homepage: https://github.com/nxodh/vedecaps
+Homepage: https://github.com/nxodh/deberopa
 Vcs-Git: https://github.com/nxodh/operetaos.git
 Vcs-Browser: https://github.com/nxodh/operetaos
 Rules-Requires-Root: no
 
-Package: opereta-vedecaps
+Package: opereta-deberopa
 Architecture: amd64
 Depends: ${misc:Depends}, libc6
 Recommends: opereta-daemon
-Description: Vedecaps 코딩 에이전트 (Opereta 에 맞춘 고정 버전)
- 터미널에서 쓰는 코딩 에이전트 Vedecaps 의 릴리스 실행 파일을 /usr/bin/vedecaps 에
+Replaces: opereta-vedecaps
+Conflicts: opereta-vedecaps
+Description: Deberopa 코딩 에이전트 (Opereta 에 맞춘 고정 버전)
+ 터미널에서 쓰는 코딩 에이전트 Deberopa 의 릴리스 실행 파일을 /usr/bin/deberopa 에
  설치한다. 버전과 SHA-256 은 opereta.conf 에 고정되어 있고 빌드할 때 확인한다.
- Opereta 의 모델 서버와 연결하려면 'opereta connect vedecaps --write --mcp' 를 쓴다.
+ Opereta 의 모델 서버와 연결하려면 'opereta connect deberopa --write --mcp' 를 쓴다.

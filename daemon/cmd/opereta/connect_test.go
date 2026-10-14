@@ -22,10 +22,10 @@ func decodeOut(t *testing.T, s string) map[string]any {
 	return m
 }
 
-func TestConnectVedecapsPrintsLocalSettingsWithoutKey(t *testing.T) {
+func TestConnectDeberopaPrintsLocalSettingsWithoutKey(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
-	res := runCLI(t, f, "connect", "vedecaps")
+	res := runCLI(t, f, "connect", "deberopa")
 	wantCode(t, res, exitOK)
 	m := decodeOut(t, res.stdout)
 	if m["model"] != "opereta/qwen3-14b.gguf" {
@@ -47,11 +47,11 @@ func TestConnectVedecapsPrintsLocalSettingsWithoutKey(t *testing.T) {
 	}
 }
 
-func TestConnectVedecapsRemoteUsesLANAddressAndKeyFromEnvironment(t *testing.T) {
+func TestConnectDeberopaRemoteUsesLANAddressAndKeyFromEnvironment(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, strings.Replace(strings.Replace(connRunning, `"lan_exposed":false`, `"lan_exposed":true`, 1),
 		`"addresses":[]`, `"addresses":[{"interface":"eth0","address":"192.168.0.23","family":"ipv4","url":"http://192.168.0.23:8080/v1"}]`, 1))
-	res := runCLI(t, f, "connect", "vedecaps", "--remote")
+	res := runCLI(t, f, "connect", "deberopa", "--remote")
 	wantCode(t, res, exitOK)
 	prov := decodeOut(t, res.stdout)["provider"].(map[string]any)["opereta"].(map[string]any)
 	if prov["api"] != "http://192.168.0.23:8080/v1" {
@@ -64,17 +64,17 @@ func TestConnectVedecapsRemoteUsesLANAddressAndKeyFromEnvironment(t *testing.T) 
 
 	// LAN 공개가 꺼져 있으면 줄 주소가 없다.
 	f.on("GET /v1/connection", 200, connRunning)
-	res = runCLI(t, f, "connect", "vedecaps", "--remote")
+	res = runCLI(t, f, "connect", "deberopa", "--remote")
 	wantCode(t, res, exitFailure)
 	wantContains(t, "no address", res.stderr, "LAN exposure")
 }
 
-func TestConnectVedecapsUsesPlanWhenServerIsStopped(t *testing.T) {
+func TestConnectDeberopaUsesPlanWhenServerIsStopped(t *testing.T) {
 	f := newFakeDaemon(t)
 	stopped := strings.Replace(strings.Replace(connRunning, `"server_state":"running"`, `"server_state":"stopped"`, 1), `"slot_ctx":32768`, `"slot_ctx":0`, 1)
 	f.on("GET /v1/connection", 200, stopped)
 	f.on("GET /v1/server/plan", 200, `{"model_id":"qwen3-14b.gguf","plan":{"ngl":"all","ctx":16384,"slot_ctx":16384,"parallel":1,"rationale":[],"warnings":[],"advice":[],"visible_devices":[0]},"input":{},"gpu":{}}`)
-	res := runCLI(t, f, "connect", "vedecaps")
+	res := runCLI(t, f, "connect", "deberopa")
 	wantCode(t, res, exitOK)
 	limit := decodeOut(t, res.stdout)["provider"].(map[string]any)["opereta"].(map[string]any)["models"].(map[string]any)["qwen3-14b.gguf"].(map[string]any)["limit"].(map[string]any)
 	if limit["context"].(float64) != 16384 {
@@ -83,11 +83,11 @@ func TestConnectVedecapsUsesPlanWhenServerIsStopped(t *testing.T) {
 	wantContains(t, "stopped hint", res.stderr, "not running", "opereta serve start")
 }
 
-func TestConnectVedecapsWriteMergesAndKeepsBackup(t *testing.T) {
+func TestConnectDeberopaWriteMergesAndKeepsBackup(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
 	home := t.TempDir()
-	cfg := filepath.Join(home, ".config", "vedecaps", "vedecaps.json")
+	cfg := filepath.Join(home, ".config", "deberopa", "deberopa.json")
 	if err := os.MkdirAll(filepath.Dir(cfg), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestConnectVedecapsWriteMergesAndKeepsBackup(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte(orig), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write")
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write")
 	wantCode(t, res, exitOK)
 	wantContains(t, "write", res.stdout, cfg, "added the provider", "kept the default model ollama/llama3")
 	data, err := os.ReadFile(cfg)
@@ -122,7 +122,7 @@ func TestConnectVedecapsWriteMergesAndKeepsBackup(t *testing.T) {
 	}
 
 	// --make-default 는 기본 모델도 바꾼다. 다시 실행해도 같은 결과다.
-	res = runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write", "--make-default")
+	res = runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write", "--make-default")
 	wantCode(t, res, exitOK)
 	data, _ = os.ReadFile(cfg)
 	if decodeOut(t, string(data))["model"] != "opereta/qwen3-14b.gguf" {
@@ -130,13 +130,13 @@ func TestConnectVedecapsWriteMergesAndKeepsBackup(t *testing.T) {
 	}
 }
 
-func TestConnectVedecapsWriteCreatesConfigAndHonorsXDG(t *testing.T) {
+func TestConnectDeberopaWriteCreatesConfigAndHonorsXDG(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
 	xdg := t.TempDir()
-	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": t.TempDir(), "XDG_CONFIG_HOME": xdg}}, "connect", "vedecaps", "--write")
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": t.TempDir(), "XDG_CONFIG_HOME": xdg}}, "connect", "deberopa", "--write")
 	wantCode(t, res, exitOK)
-	cfg := filepath.Join(xdg, "vedecaps", "vedecaps.json")
+	cfg := filepath.Join(xdg, "deberopa", "deberopa.json")
 	data, err := os.ReadFile(cfg)
 	if err != nil {
 		t.Fatalf("config not created: %v", err)
@@ -149,15 +149,15 @@ func TestConnectVedecapsWriteCreatesConfigAndHonorsXDG(t *testing.T) {
 	}
 }
 
-func TestConnectVedecapsWriteRefusesConfigWithComments(t *testing.T) {
+func TestConnectDeberopaWriteRefusesConfigWithComments(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
 	home := t.TempDir()
-	cfg := filepath.Join(home, ".config", "vedecaps", "vedecaps.json")
+	cfg := filepath.Join(home, ".config", "deberopa", "deberopa.json")
 	_ = os.MkdirAll(filepath.Dir(cfg), 0o700)
 	orig := "// mine\n{\"theme\":\"dark\"}\n"
 	_ = os.WriteFile(cfg, []byte(orig), 0o600)
-	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write")
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write")
 	wantCode(t, res, exitFailure)
 	wantContains(t, "refusal", res.stderr, "not plain JSON", "Nothing was changed")
 	if data, _ := os.ReadFile(cfg); string(data) != orig {
@@ -169,7 +169,7 @@ func TestConnectVedecapsWriteRefusesConfigWithComments(t *testing.T) {
 }
 
 func TestConnectUsage(t *testing.T) {
-	for _, args := range [][]string{{"connect"}, {"connect", "emacs"}, {"connect", "vedecaps", "extra"}, {"connect", "vedecaps", "--remote", "--url", "http://x/v1"}} {
+	for _, args := range [][]string{{"connect"}, {"connect", "emacs"}, {"connect", "deberopa", "extra"}, {"connect", "deberopa", "--remote", "--url", "http://x/v1"}} {
 		res := runCLI(t, nil, args...)
 		if res.code != exitUsage {
 			t.Fatalf("%v: exit %d stderr %s", args, res.code, res.stderr)
@@ -177,7 +177,7 @@ func TestConnectUsage(t *testing.T) {
 	}
 }
 
-func TestConnectVedecapsWriteWithMCPAndSkillLink(t *testing.T) {
+func TestConnectDeberopaWriteWithMCPAndSkillLink(t *testing.T) {
 	src := t.TempDir()
 	if err := os.WriteFile(filepath.Join(src, "SKILL.md"), []byte("---\nname: opereta\ndescription: x\n---\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -189,10 +189,10 @@ func TestConnectVedecapsWriteWithMCPAndSkillLink(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
 	home := t.TempDir()
-	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write", "--mcp")
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write", "--mcp")
 	wantCode(t, res, exitOK)
 	wantContains(t, "write", res.stdout, "added the MCP server", "linked")
-	data, err := os.ReadFile(filepath.Join(home, ".config", "vedecaps", "vedecaps.json"))
+	data, err := os.ReadFile(filepath.Join(home, ".config", "deberopa", "deberopa.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,16 +206,16 @@ func TestConnectVedecapsWriteWithMCPAndSkillLink(t *testing.T) {
 	}
 
 	// 다시 실행하면 이미 있는 링크를 그대로 둔다.
-	res = runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--write", "--mcp")
+	res = runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write", "--mcp")
 	wantCode(t, res, exitOK)
 	wantContains(t, "second write", res.stdout, "already exists")
 }
 
-func TestConnectVedecapsWithoutWriteNeverTouchesTheFilesystem(t *testing.T) {
+func TestConnectDeberopaWithoutWriteNeverTouchesTheFilesystem(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
 	home := t.TempDir()
-	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "vedecaps", "--mcp")
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--mcp")
 	wantCode(t, res, exitOK)
 	if _, ok := decodeOut(t, res.stdout)["mcp"]; !ok {
 		t.Fatalf("the MCP entry is missing from the printed settings: %s", res.stdout)
@@ -226,43 +226,43 @@ func TestConnectVedecapsWithoutWriteNeverTouchesTheFilesystem(t *testing.T) {
 	}
 }
 
-func TestConnectVedecapsTurnsOffSelfUpdateForThePackagedInstall(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "vedecaps")
+func TestConnectDeberopaTurnsOffSelfUpdateForThePackagedInstall(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "deberopa")
 	if err := os.WriteFile(bin, []byte("x"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	old := vedecapsPath
-	vedecapsPath = bin
-	defer func() { vedecapsPath = old }()
+	old := deberopaPath
+	deberopaPath = bin
+	defer func() { deberopaPath = old }()
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, connRunning)
-	res := runCLI(t, f, "connect", "vedecaps")
+	res := runCLI(t, f, "connect", "deberopa")
 	wantCode(t, res, exitOK)
 	if decodeOut(t, res.stdout)["autoupdate"] != false {
 		t.Fatalf("output = %s", res.stdout)
 	}
-	vedecapsPath = filepath.Join(t.TempDir(), "missing")
-	res = runCLI(t, f, "connect", "vedecaps")
+	deberopaPath = filepath.Join(t.TempDir(), "missing")
+	res = runCLI(t, f, "connect", "deberopa")
 	if _, ok := decodeOut(t, res.stdout)["autoupdate"]; ok {
 		t.Fatalf("autoupdate written without the packaged binary: %s", res.stdout)
 	}
 }
 
-func TestConnectVedecapsUsesTheDefaultModelWhenTheServerIsStopped(t *testing.T) {
+func TestConnectDeberopaUsesTheDefaultModelWhenTheServerIsStopped(t *testing.T) {
 	f := newFakeDaemon(t)
 	stopped := strings.Replace(strings.Replace(strings.Replace(connRunning, `"server_state":"running"`, `"server_state":"stopped"`, 1),
 		`"model_id":"qwen3-14b.gguf"`, `"model_id":""`, 1), `"models":["qwen3-14b.gguf"]`, `"models":["a.gguf","b.gguf"]`, 1)
 	f.on("GET /v1/connection", 200, stopped)
 	f.on("GET /v1/models", 200, `{"default":"b.gguf","models":[{"id":"a.gguf"},{"id":"b.gguf"}]}`)
 	f.on("GET /v1/server/plan", 200, `{"model_id":"b.gguf","plan":{"ngl":"0","ctx":8192,"slot_ctx":8192,"parallel":1,"rationale":[],"warnings":[],"advice":[],"visible_devices":[]},"input":{},"gpu":{}}`)
-	res := runCLI(t, f, "connect", "vedecaps")
+	res := runCLI(t, f, "connect", "deberopa")
 	wantCode(t, res, exitOK)
 	if decodeOut(t, res.stdout)["model"] != "opereta/b.gguf" {
 		t.Fatalf("output = %s", res.stdout)
 	}
 }
 
-func TestConnectVedecapsRemoteWithTLSWritesHTTPSAndCA(t *testing.T) {
+func TestConnectDeberopaRemoteWithTLSWritesHTTPSAndCA(t *testing.T) {
 	f := newFakeDaemon(t)
 	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"m.gguf","models":["m.gguf"],"local_url":"http://127.0.0.1:8080/v1",`+
 		`"slot_ctx":16384,"key_required":true,"local_key_required":false,"tls_active":true,"tls_port":8444,"ca_fingerprint":"AA:BB:CC",`+
@@ -271,9 +271,9 @@ func TestConnectVedecapsRemoteWithTLSWritesHTTPSAndCA(t *testing.T) {
 		_, _ = w.Write([]byte("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"))
 	})
 	out := filepath.Join(t.TempDir(), "opereta-ca.pem")
-	res := runCLI(t, f, "connect", "vedecaps", "--remote", "--ca-out", out)
+	res := runCLI(t, f, "connect", "deberopa", "--remote", "--ca-out", out)
 	wantCode(t, res, exitOK)
-	wantContains(t, "fragment", res.stdout, `"api": "https://192.168.0.23:8444/v1"`, `"ca": "~/.config/vedecaps/opereta-ca.pem"`, `{env:OPERETA_API_KEY}`)
+	wantContains(t, "fragment", res.stdout, `"api": "https://192.168.0.23:8444/v1"`, `"ca": "~/.config/deberopa/opereta-ca.pem"`, `{env:OPERETA_API_KEY}`)
 	wantContains(t, "hints", res.stderr, "own CA", "AA:BB:CC", "0.1.5 or newer", "wrote the CA certificate")
 	if data, err := os.ReadFile(out); err != nil || !strings.Contains(string(data), "BEGIN CERTIFICATE") {
 		t.Fatalf("CA file = %q, %v", data, err)
@@ -282,12 +282,43 @@ func TestConnectVedecapsRemoteWithTLSWritesHTTPSAndCA(t *testing.T) {
 		t.Fatal("key material in the output")
 	}
 
-	res = runCLI(t, f, "connect", "vedecaps", "--remote", "--ca", "/home/u/ca.pem")
+	res = runCLI(t, f, "connect", "deberopa", "--remote", "--ca", "/home/u/ca.pem")
 	wantCode(t, res, exitOK)
 	wantContains(t, "custom path", res.stdout, `"ca": "/home/u/ca.pem"`)
 
 	// 평문 주소에 --ca 는 쓸 수 없다.
 	f.on("GET /v1/connection", 200, `{"server_state":"running","model_id":"m.gguf","models":["m.gguf"],"local_url":"http://127.0.0.1:8080/v1","slot_ctx":16384,"addresses":[]}`)
-	res = runCLI(t, f, "connect", "vedecaps", "--ca", "ca.pem")
+	res = runCLI(t, f, "connect", "deberopa", "--ca", "ca.pem")
 	wantCode(t, res, exitUsage)
+}
+
+func TestConnectDeberopaWritesIntoTheOldFolderUntilDeberopaMigratesIt(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, connRunning)
+	home := t.TempDir()
+	old := filepath.Join(home, ".config", "vedecaps")
+	if err := os.MkdirAll(old, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old, "vedecaps.json"), []byte(`{"theme":"dark"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res := runCLIWith(t, f, cliOpts{env: map[string]string{"HOME": home}}, "connect", "deberopa", "--write")
+	wantCode(t, res, exitOK)
+	wantContains(t, "old folder", res.stdout, filepath.Join(old, "vedecaps.json"), "first run")
+	if _, err := os.Stat(filepath.Join(home, ".config", "deberopa")); err == nil {
+		t.Fatal("the new folder was created, which would stop Deberopa from migrating the old one")
+	}
+	data, err := os.ReadFile(filepath.Join(old, "vedecaps.json"))
+	if err != nil || !strings.Contains(string(data), `"theme": "dark"`) && !strings.Contains(string(data), `"theme":"dark"`) {
+		t.Fatalf("the user's setting was lost: %s %v", data, err)
+	}
+}
+
+func TestConnectVedecapsOldNameStillWorksWithANote(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/connection", 200, connRunning)
+	res := runCLI(t, f, "connect", "vedecaps")
+	wantCode(t, res, exitOK)
+	wantContains(t, "alias", res.stderr, "old name")
 }

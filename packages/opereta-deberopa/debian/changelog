@@ -1,23 +1,29 @@
-opereta-vedecaps (0.6.1) trixie; urgency=medium
+opereta-deberopa (0.6.2) trixie; urgency=medium
+
+  * 이름을 opereta-vedecaps 에서 opereta-deberopa 로 바꾸고 Deberopa 0.2.0 을 고정한다(실행 파일 /usr/bin/deberopa). 이전 이름의 패키지를 대체한다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
+
+opereta-deberopa (0.6.1) trixie; urgency=medium
 
   * 버전을 0.6.1 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.1 은 CUDA 런타임을 opereta-llm 의 전용 디렉터리로 옮긴다).
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
 
-opereta-vedecaps (0.6.0) trixie; urgency=medium
+opereta-deberopa (0.6.0) trixie; urgency=medium
 
   * OS 이름을 바꾼다(두 번째 이름 변경). 패키지, 파일, 유닛, 경로, 그룹, 환경 변수의 이름이 모두 바뀌었고 이전 이름과 호환되지 않는다. 새 로고와 8px 모서리 디자인을 쓴다.
   * 연동하는 에이전트의 로고(Deberopa)를 아이콘으로 추가했다. 에이전트의 이름과 고정 버전은 그대로다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 22:00:00 +0900
 
-opereta-vedecaps (0.5.4) trixie; urgency=medium
+opereta-deberopa (0.5.4) trixie; urgency=medium
 
   * Vedecaps 0.1.5(VE2 options.ca, VE1 Opereta 인식·키 환경 변수, VE3 max_concurrency, VE4 debug local --check-tools)로 올렸다. SHA-256 은 opereta.conf.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 21:00:00 +0900
 
-opereta-vedecaps (0.5.3) trixie; urgency=medium
+opereta-deberopa (0.5.3) trixie; urgency=medium
 
   * 새 패키지: Vedecaps 0.1.3 릴리스 실행 파일(linux-x64, glibc)을 SHA-256 확인 뒤 /usr/bin/vedecaps 에 설치한다.
 

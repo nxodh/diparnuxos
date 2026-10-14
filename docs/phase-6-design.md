@@ -83,6 +83,8 @@
 
 ## 7. Deberopa(R3)
 
+> **2026-10-14 갱신(0.6.2)**: Deberopa 0.2.0 이 릴리스되어(`nxodh/deberopa`) 이 절의 이름 변경을 0.6.2 에서 적용했다. 아래는 0.6.0, 0.6.1 시점의 기록이다. 적용 내용은 [deberopa.md](deberopa.md) 와 [phase-6-2-design.md](phase-6-2-design.md) 에 있다.
+
 Deberopa 는 아직 릴리스가 없다. 0.6.0 은 **Vedecaps 의 이름, 고정 버전, 내려받는 주소, SHA-256 을 바꾸지 않는다**(바꾸면 고정 버전을 내려받지 못하고 실제 Vedecaps 로 하는 호환 시험이 깨진다). 사용자가 Vedecaps 를 Deberopa 로 바꾸면 한 번의 치환 묶음으로 따라간다.
 
 ### 고정한 Vedecaps 0.1.5 가 새 OS 이름을 모른다
@@ -106,7 +108,7 @@ Opereta 쪽에서 고칠 수 없다(이전 이름을 응답에 남기면 이름 
 | 명령 | `opereta connect vedecaps`, `opereta mcp` 의 안내 문구, `daemon/internal/vedecaps` |
 | 화면 | Control Center 의 에이전트 페이지(`gui/opereta_cc/vedecaps.py`)와 번역. 아이콘은 이미 있다(`deberopa-*.png`) |
 | 시험 | `make test-vedecaps-docker`(`tests/vedecaps`), E2E 의 에이전트 단계 |
-| 문서 | [vedecaps.md](vedecaps.md) 와 이 목록 |
+| 문서 | [deberopa.md](deberopa.md)(0.6.2 전에는 `vedecaps.md`) 와 이 목록 |
 
 ## 8. GitHub
 

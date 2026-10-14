@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: vedecaps
-Source: https://github.com/nxodh/vedecaps
+Upstream-Name: deberopa
+Source: https://github.com/nxodh/deberopa
 
 Files: *
 Copyright: 2026 nxodh

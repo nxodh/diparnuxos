@@ -49,7 +49,7 @@ func talk(t *testing.T, s *Server, in string) []map[string]any {
 }
 
 func TestInitializeNegotiatesVersionAndAdvertisesTools(t *testing.T) {
-	msgs := talk(t, newTestServer(), `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"vedecaps","version":"0.1.3"}}}
+	msgs := talk(t, newTestServer(), `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"deberopa","version":"0.1.3"}}}
 {"jsonrpc":"2.0","method":"notifications/initialized"}
 {"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2030-01-01"}}
 `)

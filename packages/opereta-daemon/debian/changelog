@@ -1,3 +1,9 @@
+opereta-daemon (0.6.2) trixie; urgency=medium
+
+  * 코딩 에이전트 연결 명령이 opereta connect deberopa 가 되었다(옛 이름 vedecaps 도 별칭으로 받는다). 설정 폴더는 ~/.config/deberopa 다. 옛 폴더만 있으면 그 폴더에 합쳐 Deberopa 가 첫 실행 때 옮기게 한다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:59:00 +0900
+
 opereta-daemon (0.6.1) trixie; urgency=medium
 
   * CUDA 런타임 직접 받기: 업데이트 동작 cuda_runtime(opereta-update cuda-runtime), GET /v1/update 의 cuda_runtime, opereta gpu runtime status|install. 라이브 세션에서도 쓸 수 있다.

@@ -1,5 +1,5 @@
 // Command harness 는 게이트웨이만 따로 띄우는 시험용 프로그램이다(제품에 들어가지 않는다).
-// tests/vedecaps 가 실제 Vedecaps 실행 파일을 이 게이트웨이와 가짜 모델 서버에 붙여 호환을 확인한다.
+// tests/deberopa 가 실제 Deberopa 실행 파일을 이 게이트웨이와 가짜 모델 서버에 붙여 호환을 확인한다.
 // 환경 변수: HARNESS_KEY(키 하나를 만든다), HARNESS_LOCAL_NO_KEY=1(이 컴퓨터의 요청은 키 없이 통과).
 // 127.0.0.1:8080 에서 받고 127.0.0.1:18080 으로 넘긴다.
 // HARNESS_TLS_DIR 이 있으면 그 디렉터리에 로컬 CA 와 서버 인증서(box.local, 127.0.0.1)를 만들어 127.0.0.1:8444 에서도 받는다.
@@ -35,9 +35,9 @@ func main() {
 		Keys:       keys{ks},
 		LANExposed: func() bool { return false },
 		LocalNoKey: func() bool { return os.Getenv("HARNESS_LOCAL_NO_KEY") == "1" },
-		Version:    "0.6.1",
+		Version:    "0.6.2",
 		Info: func() map[string]any {
-			return map[string]any{"opereta": "0.6.1", "server": "running", "model": "fake.gguf", "ctx_per_slot": 16384, "slots": 2}
+			return map[string]any{"opereta": "0.6.2", "server": "running", "model": "fake.gguf", "ctx_per_slot": 16384, "slots": 2}
 		},
 	}
 	u, _ := url.Parse("http://127.0.0.1:18080")

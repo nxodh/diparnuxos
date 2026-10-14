@@ -14,7 +14,7 @@ const mcpInstructions = "Opereta runs a local language model server on this comp
 	"Use them to answer questions about the machine you run on or to find out why the model server is slow or stopped."
 
 // mcp 는 Opereta 의 상태를 도구로 내놓는 MCP 서버를 표준 입출력으로 돌린다.
-// Vedecaps 같은 에이전트의 설정에서 {"type":"local","command":["opereta","mcp"]} 로 부른다.
+// Deberopa 같은 에이전트의 설정에서 {"type":"local","command":["opereta","mcp"]} 로 부른다.
 func (c *cli) mcp(args []string) int {
 	fs := newFlags("mcp")
 	allowControl := fs.Bool("allow-control", false, "also offer tools that start and stop the model server")

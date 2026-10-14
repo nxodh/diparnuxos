@@ -134,9 +134,9 @@ def result(command):
     if command.startswith("python3 -I /tmp/e2e_tls.py "):
         return json.dumps({"with_ca": [200, True, None], "no_ca": "verify-failed", "wrong_name": "verify-failed",
                            "plain_lan": 200 if lan_plain else "refused", "plain_local": [200, None]}), 0
-    if command.startswith("opereta connect vedecaps --remote --ca-out"):
+    if command.startswith("opereta connect deberopa --remote --ca-out"):
         return json.dumps({"provider": {"opereta": {"name": "Opereta", "protocol": "openai", "api": "https://10.0.2.15:8444/v1",
-                                                      "options": {"apiKey": "{env:OPERETA_API_KEY}", "ca": "~/.config/vedecaps/opereta-ca.pem"}}}}), 0
+                                                      "options": {"apiKey": "{env:OPERETA_API_KEY}", "ca": "~/.config/deberopa/opereta-ca.pem"}}}}), 0
     if command.startswith("opereta --json tls off --yes"):
         tls_on, lan_plain = False, False
         return json.dumps({"enabled": False}), 0
@@ -163,7 +163,7 @@ def result(command):
             "sse": [200, "text/event-stream", 6, True, True], "tools": 200}), 0
     if command.startswith("python3 -I -c 'import json,http.client as h; c=h.HTTPConnection(\"127.0.0.1\",8080,timeout=30)"):
         return json.dumps([401, "application/json", "an API key is required"]), 0
-    if command == "opereta connect vedecaps --mcp 2>/dev/null":
+    if command == "opereta connect deberopa --mcp 2>/dev/null":
         return json.dumps({
             "provider": {"opereta": {"name": "Opereta", "protocol": "openai", "api": "http://127.0.0.1:8080/v1",
                                       "models": {model: {"name": model, "limit": {"context": 512, "output": 128}}}}},

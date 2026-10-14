@@ -73,7 +73,7 @@ ROUTES = {
         "gateway": True, "key_required": True, "key_count": 1, "hostname": "opereta", "local_url": "http://127.0.0.1:8080/v1",
         "addresses": [{"interface": "enp3s0", "address": "192.168.0.23", "family": "ipv4", "url": "http://192.168.0.23:8080/v1"}],
         "mdns_url": "http://opereta.local:8080/v1", "warnings": ["No API key exists."], "slot_ctx": 8192,
-        "examples": {"vedecaps": "{\n  \"model\": \"opereta/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
+        "examples": {"deberopa": "{\n  \"model\": \"opereta/a.gguf\"\n}", "settings": "Base URL: http://192.168.0.23:8080/v1\nAPI key: <your API key>", "curl": "curl http://192.168.0.23:8080/v1/chat/completions"}}),
     ("GET", "/v1/gateway"): (200, {"enabled": True, "public_port": 8080, "lan_exposed": True, "state": {"listening": True, "addr": "0.0.0.0:8080", "backend_port": 18080},
         "stats": {"in_flight": 0, "requests": 12, "errors": 1, "unauthorized": 2, "since": "2026-10-13T00:00:00Z", "recent": [],
         "keys": [{"id": "k1", "label": "orca", "prefix": "opr_ab12", "requests": 1500, "errors": 1, "prompt_tokens": 420, "completion_tokens": 900, "last_used": "2026-10-13T01:02:03Z"}]}}),
@@ -204,17 +204,17 @@ class SmokeTests(unittest.TestCase):
         page.check()
         self.assertTrue(pump(5, until=lambda: any(c[1] == "/v1/server/chat" for c in self.daemon.calls)))
 
-    def test_vedecaps_page_connects_checks_tools_and_offers_the_agent_profile(self):
-        import opereta_cc.vedecaps as vp
+    def test_deberopa_page_connects_checks_tools_and_offers_the_agent_profile(self):
+        import opereta_cc.deberopa as vp
 
         calls = []
-        orig_run, orig_find = vp.run_connect, vp.find_vedecaps
-        vp.run_connect = lambda: (calls.append("connect"), (True, "config   /home/u/.config/vedecaps/vedecaps.json"))[1]
-        vp.find_vedecaps = lambda: "/usr/local/bin/vedecaps"
+        orig_run, orig_find = vp.run_connect, vp.find_deberopa
+        vp.run_connect = lambda: (calls.append("connect"), (True, "config   /home/u/.config/deberopa/deberopa.json"))[1]
+        vp.find_deberopa = lambda: "/usr/local/bin/deberopa"
         try:
-            page = vp.VedecapsPage(self.ctx)
+            page = vp.DeberopaPage(self.ctx)
             self.assertTrue(pump(5, until=lambda: "a.gguf" in (page.server_row.get_subtitle() or "")), "the server was not shown")
-            self.assertEqual(page.program_row.get_subtitle(), "/usr/local/bin/vedecaps")
+            self.assertEqual(page.program_row.get_subtitle(), "/usr/local/bin/deberopa")
             # 슬롯당 컨텍스트가 작으면 에이전트 용도를 권한다. 저장된 용도가 agent 이면 단추를 숨긴다.
             self.assertIn("8192", page.context_row.get_subtitle())
             self.assertIn("16384", page.context_row.get_subtitle())
@@ -228,7 +228,7 @@ class SmokeTests(unittest.TestCase):
             page.connect()
             self.assertTrue(pump(5, until=lambda: calls == ["connect"]))
         finally:
-            vp.run_connect, vp.find_vedecaps = orig_run, orig_find
+            vp.run_connect, vp.find_deberopa = orig_run, orig_find
 
     def test_models_page_imports_a_file(self):
         import tempfile
@@ -267,7 +267,7 @@ class SmokeTests(unittest.TestCase):
         names = [n for n, _t, _i in win._entries]
         self.assertEqual(
             names,
-            ["dashboard", "models", "server", "connection", "vedecaps", "network", "firewall", "remote", "services", "resources", "system"],
+            ["dashboard", "models", "server", "connection", "deberopa", "network", "firewall", "remote", "services", "resources", "system"],
         )
         for name in names:
             self.assertIsNotNone(win.stack.get_child_by_name(name), name)

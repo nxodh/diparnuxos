@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/nxodh/operetaos/daemon/internal/config"
+	"github.com/nxodh/operetaos/daemon/internal/deberopa"
 	"github.com/nxodh/operetaos/daemon/internal/network"
 	"github.com/nxodh/operetaos/daemon/internal/supervisor"
-	"github.com/nxodh/operetaos/daemon/internal/vedecaps"
 )
 
 // ConnectionAddress 는 다른 컴퓨터가 이 컴퓨터에 접속할 때 쓸 수 있는 주소 하나다.
@@ -159,7 +159,7 @@ func buildConnection(in connectionInput) Connection {
 	if c.TLSActive && strings.HasPrefix(base, "https://") {
 		caFlag = "--cacert opereta-ca.pem "
 		pyClient = ", http_client=httpx.Client(verify=\"opereta-ca.pem\")"
-		caFile = vedecaps.DefaultCAFile
+		caFile = deberopa.DefaultCAFile
 	}
 	c.Examples["curl"] = fmt.Sprintf("curl %s%s/chat/completions \\\n  -H 'Authorization: Bearer <your API key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"model\": \"%s\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'", caFlag, base, model)
 	imports := "from openai import OpenAI"
@@ -167,11 +167,11 @@ func buildConnection(in connectionInput) Connection {
 		imports = "import httpx\nfrom openai import OpenAI"
 	}
 	c.Examples["openai_python"] = fmt.Sprintf("%s\nclient = OpenAI(base_url=\"%s\", api_key=\"<your API key>\"%s)\nreply = client.chat.completions.create(\n    model=\"%s\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n)\nprint(reply.choices[0].message.content)", imports, base, pyClient, model)
-	if frag, err := vedecaps.Fragment(vedecaps.Input{
+	if frag, err := deberopa.Fragment(deberopa.Input{
 		BaseURL: base, ModelID: model, SlotCtx: c.SlotCtx, CAFile: caFile,
 		NeedsKey: in.Cfg.LANExposed && len(c.Addresses) > 0 || c.LocalKeyRequired,
 	}); err == nil && model != "<model>" {
-		c.Examples["vedecaps"] = vedecaps.Pretty(frag)
+		c.Examples["deberopa"] = deberopa.Pretty(frag)
 	}
 	c.Examples["environment"] = fmt.Sprintf("export OPENAI_BASE_URL=%s\nexport OPENAI_API_KEY=<your API key>", base)
 	return c

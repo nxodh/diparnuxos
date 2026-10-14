@@ -4,7 +4,7 @@
 - 대상 저장소: <https://github.com/nxodh/vedecaps> `main` `f187450`(Vedecaps 0.1.3)
 - 상태: **제안서 겸 구현 지침.** 이 세션은 Vedecaps 저장소를 바꾸지 않았다. 아래 코드는 구현을 쉽게 하려고 쓴 **스케치**이며, 컴파일이나 실행을 해 보지 않았다.
 - 근거: 위 커밋의 소스를 읽었다(파일과 함수 이름으로 가리킨다. 줄 번호는 바뀌므로 쓰지 않는다). Opereta 쪽 사실은 이 저장소의 `phase-5-3` 브랜치 코드다.
-- 관련 문서: [vedecaps-research.md](vedecaps-research.md)(조사), [phase-5-3-design.md](phase-5-3-design.md) 4절(제안 요약), [vedecaps.md](vedecaps.md)(사용법)
+- 관련 문서: [vedecaps-research.md](vedecaps-research.md)(조사), [phase-5-3-design.md](phase-5-3-design.md) 4절(제안 요약), [vedecaps.md](deberopa.md)(사용법)
 
 ## 0. 요약
 
