@@ -194,7 +194,6 @@ def scenario_installed(console, budgets, secure_boot):
     # 부팅하므로(항목 없이 대체 경로로 뜬다) 일반 부팅에서만 확인한다.
     if not secure_boot:
         check("nvram-entry", "sudo -n efibootmgr -v | grep -i 'opereta.*SHIMX64.EFI'")
-        check("boot-status", "opereta boot status --json | grep -q '\"opereta_entry\"'")
     check("os-prober-enabled", "grep -q '^GRUB_DISABLE_OS_PROBER=false' /etc/default/grub.d/40-opereta-os-prober.cfg")
     ids = check("identity", "id -nG && id -u")
     if ids is not None:
@@ -220,6 +219,8 @@ def scenario_installed(console, budgets, secure_boot):
     status_text = check("status", "opereta --json status | tr -d '\\n'")
     if status_text is not None:
         soft.run("status-json", lambda: require(json_object(status_text, "status").get("mode") == "server", "Installed system must start in server mode"))
+    # opereta boot 는 데몬(/v1/update)에서 읽으므로 daemon-ready 뒤에 확인한다.
+    check("boot-status", "opereta --json boot status | grep -q '\"opereta_entry\"'")
     check("default-target", "systemctl get-default | grep -x multi-user.target")
     users_text = check("user-list", "opereta --json user list | tr -d '\\n'")
     if users_text is not None:
