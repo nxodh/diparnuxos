@@ -1496,3 +1496,41 @@ func TestTLSCAFingerprintAndRenew(t *testing.T) {
 	res = runCLI(t, f, "tls", "bogus")
 	wantCode(t, res, exitUsage)
 }
+
+func TestGPURuntimeStatus(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/update", 200, `{"available":true,"running":false,"state":{"phase":"idle"},"cuda_runtime":{"installed":false,"reason":"not_installed","packages":[{"name":"cuda-cudart-13-2","version":"13.2.86-1"}]}}`)
+	res := runCLI(t, f, "gpu", "runtime")
+	wantCode(t, res, exitOK)
+	wantContains(t, "status", res.stdout, "not installed")
+	wantContains(t, "status", res.stdout, "opereta gpu runtime install")
+	wantContains(t, "status", res.stdout, "cuda-cudart-13-2 13.2.86-1")
+}
+
+func TestGPURuntimeInstallNeedsConfirmationWithoutATerminal(t *testing.T) {
+	f := newFakeDaemon(t)
+	res := runCLI(t, f, "gpu", "runtime", "install")
+	wantCode(t, res, exitUsage)
+	wantContains(t, "no terminal", res.stderr, "--yes")
+	wantContains(t, "license shown", res.stdout, "docs.nvidia.com/cuda/eula")
+	if len(f.bodies["POST /v1/update"]) != 0 {
+		t.Fatal("the download started without the user's confirmation")
+	}
+}
+
+func TestGPURuntimeInstallWithYesStartsTheAction(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("POST /v1/update", 202, `{"started":true,"action":"cuda_runtime","reboot":false}`)
+	f.onFunc("GET /v1/update", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		now := time.Now().UTC().Format(time.RFC3339)
+		extra := fmt.Sprintf(`,"operation":"cuda_runtime","events":[{"time":%q,"step":"done","message":"the CUDA runtime is installed"}]`, now)
+		_, _ = fmt.Fprint(w, updateInfoJSON(false, "committed", extra))
+	})
+	res := runCLI(t, f, "gpu", "runtime", "install", "--yes")
+	wantCode(t, res, exitOK)
+	wantContains(t, "install", res.stdout, "CUDA runtime is installed")
+	if got := f.bodies["POST /v1/update"]; len(got) != 1 || !strings.Contains(got[0], `"action":"cuda_runtime"`) {
+		t.Fatalf("request bodies = %v", got)
+	}
+}

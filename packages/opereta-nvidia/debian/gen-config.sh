@@ -32,11 +32,14 @@ Package: src:nvidia-graphics-drivers:any src:nvidia-kmod-open:any nvidia-modprob
 Pin: version *
 Pin-Priority: -1
 
-# CUDA 런타임 패키지(cuda-cudart-*, libcublas-*)는 이 이미지에 시스템 패키지로 설치하지 않는다. 설치되지 않도록 막는다.
-# 런타임은 opereta-llm 의 전용 디렉터리에 있다(NVIDIA CUDA EULA: 응용 프로그램만 접근해야 한다).
-Package: cuda-cudart-* libcublas-*
-Pin: version *
-Pin-Priority: -1
+# CUDA 런타임은 이미지에 없다. 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받을 때(opereta gpu runtime install) 이 버전을 쓴다.
+Package: cuda-cudart-${CUDA_PKG_SUFFIX}
+Pin: version ${CUDA_CUDART_VERSION}
+Pin-Priority: 1001
+
+Package: libcublas-${CUDA_PKG_SUFFIX}
+Pin: version ${CUDA_CUBLAS_VERSION}
+Pin-Priority: 1001
 EOF
 cat > "${dest}/etc/modprobe.d/opereta-nouveau.conf" <<'EOF'
 # NVIDIA 오픈 모듈만 사용한다.
@@ -56,4 +59,8 @@ done
 cat > "${dest}/usr/share/opereta/nvidia.conf" <<EOF
 NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION}"
 NVIDIA_DRIVER_DEB_VERSION="${driver}"
+CUDA_CUDART_PACKAGE="cuda-cudart-${CUDA_PKG_SUFFIX}"
+CUDA_CUDART_VERSION="${CUDA_CUDART_VERSION}"
+CUDA_CUBLAS_PACKAGE="libcublas-${CUDA_PKG_SUFFIX}"
+CUDA_CUBLAS_VERSION="${CUDA_CUBLAS_VERSION}"
 EOF

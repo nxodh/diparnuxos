@@ -240,6 +240,10 @@ func (c *cli) updateSummary(info updatectl.Info, action string) int {
 		c.errorLine(fmt.Sprintf("%s (%s)", st.Message, st.Code))
 		return exitFailure
 	}
+	if st.Operation == "cuda_runtime" {
+		fmt.Fprintln(w, "the CUDA runtime is installed. Restart the model server to use the GPU: opereta serve stop && opereta serve start")
+		return exitOK
+	}
 	switch st.Phase {
 	case update.PhasePendingBoot:
 		if st.NewKernel != "" {

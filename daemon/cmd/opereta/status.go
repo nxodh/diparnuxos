@@ -179,10 +179,13 @@ func gpuVerdict(st client.GPUFile) (int, string) {
 	return exitFailure, "Run 'opereta report' and check the kernel log (journalctl -k) for details."
 }
 
-// gpu 는 gpu 명령 묶음이다. 지금은 check 만 있다.
+// gpu 는 gpu 명령 묶음이다: check, runtime.
 func (c *cli) gpu(args []string) int {
+	if len(args) > 0 && args[0] == "runtime" {
+		return c.gpuRuntime(args[1:])
+	}
 	if len(args) == 0 || args[0] != "check" {
-		return c.usage("usage: opereta gpu check", "gpu check")
+		return c.usage("usage: opereta gpu check | opereta gpu runtime [status|install]", "gpu check")
 	}
 	if len(args) != 1 {
 		return c.usage("gpu check takes no arguments", "gpu check")

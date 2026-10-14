@@ -1,13 +1,13 @@
 # 릴리스 게시
 
 - 확인 날짜: 2026-10-14
-- **ISO 는 기본으로 올리지 않는다.** 법적 검토(재배포 조건의 해석, GPL 소스 제공, 프로젝트 라이선스)가 끝나지 않았기 때문이다. 릴리스에는 **OS 업데이트 저장소만** 올라간다. 이유와 ISO 를 올리기 위한 체크리스트는 [licenses.md](licenses.md) 10절에 있다.
+- **0.6.1 부터 ISO 도 올린다**(`OPERETA_PUBLISH_ISO="yes"`). ISO 에는 NVIDIA CUDA 런타임이 없고(사용자의 컴퓨터가 직접 받는다), ISO 에 들어간 모든 Debian 패키지의 **대응 소스**가 같은 릴리스에 함께 올라간다(GPL). 소스가 없으면 릴리스 자산 모으기가 거절한다. 근거와 남은 쟁점은 [licenses.md](licenses.md) 10절에 있다.
 - 상태: 워크플로(`.github/workflows/release.yml`)와 자산 모으기 스크립트가 구현되어 있다. 자산 모으기는 컨테이너 시험(`make test-release-docker`)으로 확인했다. **워크플로 자체는 태그를 푸시해야 돌므로 아직 실행하지 않았다.**
 
 0.6.0 부터 버전마다 태그를 게시하고 GitHub 릴리스를 만든다. 릴리스는 두 가지를 겸할 수 있다.
 
 1. **OS 업데이트 저장소**(항상): 같은 릴리스의 `opereta-*` 패키지와 서명된 APT 색인(평평한 형식). 설치된 시스템이 `opereta update` 로 이 버전을 받는다([updates.md](updates.md)).
-2. **설치 이미지**(`OPERETA_PUBLISH_ISO="yes"` 일 때만): ISO 와 SHA-256 체크섬.
+2. **설치 이미지**(`OPERETA_PUBLISH_ISO="yes"` 일 때): ISO, SHA-256 체크섬, 대응 소스 묶음(`opereta-<버전>-sources-NN.tar`, `.tsv`, `SOURCES-README.txt`), 이 프로젝트의 소스(`opereta-<버전>-source.tar.gz`), 패키지 목록(`opereta-<버전>-packages.tsv`).
 
 ## 릴리스에 올라가는 파일
 
@@ -86,10 +86,12 @@ sha256sum -c SHA256SUMS --ignore-missing
 - 평평한 저장소에는 이전 버전이 없다. 그래서 드라이버 정책 패키지가 바뀐 갱신의 롤백은 이전 버전을 받을 수 없을 때 거절한다([updates.md](updates.md)).
 - 릴리스를 지우거나 prerelease 로 바꾸면 "최신 릴리스"가 이전 릴리스로 돌아간다. 이미 새 버전으로 올린 시스템은 다운그레이드하지 않는다(apt 가 올리지 않는다).
 
-## ISO 를 올리지 않는 이유와 올리는 법
+## ISO 에 들어 있는 제3자 소프트웨어
 
-- **ISO 에 들어 있는 제3자 소프트웨어**: NVIDIA 오픈 모듈과 CUDA 런타임, Intel Wi-Fi·이더넷 펌웨어, GPL 소프트웨어(Debian)가 들어 있다. 재배포 조건의 해석이 정리되지 않았고 GPL 소스 제공을 준비하지 않았다. 그래서 기본으로 올리지 않는다.
-- **올리려면** [licenses.md](licenses.md) 10.3 의 체크리스트를 끝내고 `opereta.conf` 의 `OPERETA_PUBLISH_ISO` 를 `yes` 로 바꾼다.
-- **CI 아티팩트**: `iso` 워크플로의 ISO 아티팩트(7일)는 이와 별개로 남아 있다([licenses.md](licenses.md) 10.4).
-- **프로젝트 라이선스(U7)**: 정해지지 않았다. 라이선스가 없으면 기본적으로 모든 권리가 저자에게 있다.
+- **NVIDIA 드라이버**: 사용자 공간 라이브러리와 GSP 펌웨어, 오픈 커널 모듈(MIT/GPL). 재배포 조건(OSI 승인 커널과 함께, 수정 없이, 계약서 제공)을 지킨다([licenses.md](licenses.md) 1절).
+- **CUDA 런타임은 없다**: 사용자의 컴퓨터가 NVIDIA 에서 받는다(`opereta gpu runtime install`). 이 프로젝트는 재배포하지 않는다.
+- **Intel 펌웨어**: Wi-Fi(`iwlwifi`)와 이더넷 기본 프로파일(`ice`). 재배포가 "Intel 승인 제품과 함께"로 한정된 두 파일은 뺐다.
+- **GPL 소프트웨어(Debian)**: 대응 소스를 같은 릴리스에 올린다. 소스 수집은 릴리스 워크플로가 하고, 실패하면 릴리스가 실패한다.
+- **CI 아티팩트**: `iso` 워크플로의 ISO 아티팩트(7일)는 별개다. 같은 구성이므로 같은 조건이 적용된다.
+- **프로젝트 라이선스**: MIT(`LICENSE`).
 - **검증 범위**: 실기 설치, 실제 커널 갱신, 실제 GPU 는 미검증이다([support-matrix.md](support-matrix.md)). 릴리스 노트가 이를 가리킨다.

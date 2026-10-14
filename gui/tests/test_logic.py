@@ -358,6 +358,27 @@ class DescribeUpdateTests(unittest.TestCase):
         self.assertFalse(logic.describe_update(None)["can_check"])
 
 
+class CudaRuntimeLogicTests(unittest.TestCase):
+    def test_missing_runtime_can_be_installed_even_in_a_live_session(self):
+        d = logic.describe_cuda_runtime({"live": True, "available": False, "cuda_runtime": {"installed": False, "reason": "not_installed"}})
+        self.assertFalse(d["installed"])
+        self.assertTrue(d["can_install"])
+
+    def test_installed_runtime_hides_the_install_action(self):
+        d = logic.describe_cuda_runtime({"cuda_runtime": {"installed": True}})
+        self.assertTrue(d["installed"])
+        self.assertFalse(d["can_install"])
+
+    def test_install_is_blocked_while_an_update_runs(self):
+        d = logic.describe_cuda_runtime({"running": True, "cuda_runtime": {"installed": False, "reason": "not_installed"}})
+        self.assertFalse(d["can_install"])
+
+    def test_image_without_settings_cannot_install(self):
+        d = logic.describe_cuda_runtime({"cuda_runtime": {"installed": False, "reason": "no_settings"}})
+        self.assertFalse(d["can_install"])
+        self.assertFalse(logic.describe_cuda_runtime(None)["can_install"])
+
+
 class NetworkLogicTests(unittest.TestCase):
     def test_online_summary_names_the_connection(self):
         d = logic.describe_network({

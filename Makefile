@@ -9,7 +9,7 @@ ISO ?= $(ROOT)/out/opereta-$(OPERETA_VERSION)-amd64.iso
 
 SHELL_SCRIPTS := $(shell find $(ROOT)/scripts $(ROOT)/build/auto $(ROOT)/build/config/hooks $(ROOT)/build/config/includes.chroot/lib/live/config $(ROOT)/packages $(ROOT)/tests $(ROOT)/llama $(ROOT)/daemon/dist -type f \( -name '*.sh' -o -path '*/build/auto/*' -o -path '*/lib/live/config/*' -o -name '*.hook.*' -o -name opereta-panel-net -o -name opereta-session-setup -o -name 55opereta-xdg -o -name '*.preinst' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \) 2>/dev/null | sort)
 
-.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-release-docker test-llama-bundle-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-vedecaps-docker
+.PHONY: iso iso-native deb llama test-llama-docker clean clean-llama lint check-legacy-name check-secrets test-daemon test-daemon-docker test-gui test-gpu-check test-update-docker test-installer-config-docker test-apt-repo-docker test-release-docker  sources test-sources-docker test-network-docker test-desktop-config-docker test-nvidia-image-docker test-qemu test-qemu-docker test-qemu-usb-docker test-qemu-e2e test-qemu-e2e-docker test-qemu-e2e-driver test-qemu-desktop-docker test-qemu-install-docker test-vedecaps-docker
 
 # Docker 안에서 ISO 를 빌드한다. opereta-llm .deb 가 필요하므로 먼저 llama 를 실행한다.
 iso: llama
@@ -65,9 +65,13 @@ test-network-docker:
 test-release-docker:
 	bash "$(ROOT)/scripts/test-release-in-docker.sh"
 
-# CUDA 런타임 번들링(NVIDIA CUDA EULA 조건)을 합성 라이브러리로 컨테이너에서 확인한다.
-test-llama-bundle-docker:
-	bash "$(ROOT)/scripts/test-llama-bundle-in-docker.sh"
+# ISO 에 들어간 패키지의 대응 소스(GPL 등)를 받아 out/sources/ 에 묶는다. make iso 뒤에 실행한다.
+sources:
+	bash "$(ROOT)/scripts/collect-sources-in-docker.sh"
+
+# 소스 수집기를 작은 실제 패키지로 확인한다(네트워크 필요).
+test-sources-docker:
+	bash "$(ROOT)/scripts/test-sources-in-docker.sh"
 
 test-apt-repo-docker:
 	bash "$(ROOT)/scripts/test-apt-repo-in-docker.sh"

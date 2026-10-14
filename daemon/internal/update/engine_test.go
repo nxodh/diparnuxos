@@ -664,3 +664,106 @@ func TestApplyContinuesWhenOnlyTheOperetaChannelFails(t *testing.T) {
 		t.Fatalf("state = %+v", st)
 	}
 }
+
+func TestInstallCUDARuntime(t *testing.T) {
+	f := newFakeSys(t)
+	f.writeNvidiaConf()
+	e := f.engine()
+	if st := e.CUDARuntimeStatus(context.Background()); st.Installed || st.Reason != "not_installed" || len(st.Packages) != 2 {
+		t.Fatalf("status before = %+v", st)
+	}
+	st, err := e.InstallCUDARuntime(context.Background())
+	if err != nil {
+		t.Fatalf("InstallCUDARuntime: %v", err)
+	}
+	if st.Phase != PhaseCommitted || st.Operation != "cuda_runtime" || st.RebootRequired {
+		t.Fatalf("state = %+v", st)
+	}
+	if f.pkgs["cuda-cudart-13-2"] == nil || f.pkgs["cuda-cudart-13-2"].version != "13.2.86-1" || f.pkgs["libcublas-13-2"].version != "13.4.1.3-1" {
+		t.Fatalf("packages = %+v", f.pkgs)
+	}
+	if !f.held["cuda-cudart-13-2"] || !f.held["libcublas-13-2"] {
+		t.Errorf("the runtime packages were not held: %v", f.held)
+	}
+	if after := e.CUDARuntimeStatus(context.Background()); !after.Installed {
+		t.Errorf("status after = %+v", after)
+	}
+	// 두 번째 실행은 아무것도 설치하지 않는다.
+	before := len(f.calls)
+	st, err = e.InstallCUDARuntime(context.Background())
+	if err != nil || st.Message != "already installed" {
+		t.Fatalf("second run: %+v %v", st, err)
+	}
+	for _, c := range f.calls[before:] {
+		if strings.Contains(c, "apt-get") && strings.Contains(c, "install") {
+			t.Errorf("apt install ran again: %s", c)
+		}
+	}
+}
+
+func TestInstallCUDARuntimeAllowedInLiveSession(t *testing.T) {
+	f := newFakeSys(t)
+	f.writeNvidiaConf()
+	if err := os.MkdirAll(f.path("run/live"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.engine().InstallCUDARuntime(context.Background()); err != nil {
+		t.Fatalf("the CUDA runtime must be installable in a live session: %v", err)
+	}
+}
+
+func TestInstallCUDARuntimeFailures(t *testing.T) {
+	t.Run("pending reboot", func(t *testing.T) {
+		f := newFakeSys(t)
+		f.writeNvidiaConf()
+		e := f.engine()
+		if err := e.save(&State{Phase: PhasePendingBoot, Operation: "apply"}); err != nil {
+			t.Fatal(err)
+		}
+		_, err := e.InstallCUDARuntime(context.Background())
+		if codeOf(err) != CodePendingBoot {
+			t.Fatalf("err = %v", err)
+		}
+		if loaded, _ := e.LoadState(); loaded.Phase != PhasePendingBoot {
+			t.Errorf("the pending update state was overwritten: %+v", loaded)
+		}
+	})
+	t.Run("network", func(t *testing.T) {
+		f := newFakeSys(t)
+		f.writeNvidiaConf()
+		f.updateFail = true
+		_, err := f.engine().InstallCUDARuntime(context.Background())
+		if codeOf(err) != CodeNetwork {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("not in the repository", func(t *testing.T) {
+		f := newFakeSys(t)
+		f.writeNvidiaConf()
+		f.cudaMissing = true
+		_, err := f.engine().InstallCUDARuntime(context.Background())
+		if codeOf(err) != CodeCUDARuntime {
+			t.Fatalf("err = %v", err)
+		}
+		if f.pkgs["cuda-cudart-13-2"] != nil {
+			t.Error("a package was recorded although apt failed")
+		}
+	})
+	t.Run("disk space", func(t *testing.T) {
+		f := newFakeSys(t)
+		f.writeNvidiaConf()
+		e := f.engine()
+		e.FreeBytes = func(string) (uint64, error) { return 100 << 20, nil }
+		_, err := e.InstallCUDARuntime(context.Background())
+		if codeOf(err) != CodeDiskSpace {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("no settings in the image", func(t *testing.T) {
+		f := newFakeSys(t)
+		_, err := f.engine().InstallCUDARuntime(context.Background())
+		if codeOf(err) != CodeInternal {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}

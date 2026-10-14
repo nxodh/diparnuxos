@@ -41,7 +41,26 @@ mkdir -p "${REL}"
 if [[ "${PUBLISH_ISO}" == yes ]]; then
     size="$(wc -c < "${OUT}/${ISO}" | tr -d ' ')"
     [[ "${size}" -le "${MAX_ASSET}" ]] || die "ISO 가 릴리스 자산 한도(2 GiB)를 넘는다: ${size} 바이트"
+    # GPL 등이 요구하는 대응 소스를 같은 곳에 올린다(GPLv2 3a). 소스가 없으면 ISO 를 올리지 않는다.
+    shopt -s nullglob
+    src_parts=("${OUT}/sources/opereta-${OPERETA_VERSION}-sources-"*.tar)
+    shopt -u nullglob
+    [[ ${#src_parts[@]} -gt 0 ]] || die "대응 소스가 없다: ${OUT}/sources (make sources). 소스 없이 ISO 를 올리지 않는다"
+    for f in "${OUT}/sources/opereta-${OPERETA_VERSION}-sources.tsv" "${OUT}/sources/SOURCES-README.txt"; do
+        [[ -s "${f}" ]] || die "소스 목록 파일이 없다: ${f}"
+    done
+    for p in "${src_parts[@]}"; do
+        psize="$(wc -c < "${p}" | tr -d ' ')"
+        [[ "${psize}" -le "${MAX_ASSET}" ]] || die "소스 묶음이 릴리스 자산 한도(2 GiB)를 넘는다: ${p}"
+    done
     cp -f "${OUT}/${ISO}" "${OUT}/${ISO}.sha256" "${REL}/"
+    cp -f "${src_parts[@]}" "${OUT}/sources/opereta-${OPERETA_VERSION}-sources.tsv" "${OUT}/sources/SOURCES-README.txt" "${REL}/"
+    [[ -s "${OUT}/package-manifest.tsv" ]] || die "패키지 목록이 없다: ${OUT}/package-manifest.tsv"
+    cp -f "${OUT}/package-manifest.tsv" "${REL}/opereta-${OPERETA_VERSION}-packages.tsv"
+    # 이 프로젝트의 소스(같은 릴리스의 태그). 저장소 안에서 실행할 때만 만든다.
+    if git -C "${ROOT}" rev-parse --git-dir > /dev/null 2>&1; then
+        git -C "${ROOT}" archive --format=tar.gz --prefix="operetaos-${OPERETA_VERSION}/" -o "${REL}/opereta-${OPERETA_VERSION}-source.tar.gz" HEAD
+    fi
 else
     echo "make-release-assets: ISO 는 릴리스에 올리지 않는다(OPERETA_PUBLISH_ISO=no)"
 fi

@@ -1,6 +1,6 @@
 opereta-daemon (0.6.1) trixie; urgency=medium
 
-  * 버전을 0.6.1 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.1 은 CUDA 런타임을 opereta-llm 의 전용 디렉터리로 옮긴다).
+  * CUDA 런타임 직접 받기: 업데이트 동작 cuda_runtime(opereta-update cuda-runtime), GET /v1/update 의 cuda_runtime, opereta gpu runtime status|install. 라이브 세션에서도 쓸 수 있다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
 

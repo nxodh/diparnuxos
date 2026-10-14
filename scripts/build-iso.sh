@@ -138,5 +138,14 @@ shopt -u nullglob
 cp -f "${exported[@]}" "${debs_out}/"
 echo "build-iso: 패키지 ${#exported[@]}개: ${debs_out}"
 
+# 이미지에 설치된 모든 패키지의 목록. GPL 등이 요구하는 대응 소스를 모을 때 쓴다(scripts/collect-sources.py).
+# 열: 패키지, 버전, 아키텍처, 소스 패키지, 소스 버전, 관리자.
+dpkg-query --admindir "${tree}/build/chroot/var/lib/dpkg" -W \
+    -f='${db:Status-Status}\t${Package}\t${Version}\t${Architecture}\t${source:Package}\t${source:Version}\t${Maintainer}\n' \
+    | awk -F'\t' '$1 == "installed" { print $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 }' \
+    | LC_ALL=C sort > "${OPERETA_OUT}/package-manifest.tsv"
+[ -s "${OPERETA_OUT}/package-manifest.tsv" ] || die "패키지 목록이 비어 있다."
+echo "build-iso: 패키지 목록 $(wc -l < "${OPERETA_OUT}/package-manifest.tsv")개: ${OPERETA_OUT}/package-manifest.tsv"
+
 echo "build-iso: 완료: ${OPERETA_OUT}/${iso_name}"
 echo "build-iso: 체크섬: ${OPERETA_OUT}/${iso_name}.sha256"

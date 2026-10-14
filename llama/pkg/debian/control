@@ -14,8 +14,6 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}@OPERETA_NVIDIA_DEPENDS@
 Description: llama.cpp 의 llama-server (Opereta 빌드)
  llama.cpp 고정 커밋에서 빌드한 llama-server 와 실행 시 불러오는 백엔드 모듈을 제공한다.
- CUDA 백엔드(libggml-cuda.so)는 실행 때 dlopen 되며, GPU 드라이버가 없으면
+ CUDA 백엔드(libggml-cuda.so)는 실행 때 dlopen 되며, CUDA 런타임이나 GPU 가 없으면
  건너뛰고 CPU 백엔드로 돈다. 설치 위치는 /usr/lib/opereta/llama 이다.
- CUDA 빌드는 NVIDIA 의 CUDA 런타임(libcudart, libcublas, libcublasLt)을 같은 디렉터리에
- 원본 그대로 가지고 있다. 이 파일들은 llama-server 만 쓰며 NVIDIA CUDA EULA 의 조건으로
- 배포된다(/usr/share/doc/opereta-llm/cuda-licenses).
+ CUDA 런타임은 이 패키지에 들어 있지 않다. opereta gpu runtime install 로 NVIDIA 에서 받는다.

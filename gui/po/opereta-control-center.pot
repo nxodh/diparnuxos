@@ -1901,3 +1901,24 @@ msgstr ""
 
 msgid "The Opereta update server could not be reached, so new Opereta versions were not checked."
 msgstr ""
+
+msgid "GPU acceleration (CUDA runtime)"
+msgstr ""
+
+msgid "Download from NVIDIA"
+msgstr ""
+
+msgid "Download the CUDA runtime from NVIDIA?"
+msgstr ""
+
+msgid "The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license (https://docs.nvidia.com/cuda/eula/). The download is about 360 MiB."
+msgstr ""
+
+msgid "Installed. Restart the model server to use the GPU."
+msgstr ""
+
+msgid "This image has no CUDA runtime settings."
+msgstr ""
+
+msgid "Not installed. GPU acceleration needs the CUDA runtime from NVIDIA; without it the model runs on the CPU."
+msgstr ""

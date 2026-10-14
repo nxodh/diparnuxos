@@ -32,6 +32,23 @@ opereta update
 - **OS 버전만 바뀐 갱신**(커널과 드라이버가 같다)은 재부팅이 필요 없다. 데몬과 Control Center 는 패키지 갱신 뒤 다시 시작된다.
 - **롤백의 한계**: 평평한 저장소에는 이전 버전이 없다. 이번 갱신에서 드라이버 정책 패키지(`opereta-nvidia`)가 바뀌었는데 이전 버전을 받을 수 없으면 `--rollback` 은 `rollback_unavailable` 로 거절하고 아무것도 바꾸지 않는다. GRUB 메뉴에서 이전 커널을 고르는 길은 남는다.
 
+## CUDA 런타임(GPU 가속)
+
+GPU 가속 추론에는 NVIDIA 의 CUDA 런타임(`cudart`, `cublas`)이 필요하다. **이미지에는 들어 있지 않다.** NVIDIA 라이선스가 이 파일들의 재배포를 응용 프로그램 전용으로만 허용하기 때문에, 이 프로젝트는 재배포하지 않고 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받아 설치한다.
+
+```sh
+opereta gpu runtime status     # 설치되어 있는지
+opereta gpu runtime install    # NVIDIA 약관 주소를 보여 주고 확인을 받은 뒤 받아서 설치한다(--yes 로 확인을 건너뜀)
+opereta serve stop && opereta serve start   # 설치한 뒤 모델 서버를 다시 시작한다
+```
+
+- 약 360 MiB 를 받고 루트 파일 시스템에 약 1.2 GiB 의 여유가 필요하다. 인터넷이 필요하다.
+- 라이브 세션에서도 받을 수 있지만 재부팅하면 사라진다.
+- 커널이나 드라이버는 바꾸지 않으므로 재부팅이 필요 없다. 다른 갱신이 재부팅 확인을 기다리는 중이면 거절한다.
+- 받은 두 패키지(`cuda-cudart-13-2`, `libcublas-13-2`)는 고정 버전이며 `apt-mark hold` 된다.
+- Control Center 의 시스템 페이지에도 같은 동작이 있다("GPU 가속(CUDA 런타임)").
+- 이 동작의 오류 코드: `cuda_runtime_failed`(저장소에서 받지 못함), `network`, `disk_space`, `dpkg_locked`, `pending_reboot`.
+
 ## 무엇을 갱신하나
 
 - 커널(`linux-image-*`, `linux-headers-*`)과 NVIDIA 오픈 드라이버 계열, CUDA 런타임, `dkms`

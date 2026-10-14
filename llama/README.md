@@ -75,9 +75,9 @@ CUDA 빌드는 환경 변수 `CUDACXX`로 nvcc를 가리킨다. `build.sh`가 `c
 - 이름: `opereta-llm_<OPERETA_VERSION>_<arch>.deb`. `Architecture: any`, 소스 형식 `3.0 (native)`.
 - `Depends`: `${shlibs:Depends}, ${misc:Depends}`에 CUDA 빌드면 `, opereta-nvidia`를 더한다. `shlibs` 계산 결과는 CPU 스모크 빌드에서 `libc6, libgcc-s1, libgomp1, libssl3t64, libstdc++6`이었다.
 - `rules`
-  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so -X libcudart -X libcublas`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. 0.6.1 부터 이 라이브러리들은 이 패키지가 전용 디렉터리에 함께 가진다(아래 "CUDA 런타임 번들링"). GPU 드라이버 의존성은 `opereta-nvidia`가 맡는다.
+  - `override_dh_shlibdeps`: `dh_shlibdeps -X libggml-cuda.so`. CUDA 라이브러리(`libcudart.so.13` 등)에는 dpkg shlibs 정보가 없어서 자동 계산이 실패할 수 있다. CUDA 런타임은 이 패키지에 없고 NVIDIA 에서 받는다(아래). GPU 드라이버 의존성은 `opereta-nvidia`가 맡는다.
   - `override_dh_makeshlibs`: 비워 둔다. 이 라이브러리들은 `/usr/lib/opereta/llama`의 비공개 라이브러리다. 이것을 `shlibs`에 등록하면 다른 패키지가 시스템 제공 라이브러리로 볼 수 있다. 빌드 중 `shlibs`와 ldconfig 트리거가 생겨서 이 처리를 넣었다.
-  - `override_dh_strip`: `dh_strip --no-automatic-dbgsym -X libcudart -X libcublas`. `-dbgsym` 패키지를 만들지 않는다. NVIDIA 라이브러리는 CUDA EULA 가 수정을 금지하므로 strip 하지 않는다.
+  - `override_dh_strip`: `dh_strip --no-automatic-dbgsym`. `-dbgsym` 패키지를 만들지 않는다.
   - `override_dh_dwz`: 비운다. 디버그 정보가 없어 dwz가 경고만 냈다.
   - `override_dh_compress`: `dh_compress -X build-info.txt`. 기록 파일을 압축하지 않는다.
 - `copyright`: DEP-5 헤더에 llama.cpp의 MIT 라이선스 원문을 그대로 넣었다(각 줄 앞에 공백 한 칸, 빈 줄은 ` .`). 저작권은 `2023-2026 The ggml authors`다.
@@ -111,7 +111,7 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 
 1. `libgomp1 libssl3t64 ca-certificates curl`만 설치한다. 전제: `ldconfig -p`에 `libcudart`가 없어야 한다.
 2. `dpkg-deb -x`로 푼다. `llama-server`가 실행 가능해야 하고 `libggml-cpu-*.so`가 하나 이상 있어야 한다.
-3. CUDA 빌드(`libggml-cuda.so`가 있을 때)는 `Depends`에 `opereta-nvidia`가 있어야 한다. 번들한 `libcudart.so.13`, `libcublas.so.13`, `libcublasLt.so.13`이 있고 `llama/verify-cuda-bundle.sh`로 이 디렉터리 안에서만 찾아져야 하며(시스템 링커 캐시 없이), 계약서 전문과 `NOTICE.cuda-runtime`이 있고, 매니페스트의 해시가 파일과 같아야 한다. CPU 빌드는 `opereta-nvidia`에 의존하면 안 된다.
+3. CUDA 빌드(`libggml-cuda.so`가 있을 때)는 `Depends`에 `opereta-nvidia`가 있어야 하고, 패키지에 `libcudart`, `libcublas` 가 들어 있으면 안 되며, `ldd libggml-cuda.so`에 `libcudart.so.13 => not found`가 보여야 한다. CPU 빌드는 `opereta-nvidia`에 의존하면 안 된다.
 4. `llama-server --version`과 `--list-devices`가 0으로 끝나고 `Available devices:`가 있어야 한다.
 5. 실제 추론: `ggml-org/tiny-llamas`의 `stories260K.gguf`(1,185,376바이트, sha256 `047bf464…c04b`)를 받아 sha256을 확인하고, `-ngl 0`으로 `127.0.0.1`의 임의 포트에 띄운다. `/health`가 200이 될 때까지 기다린 뒤 `/v1/chat/completions`가 `choices`와 비어 있지 않은 `content`를 돌려줘야 한다. 서버는 `trap`으로 정리한다.
 
@@ -174,18 +174,20 @@ CI의 `actions/cache` 키도 같은 입력을 쓴다: `hashFiles('llama/**', '!l
 - CUDA 저장소 키: https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
 - 조사 기록: [verification-phase-2-research.md](../docs/verification-phase-2-research.md) A2, A4, B1, B4, 발견 1번과 7번
 
-## CUDA 런타임 번들링 (0.6.1)
+## CUDA 런타임은 이미지에 없다 (0.6.1)
 
-NVIDIA CUDA EULA(1.1.2, 부속서 A)는 `libcudart`, `libcublas`, `libcublasLt` 의 재배포를 "응용 프로그램과 함께" 허용하며, 응용이 실질적인 추가 기능을 갖고 **그 응용만 접근**해야 한다고 정한다([licenses.md](../docs/licenses.md) 2.3, 10.5). 그래서 CUDA 빌드의 이 패키지는 세 라이브러리를 **전용 디렉터리**(`/usr/lib/opereta/llama`)에 원본 그대로 가진다.
+`libggml-cuda.so` 는 CUDA 런타임(`libcudart.so.13`, `libcublas.so.13`)에 링크된다. NVIDIA CUDA EULA(1.1.2, 부속서 A)는 이 파일들의 재배포를 "응용 프로그램과 함께, 그 응용만 접근"하는 경우로 한정한다([licenses.md](../docs/licenses.md) 2.3, 10.5). OS 이미지는 이 조건을 지키기 어려우므로 **이미지도 이 패키지도 런타임을 가지지 않는다.** 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받아 설치한다.
 
-| 조건 | 어떻게 지키나 |
+| 항목 | 내용 |
 |---|---|
-| 응용 프로그램만 접근 | 시스템 검색 경로와 `ld.so.cache` 에 등록하지 않는다. `libggml-cuda.so`(RUNPATH `$ORIGIN`)만 이 디렉터리에서 찾는다. NVIDIA 의 `libcublas`, `libcublasLt` 는 RUNPATH `$ORIGIN` 이라 서로 같은 디렉터리에서 찾는다 |
-| 수정 금지 | 파일을 그대로 복사한다. `strip`, `patchelf` 를 쓰지 않는다(`override_dh_strip` 이 제외). 복사본과 원본을 `cmp` 로 비교하고 해시를 `cuda-runtime-files.txt` 에 남긴다 |
-| 재배포 허용 파일만 | `llama/bundle-cuda-runtime.sh` 의 허용 목록(세 소네임)만 복사한다. 모듈이 허용 목록 밖의 CUDA 라이브러리를 필요로 하면 빌드가 실패한다 |
-| 계약서를 수령자에게 | 원본 패키지의 `copyright`(계약서 전문)를 `/usr/share/doc/opereta-llm/cuda-licenses/` 에 넣는다. `NOTICE.cuda-runtime` 이 사용 범위를 적는다 |
-| 응용에 실질적 기능 | llama-server 가 이 라이브러리를 쓰는 응용이다. OS 의 다른 구성 요소는 쓰지 않는다 |
+| 받기 | `opereta gpu runtime install`(CLI, 터미널에서는 NVIDIA 약관 주소를 보여 주고 확인을 받는다. `--yes` 로 건너뜀), Control Center 의 시스템 페이지 "GPU 가속(CUDA 런타임)" |
+| 상태 | `opereta gpu runtime status`, `GET /v1/update` 의 `cuda_runtime` |
+| 무엇을 설치하나 | `cuda-cudart-13-2`, `libcublas-13-2` 의 고정 버전(`/usr/share/opereta/nvidia.conf`, `opereta.conf` 에서 생성). 이미지에 들어 있는 NVIDIA 저장소 설정(`cuda-keyring`)으로 받고 apt 가 서명을 확인한다 |
+| 필요한 것 | 인터넷(약 360 MiB), 루트 파일 시스템 여유 약 1.2 GiB |
+| 라이브 세션 | 받을 수 있다. 재부팅하면 사라지므로 부팅마다 다시 받아야 한다 |
+| 런타임이 없으면 | `libggml-cuda.so` 가 적재되지 않아 CPU 백엔드로 돈다. GPU 를 쓰려는 서버 시작은 `cuda_backend_unavailable` 로 멈추고 CLI 가 `opereta gpu runtime install` 을 안내한다 |
+| 설치 뒤 | 모델 서버를 다시 시작한다(`opereta serve stop && opereta serve start`) |
 
-스크립트: `llama/bundle-cuda-runtime.sh`(복사와 계약서), `llama/verify-cuda-bundle.sh`(전용 디렉터리에서만 찾아지는지, `ld.so --inhibit-cache`). 시험: `make test-llama-bundle-docker`(합성 라이브러리, 패키징 규칙까지), 빌드 중 검사 (c0), `tests/llama/package.sh`, 이미지 검사(`tests/nvidia/image.sh`).
+엔진은 업데이트 엔진의 한 동작이다(`opereta-update cuda-runtime`, `update.Engine.InstallCUDARuntime`). 커널이나 드라이버는 바꾸지 않아 재부팅이 필요 없다. 다른 갱신이 재부팅 확인을 기다리는 중이면 거절한다. 설치한 두 패키지는 `apt-mark hold` 한다.
 
-NVIDIA 패키지(`cuda-cudart-*`, `libcublas-*`)는 이미지에 시스템 패키지로 설치하지 않는다(`opereta-nvidia` 가 의존성과 핀에서 뺐고 설치를 막는다). 용량은 같은 파일이 NVIDIA 패키지에서 `opereta-llm` 으로 옮겨 간 것이라 ISO 는 거의 같고, `opereta-llm` 의 `.deb` 가 약 360 MiB 커진다(`libcublasLt` 가 약 485 MiB). `opereta-*` 패키지는 모두 같은 릴리스 버전을 쓰므로 OS 업데이트마다 이 패키지를 다시 받는다.
+이미지 검사와 이미지 훅은 이 패키지들과 `libcudart`, `libcublas` 파일이 이미지에 **없음**을 확인한다.

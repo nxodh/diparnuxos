@@ -118,6 +118,13 @@ class SystemPage(Adw.PreferencesPage):
             buttons.append(b)
         self._update_row.add_suffix(buttons)
         upd_group.add(self._update_row)
+        # GPU 가속에 필요한 CUDA 런타임은 이미지에 없다. NVIDIA 에서 직접 받는다(라이선스 확인 뒤).
+        self._cuda_row = action_row(_("GPU acceleration (CUDA runtime)"), "-")
+        self._btn_cuda = text_button(_("Download from NVIDIA"), self.install_cuda_runtime, "suggested-action")
+        self._btn_cuda.set_valign(Gtk.Align.CENTER)
+        self._btn_cuda.set_sensitive(False)
+        self._cuda_row.add_suffix(self._btn_cuda)
+        upd_group.add(self._cuda_row)
         self.add(upd_group)
 
         maint = Adw.PreferencesGroup(title=_("Maintenance"))
@@ -332,6 +339,10 @@ class SystemPage(Adw.PreferencesPage):
         self._btn_check.set_sensitive(d["can_check"])
         self._btn_install.set_sensitive(d["can_install"])
         self._btn_rollback.set_sensitive(d["can_rollback"])
+        c = logic.describe_cuda_runtime(info)
+        self._cuda_row.set_subtitle(GLib.markup_escape_text(c["text"]))
+        self._btn_cuda.set_sensitive(c["can_install"] and not d["busy"])
+        self._btn_cuda.set_visible(not c["installed"])
         if d["busy"] and self._update_poll is None:
             self._update_poll = GLib.timeout_add_seconds(3, self._poll_update)
 
@@ -367,6 +378,15 @@ class SystemPage(Adw.PreferencesPage):
             _("The kernel and the NVIDIA driver are updated together. A restart is needed afterwards."),
             _("Install"),
             lambda: self.start_update("apply"),
+        )
+
+    def install_cuda_runtime(self):
+        confirm(
+            self.ctx.window,
+            _("Download the CUDA runtime from NVIDIA?"),
+            _("The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license (https://docs.nvidia.com/cuda/eula/). The download is about 360 MiB."),  # noqa: E501
+            _("Download"),
+            lambda: self.start_update("cuda_runtime"),
         )
 
     def rollback_update(self):

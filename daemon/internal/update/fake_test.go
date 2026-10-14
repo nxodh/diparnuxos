@@ -39,6 +39,7 @@ type fakeSys struct {
 	upgradeFail    bool            // dist-upgrade 가 실패한다.
 	updateFail     bool            // apt-get update 가 실패한다.
 	channelFail    bool            // apt-get update 에서 Opereta 채널(channelURL)만 받지 못한다.
+	cudaMissing    bool            // NVIDIA 저장소에 CUDA 런타임 패키지가 없다.
 	oldUnavailable bool            // 이전 버전 설치가 실패한다.
 	removeOnUpg    []string        // dist-upgrade 시뮬레이션이 지우겠다고 하는 패키지.
 
@@ -106,6 +107,7 @@ func (f *fakeSys) engine() *Engine {
 			RootDir:     f.root,
 			TmpDir:      f.root,
 			ChannelFile: f.path("etc/apt/sources.list.d/opereta.sources"),
+			NvidiaConf:  f.path("usr/share/opereta/nvidia.conf"),
 		},
 		Run:       f,
 		FreeBytes: func(string) (uint64, error) { return 100 << 30, nil },
@@ -441,6 +443,11 @@ func (f *fakeSys) install(pkgs []string) platform.Result {
 		}
 		if f.pkgs[name] != nil {
 			f.pkgs[name].version = ver
+		} else if strings.HasPrefix(name, "cuda-cudart-") || strings.HasPrefix(name, "libcublas-") {
+			if f.cudaMissing {
+				return fail(100, "E: Unable to locate package "+name)
+			}
+			f.pkgs[name] = &fakePkg{version: ver, source: name}
 		}
 	}
 	if f.driverVersion() != f.modules[f.running] {
@@ -462,6 +469,20 @@ func (f *fakeSys) writeChannel() {
 		f.t.Fatal(err)
 	}
 	body := "Types: deb\nURIs: " + channelURL + "\nSuites: ./\nEnabled: yes\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+// writeNvidiaConf 는 CUDA 런타임의 고정 버전을 적은 설정 파일을 만든다.
+func (f *fakeSys) writeNvidiaConf() {
+	f.t.Helper()
+	p := f.path("usr/share/opereta/nvidia.conf")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		f.t.Fatal(err)
+	}
+	body := "NVIDIA_DRIVER_VERSION=\"595.91.07\"\nCUDA_CUDART_PACKAGE=\"cuda-cudart-13-2\"\nCUDA_CUDART_VERSION=\"13.2.86-1\"\n" +
+		"CUDA_CUBLAS_PACKAGE=\"libcublas-13-2\"\nCUDA_CUBLAS_VERSION=\"13.4.1.3-1\"\n"
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		f.t.Fatal(err)
 	}

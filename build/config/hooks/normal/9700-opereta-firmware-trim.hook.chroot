@@ -1,0 +1,23 @@
+#!/bin/sh
+# Intel 이더넷 어댑터(E810, ice)의 특수 프로파일 두 개는 이미지에 넣지 않는다.
+# Debian 의 firmware-nonfree 라이선스(binary-redist-Intel-Ice-enhanced)는 이 파일들의 재배포를 "Intel 승인 제품과 함께
+# 동작하는 경우"로 한정한다. 이 이미지는 그 조건을 확인할 수 없고, 두 파일은 통신사용 프로파일(comms, wireless_edge)이라
+# 일반 이더넷 동작(ice-*.pkg 기본 프로파일)에는 필요 없다. 빼도 일반 사용에는 영향이 없다.
+# 패키지를 다시 설치하거나 갱신해도 다시 들어오지 않도록 dpkg 의 path-exclude 도 둔다.
+set -e
+
+for dir in /usr/lib/firmware/intel/ice /lib/firmware/intel/ice; do
+    [ -d "${dir}" ] || continue
+    find "${dir}" \( -name 'ice_comms-*.pkg' -o -name 'ice_wireless_edge-*.pkg' \) -type f -delete
+    rmdir --ignore-fail-on-non-empty "${dir}/ddp-comms" "${dir}/ddp-wireless_edge" 2>/dev/null || true
+done
+
+install -d /etc/dpkg/dpkg.cfg.d
+cat > /etc/dpkg/dpkg.cfg.d/50-opereta-firmware <<'EOF'
+# 재배포 조건이 "Intel 승인 제품과 함께"로 한정된 파일은 설치하지 않는다(build/config/hooks/normal/9700).
+path-exclude=/usr/lib/firmware/intel/ice/ddp-comms/*
+path-exclude=/usr/lib/firmware/intel/ice/ddp-wireless_edge/*
+path-exclude=/lib/firmware/intel/ice/ddp-comms/*
+path-exclude=/lib/firmware/intel/ice/ddp-wireless_edge/*
+EOF
+echo "opereta-firmware-trim: Intel ice comms and wireless_edge profiles removed"

@@ -33,7 +33,9 @@ const (
 type Config struct {
 	StateDir string
 	// ChannelFile 은 Opereta 패키지 저장소 소스 파일이다. 비어 있으면 DefaultChannelFile 이다.
-	ChannelFile    string
+	ChannelFile string
+	// NvidiaConf 는 CUDA 런타임 패키지와 고정 버전을 적은 파일이다. 비어 있으면 DefaultNvidiaConf 다.
+	NvidiaConf     string
 	GrubCfg        string
 	ProcCmdline    string
 	ProcNvidia     string

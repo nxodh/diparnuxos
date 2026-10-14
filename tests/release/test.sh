@@ -45,8 +45,21 @@ exec bash /src/scripts/build-apt-repo.sh --flat --debs "$1" --out "$2/tree" --ke
 B
 export OPERETA_OUT="$WORK/out" RELEASE_DIR="$WORK/release" OPERETA_APT_BUILDER="$WORK/bin/builder.sh"
 
-# 0) 기본(OPERETA_PUBLISH_ISO=no)이고 서명 키도 없으면 올릴 파일이 없으므로 거절한다.
-if bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then die "an empty release was accepted"; fi
+# 소스 묶음(ISO 를 올릴 때 필요하다)을 흉내 낸다.
+mkdir -p "$WORK/out/sources"
+printf 'tar' > "$WORK/out/sources/opereta-${OPERETA_VERSION}-sources-01.tar"
+printf 'source\tversion\n' > "$WORK/out/sources/opereta-${OPERETA_VERSION}-sources.tsv"
+printf 'readme\n' > "$WORK/out/sources/SOURCES-README.txt"
+printf 'hello\t1\tamd64\thello\t1\tX\n' > "$WORK/out/package-manifest.tsv"
+
+# 0a) ISO 를 올리는 설정인데 대응 소스가 없으면 거절한다(GPL 소스 제공).
+mv "$WORK/out/sources" "$WORK/out/sources.off"
+if OPERETA_RELEASE_ISO=yes bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then die "the ISO was published without its corresponding source"; fi
+mv "$WORK/out/sources.off" "$WORK/out/sources"
+pass "an ISO is not published without its corresponding source"
+
+# 0) ISO 를 올리지 않는 설정(OPERETA_PUBLISH_ISO=no)이고 서명 키도 없으면 올릴 파일이 없으므로 거절한다.
+if OPERETA_RELEASE_ISO=no bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then die "an empty release was accepted"; fi
 pass "a release with neither ISO nor repository is refused"
 
 # 1) 키가 없으면 ISO 와 체크섬만 모으고 경고한다(ISO 를 올리는 설정일 때). 저장소 파일은 만들지 않는다.
@@ -56,7 +69,8 @@ grep -q 'OS 업데이트 저장소를 만들지 않았다' <<< "$out" || die "no
 [[ -s "$RELEASE_DIR/$ISO" && -s "$RELEASE_DIR/$ISO.sha256" && -s "$RELEASE_DIR/SHA256SUMS" ]] || die "ISO assets are missing"
 [[ ! -e "$RELEASE_DIR/InRelease" && ! -e "$RELEASE_DIR/Packages.xz" ]] || die "an unsigned repository was published"
 (cd "$RELEASE_DIR" && sha256sum -c SHA256SUMS > /dev/null) || die "SHA256SUMS does not verify"
-pass "without a signing key only the ISO is collected"
+[[ -s "$RELEASE_DIR/opereta-${OPERETA_VERSION}-sources-01.tar" && -s "$RELEASE_DIR/opereta-${OPERETA_VERSION}-sources.tsv" && -s "$RELEASE_DIR/SOURCES-README.txt" && -s "$RELEASE_DIR/opereta-${OPERETA_VERSION}-packages.tsv" ]] || die "source assets are missing from the release"
+pass "without a signing key only the ISO and its source are collected"
 
 # 2) 키가 있으면 서명된 평평한 저장소와 공개 키가 함께 모인다.
 export OPERETA_APT_GNUPGHOME="$WORK/gnupg" OPERETA_APT_KEY_ID="$KEY" OPERETA_PUBLIC_KEY="$WORK/pub.pgp"
@@ -77,7 +91,7 @@ OPERETA_RELEASE_ISO=no bash "$SRC/scripts/make-release-assets.sh" > /dev/null
 [[ -s "$RELEASE_DIR/InRelease" && -s "$RELEASE_DIR/opereta-base_${OPERETA_VERSION}_all.deb" ]] || die "the repository is missing"
 ! grep -q "$ISO" "$RELEASE_DIR/SHA256SUMS" || die "SHA256SUMS lists an ISO that is not published"
 (cd "$RELEASE_DIR" && sha256sum -c SHA256SUMS > /dev/null) || die "SHA256SUMS does not verify"
-pass "by default only the update repository is published, not the ISO"
+pass "an explicit no publishes only the update repository, not the ISO"
 
 # 3) 이미지에 들어갈 공개 키가 서명 키와 다르면 거절한다(설치된 시스템이 저장소를 믿지 못한다).
 if OPERETA_PUBLIC_KEY="$WORK/other.pgp" bash "$SRC/scripts/make-release-assets.sh" > /dev/null 2>&1; then

@@ -70,25 +70,16 @@ else
 fi
 echo "package-test: Depends: ${DEPENDS}"
 
-# 2. CUDA 빌드: 모듈이 쓰는 CUDA 런타임(cudart, cublas, cublasLt)은 이 패키지의 전용 디렉터리에서만 찾아져야 한다
-#    (NVIDIA CUDA EULA: 응용 프로그램만 접근). 시스템 링커 캐시에는 없다(위의 전제). 드라이버(libcuda.so.1)만 없어도 된다.
-#    NVIDIA 라이브러리는 수정하지 않았으므로 원본의 해시와 같아야 하고, 계약서 전문이 함께 있어야 한다.
+# 2. CUDA 빌드: 모듈은 CUDA 런타임에 링크되어 있고, 이 패키지에도 이 환경에도 그 라이브러리가 없어 not found 여야 한다.
+#    런타임은 이미지에 없고 NVIDIA 에서 직접 받아 설치한다(NVIDIA CUDA EULA). 번들되어 있으면 안 된다.
 if [ "${HAS_CUDA}" -eq 1 ]; then
-    echo "package-test: CUDA module found, checking its private CUDA runtime"
-    for lib in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
-        [ -e "${LLAMA}/${lib}" ] || die "bundled CUDA runtime is missing: ${lib}"
-    done
-    bash "$(dirname "$0")/verify-cuda-bundle.sh" "${LLAMA}" || die "the bundled CUDA runtime does not resolve privately"
-    for doc in cuda-cudart-13-2 libcublas-13-2; do
-        grep -qi 'license agreement' "${DOC}/cuda-licenses/${doc}.copyright" || die "CUDA license text is missing: ${doc}"
-    done
-    [ -s "${DOC}/NOTICE.cuda-runtime" ] || die "NOTICE.cuda-runtime is missing"
-    # 매니페스트의 해시가 패키지 안 파일의 해시와 같다(복사한 뒤 바뀌지 않았다).
-    while read -r sum _size name _src; do
-        actual="$(sha256sum "${LLAMA}/${name}" | cut -d' ' -f1)"
-        [ "${actual}" = "${sum}" ] || die "bundled library was modified after copying: ${name}"
-    done < "${DOC}/cuda-runtime-files.txt"
-    echo "package-test: private CUDA runtime ok"
+    echo "package-test: CUDA module found, checking its dependencies"
+    if find "${WORK}/root" \( -name 'libcudart*' -o -name 'libcublas*' \) | grep -q .; then
+        die "the package must not contain the NVIDIA CUDA runtime"
+    fi
+    LDD_OUT="$(ldd "${LLAMA}/libggml-cuda.so" || true)"
+    echo "${LDD_OUT}"
+    grep -Fq 'libcudart.so.13 => not found' <<<"${LDD_OUT}" || die "libggml-cuda.so does not link libcudart.so.13 as not found"
 fi
 
 # 3. 버전과 장치 목록. 둘 다 0으로 끝나야 한다.

@@ -42,27 +42,22 @@ check_package opereta-llm "$OPERETA_VERSION"
 check_package opereta-daemon "$OPERETA_VERSION"
 check_package cuda-keyring "$CUDA_KEYRING_VERSION"
 check_package "nvidia-driver-pinning-$NVIDIA_BRANCH" "$NVIDIA_PIN_VERSION"
-# CUDA 런타임은 시스템 패키지가 아니다. opereta-llm 의 전용 디렉터리에 원본 그대로 있고(NVIDIA CUDA EULA: 응용 전용 접근),
-# 시스템 경로에는 없어야 한다.
+# CUDA 런타임은 이미지에 없다. NVIDIA CUDA EULA 가 재배포를 응용 전용으로만 허용하므로 사용자의 컴퓨터가 NVIDIA 저장소에서
+# 직접 받아 설치한다(opereta gpu runtime install). 패키지도 파일도 없어야 하고, 받을 때 쓸 고정 버전은 설정에 있어야 한다.
 for pkg in "cuda-cudart-$CUDA_PKG_SUFFIX" "libcublas-$CUDA_PKG_SUFFIX"; do
     if awk -v pkg="$pkg" 'BEGIN { RS="" } $0 ~ ("Package: " pkg "\n") && /Status: (install|hold) ok installed/ { found=1 } END { exit !found }' "$WORK/status"; then
-        echo "FAIL: CUDA runtime installed as a system package: $pkg" >&2
+        echo "FAIL: CUDA runtime is in the image: $pkg" >&2
         exit 1
     fi
 done
-for lib in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
-    grep -Eq "squashfs-root/usr/lib/opereta/llama/${lib}( |$)" "$WORK/files" || { echo "FAIL: private CUDA runtime missing: $lib" >&2; exit 1; }
-done
-system_cuda="$(grep -E 'lib(cudart|cublas|cublasLt)[.]so' "$WORK/files" | grep -v 'squashfs-root/usr/lib/opereta/llama/' || true)"
-if [[ -n "$system_cuda" ]]; then
-    echo "FAIL: CUDA runtime outside the private directory:" >&2
-    echo "$system_cuda" | head -n 5 >&2
+cuda_files="$(grep -E 'lib(cudart|cublas|cublasLt)[.]so' "$WORK/files" || true)"
+if [[ -n "$cuda_files" ]]; then
+    echo "FAIL: CUDA runtime library files are in the image:" >&2
+    echo "$cuda_files" | head -n 5 >&2
     exit 1
 fi
-for doc in "cuda-cudart-$CUDA_PKG_SUFFIX" "libcublas-$CUDA_PKG_SUFFIX"; do
-    unsquashfs -cat "$WORK/rootfs.squashfs" "usr/share/doc/opereta-llm/cuda-licenses/$doc.copyright" | grep -qi 'license agreement' || { echo "FAIL: CUDA license text missing: $doc" >&2; exit 1; }
-done
-echo 'PASS: CUDA runtime is private to opereta-llm, with the NVIDIA agreement'
+unsquashfs -cat "$WORK/rootfs.squashfs" usr/share/opereta/nvidia.conf | grep -q "^CUDA_CUDART_VERSION=\"$CUDA_CUDART_VERSION\"" || { echo 'FAIL: nvidia.conf lacks the pinned CUDA runtime version' >&2; exit 1; }
+echo 'PASS: the CUDA runtime is not in the image; its pinned version is recorded for the download'
 
 if awk 'BEGIN { RS="" } /Package: (nvidia-kernel-dkms|nvidia-kernel-source|cuda-drivers[^\n]*|nvidia-open|cuda-nvcc[^\n]*)\n/ && /Status: (install|hold) ok installed/ { bad=1 } END { exit !bad }' "$WORK/status"; then
     echo 'FAIL: prohibited proprietary module, metapackage or nvcc found' >&2
@@ -80,6 +75,14 @@ for pkg in nvidia-driver-cuda nvidia-kernel-open-dkms firmware-nvidia-gsp; do
     unsquashfs -cat "$WORK/rootfs.squashfs" "usr/share/opereta/licenses/$pkg.copyright" > "$WORK/license"
     [[ -s "$WORK/license" ]]
 done
+# 재배포 조건이 "Intel 승인 제품과 함께"로 한정된 ice 특수 프로파일 두 개는 이미지에 없고, 기본 프로파일(ice-*.pkg)은 있다.
+if grep -E 'intel/ice/ddp-(comms|wireless_edge)/' "$WORK/files" | grep -q -E 'ice_(comms|wireless_edge)-'; then
+    echo 'FAIL: Intel ice comms/wireless_edge firmware is in the image' >&2
+    exit 1
+fi
+grep -Eq 'intel/ice/ddp/ice-[0-9.]+[.]pkg' "$WORK/files" || { echo 'FAIL: the default Intel ice firmware profile is missing' >&2; exit 1; }
+unsquashfs -cat "$WORK/rootfs.squashfs" etc/dpkg/dpkg.cfg.d/50-opereta-firmware | grep -q 'path-exclude=/usr/lib/firmware/intel/ice/ddp-comms' || { echo 'FAIL: the dpkg path-exclude for Intel ice firmware is missing' >&2; exit 1; }
+echo 'PASS: Intel ice comms/wireless_edge firmware is excluded; the default profile is kept'
 # 네트워크: Intel Wi-Fi 펌웨어(AX200 은 iwlwifi-cc-a0-*.ucode), Intel 이더넷 펌웨어(ice.pkg 는 심볼릭 링크),
 # iwd 실행 파일과 활성화 링크, 무선 networkd 설정, wireless-regdb regulatory.db(alternatives 심볼릭 링크)를 확인한다.
 require_path() {

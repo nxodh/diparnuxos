@@ -32,6 +32,8 @@ const (
 	ActionCheck    = "check"
 	ActionApply    = "apply"
 	ActionRollback = "rollback"
+	// ActionCUDARuntime 은 CUDA 런타임(cudart, cublas)을 NVIDIA 저장소에서 받아 설치한다.
+	ActionCUDARuntime = "cuda_runtime"
 )
 
 // 오류 코드다.
@@ -65,6 +67,8 @@ type Controller struct {
 	OSReleaseFile string
 	// SourcesFile 은 Opereta 패키지 저장소 소스 파일이다. 비어 있으면 update.DefaultChannelFile 이다.
 	SourcesFile string
+	// NvidiaConf 는 CUDA 런타임의 고정 버전을 적은 파일이다. 비어 있으면 update.DefaultNvidiaConf 다.
+	NvidiaConf string
 	// HelperExists 는 테스트가 바꾼다. nil 이면 파일이 있는지 본다.
 	HelperExists func(path string) bool
 }
@@ -146,9 +150,11 @@ type Info struct {
 	// OSVersion 은 설치된 Opereta 버전이다(os-release 의 VERSION_ID).
 	OSVersion string `json:"os_version,omitempty"`
 	// Channel 은 Opereta 패키지 저장소(OS 업데이트 채널)의 상태다. 꺼져 있으면 새 Opereta 버전은 보이지 않는다.
-	Channel   update.Channel      `json:"channel"`
-	State     update.State        `json:"state"`
-	LastCheck *update.CheckResult `json:"last_check,omitempty"`
+	Channel update.Channel `json:"channel"`
+	// CUDARuntime 은 GPU 가속에 필요한 CUDA 런타임의 설치 상태다. 이미지에는 들어 있지 않고 NVIDIA 에서 직접 받는다.
+	CUDARuntime update.CUDARuntime  `json:"cuda_runtime"`
+	State       update.State        `json:"state"`
+	LastCheck   *update.CheckResult `json:"last_check,omitempty"`
 	// RollbackAvailable 은 되돌릴 수 있는 갱신 기록이 있다는 뜻이다.
 	RollbackAvailable bool `json:"rollback_available"`
 }
@@ -169,6 +175,10 @@ func (c *Controller) Info(ctx context.Context) (Info, error) {
 	}
 	out.OSVersion = readVersionID(c.osReleaseFile())
 	out.Channel = update.ReadChannel(c.SourcesFile)
+	if c.Runner != nil {
+		eng := &update.Engine{Cfg: update.Config{NvidiaConf: c.NvidiaConf}, Run: c.Runner}
+		out.CUDARuntime = eng.CUDARuntimeStatus(ctx)
+	}
 	st, err := readJSON[update.State](filepath.Join(c.stateDir(), "state.json"))
 	switch {
 	case err == nil:
@@ -217,11 +227,12 @@ func (c *Controller) active(ctx context.Context) bool {
 // Start 는 갱신 동작을 transient 유닛으로 시작하고 바로 돌려준다.
 func (c *Controller) Start(ctx context.Context, action string, reboot bool) error {
 	switch action {
-	case ActionCheck, ActionApply, ActionRollback:
+	case ActionCheck, ActionApply, ActionRollback, ActionCUDARuntime:
 	default:
-		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply or rollback, not %q", action)}
+		return &Error{CodeInvalidAction, fmt.Sprintf("action must be check, apply, rollback or cuda_runtime, not %q", action)}
 	}
-	if _, err := os.Stat(c.liveDir()); err == nil {
+	// CUDA 런타임은 라이브 세션에서도 받을 수 있다(재부팅하면 사라진다). 나머지 동작은 설치된 시스템에서만 한다.
+	if _, err := os.Stat(c.liveDir()); err == nil && action != ActionCUDARuntime {
 		return &Error{update.CodeLiveSession, "this is a live session; updates apply to an installed system"}
 	}
 	if !c.helperExists() {
@@ -235,8 +246,9 @@ func (c *Controller) Start(ctx context.Context, action string, reboot bool) erro
 			return &Error{update.CodePendingBoot, "the previous update is waiting for a reboot; reboot first so it can be verified"}
 		}
 	}
+	helperCmd := strings.ReplaceAll(action, "_", "-") // cuda_runtime -> cuda-runtime
 	args := []string{"--unit=" + strings.TrimSuffix(c.unit(), ".service"), "--collect", "--service-type=exec", "--quiet",
-		"--description=Opereta update (" + action + ")", c.helper(), action, "--json"}
+		"--description=Opereta update (" + action + ")", c.helper(), helperCmd, "--json"}
 	if reboot && action != ActionCheck {
 		args = append(args, "--reboot")
 	}

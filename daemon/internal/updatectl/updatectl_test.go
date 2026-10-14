@@ -44,6 +44,7 @@ func newController(t *testing.T, r *fakeRunner) *Controller {
 		// 호스트의 os-release 와 소스 파일을 읽지 않도록 임시 경로를 쓴다.
 		OSReleaseFile: filepath.Join(dir, "os-release"),
 		SourcesFile:   filepath.Join(dir, "opereta.sources"),
+		NvidiaConf:    filepath.Join(dir, "nvidia.conf"),
 		HelperExists:  func(string) bool { return true },
 	}
 }
@@ -225,5 +226,44 @@ func TestInfoReportsOSVersionAndChannel(t *testing.T) {
 	}
 	if !info.Channel.Enabled || info.Channel.URL != "https://example.invalid/latest/download" {
 		t.Fatalf("channel = %+v", info.Channel)
+	}
+}
+
+func TestStartCUDARuntimeRunsTheHelperCommandAndWorksInALiveSession(t *testing.T) {
+	r := &fakeRunner{}
+	c := newController(t, r)
+	if err := os.MkdirAll(c.LiveDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Start(context.Background(), ActionCUDARuntime, false); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	var run *platform.Command
+	for i := range r.calls {
+		if r.calls[i].Name == "systemd-run" {
+			run = &r.calls[i]
+		}
+	}
+	if run == nil {
+		t.Fatal("systemd-run was not called")
+	}
+	joined := strings.Join(run.Args, " ")
+	if !strings.Contains(joined, " cuda-runtime --json") {
+		t.Errorf("helper command = %s", joined)
+	}
+	// 다른 동작은 라이브 세션에서 거절한다.
+	if err := c.Start(context.Background(), ActionApply, false); err == nil {
+		t.Error("apply must be refused in a live session")
+	}
+}
+
+func TestInfoReportsCUDARuntimeSettings(t *testing.T) {
+	c := newController(t, &fakeRunner{})
+	info, err := c.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.CUDARuntime.Installed || info.CUDARuntime.Reason != "no_settings" {
+		t.Fatalf("cuda runtime = %+v", info.CUDARuntime)
 	}
 }

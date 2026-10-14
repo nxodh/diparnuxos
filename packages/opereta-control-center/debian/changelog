@@ -1,6 +1,6 @@
 opereta-control-center (0.6.1) trixie; urgency=medium
 
-  * 버전을 0.6.1 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다(0.6.1 은 CUDA 런타임을 opereta-llm 의 전용 디렉터리로 옮긴다).
+  * 시스템 페이지에 'GPU 가속(CUDA 런타임)' 항목을 추가했다. NVIDIA 약관을 확인한 뒤 받는다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
 

@@ -1,6 +1,6 @@
 opereta-nvidia (0.6.1) trixie; urgency=medium
 
-  * CUDA 런타임 패키지(cuda-cudart-*, libcublas-*)를 의존성과 핀에서 뺐다. 런타임은 NVIDIA CUDA EULA 의 조건(응용 프로그램만 접근)에 맞춰 opereta-llm 이 전용 디렉터리에 원본 그대로 가진다. 시스템 패키지로 설치되지 않도록 막는다.
+  * CUDA 런타임(cuda-cudart-*, libcublas-*)을 이미지에 넣지 않는다. 설치 의존성에서 빼고, 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받을 때 쓸 고정 버전(핀과 nvidia.conf)만 둔다.
 
  -- Opereta Developers <noreply@users.noreply.github.com>  Wed, 14 Oct 2026 23:30:00 +0900
 

@@ -1723,3 +1723,24 @@ msgstr "Opereta %(old)s → %(new)s"
 
 msgid "The Opereta update server could not be reached, so new Opereta versions were not checked."
 msgstr "Opereta 업데이트 서버에 닿지 못해 새 Opereta 버전은 확인하지 못했습니다."
+
+msgid "GPU acceleration (CUDA runtime)"
+msgstr "GPU 가속(CUDA 런타임)"
+
+msgid "Download from NVIDIA"
+msgstr "NVIDIA에서 받기"
+
+msgid "Download the CUDA runtime from NVIDIA?"
+msgstr "NVIDIA에서 CUDA 런타임을 받을까요?"
+
+msgid "The CUDA runtime is NVIDIA software and is not part of Opereta. This computer downloads it directly from NVIDIA under NVIDIA's license (https://docs.nvidia.com/cuda/eula/). The download is about 360 MiB."
+msgstr "CUDA 런타임은 NVIDIA 소프트웨어이며 Opereta에 포함되어 있지 않습니다. 이 컴퓨터가 NVIDIA의 라이선스(https://docs.nvidia.com/cuda/eula/)에 따라 NVIDIA에서 직접 받습니다. 약 360 MiB를 받습니다."
+
+msgid "Installed. Restart the model server to use the GPU."
+msgstr "설치되어 있습니다. GPU를 쓰려면 모델 서버를 다시 시작하세요."
+
+msgid "This image has no CUDA runtime settings."
+msgstr "이 이미지에는 CUDA 런타임 설정이 없습니다."
+
+msgid "Not installed. GPU acceleration needs the CUDA runtime from NVIDIA; without it the model runs on the CPU."
+msgstr "설치되어 있지 않습니다. GPU 가속에는 NVIDIA의 CUDA 런타임이 필요하며, 없으면 모델이 CPU로 실행됩니다."

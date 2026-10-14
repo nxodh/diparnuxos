@@ -187,6 +187,8 @@ func (c *cli) finishServer(s client.Server) int {
 		c.errorLine(fmt.Sprintf("server failed: %s (code: %s)", s.LastError.Message, s.LastError.Code))
 		if s.LastError.Code == "gpu_offload_failed" || s.LastError.Code == "cuda_backend_unavailable" {
 			c.errorLine("a GPU was detected, but inference would not run on the GPU, so the server was stopped")
+			// 이미지에는 CUDA 런타임이 들어 있지 않다. 가장 흔한 원인이라 알려 준다.
+			c.errorLine("the CUDA runtime may be missing. Check it with: opereta gpu runtime status (install: opereta gpu runtime install)")
 		}
 		return exitFailure
 	}

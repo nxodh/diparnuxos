@@ -15,21 +15,15 @@ for pkg in nvidia-kernel-open-dkms nvidia-driver nvidia-driver-cuda firmware-nvi
     actual="$(dpkg-query -W -f='${Version}' "$pkg")"
     [[ "$actual" == "$NVIDIA_DRIVER_DEB_VERSION" ]] || fail "$pkg 버전 불일치: $actual"
 done
-# CUDA 런타임은 NVIDIA 패키지로 설치하지 않는다. opereta-llm 이 NVIDIA CUDA EULA 조건에 맞춰 전용 디렉터리에 원본 그대로 가진다.
-for pkg in cuda-cudart-13-2 libcublas-13-2; do
+# CUDA 런타임은 이미지에 없어야 한다. NVIDIA CUDA EULA 가 재배포를 응용 전용으로만 허용하므로 이 프로젝트는 재배포하지 않고
+# 사용자의 컴퓨터가 NVIDIA 저장소에서 직접 받아 설치한다(opereta gpu runtime install).
+for pkg in "$CUDA_CUDART_PACKAGE" "$CUDA_CUBLAS_PACKAGE"; do
     if dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null | grep -qx installed; then
-        fail "CUDA 런타임이 시스템 패키지로 설치됐다(응용 전용이어야 한다): $pkg"
+        fail "CUDA 런타임이 이미지에 들어갔다(받아서 설치하는 방식이어야 한다): $pkg"
     fi
 done
-llama=/usr/lib/opereta/llama
-for lib in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
-    [[ -s "$llama/$lib" ]] || fail "opereta-llm 의 전용 CUDA 런타임이 없다: $lib"
-done
-for doc in cuda-cudart-13-2 libcublas-13-2; do
-    [[ -s "/usr/share/doc/opereta-llm/cuda-licenses/$doc.copyright" ]] || fail "CUDA 계약서 전문이 없다: $doc"
-done
 if ldconfig -p | grep -E 'lib(cudart|cublas|cublasLt)[.]so' >/dev/null; then
-    fail 'CUDA 런타임이 시스템 링커 캐시에 등록됐다(응용 전용이어야 한다)'
+    fail 'CUDA 런타임 라이브러리가 이미지에 있다(받아서 설치하는 방식이어야 한다)'
 fi
 [[ "$(apt-cache policy dkms | sed -n 's/^  Candidate: //p')" == "$(dpkg-query -W -f='${Version}' dkms)" ]] || fail 'dkms 핀과 설치 버전 불일치'
 

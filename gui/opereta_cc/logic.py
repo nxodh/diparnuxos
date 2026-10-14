@@ -573,6 +573,25 @@ def describe_update(info):
     return out
 
 
+def describe_cuda_runtime(info):
+    """GET /v1/update 응답의 cuda_runtime 을 표시용 값으로 바꾼다. 돌려주는 사전: text, installed, can_install."""
+    out = {"text": _("Not available"), "installed": False, "can_install": False}
+    if not isinstance(info, dict):
+        return out
+    rt = info.get("cuda_runtime") or {}
+    if rt.get("installed"):
+        out["installed"] = True
+        out["text"] = _("Installed. Restart the model server to use the GPU.")
+        return out
+    if rt.get("reason") == "no_settings":
+        out["text"] = _("This image has no CUDA runtime settings.")
+        return out
+    out["text"] = _("Not installed. GPU acceleration needs the CUDA runtime from NVIDIA; without it the model runs on the CPU.")
+    # 설치된 시스템과 라이브 세션 모두에서 받을 수 있다(라이브는 재부팅하면 사라진다). 갱신이 도는 중에는 막는다.
+    out["can_install"] = not (info.get("running") or (info.get("state") or {}).get("phase") == "running")
+    return out
+
+
 def live_session():
     """라이브 세션(램에 올린 이미지로 부팅)인지 본다. /run/live 는 live-boot 가 만든다."""
     import os

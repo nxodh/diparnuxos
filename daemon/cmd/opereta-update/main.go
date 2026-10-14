@@ -7,6 +7,7 @@
 //	opereta-update apply [--reboot]
 //	opereta-update verify
 //	opereta-update rollback [--reboot]
+//	opereta-update cuda-runtime
 //	opereta-update status
 //
 // 진행 상황은 표준 출력에 한 줄씩 나오고, --json 이면 JSON 줄이다. 마지막 줄은 결과다.
@@ -43,7 +44,7 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|status [--json] [--reboot] [--state-dir DIR]")
+		fmt.Fprintln(stderr, "usage: opereta-update check|apply|verify|rollback|cuda-runtime|status [--json] [--reboot] [--state-dir DIR]")
 		return 2
 	}
 	cmd := args[0]
@@ -86,6 +87,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	case "rollback":
 		st, err := e.Rollback(ctx, update.ApplyOptions{Reboot: *reboot})
+		res.State = st
+		res.set(err)
+	case "cuda-runtime":
+		st, err := e.InstallCUDARuntime(ctx)
 		res.State = st
 		res.set(err)
 	case "status":
