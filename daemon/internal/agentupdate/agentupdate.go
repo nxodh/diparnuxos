@@ -45,21 +45,25 @@ const (
 	DefaultStore    = "/usr/local/lib/opereta/deberopa"
 	DefaultLink     = "/usr/local/bin/deberopa"
 	DefaultPackaged = "/usr/bin/deberopa"
-	assetName       = "deberopa-linux-x64.tar.gz"
-	checksumsName   = "checksums.txt"
-	maxArchive      = 400 << 20
-	maxChecksums    = 1 << 20
-	maxBinary       = 600 << 20
+	// DefaultVersionFile 은 패키지가 설치하는 버전 표식이다. 데몬은 실행 파일을 실행하지 않고 이 파일로 버전을 안다.
+	DefaultVersionFile = "/usr/share/opereta/deberopa-version"
+	assetName          = "deberopa-linux-x64.tar.gz"
+	checksumsName      = "checksums.txt"
+	maxArchive         = 400 << 20
+	maxChecksums       = 1 << 20
+	maxBinary          = 600 << 20
 )
 
 // 상태 값이다.
 const (
 	StatusUpToDate = "up_to_date"
-	StatusUpdated  = "updated"
-	StatusAvail    = "update_available"
-	StatusDisabled = "disabled"
-	StatusError    = "error"
-	StatusNone     = "not_installed"
+	// StatusUnchecked 는 설치는 되어 있으나 아직 최신 릴리스를 확인한 적이 없다는 뜻이다.
+	StatusUnchecked = "unchecked"
+	StatusUpdated   = "updated"
+	StatusAvail     = "update_available"
+	StatusDisabled  = "disabled"
+	StatusError     = "error"
+	StatusNone      = "not_installed"
 )
 
 // 오류 코드다.
@@ -112,6 +116,8 @@ type Updater struct {
 	Store    string
 	Link     string
 	Packaged string
+	// VersionFile 은 패키지가 설치하는 버전 표식 파일이다(기본 DefaultVersionFile).
+	VersionFile string
 	// APIBase 와 DownloadBase 는 시험이 바꾼다. 기본은 GitHub 다.
 	APIBase      string
 	DownloadBase string
@@ -184,6 +190,13 @@ func (u *Updater) now() time.Time {
 	return time.Now()
 }
 
+func (u *Updater) versionFile() string {
+	if u.VersionFile != "" {
+		return u.VersionFile
+	}
+	return DefaultVersionFile
+}
+
 func (u *Updater) statePath() string    { return filepath.Join(u.dir(), "state.json") }
 func (u *Updater) settingsPath() string { return filepath.Join(u.dir(), "settings.json") }
 func (u *Updater) versionDir(v string) string {
@@ -232,16 +245,31 @@ func (u *Updater) SetAuto(on bool) error {
 }
 
 // ReadInfo 는 마지막 상태를 파일에서 읽는다(네트워크와 실행 파일은 쓰지 않는다). 데몬이 매번 불러도 된다.
+// 한 번도 확인하지 않아 상태 파일이 없으면, 설치된 버전을 파일에서 알아내 채우고 상태는 "확인 전"으로 둔다.
+// 확인한 적이 없는데 "최신"이라고 하지 않기 위해서다.
 func (u *Updater) ReadInfo() Info {
 	var in Info
 	_ = readJSON(u.statePath(), &in)
 	in.Auto = u.AutoEnabled()
-	if in.Status == "" {
-		in.Status = StatusUpToDate
-		if _, err := os.Stat(u.packaged()); err != nil {
-			in.Status = StatusNone
+	if in.Status != "" {
+		return in
+	}
+	in.Checked = ""
+	if _, err := os.Stat(u.packaged()); err != nil {
+		in.Status = StatusNone
+		return in
+	}
+	in.Status = StatusUnchecked
+	if b, err := os.ReadFile(u.versionFile()); err == nil {
+		if v := strings.TrimSpace(string(b)); verRe.MatchString(v) {
+			in.Packaged, in.Installed = v, v
 		}
-		in.Checked = ""
+	}
+	// 내려받은 새 버전이 링크로 걸려 있으면 그쪽이 실제로 실행된다. 디렉터리 이름이 버전이다.
+	if target, err := os.Readlink(u.link()); err == nil && strings.HasPrefix(target, u.store()+string(os.PathSeparator)) {
+		if v := filepath.Base(filepath.Dir(target)); verRe.MatchString(v) {
+			in.Installed, in.Override = v, true
+		}
 	}
 	return in
 }

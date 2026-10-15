@@ -93,7 +93,7 @@ func newEnv(t *testing.T, packaged string, rel fakeRelease) *env {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	e.u = &Updater{
-		Dir: e.dir, Store: e.store, Link: e.link, Packaged: e.pkg, APIBase: srv.URL, DownloadBase: srv.URL,
+		Dir: e.dir, Store: e.store, Link: e.link, Packaged: e.pkg, VersionFile: filepath.Join(root, "deberopa-version"), APIBase: srv.URL, DownloadBase: srv.URL,
 		Now: func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) },
 		Version: func(ctx context.Context, path string) (string, error) {
 			b, err := os.ReadFile(path) // 심볼릭 링크도 따라간다
@@ -108,6 +108,50 @@ func newEnv(t *testing.T, packaged string, rel fakeRelease) *env {
 		},
 	}
 	return e
+}
+
+// 한 번도 확인하지 않은 상태에서 데몬이 읽는 값이다. 설치된 버전은 보여 주되 "최신"이라고 하지 않는다.
+func TestReadInfoBeforeAnyCheck(t *testing.T) {
+	e := newEnv(t, "0.2.0", fakeRelease{tag: "v0.2.0"})
+	if err := os.WriteFile(e.u.VersionFile, []byte("0.2.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := e.u.ReadInfo()
+	if got.Installed != "0.2.0" || got.Packaged != "0.2.0" || got.Status != StatusUnchecked || got.Checked != "" || got.Override {
+		t.Fatalf("ReadInfo: %+v", got)
+	}
+	if e.hits["api"] != 0 {
+		t.Fatal("ReadInfo used the network")
+	}
+}
+
+func TestReadInfoIgnoresABadVersionFileAndSeesAnOverride(t *testing.T) {
+	e := newEnv(t, "0.2.0", fakeRelease{tag: "v0.2.0"})
+	if err := os.WriteFile(e.u.VersionFile, []byte("not a version\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.u.ReadInfo(); got.Installed != "" || got.Status != StatusUnchecked {
+		t.Fatalf("bad file: %+v", got)
+	}
+	target := filepath.Join(e.store, "versions", "0.3.0", "deberopa")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("bin 0.3.0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(e.link), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, e.link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(e.u.VersionFile, []byte("0.2.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.u.ReadInfo(); got.Installed != "0.3.0" || got.Packaged != "0.2.0" || !got.Override {
+		t.Fatalf("override: %+v", got)
+	}
 }
 
 func TestCompare(t *testing.T) {

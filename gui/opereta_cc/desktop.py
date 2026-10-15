@@ -352,8 +352,9 @@ class BluetoothPage(Adw.PreferencesPage):
         self._updating = False
         self.note.set_visible(not adapter["available"])
         if not adapter["available"]:
-            self.note.set_title(GLib.markup_escape_text(_("No Bluetooth adapter")))
-            self.note.set_subtitle(GLib.markup_escape_text(_("This computer has no Bluetooth adapter, or the Bluetooth service is not running.")))
+            title, text = logic.bluetooth_unavailable_text(adapter.get("reason", ""))
+            self.note.set_title(GLib.markup_escape_text(title))
+            self.note.set_subtitle(GLib.markup_escape_text(text))
         self.scan_row.set_sensitive(adapter["available"] and adapter["powered"])
         clear_group(self.dev_group, self._rows)
         for d in devices:

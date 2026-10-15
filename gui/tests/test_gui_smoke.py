@@ -137,8 +137,9 @@ ROUTES = {
 
 
 def pump(seconds, until=None):
+    """주 루프를 돌린다. 조건(until)이 있으면 참이 되는 즉시 끝나므로, 부하가 큰 환경에서 흔들리지 않도록 상한을 넉넉히 준다."""
     ctx = GLib.MainContext.default()
-    end = time.time() + seconds
+    end = time.time() + (seconds * 4 if until is not None else seconds)
     while time.time() < end:
         while ctx.pending():
             ctx.iteration(False)
@@ -287,6 +288,29 @@ class SmokeTests(unittest.TestCase):
         self.assertIs(win.sidebar_list.get_selected_row(), win._rows["firewall"])
         win.sidebar_list.select_row(win._rows["services"])
         self.assertTrue(pump(2, until=lambda: win.stack.get_visible_child_name() == "services"))
+        win.destroy()
+
+    def test_sidebar_is_visible_on_first_launch_and_follows_the_window_width(self):
+        from opereta_cc.window import MainWindow
+
+        win = MainWindow(self.app, self.ctx)
+        win.present()
+        pump(1)
+        # 0.6.3 에서는 넓은 창으로 처음 열면 사이드바와 토글이 모두 숨겨져 있었다.
+        self.assertTrue(win.split.get_show_sidebar(), "sidebar hidden on first launch")
+        self.assertFalse(win.split.get_collapsed())
+        self.assertFalse(win.toggle.get_visible())
+        self.assertTrue(win.sidebar_list.get_mapped())
+        # 좁게 줄이면 접히고 토글이 나타난다.
+        win.set_default_size(600, 720)
+        self.assertTrue(pump(5, until=lambda: win.split.get_collapsed()), "did not collapse when narrow")
+        self.assertTrue(win.toggle.get_visible())
+        self.assertFalse(win.split.get_show_sidebar())
+        # 다시 넓히면 사이드바가 돌아온다.
+        win.set_default_size(1040, 720)
+        self.assertTrue(pump(5, until=lambda: not win.split.get_collapsed()), "did not expand when wide")
+        self.assertTrue(pump(2, until=lambda: win.split.get_show_sidebar()))
+        self.assertFalse(win.toggle.get_visible())
         win.destroy()
 
     def test_firewall_page_lists_features_and_rules_and_adds_one(self):

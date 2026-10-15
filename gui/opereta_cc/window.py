@@ -123,7 +123,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.split = Adw.OverlaySplitView(sidebar_width_fraction=0.22, min_sidebar_width=190, max_sidebar_width=260)
         self.split.set_sidebar(side_view)
 
-        self.toggle = Gtk.ToggleButton(icon_name="sidebar-show-symbolic", tooltip_text=_("Show the page list"))
+        # 넓은 창에서는 사이드바가 처음부터 보여야 하므로 단추를 켠 상태로 시작한다(SYNC_CREATE 가
+        # 단추 값을 사이드바에 먼저 써 넣는다). 좁은 창 전환이 접힌 사이드바를 숨긴다.
+        self.toggle = Gtk.ToggleButton(icon_name="sidebar-show-symbolic", tooltip_text=_("Show the page list"), active=True)
         self.toggle.set_visible(False)
         self.toggle.bind_property("active", self.split, "show-sidebar", GObject.BindingFlags.BIDIRECTIONAL | GObject.BindingFlags.SYNC_CREATE)
         self.page_title = Gtk.Label(label="", css_classes=["heading"])
@@ -146,6 +148,7 @@ class MainWindow(Adw.ApplicationWindow):
         # 창이 좁으면 사이드바를 접는다.
         bp = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 720sp"))
         bp.add_setter(self.split, "collapsed", True)
+        bp.add_setter(self.split, "show-sidebar", False)
         bp.add_setter(self.toggle, "visible", True)
         self.add_breakpoint(bp)
 

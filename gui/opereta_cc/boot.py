@@ -95,6 +95,8 @@ class BootPage(Adw.PreferencesPage):
         self.next_group.set_sensitive(d["usable"])
         self.auto_group.set_sensitive(d["usable"])
         self.cleanup_row.set_visible(any(p[0] == "legacy_entries" for p in d["problems"]))
+        # 데몬은 라이브 세션과 UEFI 가 아닌 부팅에서 복구와 정리를 거절하므로 누를 수 없게 한다.
+        self.fix_group.set_sensitive(d["usable"])
 
     # --- 동작 ---
     def _act(self, action, done_text, after=None):

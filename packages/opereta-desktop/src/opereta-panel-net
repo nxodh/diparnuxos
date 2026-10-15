@@ -3,11 +3,14 @@
 # 한 번 실행하고 끝난다. genmon 형식(<txt>, <txtclick>, <tool>)으로 출력한다. 연결 문구는 짧게 한다.
 #   Wi-Fi <SSID>   무선으로 연결됨
 #   Wired          유선으로 연결됨
-#   Offline        기본 경로가 없음
+#   No internet    주소는 있으나 인터넷으로 가는 경로가 없음
+#   Offline        연결이 없음
 # opereta CLI 를 부르므로 데몬이 없으면 "Offline" 이다. 클릭하면 Control Center 의 네트워크 쪽을 연다.
 json="$(opereta --json network 2>/dev/null | tr -d '\n')"
 text="Offline"
 tip="No network connection"
+# 첫 번째 주소(있으면)다. 인터넷에 닿지 않아도 이 컴퓨터가 어떤 망에 붙어 있는지 알려 주기 위해 쓴다.
+addr="$(printf '%s' "$json" | grep -o '"addresses":\["[^"]*"' | head -n 1 | sed -e 's/.*\["//' -e 's/"$//')"
 case "$json" in
     *'"online":true'*)
         ssid="$(printf '%s' "$json" | sed -n 's/.*"connected_ssid":"\([^"]*\)".*/\1/p')"
@@ -17,6 +20,14 @@ case "$json" in
         else
             text="Wired"
             tip="Wired connection"
+        fi
+        [ -n "$addr" ] && tip="$tip ($addr)"
+        ;;
+    *)
+        # 주소는 있으나 인터넷으로 가는 경로가 없다: 링크는 살아 있으므로 "연결 없음"이라고 하지 않는다.
+        if [ -n "$addr" ]; then
+            text="No internet"
+            tip="Connected to the local network ($addr), but there is no route to the internet"
         fi
         ;;
 esac

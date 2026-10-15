@@ -1928,6 +1928,9 @@ msgstr ""
 msgid "NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way."
 msgstr ""
 
+msgid "Deberopa is installed. The version shows after the first check."
+msgstr ""
+
 msgid "Deberopa is not installed."
 msgstr ""
 
@@ -1941,6 +1944,9 @@ msgid "Updated to version %s."
 msgstr ""
 
 msgid "Version %s. This is the latest release."
+msgstr ""
+
+msgid "Version %s. Not checked for updates yet."
 msgstr ""
 
 msgid "Version %s."
@@ -2183,6 +2189,39 @@ msgstr ""
 msgid "Devices"
 msgstr ""
 
+msgid "This computer has no Bluetooth adapter."
+msgstr ""
+
+msgid "Bluetooth is switched off"
+msgstr ""
+
+msgid "A hardware switch or key has turned Bluetooth off. Turn it on, then come back."
+msgstr ""
+
+msgid "Bluetooth is blocked"
+msgstr ""
+
+msgid "Bluetooth is blocked by software, for example by airplane mode. Unblock it with 'rfkill unblock bluetooth'."
+msgstr ""
+
+msgid "The Bluetooth service is not running"
+msgstr ""
+
+msgid "An adapter exists, but the Bluetooth service has stopped. Start it on the Services page."
+msgstr ""
+
+msgid "Bluetooth did not answer"
+msgstr ""
+
+msgid "The Bluetooth service took too long to respond. Try again in a moment."
+msgstr ""
+
+msgid "Bluetooth tools are missing"
+msgstr ""
+
+msgid "The bluetoothctl command is not installed on this system."
+msgstr ""
+
 msgid "No Bluetooth adapter"
 msgstr ""
 
@@ -2324,6 +2363,9 @@ msgstr ""
 msgid "GPU acceleration needs the CUDA runtime from NVIDIA. Until it is installed, models run on the CPU."
 msgstr ""
 
+msgid "Running from the installation image. Startup settings are available after Opereta is installed."
+msgstr ""
+
 msgid "Boot information is not available."
 msgstr ""
 
@@ -2361,6 +2403,9 @@ msgid "CUDA runtime missing"
 msgstr ""
 
 msgid "%d things need attention"
+msgstr ""
+
+msgid "Running from the installation image"
 msgstr ""
 
 msgid "Boot entries look fine"

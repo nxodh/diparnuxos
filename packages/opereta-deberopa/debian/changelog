@@ -1,3 +1,9 @@
+opereta-deberopa (0.6.4) trixie; urgency=medium
+
+  * /usr/share/opereta/deberopa-version 에 포함된 Deberopa 버전을 적어 둔다(데몬이 실행 파일을 실행하지 않고 버전을 알기 위함).
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 18:00:00 +0900
+
 opereta-deberopa (0.6.3) trixie; urgency=medium
 
   * 버전을 0.6.3 에 맞춘다. 이 패키지의 내용(Deberopa 0.2.0)은 바뀌지 않았다.

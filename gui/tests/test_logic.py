@@ -387,6 +387,16 @@ class DeberopaLogicTests(unittest.TestCase):
         self.assertFalse(d["can_update"])
         self.assertTrue(d["auto"])
 
+    def test_unchecked_is_not_reported_as_the_latest_or_as_missing(self):
+        d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.2.0", "packaged": "0.2.0", "status": "unchecked"}})
+        self.assertIn("0.2.0", d["text"])
+        self.assertNotIn("latest", d["text"])
+        self.assertTrue(d["can_check"])
+        self.assertFalse(d["can_update"])
+        unknown = logic.describe_deberopa({"available": True, "deberopa": {"status": "unchecked"}})
+        self.assertNotIn("not installed", unknown["text"])
+        self.assertTrue(unknown["can_check"])
+
     def test_update_available_can_be_installed(self):
         d = logic.describe_deberopa({"available": True, "deberopa": {"installed": "0.2.0", "latest": "0.3.0", "status": "update_available"}})
         self.assertTrue(d["can_update"])
@@ -454,6 +464,19 @@ class DesktopLogicTests(unittest.TestCase):
         self.assertEqual(d["problems"][0][0], "not_uefi")
         self.assertFalse(logic.describe_boot({"boot": {"uefi": True, "available": False}})["usable"])
 
+    def test_live_session_is_not_reported_as_a_boot_problem(self):
+        # 설치 전 ISO 에서는 부팅 항목이 없고 ESP 도 마운트되지 않지만 이상이 아니다.
+        info = {"live": True, "boot": {"available": True, "uefi": True, "current": "0000", "entries": [], "order": [],
+                                        "problems": [{"code": "no_entry", "message": "x"}, {"code": "esp_not_mounted", "message": "y"}]}}
+        d = logic.describe_boot(info)
+        self.assertTrue(d["live"])
+        self.assertFalse(d["usable"])
+        self.assertEqual(d["problems"], [])
+        self.assertIn("installation image", d["summary"])
+        cards = {c["key"]: c for c in logic.home_cards(self.GPU_STATUS, info)}
+        self.assertEqual(cards["boot"]["level"], logic.INFO)
+        self.assertNotIn("attention", cards["boot"]["text"])
+
     def test_home_cards(self):
         cards = {c["key"]: c for c in logic.home_cards(self.GPU_STATUS, dict(self.BOOT, cuda_runtime={"installed": False, "reason": "not_installed"}))}
         self.assertEqual(cards["gpu"]["level"], logic.WARN)
@@ -462,6 +485,14 @@ class DesktopLogicTests(unittest.TestCase):
         self.assertEqual(cards["server"]["page"], "server")
         # 시작 항목의 "이전 이름 남음"은 주의 사항 수에 넣지 않는다
         self.assertIn("1", cards["boot"]["text"])
+
+
+class BluetoothLogicTests(unittest.TestCase):
+    def test_each_reason_has_its_own_text(self):
+        titles = {logic.bluetooth_unavailable_text(r)[0] for r in ("no_adapter", "rfkill_hard", "rfkill_soft", "service_stopped", "timeout", "no_tool")}
+        self.assertEqual(len(titles), 6)
+        # 모르는 이유는 일반 안내로 떨어진다.
+        self.assertEqual(logic.bluetooth_unavailable_text("")[0], logic.bluetooth_unavailable_text("whatever")[0])
 
 
 class NetworkLogicTests(unittest.TestCase):

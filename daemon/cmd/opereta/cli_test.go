@@ -157,6 +157,18 @@ func TestStatusJSONIsIndentedAndKeepsAPIBody(t *testing.T) {
 	}
 }
 
+// --json 은 원래 명령 앞에 두지만 뒤에 붙여도 같은 결과여야 한다(`opereta boot status --json`).
+func TestTrailingJSONFlagIsAccepted(t *testing.T) {
+	f := newFakeDaemon(t)
+	f.on("GET /v1/status", 200, statusNoGPU)
+	res := runCLI(t, f, "status", "--json")
+	wantCode(t, res, exitOK)
+	var v map[string]any
+	if err := json.Unmarshal([]byte(res.stdout), &v); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, res.stdout)
+	}
+}
+
 func TestStatusUnreachableExit3(t *testing.T) {
 	res := runCLI(t, nil, "--socket", filepath.Join(t.TempDir(), "absent.sock"), "status")
 	wantCode(t, res, exitUnreachable)

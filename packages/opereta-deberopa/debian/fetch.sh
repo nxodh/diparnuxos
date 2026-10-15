@@ -43,4 +43,6 @@ if [ "$(uname -m)" = x86_64 ]; then
     got="$("$out/deberopa" --version)"
     [ "$got" = "$DEBEROPA_VERSION" ] || { echo "fetch-deberopa: deberopa reports '$got', expected '$DEBEROPA_VERSION'" >&2; exit 1; }
 fi
+# 데몬은 실행 파일을 실행하지 않고 이 표식으로 설치된 버전을 안다(패키지 버전은 OS 버전이라 다르다).
+printf '%s\n' "$DEBEROPA_VERSION" > "$out/version"
 echo "fetch-deberopa: deberopa $DEBEROPA_VERSION verified"

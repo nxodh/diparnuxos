@@ -237,6 +237,10 @@ func (c *Controller) Info(ctx context.Context) (Info, error) {
 	if c.Runner != nil {
 		bc := &boot.Controller{Runner: c.Runner, EFIDir: c.BootEFIDir, ESPDir: c.BootESPDir, StateDir: c.BootStateDir}
 		out.Boot = bc.Status(ctx)
+		// 라이브 세션은 아직 설치된 시스템이 아니다. 부팅 항목이 없는 것은 문제가 아니므로 진단을 비운다.
+		if out.Live {
+			out.Boot.Problems = nil
+		}
 	}
 	if c.Runner != nil {
 		eng := &update.Engine{Cfg: update.Config{NvidiaConf: c.NvidiaConf}, Run: c.Runner}

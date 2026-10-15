@@ -234,6 +234,7 @@ check_package opereta-control-center "$OPERETA_VERSION"
 # 0.5.3: 고정 버전의 Deberopa 실행 파일과 에이전트용 스킬이 들어 있다.
 check_package opereta-deberopa "$OPERETA_VERSION"
 require_path 'squashfs-root/usr/bin/deberopa$' 'Deberopa executable'
+require_path 'squashfs-root/usr/share/opereta/deberopa-version$' 'Deberopa version marker'
 require_path 'squashfs-root/usr/share/opereta/skills/opereta/SKILL[.]md$' 'Opereta skill for coding agents'
 for pkg in python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0; do
     grep -qx "$pkg" "$WORK/installed" || check_fail "$pkg is not installed"

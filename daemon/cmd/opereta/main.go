@@ -118,6 +118,12 @@ func execute(e runEnv, args []string) int {
 		return exitUsage
 	}
 
+	// `opereta boot status --json` 처럼 명령 뒤에 붙인 --json 도 받는다(전역 옵션은 원래 명령 앞에 둔다).
+	for len(rest) > 1 && (rest[len(rest)-1] == "--json" || rest[len(rest)-1] == "-json") {
+		*asJSON = true
+		rest = rest[:len(rest)-1]
+	}
+
 	sock := *socket
 	if sock == "" {
 		sock = e.getenv(socketEnvVar)

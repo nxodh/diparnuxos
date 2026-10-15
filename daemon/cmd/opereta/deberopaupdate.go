@@ -69,6 +69,8 @@ func (c *cli) printDeberopa(d agentupdate.Info) {
 	switch {
 	case d.Installed != "":
 		fmt.Fprintf(w, "deberopa: %s\n", d.Installed)
+	case d.Status == agentupdate.StatusUnchecked:
+		fmt.Fprintln(w, "deberopa: installed (the version shows after the first check)")
 	default:
 		fmt.Fprintln(w, "deberopa: not installed")
 	}
@@ -84,6 +86,8 @@ func (c *cli) printDeberopa(d agentupdate.Info) {
 		fmt.Fprintln(w, "an update is available: opereta deberopa update")
 	case agentupdate.StatusError:
 		fmt.Fprintf(w, "last check failed: %s (%s)\n", d.Message, d.Code)
+	case agentupdate.StatusUnchecked:
+		fmt.Fprintln(w, "not checked for updates yet: opereta deberopa check")
 	}
 	if d.Checked != "" {
 		fmt.Fprintf(w, "last check: %s\n", d.Checked)

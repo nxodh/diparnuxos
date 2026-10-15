@@ -45,6 +45,22 @@ PY
 out="$(sh $D/opereta-panel-net)"
 printf "%s\n" "$out" | grep -qx "<txt>Offline</txt>" || { echo "FAIL: panel script output: $out" >&2; exit 1; }
 printf "%s\n" "$out" | grep -q "<txtclick>opereta-control-center --page network</txtclick>" || { echo "FAIL: panel click action" >&2; exit 1; }
+# 주소는 있으나 기본 경로가 없으면 "연결 없음"이 아니라 "No internet" 이다. 가짜 opereta 명령으로 확인한다.
+mkdir -p /tmp/fakebin
+cat >/tmp/fakebin/opereta <<"FAKE"
+#!/bin/sh
+case "${FAKE_NET:-}" in
+    lan) printf "%s\n" "{\"online\":false,\"interfaces\":[{\"name\":\"enp3s0\",\"kind\":\"ethernet\",\"state\":\"up\",\"addresses\":[\"192.168.0.23/24\"]}],\"wifi\":{\"available\":false}}" ;;
+    wired) printf "%s\n" "{\"online\":true,\"interfaces\":[{\"name\":\"enp3s0\",\"kind\":\"ethernet\",\"state\":\"up\",\"addresses\":[\"192.168.0.23/24\"],\"gateway\":\"192.168.0.1\"}],\"wifi\":{\"available\":false}}" ;;
+    *) exit 1 ;;
+esac
+FAKE
+chmod +x /tmp/fakebin/opereta
+out="$(FAKE_NET=lan PATH=/tmp/fakebin:$PATH sh $D/opereta-panel-net)"
+printf "%s\n" "$out" | grep -qx "<txt>No internet</txt>" || { echo "FAIL: panel (lan only): $out" >&2; exit 1; }
+printf "%s\n" "$out" | grep -q "192.168.0.23/24" || { echo "FAIL: panel tooltip lacks the address: $out" >&2; exit 1; }
+out="$(FAKE_NET=wired PATH=/tmp/fakebin:$PATH sh $D/opereta-panel-net)"
+printf "%s\n" "$out" | grep -qx "<txt>Wired</txt>" || { echo "FAIL: panel (wired): $out" >&2; exit 1; }
 echo "ok: panel script"
 
 echo "== 2. build and install packages"

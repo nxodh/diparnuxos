@@ -1,9 +1,10 @@
 # Opereta 독 테마(어두운 쪽). 설치 경로는 /usr/share/plank/themes/Opereta-Dark/dock.theme 이다. 색은 R;;G;;B;;A(0~255)다.
+# 아이콘이 막대 안쪽에 들어가도록 위아래 여백을 양수로 둔다(음수면 아이콘이 막대 위로 튀어나온다).
 [PlankDockTheme]
-HorizPadding=6
-TopPadding=-4
-BottomPadding=4
-ItemPadding=6
+HorizPadding=10
+TopPadding=8
+BottomPadding=8
+ItemPadding=4
 IndicatorSize=5
 IconShadowSize=0
 UrgentBounceHeight=1.6
@@ -25,8 +26,8 @@ CascadeHide=true
 BadgeColor=235;;235;;240;;255
 
 [PlankDrawingTheme]
-TopRoundness=18
-BottomRoundness=18
+TopRoundness=20
+BottomRoundness=20
 LineWidth=1
 OuterStrokeColor=70;;70;;74;;230
 FillStartColor=44;;44;;46;;200

@@ -58,6 +58,20 @@ class ParseTests(unittest.TestCase):
         self.assertFalse(sysutil.valid_mac("11:22:33:44:55"))
         self.assertFalse(sysutil.valid_mac("11:22:33:44:55:6;"))
 
+    def test_bluetooth_unavailable_reasons(self):
+        c = sysutil.classify_bt_unavailable
+        self.assertEqual(c(127, "", ""), "no_tool")
+        self.assertEqual(c(124, "", ""), "timeout")
+        blocked = "0: hci0: Bluetooth\n\tSoft blocked: no\n\tHard blocked: yes\n"
+        self.assertEqual(c(1, blocked, "active"), "rfkill_hard")
+        soft = "0: hci0: Bluetooth\n\tSoft blocked: yes\n\tHard blocked: no\n"
+        self.assertEqual(c(1, soft, "active"), "rfkill_soft")
+        free = "0: hci0: Bluetooth\n\tSoft blocked: no\n\tHard blocked: no\n"
+        self.assertEqual(c(1, free, "inactive\n"), "service_stopped")
+        self.assertEqual(c(1, free, "active\n"), "no_adapter")
+        # 어댑터가 하나도 없으면 rfkill 이 아무것도 나열하지 않는다.
+        self.assertEqual(c(1, "", "inactive"), "no_adapter")
+
     def test_bluetooth_command_rejects_a_bad_address(self):
         self.assertFalse(sysutil.bluetooth_command("connect", "11:22:33:44:55:zz"))
 

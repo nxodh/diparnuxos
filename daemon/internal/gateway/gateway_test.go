@@ -428,6 +428,10 @@ func TestServerSentEventsAreForwardedAsTheyArrive(t *testing.T) {
 	release := make(chan struct{})
 	be := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
+		// 실제 모델 서버는 프롬프트를 처리한 뒤에 첫 토큰을 낸다. 여기서 바로 답하면 프록시의 전송 고루틴이
+		// 요청 본문의 끝을 확인하기 전에 첫 이벤트가 흘러가 앞쪽 요청 본문이 닫히고, 드물게(약 0.2%)
+		// 백엔드 연결이 끊겨 스트림이 잘린다. 제품 동작이 아니라 시험 서버가 너무 빠른 것이므로 잠시 기다린다.
+		time.Sleep(50 * time.Millisecond)
 		w.Header().Set("Content-Type", "text/event-stream")
 		fl := w.(http.Flusher)
 		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n")

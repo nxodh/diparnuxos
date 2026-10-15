@@ -184,8 +184,30 @@ def parse_bt_info(text):
     return info
 
 
+def classify_bt_unavailable(show_rc, rfkill_out, service_state):
+    """어댑터를 읽지 못한 이유를 코드로 돌려준다: no_tool, timeout, rfkill_hard, rfkill_soft, no_adapter, service_stopped.
+
+    show_rc 는 `bluetoothctl show` 의 종료 코드, rfkill_out 은 `rfkill list bluetooth` 출력, service_state 는
+    `systemctl is-active bluetooth` 의 출력이다. 어댑터가 하나도 없으면 rfkill 도 아무것도 나열하지 않는다.
+    """
+    if show_rc == 127:
+        return "no_tool"
+    if show_rc == 124:
+        return "timeout"
+    low = (rfkill_out or "").lower()
+    if "hard blocked: yes" in low:
+        return "rfkill_hard"
+    if "soft blocked: yes" in low:
+        return "rfkill_soft"
+    if not low.strip():
+        return "no_adapter"
+    if (service_state or "").strip() != "active":
+        return "service_stopped"
+    return "no_adapter"
+
+
 def bluetooth_state():
-    """(어댑터 정보, 기기 목록) 을 돌려준다. 기기마다 paired, connected 를 채운다."""
+    """(어댑터 정보, 기기 목록) 을 돌려준다. 기기마다 paired, connected 를 채운다. 어댑터를 못 읽으면 adapter["reason"] 에 이유가 있다."""
     rc, out = run(["bluetoothctl", "show"], timeout=8)
     adapter = parse_bt_show(out) if rc == 0 else {"available": False, "powered": False, "discovering": False, "name": ""}
     devices = []
@@ -195,6 +217,10 @@ def bluetooth_state():
             _rc, info = run(["bluetoothctl", "info", d["mac"]], timeout=8)
             d.update(parse_bt_info(info))
             devices.append(d)
+    else:
+        _rc, rf = run(["rfkill", "list", "bluetooth"], timeout=4)
+        _rc, svc = run(["systemctl", "is-active", "bluetooth"], timeout=4)
+        adapter["reason"] = classify_bt_unavailable(rc, rf, svc)
     return adapter, devices
 
 

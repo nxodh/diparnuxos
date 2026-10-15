@@ -1,3 +1,9 @@
+opereta-nvidia (0.6.4) trixie; urgency=medium
+
+  * 버전을 0.6.4 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다.
+
+ -- Opereta Developers <noreply@users.noreply.github.com>  Thu, 15 Oct 2026 18:00:00 +0900
+
 opereta-nvidia (0.6.3) trixie; urgency=medium
 
   * 버전을 0.6.3 에 맞춘다. 이 패키지의 내용은 바뀌지 않았다.

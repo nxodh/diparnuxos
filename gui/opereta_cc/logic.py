@@ -623,6 +623,10 @@ def describe_deberopa(info):
     # 갱신과 같은 헬퍼 유닛을 쓰므로 OS 갱신이 도는 동안과 라이브 세션에서는 막는다.
     usable = bool(info.get("available")) and not busy and status != "not_installed"
     out["can_check"] = usable
+    if status == "unchecked" and not installed:
+        # 설치는 되어 있지만 버전 표식이 없는 이미지다. 설치되지 않았다고 말하면 안 된다.
+        out["text"] = _("Deberopa is installed. The version shows after the first check.")
+        return out
     if status == "not_installed" or not installed:
         out["text"] = _("Deberopa is not installed.")
         return out
@@ -637,6 +641,8 @@ def describe_deberopa(info):
         out["can_update"] = usable and bool(latest) and latest != installed
     elif status == "updated":
         out["text"] = _("Updated to version %s.") % installed
+    elif status == "unchecked":
+        out["text"] = _("Version %s. Not checked for updates yet.") % installed
     else:
         out["text"] = _("Version %s. This is the latest release.") % installed if latest and latest == installed else _("Version %s.") % installed
     if not info.get("available"):
@@ -663,8 +669,14 @@ def describe_boot(info):
     돌려주는 사전: usable, summary, entries(번호, 이름, 지금 부팅한 항목인지), problems(코드, 문장), bitlocker, auto, next.
     """
     out = {"usable": False, "summary": _("Boot information is not available."), "entries": [], "problems": [],
-           "bitlocker": False, "auto": False, "next": ""}
+           "bitlocker": False, "auto": False, "next": "", "live": False}
     b = (info or {}).get("boot") or {}
+    if (info or {}).get("live"):
+        # 설치 전 이미지로 실행 중이다. 부팅 항목이 없거나 ESP 가 마운트되지 않은 것은 문제가 아니며,
+        # 데몬도 이 상태에서는 복구와 정리를 거절하므로 안내만 보여 준다.
+        out["live"] = True
+        out["summary"] = _("Running from the installation image. Startup settings are available after Opereta is installed.")
+        return out
     if not b:
         return out
     if not b.get("uefi"):
@@ -688,6 +700,19 @@ def describe_boot(info):
     out["auto"] = bool(b.get("auto"))
     out["next"] = names.get(b.get("next") or "", "")
     return out
+
+
+def bluetooth_unavailable_text(reason):
+    """블루투스 어댑터를 쓸 수 없는 이유를 (제목, 설명) 으로 바꾼다. 알 수 없는 이유는 일반 안내로 둔다."""
+    texts = {
+        "no_adapter": (_("No Bluetooth adapter"), _("This computer has no Bluetooth adapter.")),
+        "rfkill_hard": (_("Bluetooth is switched off"), _("A hardware switch or key has turned Bluetooth off. Turn it on, then come back.")),
+        "rfkill_soft": (_("Bluetooth is blocked"), _("Bluetooth is blocked by software, for example by airplane mode. Unblock it with 'rfkill unblock bluetooth'.")),
+        "service_stopped": (_("The Bluetooth service is not running"), _("An adapter exists, but the Bluetooth service has stopped. Start it on the Services page.")),
+        "timeout": (_("Bluetooth did not answer"), _("The Bluetooth service took too long to respond. Try again in a moment.")),
+        "no_tool": (_("Bluetooth tools are missing"), _("The bluetoothctl command is not installed on this system.")),
+    }
+    return texts.get(reason) or (_("No Bluetooth adapter"), _("This computer has no Bluetooth adapter, or the Bluetooth service is not running."))
 
 
 def boot_problem_text(code, fallback=""):
@@ -722,7 +747,9 @@ def home_cards(status, update_info):
     upd = describe_update(update_info or {})
     cards.append({"key": "updates", "title": _("Updates"), "text": upd["title"], "level": upd["level"], "page": "system"})
     boot = describe_boot(update_info or {})
-    if boot["usable"] or boot["problems"]:
+    if boot["live"]:
+        cards.append({"key": "boot", "title": _("Startup"), "text": _("Running from the installation image"), "level": INFO, "page": "boot"})
+    elif boot["usable"] or boot["problems"]:
         n = len([p for p in boot["problems"] if p[0] not in ("legacy_entries",)])
         cards.append({"key": "boot", "title": _("Startup"),
                       "text": (_("%d things need attention") % n) if n else _("Boot entries look fine"),

@@ -1751,6 +1751,9 @@ msgstr "계속하기 전에 라이선스를 읽어 보세요: %s"
 msgid "NVIDIA's license for GeForce products does not allow datacenter deployment. Check NVIDIA's terms before you use it that way."
 msgstr "NVIDIA의 GeForce 제품 라이선스는 데이터센터 배치를 허용하지 않습니다. 그런 용도로 쓰기 전에 NVIDIA의 약관을 확인하세요."
 
+msgid "Deberopa is installed. The version shows after the first check."
+msgstr "Deberopa 가 설치되어 있습니다. 버전은 처음 확인한 뒤에 표시됩니다."
+
 msgid "Deberopa is not installed."
 msgstr "Deberopa 가 설치되어 있지 않습니다."
 
@@ -1765,6 +1768,9 @@ msgstr "버전 %s 으로 갱신했습니다."
 
 msgid "Version %s. This is the latest release."
 msgstr "버전 %s. 최신 릴리스입니다."
+
+msgid "Version %s. Not checked for updates yet."
+msgstr "버전 %s. 아직 업데이트를 확인하지 않았습니다."
 
 msgid "Version %s."
 msgstr "버전 %s."
@@ -2006,6 +2012,39 @@ msgstr "검색"
 msgid "Devices"
 msgstr "기기"
 
+msgid "This computer has no Bluetooth adapter."
+msgstr "이 컴퓨터에는 블루투스 어댑터가 없습니다."
+
+msgid "Bluetooth is switched off"
+msgstr "블루투스가 꺼져 있습니다"
+
+msgid "A hardware switch or key has turned Bluetooth off. Turn it on, then come back."
+msgstr "하드웨어 스위치나 키가 블루투스를 껐습니다. 켠 뒤에 다시 확인하세요."
+
+msgid "Bluetooth is blocked"
+msgstr "블루투스가 차단되어 있습니다"
+
+msgid "Bluetooth is blocked by software, for example by airplane mode. Unblock it with 'rfkill unblock bluetooth'."
+msgstr "비행기 모드처럼 소프트웨어가 블루투스를 막고 있습니다. 'rfkill unblock bluetooth' 로 풀 수 있습니다."
+
+msgid "The Bluetooth service is not running"
+msgstr "블루투스 서비스가 실행 중이 아닙니다"
+
+msgid "An adapter exists, but the Bluetooth service has stopped. Start it on the Services page."
+msgstr "어댑터는 있으나 블루투스 서비스가 멈춰 있습니다. 서비스 쪽에서 시작하세요."
+
+msgid "Bluetooth did not answer"
+msgstr "블루투스가 응답하지 않습니다"
+
+msgid "The Bluetooth service took too long to respond. Try again in a moment."
+msgstr "블루투스 서비스의 응답이 너무 늦습니다. 잠시 뒤에 다시 시도하세요."
+
+msgid "Bluetooth tools are missing"
+msgstr "블루투스 도구가 없습니다"
+
+msgid "The bluetoothctl command is not installed on this system."
+msgstr "이 시스템에 bluetoothctl 명령이 없습니다."
+
 msgid "No Bluetooth adapter"
 msgstr "블루투스 어댑터 없음"
 
@@ -2147,6 +2186,9 @@ msgstr "NVIDIA 의 CUDA 런타임은 Opereta 에 포함되어 있지 않고 이 
 msgid "GPU acceleration needs the CUDA runtime from NVIDIA. Until it is installed, models run on the CPU."
 msgstr "GPU 가속에는 NVIDIA 의 CUDA 런타임이 필요합니다. 설치하기 전에는 모델이 CPU 로 실행됩니다."
 
+msgid "Running from the installation image. Startup settings are available after Opereta is installed."
+msgstr "설치 전 이미지로 실행 중입니다. 시작 설정은 Opereta 를 설치한 뒤에 사용할 수 있습니다."
+
 msgid "Boot information is not available."
 msgstr "부팅 정보를 볼 수 없습니다."
 
@@ -2185,6 +2227,9 @@ msgstr "CUDA 런타임 없음"
 
 msgid "%d things need attention"
 msgstr "주의가 필요한 것 %d개"
+
+msgid "Running from the installation image"
+msgstr "설치 전 이미지로 실행 중"
 
 msgid "Boot entries look fine"
 msgstr "부팅 항목이 정상입니다"
